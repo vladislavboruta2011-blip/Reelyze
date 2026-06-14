@@ -1,0 +1,3557 @@
+import OpenAI from "openai";
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY as string,
+});
+
+export type ImproveHookResult = {
+  status: "good" | "improved" | "error";
+  improvedHook: string;
+  reason: string;
+};
+
+export async function POST(req: Request): Promise<Response> {
+  try {
+    const body: unknown = await req.json();
+
+    if (
+      !body ||
+      typeof body !== "object" ||
+      !("script" in body) ||
+      typeof (body as Record<string, unknown>).script !== "string"
+    ) {
+      return Response.json(
+        {
+          status: "error",
+          improvedHook: "AI hook improvement is unavailable right now.",
+          reason: "No script was provided.",
+        } satisfies ImproveHookResult,
+        { status: 400 }
+      );
+    }
+
+const script = (body as { script: string; title?: string }).script;
+    const title = typeof (body as { script: string; title?: string }).title === "string"
+      ? (body as { script: string; title?: string }).title!.trim()
+      : "";
+
+    const systemPrompt = `You are a YouTube Shorts hook strategist and retention editor.
+
+FIRST STEP — ANCHOR EXTRACTION (mandatory before writing anything):
+Scan the full script body (every line after the first) and identify the single strongest anchor material. Output this as a field called "anchorMaterial" in your JSON response. You must commit to it before generating hooks.
+
+Anchor priority order (highest first):
+1. exactNumberWithUnit — a specific number with a measurement unit (miles per hour, feet, percent, seconds, degrees, billion, etc.). If found, this is ALWAYS the anchor. No other anchor type can outrank a specific number with a unit.
+2. concreteVisualDetail — a specific physical scene that creates a gap ("food still on the table", "cargo untouched", "every person gone")
+3. consequence — a specific personal or high-stakes outcome the script eventually reveals
+4. contradiction — a reversal of an assumption, ideally paired with a supporting body detail (NOT just "most people think X")
+5. statusIdentityDetail — a specific identity or status implication from the script
+6. finalPayoff — the destination the script is building toward, stated concretely
+
+CRITICAL NUMBER RULE: If the script body contains any specific number with a unit (e.g. "over 1,000 miles per hour", "20 feet", "6 percent", "30 seconds"), the anchorMaterial MUST be type exactNumberWithUnit, and the improvedHook MUST include that exact number and unit. This is non-negotiable. A hook that uses the correct strategy but drops the number fails this rule.
+
+CRITICAL FACT PRESERVATION RULE: Do not exaggerate the factual scope of the script.
+- If the script says "today", the hook must say "today" — never "ever" or "always"
+- If the script says "could", the hook must not say "will"
+- If the script says "one moment", the hook must not say "everything forever"
+- A stronger hook means more specific — not more exaggerated
+
+HOOK GENERATION RULES:
+- Under 22 words. Natural. Easy to say in one breath.
+- The improvedHook MUST use the anchorMaterial you identified. If your anchorMaterial is exactNumberWithUnit, the hook must contain that number and unit.
+- Never start with "What if" unless the script is genuinely hypothetical and a question is clearly stronger than a statement for this specific content.
+- Never use: "shocking", "insane", "crazy", "think again", "changes everything", "you won't believe", "the secret to".
+- Do not invent facts not in the script. Do not change who does what, what the scope is, or what the time range is.
+- If the hook is already strong (hookScore >= 80), do not force a worse rewrite — return the original.
+- NEVER convert "Imagine X" into "What if X".
+- NEVER return a rewrite sharing 80%+ of words with the original hook.
+- NEVER rewrite a strong hook (hookScore >= 75) unless the rewrite is clearly stronger by using a specific detail, number, or consequence the original missed.
+- Prefer a concrete statement hook over a question hook when the consequence is clearer than the mystery.
+
+HOOK TYPE RECOGNITION — score these as STRONG even without a question mark:
+- Numeric/stat hook: specific number + named subject + unusual scenario → 72–85
+- Scenario hook: concrete imagined situation with personal stakes → 75–88
+- Visual mystery hook: specific physical detail with irresistible gap → 78–88
+- Consequence hook: strongest outcome stated immediately → 75–85
+- Contradiction hook: reversal of assumption with specific anchor → 72–85
+
+GOOD HOOK EXAMPLES:
+consequence: "Bad sleep does not just make you tired — it quietly ruins the next day before it starts."
+specificity + number: "If Earth stopped, your body would still be moving at over 1,000 miles per hour."
+contradiction + detail: "A cheap watch tells time too — Rolex sells what wearing it says about you."
+mystery + visual: "A ship was found drifting in the ocean — food still on the table, every person gone."
+scenario + personal: "Imagine someone was about to play back everything you said today — and millions could hear it."
+
+BAD HOOK EXAMPLES — never produce these:
+"Most people think stopping Earth is the worst part." (drops the 1,000 mph number — fails anchor rule)
+"Most people think a Rolex is just a watch — but it sells status." (too generic, misses "cheap watch tells time too" and "what it says about you")
+"One moment can become permanent — and millions could hear every private joke you've ever said." (changes "today" to "ever" — fails fact preservation rule)
+"What if the secret to feeling better lies in your sleep?" (vague, no anchor)
+
+REASON QUALITY — must be specific to THIS script:
+Bad: "The improved hook creates curiosity."
+Good: "The original hook announces the topic without giving viewers a reason to stay. This version leads with the most concrete detail in the script — your body would still be moving at over 1,000 miles per hour — which makes the danger immediate and specific."
+
+Return ONLY valid JSON, no markdown, no code fences.
+
+Return exactly this shape:
+{
+  "hookScore": <number 0-100>,
+  "hookLabel": "Weak" | "Average" | "Good" | "Strong",
+  "anchorMaterial": {
+    "type": "exactNumberWithUnit" | "concreteVisualDetail" | "consequence" | "contradiction" | "statusIdentityDetail" | "finalPayoff",
+    "value": "<the exact text extracted from the script body — copy it verbatim>",
+    "sourceLine": "<the sentence it came from>"
+  },
+  "primaryWeakness": "<one of: filler-intro | obvious-statement | too-generic | no-curiosity-gap | no-contradiction | no-stakes | answer-given-too-early | weak-payoff-alignment | already-strong>",
+  "rewriteStrategy": "<strategy used>",
+  "originalHook": "<first line of the script>",
+  "diagnosis": "<one sentence: what the hook fails to do, or confirm it already works>",
+  "improvedHook": "<the single best rewrite, or the original if already strong>",
+  "reason": "<specific explanation tied to THIS script — name the anchor material and why the original missed it>",
+  "hookOptions": [
+    { "type": "<strategy>", "text": "<hook>", "whyItWorks": "<one sentence specific to this script>" },
+    { "type": "<strategy>", "text": "<hook>", "whyItWorks": "<one sentence specific to this script>" },
+    { "type": "<strategy>", "text": "<hook>", "whyItWorks": "<one sentence specific to this script>" }
+  ]
+}
+
+NEVER use the double-quote character inside any JSON string value. Rephrase to avoid it.`;
+
+    const userPrompt = `Analyze this YouTube Shorts script and improve the hook.
+${title ? `\nVideo title / topic: "${title}"\n` : ""}
+Script:
+${script}
+
+Step 1 — ANCHOR EXTRACTION (do this before anything else):
+Read the entire script body (every line after the first line). Find the single strongest piece of hook material using the priority order in the system prompt. If there is any specific number with a unit anywhere in the script body, that is the anchor — period. Write down the exact text.
+
+Step 2 — Score the current hook against the anchor:
+Does the first line already use this anchor material? If not, that is the primary weakness.
+
+Step 3 — Generate 3 hook options that each use the anchor you found:
+- Option A: lead with the anchor directly (number, visual detail, or consequence)
+- Option B: use the anchor inside a contradiction or reversal structure
+- Option C: use the anchor with a personal stakes or identity framing
+
+All 3 options must include the anchor value from Step 1. An option that does not reference the anchor fails.
+
+Step 4 — Pick the best one as improvedHook. If the anchor is a specific number with a unit, the improvedHook must contain that number and unit.
+
+Step 5 — Write the reason. It must name the anchor material and explain why the original first line failed to use it.
+
+Return only valid JSON matching the exact schema.`;
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      temperature: 0.3,
+      max_tokens: 900,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+    });
+
+    const raw = response.choices[0]?.message?.content?.trim() ?? "";
+
+    const result = parseHookResponse(raw, script);
+
+    return Response.json(result);
+  } catch (error) {
+    console.error("[improve] error:", error);
+    return Response.json(
+      {
+        status: "error",
+        improvedHook: "AI hook improvement is unavailable right now.",
+        reason: "Reelyze could not generate a custom hook improvement for this script.",
+      } satisfies ImproveHookResult,
+      { status: 500 }
+    );
+  }
+}
+
+// ── Banned openers: any improved hook starting with these is rejected ────────
+const BANNED_HOOK_OPENERS = [
+  "today i will",
+  "today i want",
+  "in this video",
+  "in today's video",
+  "i will explain",
+  "i want to explain",
+  "let's talk about",
+  "let me explain",
+  "this video is about",
+  "welcome back",
+  "hey guys",
+  "so today",
+];
+
+// ── Quality signals: a good hook must contain at least one ──────────────────
+const HOOK_QUALITY_SIGNALS = [
+  // contrast / reversal
+  " but ", "however", "not what", "not really", "is not ", "does not ",
+  "most people think", "most creators think", "everyone thinks",
+  // consequence / stakes
+  " cost", " lost", " destroy", " fail", " ruin", "before it", "by the time",
+  " one mistake", " one decision", "too late", "already ",
+  // mystery / withhold
+  "until ", "except ", "— ", " — ", "one detail", "something was",
+  "nobody knew", "no one knew", "then they found",
+  // specificity / concrete
+  "$ ", "million", "billion", "seconds", "days", "weeks", "years",
+  // curiosity gap
+  "?", "why does", "why did", "how did", "what really",
+  // status / identity
+  "who you are", "how people see", "what you are",
+];
+
+function isTooSimilar(a: string, b: string): boolean {
+  const normalize = (s: string) =>
+    s.toLowerCase().replace(/[^a-z0-9\s]/g, "").replace(/\s+/g, " ").trim();
+  const na = normalize(a);
+  const nb = normalize(b);
+  if (na === nb) return true;
+  // Check word overlap — if 80%+ of words in the improved hook exist in the original, reject
+  const wordsA = new Set(na.split(" "));
+  const wordsB = nb.split(" ");
+  const overlap = wordsB.filter(w => wordsA.has(w)).length;
+  return overlap / wordsB.length >= 0.8;
+}
+
+function isHookQualityAcceptable(hook: string): boolean {
+  const lower = hook.toLowerCase();
+  return HOOK_QUALITY_SIGNALS.some(signal => lower.includes(signal));
+}
+
+function isBannedOpener(hook: string): boolean {
+  const lower = hook.toLowerCase().trimStart();
+  return BANNED_HOOK_OPENERS.some(opener => lower.startsWith(opener));
+}
+
+const INCOMPLETE_ENDING_WORDS = new Set([
+  "the", "a", "an", "of", "to", "and", "but", "or", "for", "with",
+  "where", "when", "while", "that", "which", "who", "whom", "in", "on",
+  "at", "by", "from", "as", "is", "was", "were", "this", "their", "its",
+]);
+
+function endsWithIncompletePhrase(hook: string): boolean {
+  const cleaned = hook.trim().replace(/[."'!?]+$/, "");
+  const words = cleaned.split(/\s+/).filter(Boolean);
+  if (words.length === 0) return true;
+  const lastWord = words[words.length - 1].toLowerCase().replace(/[^a-z]/g, "");
+  return INCOMPLETE_ENDING_WORDS.has(lastWord);
+}
+
+function buildAnchorHook(
+  script: string,
+  anchor: { type: string; value: string } | null
+): string | null {
+  if (!anchor) return null;
+
+  const lines = script.split(/[\n.!?]/).map(l => l.trim()).filter(Boolean);
+  const firstLine = lines[0] ?? "";
+  const bodyLines = lines.slice(1);
+
+  if (anchor.type === "exactNumberWithUnit") {
+    // Find the full sentence containing this number
+    const sourceLine = bodyLines.find(l =>
+      l.toLowerCase().includes(anchor.value.toLowerCase().replace(/^(over|about|nearly|around|roughly|just|almost)\s*/i, "").split(/\s+/)[0])
+    ) ?? "";
+
+    const cleaned = sourceLine.replace(/[.!?]+$/, "").trim();
+    const words = cleaned.split(/\s+/);
+
+    // If the sentence is short enough, use it directly
+    if (words.length >= 5 && words.length <= 20) {
+      // Try to frame it with personal stakes if "you" is already present
+      if (cleaned.toLowerCase().includes(" you ") || cleaned.toLowerCase().startsWith("you ")) {
+        return capitalizeFirstChar(cleaned) + ".";
+      }
+      // Add personal framing
+      return `${capitalizeFirstChar(cleaned)} — and you do not even feel it.`;
+    }
+
+    // Build a hook using just the number + minimal context
+    const numericCore = anchor.value;
+    return `You are moving at ${numericCore} right now — and you do not even feel it.`;
+  }
+
+if (anchor.type === "concreteVisualDetail") {
+    const cleaned = anchor.value.replace(/[.!?]+$/, "").trim();
+    const words = cleaned.split(/\s+/);
+    const hook = words.length <= 16
+      ? capitalizeFirstChar(cleaned)
+      : capitalizeFirstChar(words.slice(0, 14).join(" "));
+
+    // Find a second, complementary detail (absence-of-people / disappearance)
+    // to pair with the concrete object detail. Prefer short, complete-feeling
+    // phrases over arbitrary truncation.
+    const secondDetail = bodyLines.find(l => {
+      const ll = l.toLowerCase();
+      if (l === anchor.value) return false;
+      return (
+        ll.includes("no crew") || ll.includes("nobody on board") ||
+        ll.includes("no one on board") || ll.includes("every person") ||
+        ll.includes("everyone had disappeared") || ll.includes("everyone disappeared") ||
+        ll.includes("gone")
+      );
+    });
+
+    if (secondDetail) {
+      const secondCleaned = secondDetail.replace(/[.!?]+$/, "").trim();
+      const secondWords = secondCleaned.split(/\s+/);
+      // Use the full clause if short enough; never truncate mid-phrase.
+      const secondPhrase = secondWords.length <= 10
+        ? secondCleaned.toLowerCase()
+        : secondWords.slice(0, 10).join(" ").toLowerCase();
+      return `${hook} — but ${secondPhrase}.`;
+    }
+
+    return `${hook} — and nobody knew why.`;
+  }
+
+  return null;
+}
+
+function buildSpecificReason(original: string, improved: string, script: string): string {
+  const origLower = original.toLowerCase();
+  const lines = script.split(/[\n.!?]/).map(l => l.trim()).filter(Boolean);
+  const bodyLines = lines.slice(1);
+
+  // ── Detect the original hook's primary failure mode (structural) ──────────
+  const isFillerOpener =
+    origLower.startsWith("today i") || origLower.startsWith("in this video") ||
+    origLower.startsWith("i will") || origLower.startsWith("let's talk") ||
+    origLower.startsWith("hey guys") || origLower.startsWith("welcome");
+
+  const isObviousStatement =
+    !isFillerOpener &&
+    !origLower.includes("?") &&
+    !origLower.includes(" but ") &&
+    !origLower.includes("not ") &&
+    !origLower.includes("never ");
+
+  // ── Find the strongest body material used in the improved hook ────────────
+  // Priority: number → consequence → reversal → visual detail
+
+  // Number-based anchor (universal)
+  const numberLine = bodyLines.find(l =>
+    /\d[\d,]*\s*(miles|km|percent|%|million|billion|seconds|minutes|days|years|feet|meters|degrees)/i.test(l)
+  );
+  if (numberLine) {
+    const shortNumber = numberLine.replace(/[.!?]+$/, "").toLowerCase();
+    const preview = shortNumber.split(/\s+/).slice(0, 12).join(" ");
+    return `The original opens without giving viewers a reason to stay. The improved hook uses the most specific detail in the script — ${preview} — which immediately shows the scale of what the video reveals.`;
+  }
+
+  // Consequence-based anchor (universal — behavioral, causal, identity)
+  const lastThirdStart = Math.floor(bodyLines.length * 0.6);
+  const consequenceLine = bodyLines.slice(lastThirdStart).find(l => {
+    const ll = l.toLowerCase();
+    return /that is why|that is what|keeps (going|moving|building)|says about you|proof that|become permanent|trains (your|the)|it is not (just|about)|the (scary|strange|real) (part|reason)/.test(ll);
+  });
+  if (consequenceLine) {
+    const preview = consequenceLine.replace(/[.!?]+$/, "").toLowerCase().split(/\s+/).slice(0, 12).join(" ");
+    return `The original only announces the topic. The improved hook leads with the consequence — ${preview} — which gives viewers a reason to keep watching before they understand the setup.`;
+  }
+
+  // Reversal-based anchor (universal)
+  const reversalLine = bodyLines.find(l => {
+    const ll = l.toLowerCase();
+    return (ll.includes(" not ") || ll.startsWith("not ")) &&
+      (ll.includes("just") || ll.includes("about") || ll.includes("only") ||
+       ll.includes("really") || ll.includes("the real") || ll.includes("reason") || ll.includes("point"));
+  });
+  if (reversalLine) {
+    const preview = reversalLine.replace(/[.!?]+$/, "").toLowerCase().split(/\s+/).slice(0, 12).join(" ");
+    return `The original states an assumption the script will later disprove. The improved hook leads directly with the reversal — ${preview} — so viewers feel the gap between assumption and truth immediately.`;
+  }
+
+  // Visual detail anchor (universal)
+  const visualLine = bodyLines.find(l => {
+    const ll = l.toLowerCase();
+    return /\bstill\b|\bleft behind\b|\buntouched\b|\bdisappeared\b|\bvanished\b|\bnobody\b|\bno one\b/.test(ll);
+  });
+  if (visualLine) {
+    const preview = visualLine.replace(/[.!?]+$/, "").toLowerCase().split(/\s+/).slice(0, 12).join(" ");
+    return `The original describes the event at a distance. The improved hook leads with a specific physical detail — ${preview} — which makes the tension concrete and immediate.`;
+  }
+
+  // ── Failure-mode fallbacks ────────────────────────────────────────────────
+  if (isFillerOpener) {
+    const bodyAnchor = bodyLines.find(l => {
+      const wc = l.split(/\s+/).length;
+      return wc >= 5 && wc <= 18;
+    });
+    const detail = bodyAnchor
+      ? bodyAnchor.toLowerCase().replace(/[.!?]+$/, "").split(/\s+/).slice(0, 10).join(" ")
+      : "a consequence or insight from later in the script";
+    return `The original hook only announces the topic. The improved version leads with the most useful idea from the script body — ${detail} — so viewers have a reason to keep watching before they understand why it matters.`;
+  }
+
+  if (isObviousStatement) {
+    return "The original states something the viewer already suspected, which gives them no reason to stay. The improved hook introduces a tension or contrast that only the script can resolve.";
+  }
+
+  return "The original hook states the topic without creating tension. The improved version leads with the most specific detail or consequence in the script, so the viewer has a reason to keep watching before they know where it ends.";
+}
+
+function capitalizeFirstChar(text: string): string {
+  if (!text) return text;
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+function extractAnchorFromScript(script: string): { type: string; value: string } | null {
+  const lines = script.split(/[\n.!?]/).map(l => l.trim()).filter(Boolean);
+  const bodyLines = lines.slice(1);
+  const bodyText = bodyLines.join(" ");
+
+  // Priority 1: specific number with unit (always wins)
+  const numberMatch = bodyText.match(
+    /(\b(?:over|about|nearly|around|roughly|just|almost)?\s*\d[\d,]*(?:\.\d+)?\s*(?:miles per hour|km\/h|kilometers per hour|feet|foot|meters|kilograms|pounds|percent|%|seconds|minutes|hours|days|weeks|years|degrees|times|billion|million|thousand|mph|kph))\b/i
+  );
+  if (numberMatch) {
+    return { type: "exactNumberWithUnit", value: numberMatch[0].trim() };
+  }
+
+  // Priority 2: concrete visual detail — structural detection, not topic-specific phrases.
+  // Tier A: physical object in observable state (universal — any niche)
+  // Detects: "X still on the Y", "X untouched", "X left behind"
+  const visualTierAPatterns = [
+    /\bstill (on|in|at|by|over|under|sitting|lying|standing|hanging)\b/i,
+    /\buntouched\b/i,
+    /\bleft behind\b/i,
+  ];
+  // Tier B: absence of people / discovery (universal)
+  const visualTierBPatterns = [
+    /\b(nobody|no one|not a single person|every person) (was|had|were|on)/i,
+    /\b(everyone|everybody) (had disappeared|disappeared|was gone|had left)\b/i,
+    /\bno signs of (life|struggle|damage|a fight|a storm|injury)\b/i,
+  ];
+  // Tier C: disappearance / discovery words (universal — weakest)
+  const visualTierCPatterns = [
+    /\b(disappeared|vanished|abandoned|found drifting|discovered empty)\b/i,
+  ];
+
+  for (const patterns of [visualTierAPatterns, visualTierBPatterns, visualTierCPatterns]) {
+    for (const line of bodyLines) {
+      if (patterns.some(p => p.test(line))) {
+        return { type: "concreteVisualDetail", value: line.replace(/[.!?]+$/, "").trim() };
+      }
+    }
+  }
+
+  return null;
+}
+
+function hookContainsAnchor(hook: string, anchor: { type: string; value: string }): boolean {
+  const hookLower = hook.toLowerCase();
+  if (anchor.type === "exactNumberWithUnit") {
+    // Extract just the numeric portion and check it's present
+    const numericPart = anchor.value.match(/\d[\d,]*(?:\.\d+)?/)?.[0];
+    return numericPart ? hookLower.includes(numericPart) : false;
+  }
+  if (anchor.type === "concreteVisualDetail") {
+    // Check for 3+ consecutive words from the anchor
+    const anchorWords = anchor.value.toLowerCase().split(/\s+/).filter(Boolean);
+    for (let i = 0; i <= anchorWords.length - 3; i++) {
+      const phrase = anchorWords.slice(i, i + 3).join(" ");
+      if (hookLower.includes(phrase)) return true;
+    }
+    return false;
+  }
+  return true; // For other anchor types, don't enforce strict containment
+}
+
+function buildFallbackHookFromScript(script: string): string {
+  const lines = script.split(/[\n.!?]/).map(l => l.trim()).filter(Boolean);
+  const firstLine = lines[0] ?? "";
+  const bodyLines = lines.slice(1);
+
+  const numberLine = bodyLines.find(line =>
+    /\d[\d,]*(?:\.\d+)?/.test(line) &&
+    /\b(miles per hour|mph|kph|km\/h|feet|foot|meters|percent|%|seconds|minutes|hours|days|years|degrees|times|million|billion|thousand)\b/i.test(line)
+  );
+
+  if (numberLine) {
+    const cleaned = numberLine.replace(/[.!?]+$/, "").trim();
+    const words = cleaned.split(/\s+/);
+    return words.length <= 18
+      ? `${capitalizeFirstChar(cleaned)}.`
+      : `${capitalizeFirstChar(words.slice(0, 14).join(" "))}.`;
+  }
+
+  const consequenceLine = bodyLines.slice(Math.floor(bodyLines.length * 0.5)).find(line => {
+    const ll = line.toLowerCase();
+    return (
+      /that is why|that is what|as a result|the result/.test(ll) ||
+      /keeps (going|moving|building|growing|compounding)/.test(ll) ||
+      /you do not control|you lose control|become permanent/.test(ll) ||
+      /says about you|how people see|proof that/.test(ll) ||
+      /the (real|actual|true) (reason|problem|point)/.test(ll) ||
+      /the (scary|strange|crazy|surprising) part/.test(ll)
+    );
+  });
+
+  if (consequenceLine) {
+    const cleaned = consequenceLine.replace(/[.!?]+$/, "").trim();
+    const words = cleaned.split(/\s+/);
+    return words.length <= 18
+      ? `${capitalizeFirstChar(cleaned)}.`
+      : `${capitalizeFirstChar(words.slice(0, 14).join(" "))}.`;
+  }
+
+  const visualLine = bodyLines.find(line => {
+    const ll = line.toLowerCase();
+    return (
+      /\bstill\b/.test(ll) ||
+      /\bleft behind\b|\buntouched\b|\bno signs of\b/.test(ll) ||
+      /\bdisappeared\b|\bvanished\b|\bfound\b|\bdiscovered\b/.test(ll) ||
+      /\bnobody\b|\bno one\b|\bevery person\b/.test(ll)
+    );
+  });
+
+  if (visualLine) {
+    const cleaned = visualLine.replace(/[.!?]+$/, "").trim();
+    const words = cleaned.split(/\s+/);
+    return words.length <= 18
+      ? `${capitalizeFirstChar(cleaned)}.`
+      : `${capitalizeFirstChar(words.slice(0, 14).join(" "))}.`;
+  }
+
+  const reversalLine = bodyLines.find(line => {
+    const ll = line.toLowerCase();
+    return (
+      (ll.includes(" not ") || ll.startsWith("not ")) &&
+      (ll.includes("just") || ll.includes("about") || ll.includes("only") || ll.includes("real") || ll.includes("reason"))
+    );
+  });
+
+  if (reversalLine) {
+    const cleaned = reversalLine.replace(/[.!?]+$/, "").trim();
+    const words = cleaned.split(/\s+/);
+    return words.length <= 18
+      ? `${capitalizeFirstChar(cleaned)}.`
+      : `${capitalizeFirstChar(words.slice(0, 14).join(" "))}.`;
+  }
+
+  const bodyAnchor = bodyLines.find(line => {
+    const words = line.split(/\s+/);
+    return words.length >= 5 && words.length <= 18;
+  });
+
+  if (bodyAnchor) {
+    const cleaned = bodyAnchor.replace(/[.!?]+$/, "").trim();
+    return `${capitalizeFirstChar(cleaned)} — and most people never realise it.`;
+  }
+
+  const shortSubject = firstLine.replace(/[.!?]+$/, "").split(/\s+/).slice(0, 8).join(" ");
+  return `${capitalizeFirstChar(shortSubject)} — but not for the reason most people think.`;
+}
+
+function parseHookResponse(raw: string, script: string): ImproveHookResult {
+  const firstLine = script.split(/[\n.!?]/)[0]?.trim() ?? script.trim();
+
+  // Pre-extract anchor from the script so we can validate the AI's choice
+  const scriptAnchor = extractAnchorFromScript(script);
+
+  try {
+    const cleaned = raw
+      .replace(/^```json\s*/i, "")
+      .replace(/^```\s*/i, "")
+      .replace(/```\s*$/i, "")
+      .trim();
+
+    const parsed: Record<string, unknown> = JSON.parse(cleaned);
+
+    const hookScore = typeof parsed.hookScore === "number" ? parsed.hookScore : null;
+
+    // If AI says hook is already strong, trust it only if no critical anchor was missed
+    const aiSaysGood = hookScore !== null && hookScore >= 80;
+    if (aiSaysGood) {
+      // Even if AI says "good", verify the anchor is actually in the hook
+      const anchorMissed = scriptAnchor && !hookContainsAnchor(firstLine, scriptAnchor);
+      if (!anchorMissed) {
+        const reason =
+          typeof parsed.reason === "string" && parsed.reason.trim().length > 0
+            ? parsed.reason.trim()
+            : "The opening already creates a strong reason to keep watching.";
+        return { status: "good", improvedHook: firstLine, reason };
+      }
+      // Anchor was missed in the original — fall through to improve it
+    }
+
+    let improvedHook =
+      typeof parsed.improvedHook === "string" && parsed.improvedHook.trim().length > 0
+        ? parsed.improvedHook.trim()
+        : "";
+
+    // ── Validation layer ──────────────────────────────────────────────────
+    const basicValidationFails =
+      improvedHook.length === 0 ||
+      isBannedOpener(improvedHook) ||
+      isTooSimilar(improvedHook, firstLine) ||
+      !isHookQualityAcceptable(improvedHook) ||
+      endsWithIncompletePhrase(improvedHook);
+
+    // NEW: anchor validation — did the hook actually use the strongest material?
+    const anchorValidationFails =
+      scriptAnchor !== null &&
+      !hookContainsAnchor(improvedHook, scriptAnchor);
+
+    if (basicValidationFails || anchorValidationFails) {
+      // Try hookOptions before giving up on AI
+      const options = Array.isArray(parsed.hookOptions) ? parsed.hookOptions : [];
+
+      for (const opt of options) {
+        if (
+          typeof opt === "object" && opt !== null &&
+          typeof (opt as Record<string, unknown>).text === "string"
+        ) {
+          const candidate = ((opt as Record<string, unknown>).text as string).trim();
+          const candidateAnchorValid = !scriptAnchor || hookContainsAnchor(candidate, scriptAnchor);
+
+          if (
+            candidate.length > 0 &&
+            !isBannedOpener(candidate) &&
+            !isTooSimilar(candidate, firstLine) &&
+            isHookQualityAcceptable(candidate) &&
+            !endsWithIncompletePhrase(candidate) &&
+            candidateAnchorValid
+          ) {
+            improvedHook = candidate;
+            break;
+          }
+        }
+      }
+    }
+
+    // If still failing, build a deterministic hook from the anchor
+    if (
+      improvedHook.length === 0 ||
+      isBannedOpener(improvedHook) ||
+      isTooSimilar(improvedHook, firstLine) ||
+      endsWithIncompletePhrase(improvedHook) ||
+      (scriptAnchor !== null && !hookContainsAnchor(improvedHook, scriptAnchor))
+    ) {
+      improvedHook = buildAnchorHook(script, scriptAnchor) ?? buildFallbackHookFromScript(script);
+    }
+
+    const rawReason = typeof parsed.reason === "string" ? parsed.reason.trim() : "";
+    const isGenericReason =
+      rawReason.length === 0 ||
+      rawReason === "The hook was adjusted to improve clarity, curiosity, or payoff connection." ||
+      (rawReason.toLowerCase().includes("creates curiosity") && rawReason.length < 80) ||
+      rawReason.toLowerCase().startsWith("this hook is stronger because it starts with");
+
+    const reason = isGenericReason
+      ? buildSpecificReason(firstLine, improvedHook, script)
+      : rawReason;
+
+    return { status: "improved", improvedHook, reason };
+  } catch {
+    console.error("[improve] JSON parse failed, raw:", raw);
+    const fallback = buildAnchorHook(script, scriptAnchor) ?? buildFallbackHookFromScript(script);
+    return {
+      status: "improved",
+      improvedHook: fallback,
+      reason: buildSpecificReason(firstLine, fallback, script),
+    };
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+"use client";
+
+import { Inter } from "next/font/google";
+import Link from "next/link";
+import type { ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  SquarePen,
+  PencilLine,
+  ThumbsUp,
+  ThumbsDown,
+  AudioLines,
+  Scissors,
+  FastForward,
+} from "lucide-react";
+
+const inter = Inter({
+  subsets: ["latin"],
+});
+
+type ScoreData = {
+  score: number;
+  label: string;
+  color: string;
+  ringColor: string;
+  description: string;
+};
+
+type RiskyPart = {
+  time: string;
+  title: string;
+  description: string;
+};
+
+type SceneSegment = {
+  label: string;
+  color: string;
+  width: number;
+};
+
+type LineStatus = "normal" | "warning" | "risky";
+
+type AnalysisResult = {
+  overall: ScoreData;
+  hook: ScoreData;
+  risk: ScoreData;
+  riskyParts: RiskyPart[];
+  fixes: string[];
+  riskyLineIndexes: number[];
+  warningLineIndexes: number[];
+  sceneSegments: SceneSegment[];
+};
+
+const fallbackScript =
+  "What if one small change could make viewers watch until the end? But the real problem is not editing speed. It is that the first line gives viewers no reason to stay.";
+
+function pluralize(count: number, singular: string, plural: string) {
+  return count === 1
+    ? `${count} ${singular}`
+    : `${count} ${plural}`;
+}
+
+export default function ResultsPage() {
+ const [savedScript, setSavedScript] = useState("");
+  const [savedTitle, setSavedTitle] = useState("");
+  const [isStorageLoaded, setIsStorageLoaded] = useState(false);
+  const [feedbackMessage, setFeedbackMessage] = useState("");
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
+  const [feedbackText, setFeedbackText] = useState("");
+  const [isHookModalOpen, setIsHookModalOpen] = useState(false);
+  const [copiedHook, setCopiedHook] = useState(false);
+  const [aiHook, setAiHook] = useState("");
+  const [aiHookReason, setAiHookReason] = useState("");
+  const [aiHookStatus, setAiHookStatus] = useState("");
+  const [isImprovingHook, setIsImprovingHook] = useState(false);
+  useEffect(() => {
+    const storedScript = sessionStorage.getItem("reelyze-script");
+    const storedTitle = sessionStorage.getItem("reelyze-title");
+
+    if (storedScript) {
+      setSavedScript(storedScript);
+    }
+
+    if (storedTitle) {
+      setSavedTitle(storedTitle);
+    }
+
+    localStorage.removeItem("reelyze-script");
+    setIsStorageLoaded(true);
+  }, []);
+
+  const hasAnalyzedScript = savedScript.trim().length > 0;
+  const activeScript = hasAnalyzedScript ? savedScript.trim() : fallbackScript;
+
+  const scriptLines = useMemo(() => {
+    return createScriptLines(activeScript);
+  }, [activeScript]);
+
+  const estimatedDuration = useMemo(() => {
+    return estimateDuration(activeScript);
+  }, [activeScript]);
+
+  const lineTimestamps = useMemo(() => {
+    return createLineTimestamps(scriptLines, estimatedDuration);
+  }, [scriptLines, estimatedDuration]);
+
+  const scaleLabels = useMemo(() => {
+    return createScaleLabels(estimatedDuration);
+  }, [estimatedDuration]);
+
+  const characterCount = activeScript.length;
+
+  const analysis = useMemo(() => {
+    return analyzeScript(activeScript, estimatedDuration, scriptLines);
+  }, [activeScript, estimatedDuration, scriptLines]);
+  
+  const fallbackImprovedHook = useMemo(() => {
+  return createHookRewrite(activeScript);
+}, [activeScript]);
+
+const improvedHook = aiHook || fallbackImprovedHook;
+const hookWasActuallyChanged =
+  improvedHook.trim().toLowerCase() !== scriptLines[0]?.trim().toLowerCase();
+
+const shouldShowHookAnalysis =
+  analysis.hook.score >= 80 || !hookWasActuallyChanged;
+
+// Replace any rule-based hook rewrite in fixes with the AI hook once loaded,
+// so Suggested Fixes and the modal always show the same improved hook.
+const displayFixes: string[] = analysis.fixes.map((fix) => {
+  if (aiHook && fix.toLowerCase().startsWith("rewrite your hook:")) {
+    return `Rewrite your hook: "${aiHook}"`;
+  }
+  return fix;
+});
+  
+  const improvedHookReason =
+  aiHookReason || getHookRewriteReason(activeScript);
+
+  function handleCopyHook() {
+    navigator.clipboard.writeText(improvedHook);
+    setCopiedHook(true);
+
+    setTimeout(() => {
+      setCopiedHook(false);
+    }, 1500);
+  }
+
+  return (
+    <main
+      className={`${inter.className} min-h-screen overflow-auto bg-[#050505] text-white antialiased`}
+    >
+      <div className="relative h-[1200px] min-w-[1440px] bg-[#050505]">
+        <aside className="absolute left-0 top-0 h-[1200px] w-[230px] border border-[#24242A] bg-[#07080D]">
+          <img
+            src="/logo.png"
+            alt="Reelyze logo"
+            className="absolute left-[20px] top-[28px] h-[36px] w-[36px] object-contain"
+          />
+
+          <p className="absolute left-[70px] top-[40px] h-[24px] w-[84px] text-[22px] font-semibold leading-[24px] text-white">
+            Reelyze
+          </p>
+
+          <Link
+            href="/results"
+            className="absolute left-[22px] top-[120px] flex h-[56px] w-[186px] items-center gap-3 rounded-[14px] border border-[#24242A] bg-[#1A0608] px-[20px]"
+          >
+            <SquarePen size={18} className="text-[#EF4444]" />
+            <span className="text-[16px] font-semibold leading-[24px] text-[#EF4444]">
+              Results
+            </span>
+          </Link>
+
+          <Link
+            href="/"
+            className="absolute left-[22px] top-[190px] flex h-[56px] w-[186px] items-center gap-3 rounded-[14px] border border-[#24242A] bg-[#0B0C10] px-[20px]"
+          >
+            <PencilLine size={18} className="text-white" />
+            <span className="text-[16px] font-semibold leading-[24px] text-white">
+              New Analysis
+            </span>
+          </Link>
+
+          <div className="absolute left-[22px] top-[730px] h-[195px] w-[186px] overflow-hidden rounded-[20px] border border-[#24242A] bg-[#0B0C10]">
+            <p className="absolute left-[12px] top-[20px] h-[24px] w-[155px] text-[18px] font-bold leading-[24px] text-white">
+              Rate this analysis
+            </p>
+
+            <p className="absolute left-[13px] top-[50px] h-[24px] w-[153px] text-[13px] font-normal leading-[24px] text-[#B3B3B3]">
+              Was this review helpful?
+            </p>
+
+            <button
+              onClick={() => {
+                setFeedbackMessage("Thanks! Glad this was helpful.");
+              }}
+              className="absolute left-[12px] top-[88px] flex h-[42px] w-[162px] items-center justify-center gap-2 rounded-[10px] border border-[#EF4444] bg-transparent text-[13px] font-medium leading-[24px] text-white transition hover:bg-[#1A0608]"
+            >
+              <ThumbsUp size={15} />
+              Helpful
+            </button>
+
+            <button
+              onClick={() => {
+                setIsFeedbackOpen(true);
+              }}
+              className="absolute left-[12px] top-[132px] flex h-[42px] w-[162px] items-center justify-center gap-2 rounded-[10px] border border-[#24242A] bg-[#111217] text-[13px] font-medium leading-[24px] text-white transition hover:bg-[#1A0608]"
+            >
+              <ThumbsDown size={15} />
+              Not helpful
+            </button>
+
+            {feedbackMessage && (
+              <p className="absolute left-[10px] top-[176px] w-[166px] truncate text-center text-[11px] font-normal leading-[14px] text-[#B3B3B3]">
+                {feedbackMessage}
+              </p>
+            )}
+          </div>
+        </aside>
+
+        <h1 className="absolute left-[267px] top-[34px] h-[24px] w-[226px] text-[32px] font-semibold leading-[24px] text-white">
+          Script Review
+        </h1>
+
+        <p className="absolute left-[270px] top-[78px] h-[24px] w-[462px] text-[16px] font-normal leading-[24px] text-[#B3B3B3]">
+          Analyzed just now - YouTube Shorts Script
+        </p>
+
+        {!isStorageLoaded && (
+          <div className="absolute left-[270px] top-[135px] h-[220px] w-[720px] rounded-[20px] border border-[#24242A] bg-[#0B0C10]">
+            <h2 className="absolute left-[30px] top-[35px] text-[26px] font-semibold leading-[32px] text-white">
+              Loading results...
+            </h2>
+
+            <p className="absolute left-[30px] top-[85px] w-[560px] text-[16px] font-normal leading-[24px] text-[#B3B3B3]">
+              Please wait while Reelyze checks your latest analysis.
+            </p>
+          </div>
+        )}
+
+        {isStorageLoaded && !hasAnalyzedScript && (
+          <div className="absolute left-[270px] top-[135px] h-[220px] w-[720px] rounded-[20px] border border-[#24242A] bg-[#0B0C10]">
+            <h2 className="absolute left-[30px] top-[35px] text-[26px] font-semibold leading-[32px] text-white">
+              No script analyzed yet.
+            </h2>
+
+            <p className="absolute left-[30px] top-[85px] w-[560px] text-[16px] font-normal leading-[24px] text-[#B3B3B3]">
+              Go to New Analysis and paste your YouTube Shorts script first.
+              After you click Analyze Script, your results will appear here.
+            </p>
+
+            <Link
+              href="/"
+              className="absolute left-[30px] top-[145px] flex h-[48px] w-[190px] items-center justify-center rounded-[12px] border border-[#24242A] bg-[#EF4444] text-[15px] font-semibold leading-[24px] text-white transition hover:bg-[#dc2626]"
+            >
+              New Analysis
+            </Link>
+          </div>
+        )}
+
+        {isStorageLoaded && hasAnalyzedScript && (
+          <>
+            <section className="absolute left-[270px] top-[115px] h-[170px] w-[1140px] rounded-[20px] border border-[#24242A] bg-[#0B0C10]">
+              <ScoreBlock
+                left={0}
+                title="Overall Score"
+                score={analysis.overall.score}
+                label={analysis.overall.label}
+                labelColor={analysis.overall.color}
+                ringColor={analysis.overall.ringColor}
+                description={analysis.overall.description}
+              />
+
+              <ScoreBlock
+                left={380}
+                title="Hook Score"
+                score={analysis.hook.score}
+                label={analysis.hook.label}
+                labelColor={analysis.hook.color}
+                ringColor={analysis.hook.ringColor}
+                description={analysis.hook.description}
+              />
+
+              <ScoreBlock
+                left={760}
+                title="Retention Risk"
+                score={analysis.risk.score}
+                label={analysis.risk.label}
+                labelColor={analysis.risk.color}
+                ringColor={analysis.risk.ringColor}
+                description={analysis.risk.description}
+              />
+            </section>
+
+            <section className="absolute left-[270px] top-[305px] h-[615px] w-[660px] rounded-[20px] border border-[#24242A] bg-[#0B0C10]">
+              <h2 className="absolute left-[25px] top-[35px] h-[24px] w-[118px] text-[22px] font-semibold leading-[24px] text-white">
+                Your Script
+              </h2>
+
+              <div className="absolute left-[30px] top-[85px] h-[470px] w-[600px] overflow-hidden rounded-[16px] border border-[#24242A] bg-[#0B1018]/[0.0784]">
+                <div className="h-full w-full overflow-y-auto px-[20px] py-[22px] pr-[14px]">
+                  <div className="flex flex-col gap-[8px]">
+                    {scriptLines.map((line, index) => {
+                      const status: LineStatus = analysis.riskyLineIndexes.includes(
+                        index
+                      )
+                        ? "risky"
+                        : analysis.warningLineIndexes.includes(index)
+                        ? "warning"
+                        : "normal";
+
+                      return (
+                        <ScriptLine
+                          key={`${lineTimestamps[index] ?? index}-${line}`}
+                          time={
+                            lineTimestamps[index] ??
+                            formatTime(estimatedDuration)
+                          }
+                          status={status}
+                          text={line}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              <p className="absolute left-[44px] top-[581px] h-[24px] w-[280px] text-[14px] font-normal leading-[24px] text-[#B3B3B3]">
+                {characterCount} / 1000 characters - ~
+                {formatTime(estimatedDuration)}
+              </p>
+            </section>
+
+            <section className="absolute left-[950px] top-[305px] h-[300px] w-[460px] overflow-hidden rounded-[20px] border border-[#24242A] bg-[#0B0C10]">
+              <h2 className="absolute left-[25px] top-[35px] h-[24px] text-[22px] font-semibold leading-[24px] text-white">
+                Risky Parts
+              </h2>
+
+              <p className="absolute left-[360px] top-[35px] h-[24px] text-[14px] font-normal leading-[24px] text-[#B3B3B3]">
+                {pluralize(analysis.riskyParts.length, "found", "found")}
+              </p>
+
+              <div className="absolute left-[25px] top-[78px] h-[205px] w-[410px] overflow-y-auto pr-[8px]">
+                <div className="flex flex-col gap-[18px]">
+                  {analysis.riskyParts.length === 0 ? (
+  <div className="absolute left-[0px] top-[0px] w-[360px]">
+    <p className="text-[15px] font-medium leading-[24px] text-white">
+      {analysis.fixes.length > 0 ? "No major risky parts found." : "No risky parts found."}
+    </p>
+    <p className="mt-[4px] text-[14px] font-normal leading-[22px] text-[#B3B3B3]">
+      {analysis.fixes.length > 0
+        ? "The script works overall, but a few areas could still be tightened."
+        : "This script stays focused and does not contain any major drop-off points."}
+    </p>
+  </div>
+) : (
+  analysis.riskyParts.map((part) => (
+    <RiskyItem
+      key={`${part.time}-${part.title}`}
+      time={part.time}
+      title={part.title}
+      description={part.description}
+    />
+  ))
+)}
+                </div>
+              </div>
+            </section>
+
+            <section className="absolute left-[950px] top-[625px] h-[295px] w-[460px] overflow-hidden rounded-[20px] border border-[#24242A] bg-[#0B0C10]">
+              <h2 className="absolute left-[25px] top-[30px] h-[24px] text-[22px] font-semibold leading-[24px] text-white">
+                Suggested Fixes
+              </h2>
+        
+              <p className="absolute left-[300px] top-[30px] h-[24px] text-[14px] font-normal leading-[24px] text-[#B3B3B3]">
+                {pluralize(analysis.fixes.length, "suggestion", "suggestions")}
+              </p>
+
+             {analysis.fixes.length > 0 && analysis.hook.score < 75 && (
+              <button
+                onClick={async () => {
+  setCopiedHook(false);
+  setIsImprovingHook(true);
+  setIsHookModalOpen(true);
+
+  const response = await fetch("/api/improve", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      script: activeScript,
+      title: savedTitle,
+    }),
+  });
+
+  const data: { status?: string; improvedHook?: string; reason?: string } =
+    await response.json().catch(() => ({
+      status: "error",
+      improvedHook: "AI hook improvement is unavailable right now.",
+      reason: "Reelyze could not generate a custom explanation.",
+    }));
+
+  const hookText: string =
+  typeof data.improvedHook === "string" && data.improvedHook.trim().length > 0
+    ? data.improvedHook.trim()
+    : "AI hook improvement is unavailable right now.";
+
+const hookReason: string =
+  typeof data.reason === "string" && data.reason.trim().length > 0
+    ? data.reason.trim()
+    : data.status === "good"
+    ? "The hook is already clear, specific, and creates curiosity without needing a rewrite."
+    : "The hook was adjusted to improve clarity, curiosity, or payoff connection.";
+
+setAiHook(hookText);
+setAiHookReason(hookReason);
+setAiHookStatus(typeof data.status === "string" ? data.status : "improved");
+setIsImprovingHook(false);
+}}
+                className="absolute left-[25px] top-[55px] h-[28px] w-[125px] rounded-[9px] border border-[#EF4444]/40 bg-[#1A0608] text-[12px] font-semibold leading-[20px] text-[#EF4444] transition hover:bg-[#2A080C]"
+              >
+                {analysis.hook.score >= 65 ? "Refine Script" : "Improve Hook"}
+              </button>
+             )}
+              <div className="absolute left-[20px] top-[90px] h-[190px] w-[420px] overflow-y-auto pr-[18px]">
+                <div className="flex flex-col gap-[18px]">
+                  {displayFixes.length === 0 ? (
+  <div className="absolute left-[0px] top-[0px] w-[360px]">
+    <p className="text-[15px] font-medium leading-[24px] text-white">
+      No fixes needed.
+    </p>
+    <p className="mt-[4px] text-[14px] font-normal leading-[22px] text-[#B3B3B3]">
+      The script already performs well based on the current analysis.
+    </p>
+  </div>
+) : (
+  displayFixes.map((fix, index) => (
+    <FixItem
+      key={`${fix}-${index}`}
+      icon={
+        index % 3 === 0 ? (
+          <AudioLines size={20} />
+        ) : index % 3 === 1 ? (
+          <Scissors size={20} />
+        ) : (
+          <FastForward size={20} />
+        )
+      }
+      text={fix}
+    />
+  ))
+)}
+                </div>
+              </div>
+            </section>
+
+            <section className="absolute left-[270px] top-[950px] h-[155px] w-[1140px] rounded-[20px] border border-[#24242A] bg-[#0B0C10]">
+              <h2 className="absolute left-[25px] top-[15px] h-[24px] text-[22px] font-semibold leading-[24px] text-white">
+                Scene Breakdown
+              </h2>
+
+              <div className="absolute left-[25px] top-[60px] flex h-[5px] w-[1110px] overflow-hidden rounded-[999px]">
+                {analysis.sceneSegments.map((segment, index) => (
+                  <div
+                    key={`${segment.label}-${index}`}
+                    className="h-[5px]"
+                    style={{
+                      width: `${segment.width}px`,
+                      backgroundColor: segment.color,
+                    }}
+                  />
+                ))}
+              </div>
+
+              <div className="absolute left-[25px] top-[80px] grid w-[1110px] grid-cols-5 text-[14px] font-medium leading-[24px] text-[#B3B3B3]">
+                <p>{scaleLabels[0]}</p>
+                <p>{scaleLabels[1]}</p>
+                <p>{scaleLabels[2]}</p>
+                <p>{scaleLabels[3]}</p>
+                <p className="text-right">{scaleLabels[4]}</p>
+              </div>
+
+              <div className="absolute left-[25px] top-[115px] flex items-center gap-[55px]">
+                {analysis.sceneSegments.map((segment, index) => (
+                  <Legend
+                    key={`${segment.label}-${index}`}
+                    color={segment.color}
+                    label={segment.label}
+                  />
+                ))}
+              </div>
+            </section>
+          </>
+        )}
+      </div>
+
+      {isFeedbackOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-[2px]">
+          <div className="relative h-[310px] w-[460px] rounded-[20px] border border-[#24242A] bg-[#0B0C10]">
+            <button
+              onClick={() => setIsFeedbackOpen(false)}
+              className="absolute right-[20px] top-[18px] text-[22px] font-normal leading-[24px] text-[#B3B3B3] transition hover:text-white"
+            >
+              x
+            </button>
+
+            <h2 className="absolute left-[30px] top-[30px] text-[22px] font-semibold leading-[24px] text-white">
+              What was wrong?
+            </h2>
+
+            <p className="absolute left-[30px] top-[65px] w-[360px] text-[14px] font-normal leading-[22px] text-[#B3B3B3]">
+              Tell us what felt inaccurate, confusing, or not useful in this
+              analysis.
+            </p>
+
+            <textarea
+              value={feedbackText}
+              onChange={(event) => setFeedbackText(event.target.value)}
+              placeholder="Write your feedback here..."
+              className="absolute left-[30px] top-[115px] h-[105px] w-[400px] resize-none rounded-[12px] border border-[#24242A] bg-[#0B1018] px-[14px] py-[12px] text-[14px] font-normal leading-[20px] text-white outline-none placeholder:text-[#777A85]"
+            />
+
+            <button
+              onClick={() => {
+                setIsFeedbackOpen(false);
+                setFeedbackText("");
+                setFeedbackMessage("Thanks - we will improve Reelyze.");
+              }}
+              className="absolute left-[30px] top-[240px] h-[44px] w-[160px] rounded-[12px] border border-[#24242A] bg-[#EF4444] text-[14px] font-semibold leading-[24px] text-white transition hover:bg-[#dc2626]"
+            >
+              Send feedback
+            </button>
+
+            <button
+              onClick={() => setIsFeedbackOpen(false)}
+              className="absolute left-[205px] top-[240px] h-[44px] w-[120px] rounded-[12px] border border-[#24242A] bg-[#111217] text-[14px] font-semibold leading-[24px] text-white transition hover:bg-[#1A0608]"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {isHookModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-[2px]">
+          <div className="relative h-[410px] w-[560px] rounded-[20px] border border-[#24242A] bg-[#0B0C10]">
+            <button
+              onClick={() => setIsHookModalOpen(false)}
+              className="absolute right-[20px] top-[18px] text-[22px] font-normal leading-[24px] text-[#B3B3B3] transition hover:text-white"
+            >
+              x
+            </button>
+
+            <h2 className="absolute left-[30px] top-[30px] text-[22px] font-semibold leading-[24px] text-white">
+              {shouldShowHookAnalysis ? "Hook Analysis" : "Improved Hook"}
+            </h2>
+
+            <p className="absolute left-[30px] top-[65px] w-[430px] text-[14px] font-normal leading-[22px] text-[#B3B3B3]">
+              {shouldShowHookAnalysis
+  ? "This opening already creates a clear reason to keep watching."
+  : analysis.hook.score >= 65
+    ? "The hook is working, but this version sharpens the opening further."
+    : "Use this version to make the opening clearer, stronger, and more curiosity-driven."}
+            </p>
+
+            <div className="absolute left-[30px] top-[115px] h-[86px] w-[460px] rounded-[14px] border border-[#24242A] bg-[#0B1018] px-[16px] py-[14px]">
+              <p className="text-[15px] font-normal leading-[22px] text-white">
+                "{isImprovingHook ? "Improving hook..." : improvedHook}"
+              </p>
+            </div>
+
+            <div className="absolute left-[30px] top-[220px] w-[500px] max-h-[115px] overflow-hidden">
+            <p className="mt-[6px] text-[14px] font-normal leading-[21px] text-[#B3B3B3] break-words whitespace-normal">
+  {shouldShowHookAnalysis
+    ? "Why this hook works:"
+    : analysis.hook.score >= 65
+      ? "What this version improves:"
+      : "Why it is better:"}
+</p>
+              <p className="mt-[6px] text-[14px] font-normal leading-[21px] text-[#B3B3B3] break-words whitespace-normal">
+  {isImprovingHook
+    ? "Reelyze is rewriting the opening based on your script."
+    : improvedHookReason}
+</p>
+            </div>
+
+            <button
+              onClick={handleCopyHook}
+              className="absolute left-[30px] top-[360px] h-[40px] w-[130px] rounded-[12px] border border-[#24242A] bg-[#EF4444] text-[14px] font-semibold leading-[24px] text-white transition hover:bg-[#dc2626]"
+            >
+              {copiedHook ? "Copied!" : "Copy Hook"}
+            </button>
+
+            <button
+              onClick={() => setIsHookModalOpen(false)}
+              className="absolute left-[175px] top-[360px] h-[40px] w-[100px] rounded-[12px] border border-[#24242A] bg-[#111217] text-[14px] font-semibold leading-[24px] text-white transition hover:bg-[#1A0608]"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+    </main>
+  );
+}
+
+function ScoreBlock({
+  left,
+  title,
+  score,
+  label,
+  labelColor,
+  ringColor,
+  description,
+}: {
+  left: number;
+  title: string;
+  score: number;
+  label: string;
+  labelColor: string;
+  ringColor: string;
+  description: string;
+}) {
+  return (
+    <div
+      className="absolute top-0 h-[170px] w-[380px]"
+      style={{ left: `${left}px` }}
+    >
+      <p className="absolute left-[35px] top-[22px] h-[24px] text-[15px] font-medium leading-[24px] text-white">
+        {title}
+      </p>
+
+      <div className="absolute left-[35px] top-[60px]">
+        <ScoreRing score={score} color={ringColor} />
+      </div>
+
+      <div className="absolute left-[148px] top-[44px] w-[205px] text-center">
+        <p
+          className="text-[24px] font-semibold leading-[24px]"
+          style={{ color: labelColor }}
+        >
+          {label}
+        </p>
+
+        <p className="mt-[12px] text-[14px] font-normal leading-[22px] text-[#B3B3B3]">
+          {description}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function ScoreRing({ score, color }: { score: number; color: string }) {
+  const safeScore = Math.max(0, Math.min(100, score));
+  const gapDegrees = (100 - safeScore) * 3.6;
+  const scoreDegrees = safeScore * 3.6;
+  const startAngle = 180 + gapDegrees / 2;
+
+  return (
+    <div className="relative h-[88px] w-[88px]">
+      <div
+        className="absolute inset-0 rounded-full"
+        style={{
+          background: `conic-gradient(from ${startAngle}deg, ${color} 0deg ${scoreDegrees}deg, #252832 ${scoreDegrees}deg 360deg)`,
+        }}
+      />
+
+      <div className="absolute left-[8px] top-[8px] h-[72px] w-[72px] rounded-full bg-[#0B0C10]" />
+
+      <div className="absolute inset-0 flex flex-col items-center justify-center pt-[4px]">
+        <p className="text-[28px] font-semibold leading-[24px] text-white">
+          {safeScore}
+        </p>
+
+        <p className="mt-[4px] text-[14px] font-normal leading-[24px] text-[#B3B3B3]">
+          /100
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function ScriptLine({
+  time,
+  text,
+  status,
+}: {
+  time: string;
+  text: string;
+  status: LineStatus;
+}) {
+  const isRisky = status === "risky";
+  const isWarning = status === "warning";
+
+  return (
+    <div
+      className={
+        isRisky
+          ? "grid grid-cols-[46px_1fr] gap-[12px] rounded-[9px] border border-[#EF4444]/20 bg-[#1A0608] px-[8px] py-[6px]"
+          : isWarning
+          ? "grid grid-cols-[46px_1fr] gap-[12px] rounded-[9px] border border-[#F59E0B]/20 bg-[#1A1305] px-[8px] py-[6px]"
+          : "grid grid-cols-[46px_1fr] gap-[12px] px-[8px] py-[2px]"
+      }
+    >
+      <p
+        className={
+          isRisky
+            ? "text-[13px] font-normal leading-[20px] text-[#EF4444]"
+            : isWarning
+            ? "text-[13px] font-normal leading-[20px] text-[#F59E0B]"
+            : "text-[13px] font-normal leading-[20px] text-[#B3B3B3]"
+        }
+      >
+        {time}
+      </p>
+
+      <p
+        className={
+          isRisky
+            ? "text-[13px] font-normal leading-[20px] text-[#EF4444]"
+            : isWarning
+            ? "text-[13px] font-normal leading-[20px] text-[#F59E0B]"
+            : "text-[13px] font-normal leading-[20px] text-[#B3B3B3]"
+        }
+      >
+        {text}
+      </p>
+    </div>
+  );
+}
+
+function RiskyItem({
+  time,
+  title,
+  description,
+}: {
+  time: string;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="w-full">
+      <p className="text-[14px] font-medium leading-[18px] text-[#EF4444]">
+        {time}
+      </p>
+
+      <p
+        className="mt-[6px] text-[14px] font-normal leading-[19px] text-white"
+        style={{
+          display: "-webkit-box",
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+        }}
+      >
+        {title}
+      </p>
+
+      <p
+        className="mt-[3px] text-[13px] font-normal leading-[18px] text-[#B3B3B3]"
+        style={{
+          display: "-webkit-box",
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+        }}
+      >
+        {description}
+      </p>
+    </div>
+  );
+}
+
+function FixItem({ icon, text }: { icon: ReactNode; text: string }) {
+  return (
+    <div className="flex w-full">
+      <div className="flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-[10px] border border-[#EF4444]/30 bg-[#1A0608] text-[#EF4444]">
+        {icon}
+      </div>
+
+      <p
+        className="ml-[16px] w-[350px] text-[14px] font-normal leading-[19px] text-white"
+        style={{
+          display: "-webkit-box",
+          WebkitLineClamp: 3,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+        }}
+      >
+        {text}
+      </p>
+    </div>
+  );
+}
+
+function Legend({ color, label }: { color: string; label: string }) {
+  return (
+    <div className="flex items-center">
+      <div
+        className="h-[5px] w-[5px] rounded-full"
+        style={{ backgroundColor: color }}
+      />
+
+      <p className="ml-[10px] text-[14px] font-normal leading-[24px] text-[#B3B3B3]">
+        {label}
+      </p>
+    </div>
+  );
+}
+
+function createScriptLines(script: string) {
+  const cleaned = script.trim().replace(/\s+/g, " ");
+
+  if (!cleaned) {
+    return [];
+  }
+
+  const sentenceParts = cleaned
+    .split(/(?<=[.!?])\s+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (sentenceParts.length >= 2) {
+    return sentenceParts;
+  }
+
+  const words = cleaned.split(" ");
+
+  if (words.length <= 12) {
+    return [cleaned];
+  }
+
+  const lines: string[] = [];
+  const wordsPerLine = 10;
+
+  for (let i = 0; i < words.length; i += wordsPerLine) {
+    const line = words.slice(i, i + wordsPerLine).join(" ");
+
+    if (line) {
+      lines.push(line);
+    }
+  }
+
+  return lines;
+}
+
+function estimateDuration(script: string) {
+  const cleaned = script.trim().replace(/\s+/g, " ");
+
+  if (cleaned.length === 0) {
+    return 0;
+  }
+
+  const seconds = Math.ceil(cleaned.length / 16.5);
+
+  return Math.max(4, seconds);
+}
+
+function createLineTimestamps(lines: string[], totalDuration: number) {
+  if (lines.length === 0) return ["00:00"];
+  if (lines.length === 1) return ["00:00"];
+
+  const step = totalDuration / lines.length;
+
+  return lines.map((_, index) => formatTime(Math.floor(index * step)));
+}
+
+function createScaleLabels(totalDuration: number) {
+  const safeDuration = Math.max(4, totalDuration);
+
+  return [
+    formatTime(0),
+    formatTime(Math.round(safeDuration * 0.25)),
+    formatTime(Math.round(safeDuration * 0.5)),
+    formatTime(Math.round(safeDuration * 0.75)),
+    formatTime(safeDuration),
+  ];
+}
+
+function createTimeRange(
+  startPercent: number,
+  endPercent: number,
+  duration: number
+) {
+  const start = Math.floor(duration * startPercent);
+  const end = Math.max(start + 1, Math.floor(duration * endPercent));
+
+  return `${formatTime(start)} - ${formatTime(end)}`;
+}
+
+function formatTime(seconds: number) {
+  const safeSeconds = Math.max(0, Math.round(seconds));
+  const minutes = Math.floor(safeSeconds / 60);
+  const remainingSeconds = safeSeconds % 60;
+
+  return `${String(minutes).padStart(2, "0")}:${String(
+    remainingSeconds
+  ).padStart(2, "0")}`;
+}
+
+// ─── Universal signal extraction ────────────────────────────────────────────
+
+// ─── Universal signal extraction ────────────────────────────────────────────
+
+interface UniversalSignals {
+  curiosityScore: number;
+  contrastScore: number;
+  stakesScore: number;
+  specificityScore: number;
+  openLoopScore: number;
+  payoffScore: number;
+  clarityScore: number;
+  escalationScore: number;
+  consequenceScore: number;
+  genericPenalty: number;
+}
+
+// ─── Universal structure detection ──────────────────────────────────────────
+
+interface ScriptStructures {
+  hasListBuildup: boolean;
+  hasMysteryClueBuildup: boolean;
+  hasContradictionReversal: boolean;
+  hasConsequencePayoff: boolean;
+  hasStrongPayoffLate: boolean;
+  hasNumericPremise: boolean;
+  hasFillerIntro: boolean;
+  hasExplanationChain: boolean;     // premise → mechanism → consequence → payoff
+  hasWeakPayoff: boolean;           // script ends with no new consequence or vague summary
+  escalationQuality: "list" | "mystery" | "reversal" | "explanation" | "flat" | "none";
+}
+
+function extractUniversalSignals(text: string): UniversalSignals {
+  const lower = text.toLowerCase();
+  const words = text.split(/\s+/).filter(Boolean);
+  const wordCount = words.length;
+
+  // ── Curiosity score ────────────────────────────────────────────────────────
+  let curiosityScore = 0;
+  const curiosityPhrases = [
+    "what if", "did you know", "have you ever", "what really",
+    "the real reason", "nobody knows", "no one knows",
+    "still a mystery", "unsolved", "turns out", "the truth about",
+    "most people don't", "most people do not", "disappeared", "vanished",
+    "secret", "hidden", "what no one", "but the real",
+  ];
+  for (const p of curiosityPhrases) {
+    if (lower.includes(p)) curiosityScore += 14;
+  }
+  if (text.includes("?")) curiosityScore += 10;
+  curiosityScore = Math.min(curiosityScore, 100);
+
+  // ── Contrast score ─────────────────────────────────────────────────────────
+  let contrastScore = 0;
+  const contrastPhrases = [
+    " but ", "however", "not what", "most creators think",
+    "most people think", "everyone thinks", "you probably think",
+    "the problem is", "the real problem", "actually", "in reality",
+    "it is not", "it's not", "not really", "does not", "doesn't",
+    "at first", "turns out", "instead",
+  ];
+  for (const p of contrastPhrases) {
+    if (lower.includes(p)) contrastScore += 12;
+  }
+  contrastScore = Math.min(contrastScore, 100);
+
+  // ── Stakes score ───────────────────────────────────────────────────────────
+  let stakesScore = 0;
+  const stakesPhrases = [
+    "lost", "destroyed", "cost", "danger", "changed", "forever",
+    "collapse", "killed", "losing", "darker", "disappeared", "vanished",
+    "impossible", "risk", "fail", "failure", "ruined", "dead", "died",
+    "never recovered", "permanent", "consequences", "price",
+  ];
+  for (const p of stakesPhrases) {
+    if (lower.includes(p)) stakesScore += 10;
+  }
+  stakesScore = Math.min(stakesScore, 100);
+
+  // ── Specificity score ──────────────────────────────────────────────────────
+  let specificityScore = 0;
+  // Numbers
+  const numberMatches = text.match(/\d[\d,]*(?:\.\d+)?/g) ?? [];
+  specificityScore += Math.min(numberMatches.length * 10, 30);
+  // Units
+  if (/\b(feet|miles|mph|kph|percent|%|seconds|minutes|hours|days|years|meters|kilograms|pounds|degrees|billion|million|thousand)\b/i.test(text)) {
+    specificityScore += 20;
+  }
+  // Named entities
+  if (/\b[A-Z][a-z]{2,}\b/.test(text)) specificityScore += 10;
+  // Dollar amounts
+  if (/\$\d/.test(text)) specificityScore += 15;
+  specificityScore = Math.min(specificityScore, 100);
+
+  // ── Open loop score ────────────────────────────────────────────────────────
+  let openLoopScore = 0;
+  const openLoopPhrases = [
+    "but why", "the reason", "here is why", "here's why",
+    "and that is", "and that's", "which means", "that means",
+    "so what", "the question is", "the answer", "find out",
+    "keep watching", "stay until", "before i explain",
+  ];
+  for (const p of openLoopPhrases) {
+    if (lower.includes(p)) openLoopScore += 15;
+  }
+  if (text.includes("?")) openLoopScore += 10;
+  openLoopScore = Math.min(openLoopScore, 100);
+
+  // ── Payoff score ───────────────────────────────────────────────────────────
+  let payoffScore = 0;
+  const payoffPhrases = [
+    "that is why", "that's why", "the result", "changed everything",
+    "changed history", "never recovered", "to this day", "years later",
+    "the aftermath", "what followed", "that decision", "it worked",
+    "it failed", "turns out", "the answer", "the reason was",
+    "it turned out", "turned out", "the truth was",
+  ];
+  for (const p of payoffPhrases) {
+    if (lower.includes(p)) payoffScore += 14;
+  }
+  payoffScore = Math.min(payoffScore, 100);
+
+  // ── Clarity score ──────────────────────────────────────────────────────────
+  // Simple proxy: shorter sentences = clearer. Penalize very long word runs.
+  let clarityScore = 60;
+  if (wordCount > 0 && wordCount <= 80) clarityScore += 20;
+  else if (wordCount > 120) clarityScore -= 15;
+  const avgWordLength = text.replace(/\s+/g, "").length / Math.max(wordCount, 1);
+  if (avgWordLength > 7) clarityScore -= 10;
+  clarityScore = Math.min(Math.max(clarityScore, 0), 100);
+
+  // ── Escalation score ───────────────────────────────────────────────────────
+  let escalationScore = 0;
+  const escalationPhrases = [
+    "now imagine", "but then", "and then", "suddenly", "until",
+    "and that is when", "then they found", "something was off",
+    "one detail", "except", "but it gets", "it gets worse",
+    "what followed", "and it gets",
+  ];
+  for (const p of escalationPhrases) {
+    if (lower.includes(p)) escalationScore += 16;
+  }
+  escalationScore = Math.min(escalationScore, 100);
+
+  // ── Consequence score ──────────────────────────────────────────────────────
+  // Universal consequence signals — behavioral, causal, identity, or temporal outcomes.
+  // No topic-specific phrases (no "brain", "online", "symbol", "shapes the next").
+  let consequenceScore = 0;
+  const consequencePhrases = [
+    // behavioral outcome (universal)
+    "trains your", "training your", "rewires", "builds the habit",
+    // control / permanence (universal)
+    "you do not control", "you lose control", "become permanent", "once it becomes",
+    // continuation / unstoppable force (universal — any subject)
+    "keeps going", "keeps moving", "keeps building", "keeps compounding",
+    // causal wrap-up (universal)
+    "that is why", "that is what makes", "that is what changes",
+    // identity / social consequence (universal)
+    "says about you", "says something about", "how people see", "proof that you",
+    "what you become", "version of you",
+    // temporal consequence (universal)
+    "by the time", "too late", "before it starts", "shapes what comes next",
+    // mechanism outcome (universal)
+    "change how", "changes how", "changes what", "changes who",
+    // stakes / loss (universal)
+    "one moment can", "one decision can", "cost you",
+  ];
+  for (const p of consequencePhrases) {
+    if (lower.includes(p)) consequenceScore += 14;
+  }
+  consequenceScore = Math.min(consequenceScore, 100);
+
+  // ── Generic penalty ────────────────────────────────────────────────────────
+  // Fires when the script is full of advice-channel platitudes with no
+  // specificity, contrast, or concrete detail.
+  let genericPenalty = 0;
+  const genericPhrases = [
+    "you should", "you need to", "this will help", "make sure",
+    "try to", "get better", "improve your", "focus on",
+    "work on your", "be consistent", "stay consistent",
+    "it is important", "very important", "key to success",
+    "most people fail", "most people struggle",
+    "post every day", "every single day", "upload more",
+    "grow your channel", "get more views", "go viral",
+  ];
+  for (const p of genericPhrases) {
+    if (lower.includes(p)) genericPenalty += 7;
+  }
+  // Reduce penalty if the script has strong specificity
+  if (specificityScore >= 30) genericPenalty = Math.max(0, genericPenalty - 10);
+  genericPenalty = Math.min(genericPenalty, 50);
+
+  return {
+    curiosityScore,
+    contrastScore,
+    stakesScore,
+    specificityScore,
+    openLoopScore,
+    payoffScore,
+    clarityScore,
+    escalationScore,
+    consequenceScore,
+    genericPenalty,
+  };
+}
+
+function detectScriptStructures(lines: string[], fullText: string): ScriptStructures {
+  const lower = fullText.toLowerCase();
+  const totalLines = lines.length;
+
+  // ── Filler intro ──────────────────────────────────────────────────────────
+  const firstLine = lines[0] ?? "";
+  const firstLower = firstLine.toLowerCase().trim();
+  const hasFillerIntro =
+    firstLower.startsWith("today i will") ||
+    firstLower.startsWith("today i want") ||
+    firstLower.startsWith("in this video") ||
+    firstLower.startsWith("i will explain") ||
+    firstLower.startsWith("i want to explain") ||
+    firstLower.startsWith("let's talk about") ||
+    firstLower.startsWith("let me explain") ||
+    firstLower.startsWith("welcome back") ||
+    firstLower.startsWith("hey guys");
+
+  // ── List buildup ──────────────────────────────────────────────────────────
+  const bodyLines = lines.slice(1);
+  let consecutiveShortLines = 0;
+  let maxConsecutiveShort = 0;
+  for (const line of bodyLines) {
+    const wc = line.split(/\s+/).filter(Boolean).length;
+    if (wc <= 9) {
+      consecutiveShortLines++;
+      maxConsecutiveShort = Math.max(maxConsecutiveShort, consecutiveShortLines);
+    } else {
+      consecutiveShortLines = 0;
+    }
+  }
+  const hasEscalationFollowUp =
+    lower.includes("now imagine") || lower.includes("now think") ||
+    lower.includes("millions") || lower.includes("permanent") ||
+    lower.includes("once it") || lower.includes("you do not control") ||
+    lower.includes("you lose control") || lower.includes("that is what") ||
+    lower.includes("that is why");
+  const hasListBuildup =
+    maxConsecutiveShort >= 3 || (maxConsecutiveShort >= 2 && hasEscalationFollowUp);
+
+  // ── Mystery clue buildup ──────────────────────────────────────────────────
+  const mysteryCluePatterns = [
+    /^no\b/i, /^there were no/i, /^no signs/i, /^nothing/i,
+    /still (there|on|sitting|in)/i, /left behind/i, /still (the same|intact)/i,
+    /cargo/i, /belongings/i, /personal/i, /disappeared/i, /vanished/i,
+    /everybody had/i, /everyone had/i, /nobody knew/i, /no one knew/i,
+    /looked like/i, /it looked/i, /appeared/i,
+  ];
+  const mysteryClueLines = lines.filter(l =>
+    mysteryCluePatterns.some(p => p.test(l.trim()))
+  );
+  const hasMysteryClueBuildup = mysteryClueLines.length >= 3;
+
+  // ── Contradiction / reversal ──────────────────────────────────────────────
+  const hasContradictionReversal =
+    (lower.includes("most people think") || lower.includes("most creators think") ||
+     lower.includes("everyone thinks") || lower.includes("you probably think")) &&
+    (lower.includes(" but ") || lower.includes("however") || lower.includes("actually") ||
+     lower.includes("the real") || lower.includes("not really") || lower.includes("it does not") ||
+     lower.includes("it is not"));
+
+  // ── Explanation chain ─────────────────────────────────────────────────────
+  // Universal: premise → number/mechanism → consequence → payoff
+  // Detected by: specific number/unit present AND a mechanism word AND a consequence marker
+  const hasSpecificNumber = /\d[\d,]*(?:\.\d+)?/.test(lower) &&
+    /\b(feet|miles|mph|kph|percent|%|seconds|minutes|hours|days|years|meters|billion|million|thousand|degrees)\b/i.test(lower);
+  const hasMechanismWord =
+    lower.includes("because") || lower.includes("which means") ||
+    lower.includes("that means") || lower.includes("the reason") ||
+    lower.includes("so ") || lower.includes("therefore") ||
+    lower.includes("as a result") || lower.includes("this means") ||
+    lower.includes("that is why") || lower.includes("the result") ||
+    lower.includes("the mechanism") || lower.includes("as a consequence") ||
+    lower.includes("which causes") || lower.includes("which creates");
+  const hasConsequenceMarker =
+    lower.includes("would") || lower.includes("keeps going") ||
+    lower.includes("keeps moving") || lower.includes("keeps ") ||
+    lower.includes("everything") || lower.includes("scariest") ||
+    lower.includes("the real") || lower.includes("it is that") ||
+    lower.includes("it is not") || lower.includes("the scary part") ||
+    lower.includes("the crazy part") || lower.includes("the strange part") ||
+    lower.includes("but ") || lower.includes("however");
+  const hasExplanationChain = hasSpecificNumber && hasMechanismWord && hasConsequenceMarker;
+
+  // ── Consequence payoff in last 30% ────────────────────────────────────────
+  // Widened to catch structural endings, not just specific phrase matches.
+  const lastThirdLines = lines.slice(Math.floor(totalLines * 0.70));
+  const lastThirdText = lastThirdLines.join(" ").toLowerCase();
+
+  // Universal consequence markers: any strong causal or consequential statement
+  const hasConsequencePayoff =
+    // explicit causal payoff
+    /that is why|that's why|the real reason|the reason is|it turns out/.test(lastThirdText) ||
+    // strong continuation / unstoppable force
+    /keeps going|keeps moving|everything else keeps|keeps /.test(lastThirdText) ||
+    // personal/identity/social consequence
+    /says about you|what you (are|become)|how (people|everyone) (see|look)|proof that/.test(lastThirdText) ||
+    // loss of control / permanence
+    /you do not control|you lose control|become permanent|once it is/.test(lastThirdText) ||
+    // brain/behavior consequence
+    /training your brain|trains your brain|quit when|rewires/.test(lastThirdText) ||
+    // reversal / twist payoff
+    /it is not (just|about|the)|not just.*it is|the scary part|the crazy part/.test(lastThirdText) ||
+    // status/symbol consequence
+    /competing with|symbol of|proof that|what wearing/.test(lastThirdText) ||
+    // history/mystery resolution
+    /to this day|never recovered|was never found|changed everything|changed history/.test(lastThirdText);
+
+  // ── Strong payoff appearing late (placement issue) ────────────────────
+  // The last line contains a structural consequence but hook was a filler intro.
+  const lastLine = lines[totalLines - 1] ?? "";
+  const lastLineLower = lastLine.toLowerCase();
+  // Widened: any line ending with a causal/consequence structure
+  const lastLineIsStructuralConsequence =
+    // consequence / behavioral outcome (universal)
+    /training your (brain|mind|body)|controls (your|how)|permanent/.test(lastLineLower) ||
+    /you do not control|you lose control|once it (is|becomes|goes)/.test(lastLineLower) ||
+    // continuation / unstoppable force (universal — any subject)
+    /keeps (going|moving|running|working|growing|building|compounding)/.test(lastLineLower) ||
+    // identity / social consequence (universal)
+    /says (about|something about) (you|them|us)|how (people|everyone|others) (see|look|judge)/.test(lastLineLower) ||
+    /what you (are|become|represent)|proof that (you|they|it)/.test(lastLineLower) ||
+    // explanation chain endings (universal — any premise/mechanism)
+    /it is not (just|only|about)|the (real|actual|true) (reason|problem|issue|point)/.test(lastLineLower) ||
+    /the (scary|strange|crazy|interesting|surprising|remarkable) part/.test(lastLineLower) ||
+    /but (not|never|nowhere|nothing) (the|just|only|about)/.test(lastLineLower) ||
+    /the whole (point|story|picture|idea)/.test(lastLineLower) ||
+    // causal wrap-up (universal)
+    /that is (why|what|how|when) (it|this|the|your|everything)/.test(lastLineLower) ||
+    /not for the reason|not (what|how|why) (most|many|you)/.test(lastLineLower);
+  // Note: hasConsequencePayoff is computed next and cannot be referenced here.
+  // analyzeScript() will use lastLineIsStructuralConsequence || structures.hasConsequencePayoff
+  // when it needs the combined check.
+
+  const hasStrongPayoffLate = lastLineIsStructuralConsequence && hasFillerIntro;
+
+  // ── Numeric premise + mechanism ───────────────────────────────────────────
+  // Universal: detects any specific number with a unit paired with a mechanism word.
+  // Does not reference topic-specific terms like "gravity" or "one sixth".
+  const hasNumericPremise =
+    /\d[\d,]*\s*(miles per hour|mph|kph|km\/h|feet|meters|%|percent|billion|million|thousand|degrees|times|seconds|minutes|hours|days|years|kilograms|pounds)/i.test(lower) &&
+    (lower.includes("because") || lower.includes("that means") ||
+     lower.includes("which means") || lower.includes("the reason") ||
+     lower.includes("mechanism") || lower.includes("as a result") ||
+     lower.includes("the result") || lower.includes("not about") ||
+     lower.includes("so ") || lower.includes("would") ||
+     lower.includes("therefore") || lower.includes("this means") ||
+     lower.includes("which causes") || lower.includes("which creates"));
+
+  // ── Weak payoff ────────────────────────────────────────────────────────────
+  // The last line offers no new consequence, result, or unresolved tension.
+  const lastLineWordCount = lastLine.split(/\s+/).filter(Boolean).length;
+  const lastLineIsGenericClose =
+    /let me know|comment below|what do you think|share this|follow for more/.test(lastLineLower) ||
+    /like and subscribe|stay tuned|hope this helps|that is all|that is it/.test(lastLineLower) ||
+    (lastLineWordCount <= 8 && !lastLineIsStructuralConsequence && !hasMechanismWord);
+  const hasWeakPayoff = lastLineIsGenericClose && !hasConsequencePayoff;
+
+  // ── Escalation quality ─────────────────────────────────────────────────────
+  let escalationQuality: ScriptStructures["escalationQuality"] = "none";
+  if (hasListBuildup) escalationQuality = "list";
+  else if (hasMysteryClueBuildup) escalationQuality = "mystery";
+  else if (hasContradictionReversal) escalationQuality = "reversal";
+  else if (hasExplanationChain) escalationQuality = "explanation";
+  else if (lower.includes("but") || lower.includes("however") || lower.includes("then")) {
+    escalationQuality = "flat";
+  }
+
+  return {
+    hasListBuildup,
+    hasMysteryClueBuildup,
+    hasContradictionReversal,
+    hasConsequencePayoff,
+    hasStrongPayoffLate,
+    hasNumericPremise,
+    hasFillerIntro,
+    hasExplanationChain,
+    hasWeakPayoff,
+    escalationQuality,
+  };
+}
+
+// ─── Hook strength ──────────────────────────────────────────────────────────
+
+// ─── Hook strength ──────────────────────────────────────────────────────────
+
+function calculateHookStrength(
+  firstSentence: string,
+  signals: UniversalSignals
+): number {
+  const lower = firstSentence.toLowerCase();
+  const wordCount = firstSentence.split(/\s+/).filter(Boolean).length;
+
+  let score = 38;
+
+  // ── Tier-1: direct curiosity / pattern-interrupt openers ──────────────────
+  const tier1Hooks = [
+    "what if", "did you know", "have you ever", "what really",
+    "the real reason", "nobody knows", "no one knows", "you won't believe",
+    "the truth about", "most people don't", "disappeared", "vanished",
+    "still a mystery", "unsolved",
+  ];
+  const tier1Hits = tier1Hooks.filter(p => lower.includes(p)).length;
+  score += tier1Hits * 18;
+
+  // ── Tier-2: belief-contrast and soft curiosity openers ────────────────────
+  const tier2Hooks = [
+    "most creators think", "most people think", "everyone thinks",
+    "you probably think", "most think",
+    "turns out", "here's the thing", "what no one", "but the real",
+    "what most", "the secret", "the real problem",
+  ];
+  const tier2Hits = tier2Hooks.filter(p => lower.includes(p)).length;
+  score += tier2Hits * 14;
+
+  // ── NEW Tier-3: narrative / story-driven openers ───────────────────────────
+  // Story hooks that do not use explicit curiosity phrases but still create
+  // tension through mystery setup, action, or implicit contrast
+  const tier3Hooks = [
+    // mystery/event openers
+    "a woman", "a man", "a teenager", "a student", "a player",
+    "one day", "it started when", "it began when",
+    "for weeks", "for months", "nobody knew",
+    // action/event openers
+    "on her way", "on his way", "on their way",
+    "they found", "police found", "investigators found",
+    // comparison/contrast openers (sports, brand, business)
+    "at first it sounds", "at first it looked", "at first it seemed",
+    "sounds impossible", "looks impossible",
+    // personal/social hooks
+    "what if your", "imagine if your", "what if you",
+  ];
+  const tier3Hits = tier3Hooks.filter(p => lower.includes(p)).length;
+  score += tier3Hits * 13;
+
+// ── Question mark in first sentence ───────────────────────────────────────
+  // Questions are one valid hook type but NOT the only one.
+  // Statement hooks with specificity can be equally strong.
+  if (firstSentence.includes("?")) score += 8;
+
+// ── Scenario / imagination hooks ──────────────────────────────────────────
+  // "Imagine..." and "Imagine if..." create mental images and stakes.
+  // These should not be penalized just because they are not questions.
+  const scenarioHookPhrases = [
+    "imagine someone", "imagine if", "imagine you", "imagine a ",
+    "picture this", "what if your", "what if you woke",
+  ];
+  const isScenarioHook = scenarioHookPhrases.some(p => lower.startsWith(p) || lower.includes(p));
+  if (isScenarioHook) score += 18;
+
+  // ── Scenario hook with personal stakes bonus ──────────────────────────────
+  // A scenario hook that also addresses the viewer directly with private/personal
+  // language earns an additional bonus. This covers hooks like:
+  // "Imagine someone was about to play back everything you said today."
+  // which have: concrete scenario + "you" + private/personal stakes + time anchor.
+  const hasPersonalStakeLanguage =
+    (lower.includes(" you ") || lower.includes(" your ") || lower.startsWith("you ")) &&
+    (lower.includes("private") || lower.includes("said") || lower.includes("wrote") ||
+     lower.includes("sent") || lower.includes("thought") || lower.includes("today") ||
+     lower.includes("play back") || lower.includes("replay") || lower.includes("heard") ||
+     lower.includes("record") || lower.includes("message") || lower.includes("joke"));
+  if (isScenarioHook && hasPersonalStakeLanguage) score += 10;
+
+  // ── Specific numeric / measurement hooks ──────────────────────────────────
+  // A hook with a specific number + named subject + unusual scenario is strong
+  // without needing a question. "Ronaldo would jump over 20 feet" = strong.
+  const hasNumber = /\d/.test(firstSentence);
+  const hasUnit = /\b(feet|foot|miles|km|mph|kph|percent|%|seconds|minutes|hours|days|years|meters|kilograms|pounds|degrees|times|billion|million|thousand)\b/i.test(firstSentence);
+const hasNamedSubject = /\b[A-Z][a-z]{2,}\b/.test(firstSentence);
+  if (hasNumber && hasUnit) score += 16;
+  else if (hasNumber) score += 8;
+  if (hasNamedSubject && hasNumber) score += 8;
+
+  // ── Direct viewer address ─────────────────────────────────────────────────
+  if (lower.includes(" your ") || lower.startsWith("your ")) score += 8;
+  if (lower.includes(" you ") && !lower.startsWith("you ")) score += 4;
+
+  // ── Contrast words in first sentence ─────────────────────────────────────
+  const contrastPhrases = [
+    "but the real", "but actually", "not what", "most creators",
+    "the problem is", "the real problem", "however",
+    "not the real", "that is not", "it is not about",
+  ];
+  const contrastHits = contrastPhrases.filter(p => lower.includes(p)).length;
+  if (contrastHits >= 1) score += 10 + Math.min(contrastHits - 1, 2) * 5;
+  if (contrastHits === 0 && lower.includes("but")) score += 4;
+
+  // ── Numeric / money specificity ───────────────────────────────────────────
+  if (/\d/.test(firstSentence)) score += 8;
+  if (/\$|million|billion/.test(lower)) score += 5;
+
+  // ── Stakes / tension words in first sentence ──────────────────────────────
+  const stakesPhrases = [
+    "lost", "destroyed", "cost", "danger", "changed",
+    "forever", "collapse", "killed", "losing",
+    "darker", "disappeared", "vanished", "impossible",
+  ];
+  const stakesHits = stakesPhrases.filter(p => lower.includes(p)).length;
+  score += Math.min(stakesHits, 2) * 7;
+
+  // ── Narrative specificity from first sentence ─────────────────────────────
+  // Universal: detect concrete physical/event details structurally, not by topic.
+  // These patterns work for any niche: crime, science, sports, business, etc.
+  const hasConcreteAction =
+    // physical state or location detail (universal)
+    /\b(stopped|found|discovered|disappeared|arrived|recording|captured|caught|revealed)\b/i.test(firstSentence) ||
+    // sensory or physical object detail (universal)
+    /\b(footage|camera|recording|message|image|photo|signal|trace)\b/i.test(firstSentence) ||
+    // comparative/competitive framing (universal)
+    /\b(outjump|outsell|outperform|beats|beat|versus|compared to|vs\.?)\b/i.test(firstSentence) ||
+    // functional vs symbolic framing (universal)
+    /\b(tell time|keep time|measure|track|mark)\b/i.test(firstSentence);
+  if (hasConcreteAction) score += Math.min(2, 1) * 8;
+
+  // ── Open loop support from full script ────────────────────────────────────
+  if (signals.openLoopScore >= 20) score += 7;
+
+  // ── Clarity bonus ─────────────────────────────────────────────────────────
+  if (wordCount >= 5 && wordCount <= 22) score += 8;
+  else if (wordCount > 30) score -= 10;
+
+  // ── Penalties ─────────────────────────────────────────────────────────────
+  const hardWeakStarts = [
+    "welcome back", "hey guys", "hello everyone",
+    "today we are going to", "today i want to",
+    "before we start", "before we begin",
+    "in today's video", "let me explain",
+  ];
+  if (hardWeakStarts.some(p => lower.startsWith(p))) score -= 28;
+  if (lower.startsWith("in this video")) score -= 18;
+
+  const vagueStarts = [
+    "this is about", "this video is about", "this is a story about",
+    "i want to talk about", "let's talk about", "so basically",
+    "i will talk about", "i will explain",
+  ];
+  if (vagueStarts.some(p => lower.startsWith(p) || lower.includes(p))) score -= 14;
+
+  // No curiosity/contrast/narrative/scenario/numeric signal — soft penalty only
+  // Do NOT penalize numeric hooks or scenario hooks even if they lack question marks.
+  const hasScenarioSignal = scenarioHookPhrases.some(p => lower.startsWith(p) || lower.includes(p));
+  const hasNumericSignal = hasNumber && (hasUnit || hasNamedSubject);
+  if (
+    tier1Hits === 0 && tier2Hits === 0 && tier3Hits === 0 &&
+    !firstSentence.includes("?") && contrastHits === 0 &&
+    !hasScenarioSignal && !hasNumericSignal
+  ) {
+    score -= 6;
+  }
+
+  const hasStrongSpecificity = signals.specificityScore >= 30;
+  const cap = hasStrongSpecificity ? 92 : 88;
+
+  return Math.min(cap, Math.max(0, Math.round(score)));
+}
+
+// ─── Retention structure ────────────────────────────────────────────────────
+
+// ─── Retention structure ────────────────────────────────────────────────────
+
+function calculateRetentionStructure(
+  lines: string[],
+  signals: UniversalSignals,
+  structures?: ScriptStructures
+): number {
+  let risk = 42;
+
+  const totalLines = lines.length;
+  if (totalLines === 0) return 85;
+
+  const fullText = lines.join(" ").toLowerCase();
+  const charCount = fullText.length;
+
+  // ── Positive reductions ────────────────────────────────────────────────────
+  if (signals.curiosityScore >= 40) risk -= 7;
+  else if (signals.curiosityScore >= 20) risk -= 4;
+
+  if (signals.contrastScore >= 40) risk -= 6;
+  else if (signals.contrastScore >= 20) risk -= 4;
+
+  if (signals.openLoopScore >= 40) risk -= 7;
+  else if (signals.openLoopScore >= 15) risk -= 4;
+
+  if (signals.payoffScore >= 40) risk -= 6;
+  else if (signals.payoffScore >= 15) risk -= 3;
+
+  if (signals.consequenceScore >= 30) risk -= 5;
+  else if (signals.consequenceScore >= 15) risk -= 2;
+
+  if (signals.escalationScore >= 30) risk -= 5;
+  else if (signals.escalationScore >= 15) risk -= 2;
+
+  if (signals.stakesScore >= 30) risk -= 4;
+  else if (signals.stakesScore >= 15) risk -= 2;
+
+  if (signals.specificityScore >= 35) risk -= 4;
+  else if (signals.specificityScore >= 18) risk -= 2;
+
+  if (charCount >= 200 && charCount <= 750) risk -= 3;
+
+  // ── Structure-based reductions (universal, not niche-specific) ─────────────
+  if (structures) {
+    // List buildup is a valid escalation structure — reduces risk meaningfully
+    if (structures.hasListBuildup) risk -= 9;
+
+    // Mystery clue buildup counts as structured escalation
+    if (structures.hasMysteryClueBuildup) risk -= 8;
+
+    // Contradiction/reversal structure is a strong retention signal
+    if (structures.hasContradictionReversal) risk -= 7;
+
+    // Consequence payoff in last third means the script has a destination
+    if (structures.hasConsequencePayoff) risk -= 6;
+
+    // Numeric premise + mechanism = structured explanation, not random info
+    if (structures.hasNumericPremise) risk -= 5;
+
+    // Explanation chain (premise → mechanism → consequence) = valid retention structure
+    if (structures.hasExplanationChain) risk -= 7;
+  }
+
+  // ── Existing narrative structure bonuses ──────────────────────────────────
+  const hasAtFirstBut =
+    fullText.includes("at first") && (fullText.includes(" but ") || fullText.includes("however"));
+  if (hasAtFirstBut) risk -= 5;
+
+  const hasMostPeopleReversal =
+    (fullText.includes("most people think") || fullText.includes("most creators think")) &&
+    (fullText.includes(" but ") || fullText.includes("however") || fullText.includes("actually"));
+  if (hasMostPeopleReversal) risk -= 5;
+
+  // Universal mystery/reveal escalation: any clue-then-contrast sequence
+  const hasMysterySequence =
+    (fullText.includes("one detail") || fullText.includes("did not fit") ||
+     fullText.includes("something was") || fullText.includes("something seemed") ||
+     fullText.includes("nobody knew") || fullText.includes("no one knew") ||
+     fullText.includes("then they found") || fullText.includes("then it turned out")) &&
+    (fullText.includes("but") || fullText.includes("suddenly") || fullText.includes("until"));
+  if (hasMysterySequence) risk -= 6;
+
+  // Universal comparison escalation: any "but still X" or "but harder/bigger/deeper"
+  const hasComparisonEscalation =
+    fullText.includes("but") && fullText.includes("still") &&
+    (fullText.includes("harder") || fullText.includes("bigger") || fullText.includes("deeper") ||
+     fullText.includes("further") || fullText.includes("more than") || fullText.includes("gap"));
+  if (hasComparisonEscalation) risk -= 4;
+
+  // Universal soft consequence: any identity/social/behavioral implication at end
+  const hasSoftConsequence =
+    /that might be enough|proof that (you|it|they)|says (about|something) (you|them)/.test(fullText) ||
+    /how (everyone|people|others) (see|look|judge)|version of (you|them|it)/.test(fullText) ||
+    /much (harder|bigger|deeper|stranger|darker) (to|than)/.test(fullText) ||
+    /competing with (a |the )?(symbol|status|identity|idea|concept)/.test(fullText);
+  if (hasSoftConsequence) risk -= 4;
+
+  // ── Flat middle penalty — ONLY fires when structure detection says it's flat ─
+  if (totalLines >= 5) {
+    const midStart = Math.floor(totalLines * 0.33);
+    const midEnd = Math.floor(totalLines * 0.66);
+    const middleText = lines.slice(midStart, midEnd).join(" ").toLowerCase();
+
+    const middleHasSignal = [
+      "but", "however", "then", "suddenly", "except", "actually",
+      "the problem", "real problem", "if it", "that is why", "result",
+      "at first", "one detail", "the scary part", "the truth",
+    ].some(p => middleText.includes(p));
+
+    // Only penalize if structure detection also says escalation is weak
+    const structureIsFlat = !structures ||
+      (structures.escalationQuality === "flat" || structures.escalationQuality === "none");
+
+    if (!middleHasSignal && structureIsFlat) risk += 7;
+  }
+
+  if (signals.openLoopScore === 0) risk += 8;
+  if (signals.payoffScore === 0 && signals.consequenceScore === 0) risk += 10;
+  if (signals.contrastScore === 0) risk += 6;
+  if (signals.curiosityScore === 0) risk += 6;
+  if (signals.specificityScore === 0) risk += 5;
+
+  const fluffPhrases = [
+    "basically", "as you can see", "i just want to", "this is very important",
+    "i'm going to explain", "really important", "just to summarize",
+  ];
+  const fluffHits = fluffPhrases.filter(p => fullText.includes(p)).length;
+  risk += fluffHits * 7;
+
+  if (charCount < 180) risk += 10;
+  if (charCount > 850) risk += 8;
+
+  if (signals.genericPenalty >= 20) risk += 12;
+  else if (signals.genericPenalty >= 12) risk += 7;
+  else if (signals.genericPenalty >= 6) risk += 3;
+
+  // ── Dynamic floor ─────────────────────────────────────────────────────────
+  const positiveSignalCount = [
+    signals.curiosityScore >= 20,
+    signals.contrastScore >= 20,
+    signals.openLoopScore >= 15,
+    signals.payoffScore >= 15,
+    signals.escalationScore >= 15,
+    signals.specificityScore >= 18,
+    signals.stakesScore >= 15,
+    signals.consequenceScore >= 15,
+  ].filter(Boolean).length;
+
+  const narrativeBonusCount = [
+    hasAtFirstBut, hasMostPeopleReversal, hasMysterySequence,
+    hasComparisonEscalation, hasSoftConsequence,
+    structures?.hasListBuildup ?? false,
+    structures?.hasMysteryClueBuildup ?? false,
+    structures?.hasContradictionReversal ?? false,
+    structures?.hasConsequencePayoff ?? false,
+  ].filter(Boolean).length;
+
+  const combinedStrength = positiveSignalCount + narrativeBonusCount;
+
+  const floor = combinedStrength >= 9 ? 18
+    : combinedStrength >= 7 ? 22
+    : combinedStrength >= 6 ? 25
+    : combinedStrength >= 5 ? 28
+    : combinedStrength >= 4 ? 32
+    : combinedStrength >= 3 ? 35
+    : 38;
+
+  return Math.min(100, Math.max(floor, Math.round(risk)));
+}
+
+// ─── Payoff strength ────────────────────────────────────────────────────────
+
+// ─── Payoff strength ────────────────────────────────────────────────────────
+
+function calculatePayoffStrength(
+  lines: string[],
+  signals: UniversalSignals
+): number {
+  let strength = 25;
+
+  const lastThird = lines.slice(Math.floor(lines.length * 0.6)).join(" ").toLowerCase();
+  const fullText = lines.join(" ").toLowerCase();
+
+  // Strong explicit payoff phrases in the last third
+  const payoffPhrases = [
+    "that's why", "the result", "changed everything", "changed history",
+    "never recovered", "to this day", "years later", "lost their lives",
+    "ended forever", "still remains", "was never found", "the aftermath",
+    "what followed", "that decision", "it worked", "it failed",
+  ];
+  const payoffHits = payoffPhrases.filter(p => lastThird.includes(p)).length;
+  strength += payoffHits * 14;
+
+  // Resolution phrases
+  const resolutionPhrases = [
+    "that is why", "that's why", "here's what happened", "the answer",
+    "the reason", "it turned out", "turned out", "the truth was",
+  ];
+  const resolutionHits = resolutionPhrases.filter(p => lastThird.includes(p)).length;
+  strength += resolutionHits * 10;
+
+  // Weak payoff phrases
+  const weakPayoffPhrases = [
+    "entire result", "can change", "that is why one", "viewers stay longer",
+    "one stronger",
+  ];
+  const weakPayoffHits = weakPayoffPhrases.filter(p => lastThird.includes(p)).length;
+  strength += weakPayoffHits * 5;
+
+  // ── Universal narrative / consequence / transformation endings ────────────
+  // Detected via structural pattern, not topic-specific phrases.
+  // Works for mystery, science, business, sports, psychology, or any niche.
+  let narrativePayoffScore = 0;
+
+  // Sudden reveal / transformation (universal)
+  if (/suddenly (became|turned|changed|revealed|showed)/.test(lastThird)) narrativePayoffScore += 13;
+  // "much [adjective] than" — any comparative escalation at end
+  if (/much (harder|bigger|deeper|stranger|darker|worse|better|more) (to|than|for)/.test(lastThird)) narrativePayoffScore += 13;
+  // Identity / social consequence (universal subject)
+  if (/proof that (you|it|they|this)|says (about|something about) (you|them|it)/.test(lastThird)) narrativePayoffScore += 13;
+  if (/how (everyone|people|others) (see|look|view|judge)/.test(lastThird)) narrativePayoffScore += 13;
+  // Mystery resolution (universal)
+  if (/(was|were|has been|have been) never (found|solved|explained|identified|recovered)/.test(lastThird)) narrativePayoffScore += 13;
+  if (/(the case|the investigation|the inquiry) (remains|is still|has never)/.test(lastThird)) narrativePayoffScore += 10;
+  // Consequence threshold / "might be enough" (universal)
+  if (/that might be enough|might be enough to|just enough to/.test(lastThird)) narrativePayoffScore += 13;
+  // Competing with / surpassing a concept (universal)
+  if (/competing with (a |the )?(symbol|concept|idea|status|identity|image)/.test(lastThird)) narrativePayoffScore += 13;
+  // Personal version / transformation (universal)
+  if (/version of (you|them|it|this)|change (how|who|what) (you|they|everyone|people)/.test(lastThird)) narrativePayoffScore += 13;
+  // General transformation ending (universal)
+  if (/(changes|changed) (everything|the whole|how|what|who)/.test(lastThird)) narrativePayoffScore += 10;
+  // Explanation-chain conclusion (universal — any topic)
+  if (/that is (why|what makes|how|the reason)/.test(lastThird) && !/that is why one/.test(lastThird)) narrativePayoffScore += 10;
+
+  strength += Math.min(narrativePayoffScore, 26); // cap so one script can't double-dip
+
+  // Numeric specificity in ending
+  if (/\d/.test(lastThird)) strength += 8;
+
+  // Consequence present
+  if (signals.consequenceScore >= 20) strength += 10;
+  else if (signals.consequenceScore >= 8) strength += 5;
+
+  // Escalation support
+  if (signals.escalationScore >= 20) strength += 6;
+
+  // Stakes support
+  if (signals.stakesScore >= 20) strength += 5;
+
+  // Weak ending penalty
+  const weakEndingPhrases = [
+    "let me know", "comment below", "what do you think", "share this",
+    "follow for more", "like and subscribe", "stay tuned",
+  ];
+  const weakEndingHits = weakEndingPhrases.filter(p => fullText.includes(p)).length;
+  strength -= weakEndingHits * 8;
+
+  // No resolution at all
+  if (
+    payoffHits === 0 && resolutionHits === 0 &&
+    weakPayoffHits === 0 && narrativePayoffScore === 0 &&
+    signals.consequenceScore === 0
+  ) {
+    strength -= 14;
+  }
+
+if (signals.genericPenalty >= 20) strength -= 12;
+else if (signals.genericPenalty >= 10) strength -= 6;
+
+  return Math.min(100, Math.max(0, Math.round(strength)));
+}
+
+// ─── Main analysis ───────────────────────────────────────────────────────────
+
+function analyzeScript(
+  script: string,
+  duration: number,
+  scriptLines: string[]
+): AnalysisResult {
+  const text = script.trim();
+  const lines = scriptLines;
+  const totalLines = lines.length;
+
+  const firstSentence = text.split(/[.!?]/)[0]?.trim() ?? text.trim();
+  const signals = extractUniversalSignals(text);
+  const structures = detectScriptStructures(lines, text);
+
+  const hookScore = text.length > 0
+    ? Math.max(18, clampScore(calculateHookStrength(firstSentence, signals)))
+    : 0;
+  const structureRisk = calculateRetentionStructure(lines, signals, structures);
+  const payoffStrength = calculatePayoffStrength(lines, signals);
+
+  const payoffReduction = Math.min(payoffStrength * 0.10, 8);
+  let retentionRisk = clampScore(Math.round(structureRisk - payoffReduction));
+  if (retentionRisk < 20) retentionRisk = 20;
+
+  // ── Hook + structure bonus: if hook is strong and escalation is detected,
+  //    retention risk should not be High (≥65) ─────────────────────────────
+const hasStructuredEscalation =
+    structures.hasListBuildup ||
+    structures.hasMysteryClueBuildup ||
+    structures.hasContradictionReversal ||
+    structures.hasConsequencePayoff ||
+    structures.hasNumericPremise ||
+    structures.hasExplanationChain;
+
+  if (hookScore >= 70 && hasStructuredEscalation && retentionRisk >= 65) {
+    retentionRisk = Math.min(retentionRisk, 58);
+  }
+  // Even with a decent hook (55+) and any buildup, cap at Medium
+  if (hookScore >= 55 && hasStructuredEscalation && retentionRisk >= 65) {
+    retentionRisk = Math.min(retentionRisk, 62);
+  }
+
+  const charCount = text.length;
+  const hasNumericSpecificity = signals.specificityScore >= 30;
+  const isShortSimple = charCount < 350 && totalLines <= 5;
+  const isVeryShort = charCount < 130;
+
+ // Structure quality bonus — reward scripts that have valid escalation even if hook is weak.
+  // This prevents a well-structured explanation chain or mystery from scoring very low
+  // purely because the filler intro drags hook score down.
+  const structureBonus =
+    (structures.hasExplanationChain ? 6 : 0) +
+    (structures.hasNumericPremise ? 4 : 0) +
+    (structures.hasListBuildup ? 5 : 0) +
+    (structures.hasMysteryClueBuildup ? 4 : 0) +
+    (structures.hasContradictionReversal ? 4 : 0) +
+    (structures.hasConsequencePayoff ? 3 : 0);
+  // Cap bonus so it can't inflate a weak hook script into "Very Strong"
+  const cappedStructureBonus = Math.min(structureBonus, 12);
+
+  let overallScore = clampScore(
+    Math.round(hookScore * 0.55 + (100 - retentionRisk) * 0.45 + cappedStructureBonus)
+  );
+
+  if (!hasNumericSpecificity && overallScore > 85) overallScore = 85;
+  if (isShortSimple && overallScore > 82) overallScore = 82;
+  if (isVeryShort && overallScore > 55) overallScore = 55;
+  if (retentionRisk > 30 && overallScore > 88) overallScore = 88;
+  if (payoffStrength < 40 && overallScore > 85) overallScore = 85;
+
+  if (signals.genericPenalty >= 20 && overallScore > 62) overallScore = 62;
+  else if (signals.genericPenalty >= 12 && overallScore > 72) overallScore = 72;
+
+  overallScore = clampScore(overallScore);
+
+  const hookRewriteSuggestion = createHookRewrite(text);
+
+  const isGoodScript = overallScore >= 70 && hookScore >= 65 && retentionRisk <= 35;
+  const isStrongScript = overallScore >= 80;
+  const lower = text.toLowerCase();
+  const wordCount = text.split(/\s+/).filter(Boolean).length;
+
+  type WeakArea = "hook" | "short" | "payoff" | "generic" | "middle" | "none";
+  let primaryWeak: WeakArea = "none";
+  if (isVeryShort || charCount < 180) {
+    primaryWeak = "short";
+  } else if (hookScore < 45) {
+    primaryWeak = "hook";
+  } else if (signals.genericPenalty >= 20) {
+    primaryWeak = "generic";
+  } else if (payoffStrength < 28 && signals.consequenceScore < 15) {
+    primaryWeak = "payoff";
+  } else if (hookScore < 65) {
+    primaryWeak = "hook";
+  }
+
+  const riskyParts: RiskyPart[] = [];
+  const fixes: string[] = [];
+  const riskyLineIndexes: number[] = [];
+  const warningLineIndexes: number[] = [];
+
+  const fixKeys = new Set<string>();
+  function addFix(text: string) {
+    const key = text.toLowerCase().slice(0, 60);
+    if (!fixKeys.has(key)) {
+      fixKeys.add(key);
+      fixes.push(text);
+    }
+  }
+
+  // ── 1. Very short script ────────────────────────────────────────────────────
+  if (charCount < 180) {
+    riskyParts.push({
+      time: createTimeRange(0.1, 0.8, duration),
+      title: "Script may be too short.",
+      description: "The idea may not feel developed enough before the ending.",
+    });
+    if (primaryWeak === "short") {
+      addFix("Add one stronger example, specific detail, or consequence before the final payoff.");
+      addFix("Include a number, result, or named reference to make the script feel grounded.");
+      addFix("Expand the payoff — state clearly what changes, what was lost, or what the viewer should take away.");
+    }
+  }
+
+  // ── 2. Hook weakness ────────────────────────────────────────────────────────
+  if (hookScore < 45) {
+    // Check if the script has a strong payoff/consequence that should be the hook
+    if (structures.hasStrongPayoffLate || structures.hasConsequencePayoff) {
+      riskyParts.push({
+        time: createTimeRange(0, 0.25, duration),
+        title: "Strong payoff appears too late.",
+        description: "The opening announces the topic instead of leading with the strongest consequence or detail from the script.",
+      });
+    } else {
+      riskyParts.push({
+        time: createTimeRange(0, 0.25, duration),
+        title: "Weak opening.",
+        description: "The first line may not stop viewers from swiping. It needs more curiosity, contrast, or a clear result.",
+      });
+    }
+    riskyLineIndexes.push(0);
+  } else if (hookScore < 65) {
+    warningLineIndexes.push(0);
+  }
+
+  // No curiosity gap (only when hook is clearly weak and not already covered)
+  if (signals.curiosityScore < 12 && hookScore < 55) {
+    if (!riskyParts.some(p => p.title === "Weak opening." || p.title === "Strong payoff appears too late.")) {
+      riskyParts.push({
+        time: createTimeRange(0, 0.3, duration),
+        title: "No clear curiosity gap.",
+        description: "The opening explains the topic but does not create enough tension or an unanswered question.",
+      });
+      if (!riskyLineIndexes.includes(0)) riskyLineIndexes.push(0);
+    }
+  }
+
+  // ── 3. Generic/filler script ────────────────────────────────────────────────
+  if (signals.genericPenalty >= 12 && overallScore < 72) {
+    riskyParts.push({
+      time: createTimeRange(0.2, 0.7, duration),
+      title: "Script feels too generic.",
+      description: "The lines repeat obvious ideas without a concrete example, number, twist, or consequence.",
+    });
+    const midIdx = Math.floor(totalLines / 2);
+    if (!riskyLineIndexes.includes(midIdx)) riskyLineIndexes.push(midIdx);
+    if (totalLines > 3 && !riskyLineIndexes.includes(midIdx - 1)) {
+      warningLineIndexes.push(midIdx - 1);
+    }
+  }
+
+  // ── 4. Flat middle — only when structure detection confirms it ──────────────
+  if (totalLines >= 5) {
+    const middleLines = lines.slice(
+      Math.floor(totalLines * 0.33),
+      Math.floor(totalLines * 0.66)
+    );
+    const middleText = middleLines.join(" ").toLowerCase();
+    const middleHasContrastSignal = [
+      "but", "however", "then", "suddenly", "except", "actually",
+      "the problem", "real problem", "if it", "that is why", "result",
+    ].some(p => middleText.includes(p));
+
+    // Use structure detection: list buildup and mystery buildup are NOT flat middle
+    const middleIsStructured =
+      structures.hasListBuildup ||
+      structures.hasMysteryClueBuildup ||
+      structures.hasContradictionReversal;
+
+    const shortLineCount = middleLines.filter(l => l.split(/\s+/).length <= 7).length;
+    const hasListBuildupPattern = shortLineCount >= 2;
+
+    const postMiddleLines = lines.slice(Math.floor(totalLines * 0.66));
+    const postMiddleText = postMiddleLines.join(" ").toLowerCase();
+    const hasPostEscalation =
+      postMiddleText.includes("now imagine") ||
+      postMiddleText.includes("now think") ||
+      postMiddleText.includes("millions") ||
+      postMiddleText.includes("permanent") ||
+      postMiddleText.includes("once it") ||
+      postMiddleText.includes("everyone") ||
+      postMiddleText.includes("the scary part") ||
+      postMiddleText.includes("that is what") ||
+      postMiddleText.includes("that is why");
+
+    const middleFlat =
+      !middleHasContrastSignal &&
+      !hasListBuildupPattern &&
+      !hasPostEscalation &&
+      !middleIsStructured;
+
+if (middleFlat && !isGoodScript && retentionRisk >= 35) {
+      if (!riskyParts.some(p =>
+        p.title === "Script feels too generic." ||
+        p.title === "Middle may lose momentum."
+      )) {
+        // Give a more specific description based on what IS in the script
+        const hasMystery = structures.hasMysteryClueBuildup;
+        const description = hasMystery
+          ? "The mystery buildup works, but the strongest clue could appear earlier to create a faster curiosity gap."
+          : "No contrast, escalation, or new tension was found in the middle section.";
+
+        riskyParts.push({
+          time: createTimeRange(0.35, 0.65, duration),
+          title: "Middle may lose momentum.",
+          description,
+        });
+      }
+      const midI = Math.floor(totalLines / 2);
+      if (!riskyLineIndexes.includes(midI)) riskyLineIndexes.push(midI);
+    }
+  }
+
+  // ── 5. Payoff / ending ──────────────────────────────────────────────────────
+  // IMPORTANT: If the last line IS a strong consequence, don't call it weak payoff.
+  // Instead, check if the issue is placement (strong payoff but hook was weak).
+  const lastLine = lines[totalLines - 1] ?? "";
+  const lastLineLower = lastLine.toLowerCase();
+ // lastLineIsStrong: use the same universal structural patterns as lastLineIsStructuralConsequence
+  // (which is already computed inside detectScriptStructures above).
+  // We re-evaluate here against lastLineLower for the payoff-placement logic.
+  const lastLineIsStrong =
+    // consequence / behavioral outcome (universal)
+    /training your (brain|mind|body)|controls (your|how)|permanent/.test(lastLineLower) ||
+    /you do not control|you lose control|once it (is|becomes|goes)/.test(lastLineLower) ||
+    // continuation / unstoppable force (universal)
+    /keeps (going|moving|running|working|growing|building|compounding)/.test(lastLineLower) ||
+    // identity / social consequence (universal)
+    /says (about|something about) (you|them|us)|how (people|everyone|others) (see|look|judge)/.test(lastLineLower) ||
+    /what you (are|become|represent)|proof that (you|they|it)/.test(lastLineLower) ||
+    // explanation chain endings (universal)
+    /it is not (just|only|about)|the (real|actual|true) (reason|problem|issue|point)/.test(lastLineLower) ||
+    /the (scary|strange|crazy|interesting|surprising|remarkable) part/.test(lastLineLower) ||
+    /the whole (point|story|picture|idea)/.test(lastLineLower) ||
+    // causal wrap-up (universal)
+    /that is (why|what|how|when) (it|this|the|your|everything)/.test(lastLineLower) ||
+    /not for the reason|not (what|how|why) (most|many|you)/.test(lastLineLower) ||
+    // structure-level confirmation
+    structures.hasConsequencePayoff;
+
+  if (
+    payoffStrength < 28 &&
+    signals.consequenceScore < 15 &&
+    wordCount >= 20 &&
+    !isGoodScript &&
+    !lastLineIsStrong  // do NOT flag if last line is actually a strong consequence
+  ) {
+    riskyParts.push({
+      time: createTimeRange(0.75, 1.0, duration),
+      title: "Payoff could be stronger.",
+      description: "The ending may not feel rewarding. A clearer result or consequence would help.",
+    });
+    riskyLineIndexes.push(Math.max(0, totalLines - 1));
+  }
+
+  // If hook is weak but ending IS strong: label as placement issue
+  if (
+    lastLineIsStrong &&
+    hookScore < 55 &&
+    !riskyParts.some(p => p.title === "Strong payoff appears too late.")
+  ) {
+    // Replace generic "Weak opening" with placement-specific feedback
+    const weakOpeningIdx = riskyParts.findIndex(p => p.title === "Weak opening.");
+    if (weakOpeningIdx >= 0) {
+      riskyParts[weakOpeningIdx] = {
+        time: riskyParts[weakOpeningIdx].time,
+        title: "Strong payoff appears too late.",
+        description: "The strongest consequence is at the end but not in the opening. Move it earlier to stop the scroll.",
+      };
+    }
+  }
+
+// ── 6. No open loop (very weak scripts only, and only when no valid structure) ──
+  if (
+    signals.openLoopScore === 0 &&
+    signals.curiosityScore < 12 &&
+    signals.contrastScore < 15 &&
+    wordCount >= 35 &&
+    overallScore < 58 &&
+    !hasStructuredEscalation  // never fire if a valid structure was detected
+  ) {
+    if (!riskyParts.some(p => p.title === "No reason to keep watching.")) {
+      riskyParts.push({
+        time: createTimeRange(0.3, 0.6, duration),
+        title: "No reason to keep watching.",
+        description: "The script may not give viewers enough curiosity or unresolved tension before the payoff.",
+      });
+    }
+  }
+
+  // ── 7. Filler phrases ────────────────────────────────────────────────────────
+  const fluffPhrases = [
+    "basically", "as you can see", "i just want to", "this is very important",
+    "let's talk about", "i'm going to explain", "really important",
+  ];
+  if (fluffPhrases.some(p => lower.includes(p))) {
+    if (!riskyParts.some(p => p.title === "Script feels too generic." || p.title === "Possible filler phrases.")) {
+      riskyParts.push({
+        time: createTimeRange(0.3, 0.6, duration),
+        title: "Possible filler phrases.",
+        description: "Some lines may sound like setup instead of real value.",
+      });
+    }
+  }
+
+  // ── 8. Script too long ──────────────────────────────────────────────────────
+  if (charCount > 850) {
+    riskyParts.push({
+      time: createTimeRange(0.55, 0.85, duration),
+      title: "Script may be too long.",
+      description: "Viewers may lose focus before the ending.",
+    });
+  }
+
+  // ── Build fixes — context-aware, not generic ────────────────────────────────
+
+  // Primary weakness fix
+  if (primaryWeak === "hook" && hookScore < 65) {
+    if (structures.hasStrongPayoffLate || structures.hasConsequencePayoff) {
+      // The consequence exists — just needs to move forward
+      addFix("Lead with the consequence: move your strongest final line to the very beginning.");
+   } else if (structures.hasMysteryClueBuildup) {
+      // Universal: mystery/clue script — find the most concrete physical detail line
+      const strongestMysteryClue = lines.slice(1).find(l => {
+        const ll = l.toLowerCase();
+        const wordCount = l.split(/\s+/).length;
+        // A good clue line: concrete object/state + not too long + not a vague summary
+        return wordCount >= 5 && wordCount <= 18 &&
+          (ll.includes("still") || ll.includes("untouched") || ll.includes("left behind") ||
+           ll.includes("no signs") || ll.includes("nothing was") || ll.includes("everything was") ||
+           ll.includes("appeared") || ll.includes("looked like") || ll.includes("seemed"));
+      });
+      if (strongestMysteryClue) {
+        addFix(`Open with the most specific physical detail: "${strongestMysteryClue.replace(/[.!?]+$/, "").trim()}" creates more tension than announcing the topic.`);
+      } else {
+        addFix("Open with the most specific clue or physical detail from the script instead of announcing the topic.");
+      }
+    } else {
+      addFix("Rewrite the opening line — it should lead with the strongest detail, consequence, or contrast from your script, not just announce the topic.");
+    }
+  }
+  if (primaryWeak === "generic") {
+    addFix("Replace generic advice lines with a single concrete example, number, or real consequence.");
+    addFix("Cut any sentence that could apply to any video — only keep lines specific to this topic.");
+  }
+  if (primaryWeak === "payoff") {
+    addFix("Make the final payoff more specific — state the result, consequence, or unresolved mystery clearly.");
+  }
+
+  // Supporting fixes
+  if (signals.curiosityScore < 12 && hookScore < 55) {
+    addFix("Open with an unanswered question, a missing detail, or a surprising consequence.");
+  }
+
+  // Only suggest "add contrast" if the script truly lacks contrast AND escalation
+  if (
+    signals.contrastScore < 12 &&
+    signals.openLoopScore < 12 &&
+    !hasStructuredEscalation &&
+    wordCount > 20 &&
+    overallScore < 58
+  ) {
+    addFix('Add a contrast line mid-script — something like: "But that is not the real problem."');
+  }
+
+  if (signals.genericPenalty >= 12 && overallScore < 72) {
+    addFix("Add one specific detail, number, named reference, or real-world example to make the script feel grounded.");
+  }
+  if (
+    signals.stakesScore < 12 &&
+    signals.consequenceScore < 10 &&
+    wordCount >= 25 &&
+    overallScore < 62
+  ) {
+    addFix("Raise the stakes: what is at risk, what was lost, or what changes if this is ignored?");
+  }
+  if (signals.specificityScore < 10 && wordCount >= 20 && overallScore < 70) {
+    addFix("Add a more concrete detail, example, consequence, or measurable result to make the script feel grounded.");
+  }
+
+  // Payoff fix — only if last line is NOT already a strong consequence
+  if (
+    payoffStrength < 28 &&
+    signals.consequenceScore < 15 &&
+    wordCount >= 20 &&
+    !isGoodScript &&
+    !lastLineIsStrong &&
+    primaryWeak !== "payoff"
+  ) {
+    addFix("Make the final payoff more specific — state the result, consequence, or unresolved mystery clearly.");
+  }
+
+  // If the last line IS strong but hook is weak — suggest moving it
+  if (lastLineIsStrong && hookScore < 55 && !fixes.some(f => f.toLowerCase().includes("lead with"))) {
+    addFix("Lead with your strongest consequence: the final line of your script would make a more powerful opening.");
+  }
+
+  if (
+    signals.openLoopScore === 0 &&
+    signals.curiosityScore < 12 &&
+    signals.contrastScore < 15 &&
+    !hasStructuredEscalation &&
+    wordCount >= 35 &&
+    overallScore < 58
+  ) {
+    addFix("Add an unanswered question or a delayed reveal to keep viewers engaged through the middle.");
+  }
+  if (fluffPhrases.some(p => lower.includes(p))) {
+    addFix("Replace filler phrases with a specific example, concrete consequence, or direct insight.");
+  }
+  if (charCount < 180 && primaryWeak !== "short") {
+    addFix("Add one stronger example or consequence before the final payoff.");
+  }
+  if (charCount > 850) {
+    addFix("Cut repeated explanations and keep only the strongest points.");
+  }
+
+  // Hook fix for medium-score scripts where hook is not primary weakness
+  if (hookScore < 65 && primaryWeak !== "hook" && !fixes.some(f => f.toLowerCase().includes("rewrite") || f.toLowerCase().includes("opening line") || f.toLowerCase().includes("lead with"))) {
+    addFix("Rewrite the opening line — lead with the strongest consequence, number, or contradiction from the script.");
+  } else if (hookScore >= 65 && hookScore < 75 && !isGoodScript && retentionRisk > 35) {
+    addFix("Sharpen the opening with a stronger curiosity gap or clearer contrast to give viewers a faster reason to stay.");
+  }
+
+  // Optional improvements for good-but-not-great scripts
+  if (isGoodScript && !isStrongScript) {
+    if (fixes.length === 0) {
+      if (hookScore >= 65 && retentionRisk <= 35) {
+        addFix("Add one more specific example, number, or concrete detail to make the payoff feel more earned.");
+        addFix("Make the payoff more specific so the viewer feels clearly rewarded.");
+        addFix("Tighten any line that does not add new information or tension.");
+      } else {
+        if (hookScore < 75) addFix("Sharpen the first line with a stronger curiosity gap or clearer contrast.");
+        if (signals.specificityScore < 30) addFix("Add one more specific detail to make the payoff feel even more concrete.");
+        if (fixes.length === 0) addFix("Tighten any line that does not add new information or tension.");
+      }
+    }
+  }
+
+  // ── Warning line indexes ───────────────────────────────────────────────────
+  lines.forEach((line, index) => {
+    if (riskyLineIndexes.includes(index)) return;
+    const ll = line.toLowerCase();
+    const isMediumLength = line.length > 110 && line.length <= 200;
+    const isVague =
+      (ll.includes("viewers") || ll.includes("creators") || ll.includes("retention")) &&
+      !ll.includes("?") && !ll.includes("but") && !ll.includes("real problem");
+    const hasWarningPhrase = [
+      "most people think", "most creators think", "the problem is",
+      "step by step", "every line should", "add one line", "start with",
+    ].some(p => ll.includes(p));
+    const isGenericLine = signals.genericPenalty >= 12 && [
+      "you should", "you need to", "this will help", "make sure",
+      "try to", "get better", "improve your",
+    ].some(p => ll.includes(p));
+    if (isMediumLength || isVague || hasWarningPhrase || isGenericLine) {
+      warningLineIndexes.push(index);
+    }
+  });
+
+  // ── Deduplicate + sort ─────────────────────────────────────────────────────
+  riskyParts.sort((a, b) => {
+    const getStart = (timeStr: string) => {
+      const match = timeStr.match(/(\d+):(\d+)/);
+      return match ? parseInt(match[1]) * 60 + parseInt(match[2]) : 0;
+    };
+    return getStart(a.time) - getStart(b.time);
+  });
+
+  function getStartSeconds(timeStr: string): number {
+    const match = timeStr.match(/(\d+):(\d+)/);
+    return match ? parseInt(match[1]) * 60 + parseInt(match[2]) : 0;
+  }
+
+  const mergedRiskyParts: RiskyPart[] = [];
+  for (const part of riskyParts) {
+    const partStart = getStartSeconds(part.time);
+    const overlapping = mergedRiskyParts.findIndex(existing => {
+      const existingStart = getStartSeconds(existing.time);
+      return Math.abs(partStart - existingStart) <= 3;
+    });
+    if (overlapping === -1) {
+      mergedRiskyParts.push(part);
+    } else {
+      const existing = mergedRiskyParts[overlapping];
+      if (part.title.length > (existing?.title.length ?? 0)) {
+        mergedRiskyParts[overlapping] = part;
+      }
+    }
+  }
+
+  let uniqueRiskyParts = dedupeRiskyParts(mergedRiskyParts);
+  let uniqueFixes = fixes.slice(0, 5);
+  const uniqueRiskyIndexes = [...new Set(riskyLineIndexes)]
+    .filter(i => i >= 0 && i < totalLines)
+    .sort((a, b) => a - b);
+  const uniqueWarningIndexes = [...new Set(warningLineIndexes)]
+    .filter(i => i >= 0 && i < totalLines && !uniqueRiskyIndexes.includes(i))
+    .sort((a, b) => a - b);
+
+  // ── Enforce minimums for weak scripts ─────────────────────────────────────
+  if (overallScore < 58) {
+    const alreadyHasOpeningPart = uniqueRiskyParts.some(p =>
+      p.title.toLowerCase().includes("weak opening") ||
+      p.title.toLowerCase().includes("hook needs") ||
+      p.title.toLowerCase().includes("curiosity gap") ||
+      p.title.toLowerCase().includes("too short") ||
+      p.title.toLowerCase().includes("strong payoff appears")
+    );
+    if (uniqueRiskyParts.length < 2 && hookScore < 65 && !alreadyHasOpeningPart) {
+      uniqueRiskyParts.push({
+        time: createTimeRange(0, 0.25, duration),
+        title: "Hook needs more work.",
+        description: "The opening does not clearly create curiosity, contrast, or a reason to stay.",
+      });
+      if (!uniqueRiskyIndexes.includes(0)) uniqueRiskyIndexes.push(0);
+    }
+    if (uniqueRiskyParts.length < 2) {
+      uniqueRiskyParts.push({
+        time: createTimeRange(0.35, 0.65, duration),
+        title: "Middle may lose momentum.",
+        description: "The script may need a stronger turn, contrast, or new piece of information.",
+      });
+      uniqueRiskyIndexes.push(Math.max(1, Math.floor(totalLines / 2)));
+    }
+    if (uniqueFixes.length < 4) {
+      if (hookScore < 65 && !uniqueFixes.some(f => f.toLowerCase().includes("rewrite") || f.toLowerCase().includes("sharpen") || f.toLowerCase().includes("opening line") || f.toLowerCase().includes("lead with"))) {
+        uniqueFixes.push("Rewrite the opening line — the modal Improve Hook button will show a stronger version built from your script.");
+      } else if (hookScore >= 65 && !uniqueFixes.some(f => f.toLowerCase().includes("sharpen") || f.toLowerCase().includes("tighten"))) {
+        uniqueFixes.push("Make the payoff more specific so the viewer feels rewarded.");
+      }
+      if (signals.contrastScore < 20 && !uniqueFixes.some(f => f.toLowerCase().includes("contrast"))) {
+        uniqueFixes.push("Add a contrast or pattern interrupt in the middle section.");
+      }
+      if (signals.payoffScore < 20 && signals.consequenceScore < 15 && !uniqueFixes.some(f => f.toLowerCase().includes("payoff"))) {
+        uniqueFixes.push("Make the payoff more specific so the viewer feels rewarded.");
+      }
+      if (uniqueFixes.length < 4) {
+        uniqueFixes.push("Make each line earn its place — cut any sentence that does not add new information or tension.");
+      }
+    }
+    uniqueRiskyParts = dedupeRiskyParts(uniqueRiskyParts);
+    uniqueFixes = [...new Set(uniqueFixes)].slice(0, 5);
+  } else if (overallScore < 75) {
+    const alreadyHasOpeningPartMid = uniqueRiskyParts.some(p =>
+      p.title.toLowerCase().includes("weak opening") ||
+      p.title.toLowerCase().includes("hook needs") ||
+      p.title.toLowerCase().includes("curiosity gap") ||
+      p.title.toLowerCase().includes("strong payoff appears")
+    );
+    if (uniqueRiskyParts.length < 1 && uniqueFixes.length > 0) {
+      if (hookScore < 65 && !alreadyHasOpeningPartMid) {
+        uniqueRiskyParts.push({
+          time: createTimeRange(0, 0.25, duration),
+          title: "Hook needs more work.",
+          description: "The opening does not clearly create curiosity, contrast, or a reason to stay.",
+        });
+        if (!uniqueRiskyIndexes.includes(0)) uniqueRiskyIndexes.push(0);
+      } else if (signals.genericPenalty >= 12) {
+        uniqueRiskyParts.push({
+          time: createTimeRange(0.2, 0.7, duration),
+          title: "Script feels too generic.",
+          description: "The lines repeat obvious ideas without a concrete example, number, or consequence.",
+        });
+      } else if (payoffStrength < 35 && !lastLineIsStrong) {
+        uniqueRiskyParts.push({
+          time: createTimeRange(0.75, 1.0, duration),
+          title: "Payoff could be stronger.",
+          description: "The ending may not feel rewarding. A clearer result or consequence would help.",
+        });
+        uniqueRiskyIndexes.push(Math.max(0, totalLines - 1));
+      }
+    }
+    if (uniqueFixes.length < 2) {
+      if (hookScore < 68 && !uniqueFixes.some(f => f.toLowerCase().includes("sharpen") || f.toLowerCase().includes("rewrite") || f.toLowerCase().includes("lead with"))) {
+        uniqueFixes.push("Sharpen the first line with a stronger curiosity gap or clearer contrast.");
+      }
+      if (signals.contrastScore < 15 && signals.openLoopScore < 15 && !uniqueFixes.some(f => f.toLowerCase().includes("contrast") || f.toLowerCase().includes("turn"))) {
+        uniqueFixes.push("Add a contrast or unexpected turn in the middle section.");
+      }
+      if (signals.payoffScore < 20 && signals.consequenceScore < 15 && !lastLineIsStrong && !uniqueFixes.some(f => f.toLowerCase().includes("payoff") || f.toLowerCase().includes("result"))) {
+        uniqueFixes.push("End with a specific result, consequence, or unresolved detail the viewer will remember.");
+      }
+      if (uniqueFixes.length < 2) {
+        uniqueFixes.push("Make each line earn its place — cut any sentence that does not add new information or tension.");
+      }
+    }
+    uniqueRiskyParts = dedupeRiskyParts(uniqueRiskyParts);
+    uniqueFixes = [...new Set(uniqueFixes)].slice(0, 5);
+  }
+
+  if (uniqueRiskyParts.length === 0 && overallScore >= 80) {
+    uniqueFixes.length = 0;
+    uniqueRiskyIndexes.length = 0;
+    uniqueWarningIndexes.length = 0;
+  }
+
+  const hasEndingFlagged = uniqueRiskyParts.some(p =>
+    p.title.toLowerCase().includes("payoff") ||
+    p.title.toLowerCase().includes("too long") ||
+    p.title.toLowerCase().includes("drop-off")
+  );
+
+  const sceneSegments = createSceneSegments(
+    hookScore,
+    retentionRisk,
+    overallScore,
+    uniqueRiskyParts.length > 0,
+    hasEndingFlagged,
+    uniqueFixes.length,
+    payoffStrength,
+    structures,
+  );
+
+  const issueTitles = uniqueRiskyParts.map(p => p.title.toLowerCase());
+
+  return {
+    overall: {
+      score: overallScore,
+      label: getOverallLabel(overallScore),
+      color: "#FFFFFF",
+      ringColor: overallScore >= 75 ? "#22C55E" : overallScore >= 60 ? "#F59E0B" : "#EF4444",
+      description: getOverallDescription(overallScore, issueTitles, structures),
+    },
+    hook: {
+      score: hookScore,
+      label: getHookLabel(hookScore),
+      color: getHookColor(hookScore),
+      ringColor: getHookColor(hookScore),
+      description: getHookDescription(hookScore, issueTitles, structures),
+    },
+    risk: {
+      score: retentionRisk,
+      label: getRiskLabel(retentionRisk),
+      color: getRiskColor(retentionRisk),
+      ringColor: getRiskColor(retentionRisk),
+      description: getRiskDescription(retentionRisk, issueTitles, structures),
+    },
+    riskyParts: uniqueRiskyParts.slice(0, 4),
+    fixes: uniqueFixes.slice(0, 5),
+    riskyLineIndexes: uniqueRiskyIndexes,
+    warningLineIndexes: uniqueWarningIndexes,
+    sceneSegments,
+  };
+}
+
+function createSceneSegments(
+  hookScore: number,
+  riskScore: number,
+  overallScore: number,
+  hasRiskyParts: boolean,
+  hasEndingFlagged: boolean,
+  fixCount: number,
+  payoffStrength: number,
+  structures?: ScriptStructures,
+): SceneSegment[] {
+  const totalWidth = 1110;
+
+  // ── Opening segment color ─────────────────────────────────────────────────
+  const openingColor: string =
+    hookScore < 45 ? "#EF4444"
+    : hookScore < 75 ? "#F59E0B"
+    : "#22C55E";
+
+  // ── Middle segment color ──────────────────────────────────────────────────
+  // If structure detection shows valid escalation (list buildup, mystery clue
+  // buildup, or contradiction), do not color middle as risky even if riskScore
+  // is elevated. The elevated risk comes from the hook, not the middle.
+  const hasValidMiddleStructure =
+    structures?.hasListBuildup ||
+    structures?.hasMysteryClueBuildup ||
+    structures?.hasContradictionReversal ||
+    structures?.hasNumericPremise ||
+    structures?.hasExplanationChain;
+
+  const effectiveMiddleRisk = hasValidMiddleStructure
+    ? Math.min(riskScore, 44)  // cap middle color at "Average" if structure is valid
+    : riskScore;
+
+  const middleColor: string =
+    effectiveMiddleRisk >= 60 ? "#EF4444"
+    : effectiveMiddleRisk >= 35 ? "#F59E0B"
+    : "#22C55E";
+
+  // ── Ending segment color ──────────────────────────────────────────────────
+  const endingColor: string =
+    hasEndingFlagged && riskScore >= 45 ? "#EF4444"
+    : hasEndingFlagged || (overallScore < 75 && fixCount > 0) || payoffStrength < 40 ? "#F59E0B"
+    : overallScore >= 75 && riskScore < 35 && !hasRiskyParts ? "#22C55E"
+    : "#F59E0B";
+
+  // ── Labels — use distinct names to prevent duplicate legend entries ────────
+  // Opening: Hook / Average Hook / Weak Hook
+  const openingLabel =
+    openingColor === "#EF4444" ? "Weak hook"
+    : openingColor === "#F59E0B" ? "Average hook"
+    : "Strong hook";
+
+  // Middle: Buildup / Average / Risky
+ const middleLabel =
+    middleColor === "#EF4444" ? "Risky middle"
+    : middleColor === "#F59E0B"
+      ? (structures?.hasExplanationChain || structures?.hasNumericPremise
+          ? "Explanation"
+          : hasValidMiddleStructure
+          ? "Buildup"
+          : "Average middle")
+      : (structures?.hasExplanationChain || structures?.hasNumericPremise
+          ? "Explanation"
+          : hasValidMiddleStructure
+          ? "Buildup"
+          : "Strong middle");
+
+  // Ending: label based on quality
+  const endingLabel =
+    endingColor === "#EF4444" ? "Drop-off risk"
+    : endingColor === "#F59E0B" ? "Average ending"
+    : "Strong ending";
+
+  const openingRatio = hookScore < 45 ? 0.38 : hookScore < 75 ? 0.33 : 0.30;
+  const endingRatio  = 0.25;
+  const middleRatio  = 1 - openingRatio - endingRatio;
+
+  return withWidths(
+    [
+      { label: openingLabel, color: openingColor },
+      { label: middleLabel,  color: middleColor  },
+      { label: endingLabel,  color: endingColor  },
+    ],
+    [openingRatio, middleRatio, endingRatio],
+    totalWidth
+  );
+}
+
+function withWidths(
+  segments: Omit<SceneSegment, "width">[],
+  ratios: number[],
+  totalWidth: number
+): SceneSegment[] {
+  let usedWidth = 0;
+  return segments.map((segment, index) => {
+    const isLast = index === segments.length - 1;
+    const width = isLast
+      ? totalWidth - usedWidth
+      : Math.round(totalWidth * ratios[index]);
+    usedWidth += width;
+    return { ...segment, width };
+  });
+}
+
+// ─── Dedupe helpers ──────────────────────────────────────────────────────────
+
+function dedupeRiskyParts(parts: RiskyPart[]): RiskyPart[] {
+  const seen = new Set<string>();
+  let hasOpeningIssue = false;
+  const openingKeywords = ["weak opening", "hook needs", "curiosity gap", "no clear curiosity", "opening does not"];
+  return parts.filter(part => {
+    const key = part.title.toLowerCase();
+    const isOpeningIssue = openingKeywords.some(k => key.includes(k));
+    if (isOpeningIssue) {
+      if (hasOpeningIssue) return false;
+      hasOpeningIssue = true;
+    }
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function dedupeFixes(fixes: string[]): string[] {
+  const seen = new Set<string>();
+  return fixes.filter(fix => {
+    const key = fix.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+// ─── Hook rewrite (fallback) ─────────────────────────────────────────────────
+
+// ─── Hook rewrite (fallback) ─────────────────────────────────────────────────
+
+function createHookRewrite(script: string): string {
+  const allLines = script
+    .split(/[\n.!?]/)
+    .map(l => l.trim())
+    .filter(l => l.length > 0);
+
+  const firstLine = allLines[0] ?? "";
+  const bodyLines = allLines.slice(1);
+  const fullText = allLines.join(" ").toLowerCase();
+  const firstLower = firstLine.toLowerCase();
+
+  // ── Detect filler intro ────────────────────────────────────────────────────
+  const isFillerIntro =
+    firstLower.startsWith("today i") || firstLower.startsWith("in this video") ||
+    firstLower.startsWith("i will") || firstLower.startsWith("i want to") ||
+    firstLower.startsWith("let's talk") || firstLower.startsWith("so today") ||
+    firstLower.startsWith("hey guys") || firstLower.startsWith("welcome") ||
+    firstLower.startsWith("this video");
+
+  // ── Step 1: specific number + measurement unit (universal — any niche) ────
+  // Priority: any body sentence with a specific number + named unit.
+  const numberSentence = bodyLines.find(line => {
+    return /\d[\d,]*(?:\.\d+)?/.test(line) &&
+      /\b(feet|foot|miles|mile|mph|kph|km\/h|percent|%|seconds|minutes|hours|days|years|meters|kilograms|pounds|degrees|times|billion|million|thousand)\b/i.test(line);
+  });
+  if (numberSentence) {
+    const cleaned = numberSentence.replace(/[.!?]+$/, "").trim();
+    const wordCount = cleaned.split(/\s+/).length;
+    if (wordCount <= 20) {
+      return capitalizeFirst(cleaned) + ".";
+    }
+    return capitalizeFirst(cleaned.split(/\s+/).slice(0, 16).join(" ")) + ".";
+  }
+
+  // ── Step 2: strong consequence / payoff in the last third (universal) ─────
+  // Any line that states what changes, what is lost, or what the outcome is.
+  const totalBodyLines = bodyLines.length;
+  const lastThirdStart = Math.floor(totalBodyLines * 0.6);
+  const lastThirdLines = bodyLines.slice(lastThirdStart);
+
+  const consequenceLine = lastThirdLines.find(line => {
+    const ll = line.toLowerCase();
+    const wc = line.split(/\s+/).length;
+    return wc >= 5 && wc <= 22 && (
+      // causal / outcome markers (universal)
+      /that is why|that is what|the result|as a result/.test(ll) ||
+      // continuation / unstoppable force (universal)
+      /keeps (going|moving|running|building|compounding|growing)/.test(ll) ||
+      // identity / social consequence (universal)
+      /says (about|something about) (you|them|us)|how (people|everyone|others) (see|look|judge)/.test(ll) ||
+      /what you (are|become|represent)|proof that (you|they|it)/.test(ll) ||
+      // permanence / control (universal)
+      /you do not control|become permanent|once it (is|becomes)/.test(ll) ||
+      // explanation-chain ending (universal)
+      /it is not (just|only|about)|the (real|actual|true) (reason|problem|issue)/.test(ll) ||
+      /the (scary|strange|crazy|interesting|surprising) part/.test(ll) ||
+      // behavioral / training consequence (universal)
+      /trains (your|the)|training (your|the)|rewires|builds the habit/.test(ll) ||
+      // comparative payoff (universal)
+      /much (harder|bigger|deeper|stranger|worse|better) (to|than)/.test(ll)
+    );
+  });
+
+  if (consequenceLine) {
+    const cleaned = consequenceLine.replace(/[.!?]+$/, "").trim();
+    const words = cleaned.split(/\s+/);
+    if (words.length <= 18) return capitalizeFirst(cleaned) + ".";
+    return capitalizeFirst(words.slice(0, 14).join(" ")) + ".";
+  }
+
+  // ── Step 3: concrete physical / visual detail (universal mystery/event) ───
+  // Any line with a specific physical scene, object, or observable state.
+  const visualDetailLine = bodyLines.find(line => {
+    const ll = line.toLowerCase();
+    const wc = line.split(/\s+/).length;
+    return wc >= 5 && wc <= 22 && (
+      // observable state (universal: any subject can be "still there")
+      /\bstill\b/.test(ll) ||
+      // absence / presence markers (universal)
+      /\bleft behind\b|\buntouched\b|\bno signs of\b/.test(ll) ||
+      // disappearance / discovery (universal)
+      /\bdisappeared\b|\bvanished\b|\bfound\b|\bdiscovered\b/.test(ll) ||
+      // specific named objects in context (universal — any physical object detail)
+      (ll.includes("on the") && /\b(table|floor|ground|deck|shelf|wall|seat)\b/.test(ll)) ||
+      // nobody / absence of people (universal)
+      /\bnobody\b|\bno one\b|\bevery person\b|\beveryone (was gone|had left|disappeared)\b/.test(ll)
+    );
+  });
+
+  if (visualDetailLine) {
+    const cleaned = visualDetailLine.replace(/[.!?]+$/, "").trim();
+    const words = cleaned.split(/\s+/);
+    const hook = words.length <= 18
+      ? capitalizeFirst(cleaned)
+      : capitalizeFirst(words.slice(0, 14).join(" "));
+
+    // Find a complementary second detail (any absence or contrast line)
+    const secondDetail = bodyLines.find(line => {
+      const ll = line.toLowerCase();
+      return line !== visualDetailLine &&
+        (ll.includes("but") || ll.includes("yet") || ll.includes("gone") ||
+         ll.includes("missing") || ll.includes("nobody") || ll.includes("no one")) &&
+        line.split(/\s+/).length >= 4 && line.split(/\s+/).length <= 14;
+    });
+
+    if (secondDetail) {
+      const secondCleaned = secondDetail.replace(/[.!?]+$/, "").trim().toLowerCase();
+      const secondWords = secondCleaned.split(/\s+/).slice(0, 8).join(" ");
+      return `${hook} — ${secondWords}.`;
+    }
+    return `${hook} — and nobody knew why.`;
+  }
+
+  // ── Step 4: contradiction / reversal (universal) ──────────────────────────
+  // Any line that reverses an assumption using "not" + a core concept.
+  const reversalLine = bodyLines.find(line => {
+    const ll = line.toLowerCase();
+    const wc = line.split(/\s+/).length;
+    return wc >= 5 && wc <= 22 && (
+      (ll.includes(" not ") || ll.startsWith("not ")) &&
+      (ll.includes("just") || ll.includes("about") || ll.includes("only") ||
+       ll.includes("really") || ll.includes("the real") || ll.includes("selling") ||
+       ll.includes("buying") || ll.includes("question") || ll.includes("point") ||
+       ll.includes("reason") || ll.includes("idea"))
+    );
+  });
+  if (reversalLine) {
+    const cleaned = reversalLine.replace(/[.!?]+$/, "").trim();
+    const words = cleaned.split(/\s+/);
+    if (words.length <= 18) return capitalizeFirst(cleaned) + ".";
+    return capitalizeFirst(words.slice(0, 14).join(" ")) + ".";
+  }
+
+  // ── Step 5: filler intro — anchor to best body line ───────────────────────
+  if (isFillerIntro && bodyLines.length >= 2) {
+    const bodyAnchor = bodyLines.find(l => {
+      const wc = l.split(/\s+/).length;
+      return wc >= 6 && wc <= 20;
+    });
+    if (bodyAnchor) {
+      const cleaned = bodyAnchor.replace(/[.!?]+$/, "").trim();
+      return `${capitalizeFirst(cleaned)} — and most people never realise it.`;
+    }
+    const firstBody = bodyLines[0]?.replace(/[.!?]+$/, "").trim() ?? "";
+    return `${capitalizeFirst(firstBody)} — and that is what makes it interesting.`;
+  }
+
+  // ── Step 6: existing contrast hook — reinforce with body payoff ───────────
+  if (
+    firstLower.startsWith("most people think") ||
+    firstLower.startsWith("most creators think") ||
+    firstLower.includes(" but ") ||
+    firstLower.includes(" not ")
+  ) {
+    const payoffLine = bodyLines[bodyLines.length - 2] ?? bodyLines[bodyLines.length - 1] ?? "";
+    const cleaned = payoffLine.replace(/[.!?]+$/, "").trim().toLowerCase();
+    const words = cleaned.split(/\s+/);
+    if (words.length >= 4 && words.length <= 15) {
+      return `${capitalizeFirst(firstLine.replace(/[.!?]+$/, ""))} — ${cleaned}.`;
+    }
+    const shortFirst = firstLine.replace(/[.!?]+$/, "").split(/\s+/).slice(0, 8).join(" ");
+    return `${capitalizeFirst(shortFirst)} — but that is not what the script reveals.`;
+  }
+
+  // ── Default: contrast using first line ────────────────────────────────────
+  const shortSubject = firstLine.replace(/[.!?]+$/, "").split(/\s+/).slice(0, 7).join(" ");
+  return `${capitalizeFirst(shortSubject)} — but not for the reason most people think.`;
+}
+
+function capitalizeFirst(text: string): string {
+  if (!text) return text;
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+function getHookRewriteReason(script: string): string {
+  const lower = script.toLowerCase();
+  const firstLine = script.split(/[\n.!?]/)[0]?.toLowerCase() ?? "";
+
+  if (
+    firstLine.startsWith("hey guys") ||
+    firstLine.startsWith("welcome") ||
+    firstLine.startsWith("in this video") ||
+    firstLine.startsWith("today i") ||
+    firstLine.startsWith("i will") ||
+    firstLine.startsWith("i want to")
+  ) {
+    return "It removes the slow intro and jumps directly into a question or consequence, giving viewers a faster reason to keep watching.";
+  }
+  if (lower.includes("most people think") || lower.includes("most creators think")) {
+    return "It sharpens the belief reversal in the first line so viewers immediately sense a gap between what they assumed and what they are about to learn.";
+  }
+  if (lower.includes("what if") || lower.includes("imagine if")) {
+    return "It focuses the 'what if' on a personal, concrete consequence so the viewer feels the stakes immediately rather than abstractly.";
+  }
+  if (lower.includes("disappear") || lower.includes("missing") || lower.includes("crime") || lower.includes("murder")) {
+    return "It leads with the moment of tension rather than the setup, so the viewer is pulled into the mystery before they have a chance to scroll.";
+  }
+  if (lower.includes("brand") || lower.includes("company") || lower.includes("business") || lower.includes("sell")) {
+    return "It reframes the opening as a counterintuitive business insight, which creates curiosity about what the real product actually is.";
+  }
+  if (lower.includes("vs ") || lower.includes("better than") || lower.includes("compared to") || lower.includes("versus")) {
+    return "It opens with the surprising implication of the comparison rather than the setup, giving viewers a clearer reason to stay for the answer.";
+  }
+ const firstLineFallback = script.split(/[\n.!?]/)[0]?.toLowerCase() ?? "";
+  if (
+    firstLineFallback.startsWith("today i") || firstLineFallback.startsWith("in this video") ||
+    firstLineFallback.startsWith("i will") || firstLineFallback.startsWith("let's talk")
+  ) {
+    return "The original hook only announces the topic. The improved version leads with a consequence or contrast, giving viewers a reason to keep watching before they understand the full idea.";
+  }
+  return "The original hook states the topic. The improved version leads with a consequence or contrast so viewers have a reason to stay before they know where the script ends up.";
+}
+
+// ─── Score helpers ───────────────────────────────────────────────────────────
+
+// ─── Score helpers ───────────────────────────────────────────────────────────
+
+function clampScore(score: number): number {
+  return Math.max(0, Math.min(100, Math.round(score)));
+}
+
+function getOverallLabel(score: number): string {
+  if (score >= 85) return "Very Strong";
+  if (score >= 75) return "Strong";
+  if (score >= 60) return "Average";
+  if (score >= 40) return "Needs Work";
+  return "Weak";
+}
+
+function getHookLabel(score: number): string {
+  if (score >= 80) return "Strong";
+  if (score >= 65) return "Good";
+  if (score >= 45) return "Average";
+  return "Weak";
+}
+
+function getRiskLabel(score: number): string {
+  if (score >= 65) return "High";
+  if (score >= 45) return "Medium";
+  if (score >= 26) return "Low-Medium";
+  return "Low";
+}
+
+function getHookColor(score: number): string {
+  if (score >= 75) return "#22C55E";
+  if (score >= 50) return "#F59E0B";
+  return "#EF4444";
+}
+
+function getRiskColor(score: number): string {
+  if (score >= 65) return "#EF4444";
+  if (score >= 45) return "#F59E0B";
+  return "#22C55E";
+}
+
+function getOverallDescription(score: number, issues: string[], structures?: ScriptStructures): string {
+  if (score < 60 && issues.some(i => i.includes("strong payoff appears too late"))) {
+    return "The strongest consequence is buried at the end. Move it to the opening and the whole script improves.";
+  }
+  if (score < 60 && issues.some(i => i.includes("weak opening") || i.includes("hook needs"))) {
+    return "The main weakness is the opening. A stronger first line would improve the whole script.";
+  }
+  if (issues.some(i => i.includes("too short"))) {
+    return "The hook works, but the script needs more development before the payoff feels complete.";
+  }
+  if (score >= 85) return "Very strong structure. The hook, pacing, and payoff work well together.";
+  if (score >= 75) return "Strong foundation with good pacing. A sharper payoff or more specific detail could push it further.";
+  if (score >= 60) {
+    if (structures?.hasExplanationChain || structures?.hasNumericPremise) {
+      return "The explanation and consequence are solid, but leading with the strongest detail or number would improve the overall score.";
+    }
+    if (structures?.hasListBuildup || structures?.hasMysteryClueBuildup) {
+      return "The structure has a clear escalation, but the opening could lead with the strongest detail to pull viewers in faster.";
+    }
+    return "The script has a clear direction, but the hook, middle, or payoff may still need some work.";
+  }
+  if (score >= 40) return "Has some useful parts, but needs a stronger hook, clearer stakes, or better payoff.";
+  return "The script may lose viewers early. Strengthen the opening and remove slow setup.";
+}
+
+function getHookDescription(score: number, issues: string[], structures?: ScriptStructures): string {
+  if (issues.some(i => i.includes("strong payoff appears too late"))) {
+    return "The opening announces the topic instead of leading with the strongest consequence. Move the payoff earlier.";
+  }
+  if (score < 45 && issues.some(i => i.includes("weak opening") || i.includes("hook needs"))) {
+    return "The opening feels too slow. Replace it with a question, contrast, or clear result.";
+  }
+  if (score < 65 && issues.some(i => i.includes("curiosity gap"))) {
+    return "The hook is understandable, but it does not create enough curiosity yet.";
+  }
+  if (score >= 80) return "Strong opening. It creates curiosity and gives viewers a clear reason to keep watching.";
+  if (score >= 65) {
+    if (structures?.hasFillerIntro) {
+      return "The script has strong content, but the opening still announces the topic instead of leading with it.";
+    }
+    return "The hook is clear, but it could create a slightly stronger curiosity gap or contrast.";
+  }
+  if (score >= 45) return "The opening is understandable, but may not stop viewers from scrolling fast enough.";
+  return "The first line needs a stronger question, contrast, or promise to earn attention.";
+}
+
+function getRiskDescription(score: number, issues: string[], structures?: ScriptStructures): string {
+  // Structure-aware descriptions — don't say "middle may feel flat" when it isn't
+  if (structures?.hasExplanationChain || structures?.hasNumericPremise) {
+    if (score >= 45) {
+      return "The explanation chain is clear, but the opening could lead with the strongest consequence to reduce early drop-off.";
+    }
+    if (score >= 26) {
+      return "Moderate risk. The mechanism and consequence are clear, but the script needs a stronger opening to lock viewers in early.";
+    }
+    return "Low retention risk. The script builds a clear chain from premise to consequence.";
+  }
+  if (structures?.hasListBuildup || structures?.hasMysteryClueBuildup) {
+    if (score >= 45) {
+      return "The buildup escalates well. The main risk is the opening — a stronger hook would lock viewers in earlier.";
+    }
+    if (score >= 26) {
+      return "Moderate risk. The escalation structure is solid, but a stronger hook would reduce early drop-off.";
+    }
+    return "Low retention risk. The script escalates clearly toward the payoff.";
+  }
+  if (structures?.hasContradictionReversal) {
+    if (score >= 45) {
+      return "The reversal structure creates contrast, but the opening could deliver the insight faster.";
+    }
+    return "The reversal structure works well. Viewers who reach the contrast are likely to stay.";
+  }
+  // Issue-driven overrides
+  if (issues.some(i => i.includes("middle may lose"))) {
+    return "The middle may feel flat. Add a new turn or contrast to restart attention.";
+  }
+  if (issues.some(i => i.includes("no reason to keep"))) {
+    return "The script may lose momentum because it does not build enough unanswered curiosity.";
+  }
+  // Score-based fallback
+  if (score >= 65) return "Several moments may cause viewers to leave before the payoff.";
+  if (score >= 45) return "Some parts may slow viewers down, especially where the script explains without building tension.";
+  if (score >= 26) return "Moderate-low risk. The script mostly works but may have a few weaker moments.";
+  return "Low retention risk. The script stays focused and moves clearly toward the payoff.";
+}
