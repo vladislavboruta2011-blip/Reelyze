@@ -11,6 +11,52 @@ export type ImproveHookResult = {
   mode?: "diagnostic" | "rewrite";
 };
 
+// ── Universal generic-advice phrase guard ────────────────────────────────────
+// These are advice/motivational clichés that must NEVER count as concrete
+// anchor material, regardless of which other regex might accidentally match
+// them (e.g. "work hard" containing no digit but matching some noun list).
+// This is a defensive, independent layer — it runs in addition to, not
+// instead of, the structural hard-anchor checks.
+const GENERIC_ADVICE_PATTERNS: RegExp[] = [
+  /\bwork(s|ed|ing)? hard\b/i,
+  /\bevery\s*day\b/i,
+  /\bdaily\b/i,
+  /\bnever give up\b/i,
+  /\bstay focus(ed)?\b/i,
+  /\bkeep going\b/i,
+  /\bbelieve in yourself\b/i,
+  /\bsuccess is possible\b/i,
+  /\bmotivation is\b/i,
+  /\bdiscipline is\b/i,
+  /\bconsistency is key\b/i,
+  /\bis (the )?key to\b/i,
+  /\bis (very |extremely |really |truly )?important\b/i,
+  /\bis possible for anyone\b/i,
+  /\byou (should|must|need to|have to) (work|try|stay|keep|believe|focus|push)\b/i,
+  /\bif you keep going\b/i,
+  /\byou (can|will) succeed\b/i,
+  /\bwants? to (stay|be|feel) (motivated|focused|disciplined|inspired)\b/i,
+];
+
+// Returns true if the line is ENTIRELY/PRIMARILY a generic-advice clause
+// (i.e. matches one of the cliché patterns AND has no other hard-anchor
+// signal such as a number, named entity, or concrete noun).
+function isGenericAdviceLine(line: string): boolean {
+  const matchesAdvicePattern = GENERIC_ADVICE_PATTERNS.some(p => p.test(line));
+  if (!matchesAdvicePattern) return false;
+
+  // Even if it matches an advice pattern, a line with a real anchor
+  // (number, named entity, concrete noun, measurable unit+digit) should
+  // NOT be suppressed — e.g. "Work hard for 21 days and you'll see results."
+  const hasRealAnchorDespiteAdvice =
+    /\d/.test(line) ||
+    /[a-z,]\s+[A-Z][a-z]{2,}/.test(line) ||
+    /\d\s*(days?|weeks?|years?|percent|%|miles?|feet|kg|km|hours?|minutes?|seconds?)\b/i.test(line) ||
+    /\$\s*\d/.test(line);
+
+  return !hasRealAnchorDespiteAdvice;
+}
+
 // ── Absolute early guard: does the script contain ANY concrete anchor? ───────
 // "Concrete anchor" = number, measurement, named reference, concrete object/event,
 // causal/consequence connector, or specific physical/situational detail.
@@ -37,14 +83,20 @@ function hasAnyConcreteAnchor(script: string): boolean {
   for (const line of lines) {
     const ll = line.toLowerCase();
 
+    // 0. Generic-advice lines never count toward concreteness — skip entirely,
+    // even if they would otherwise match a later structural pattern.
+    if (isGenericAdviceLine(line)) continue;
+
     // 1. Any digit (number, date, percentage, count, measurement)
     if (/\d/.test(line)) return true;
 
     // 2. Named reference mid-sentence (not sentence-start capital)
     if (/[a-z,]\s+[A-Z][a-z]{2,}/.test(line)) return true;
 
-    // 3. Measurement unit
-    if (/\b(percent|%|mile|miles|foot|feet|meter|meters|km|kilometer|pound|kg|kilogram|second|seconds|minute|minutes|hour|hours|day|days|week|weeks|year|years|degree|degrees|mph|kph|billion|million|thousand|dollar|euro|cent|\$)\b/i.test(ll)) return true;
+    // 3. Measurement unit — "day(s)/week(s)/year(s)" alone (e.g. "every day")
+    // are too generic; require an adjacent digit for those specific units.
+    if (/\b(percent|%|mile|miles|foot|feet|meter|meters|km|kilometer|pound|kg|kilogram|second|seconds|minute|minutes|hour|hours|degree|degrees|mph|kph|billion|million|thousand|dollar|euro|cent|\$)\b/i.test(ll)) return true;
+    if (/\d\s*(days?|weeks?|years?)\b/i.test(line)) return true;
 
     // 4. Strong causal/consequence connector (real mechanism word)
     if (/\b(because|therefore|as a result|which means|led to|resulted in|caused|triggered|due to|consequently)\b/i.test(ll)) return true;
@@ -543,6 +595,11 @@ function scoreLineSignals(line: string): {
   hasConcrete: boolean;
   isAbstract: boolean;
 } {
+  // Generic-advice lines are always abstract, never concrete.
+  if (isGenericAdviceLine(line)) {
+    return { hasConcrete: false, isAbstract: true };
+  }
+
   const lower = line.toLowerCase().trim();
   const words = lower.split(/\s+/).filter(Boolean);
 
@@ -553,7 +610,8 @@ function scoreLineSignals(line: string): {
 
   // 2. Any measurement unit — universal across niches
   const hasUnit =
-    /\b(percent|%|mile|miles|foot|feet|meter|meters|km|kilometer|pound|kg|kilogram|second|seconds|minute|minutes|hour|hours|day|days|week|weeks|year|years|degree|degrees|mph|kph|billion|million|thousand|dollar|euro|cent|\$)\b/i.test(lower);
+    /\b(percent|%|mile|miles|foot|feet|meter|meters|km|kilometer|pound|kg|kilogram|second|seconds|minute|minutes|hour|hours|degree|degrees|mph|kph|billion|million|thousand|dollar|euro|cent|\$)\b/i.test(lower) ||
+    /\d\s*(days?|weeks?|years?)\b/i.test(line);
 
   // 3. Named reference appearing mid-sentence (not a sentence-start capital)
   // Pattern: lowercase letter or comma, then whitespace, then Capital Word
@@ -663,12 +721,15 @@ function scoreLineSignals(line: string): {
 // stative adjectives like "focused" or "motivated" from registering as concrete.
 function lineHasHardAnchor(line: string): boolean {
   const ll = line.toLowerCase();
+  // 0. Generic-advice lines never count as hard anchors.
+  if (isGenericAdviceLine(line)) return false;
   // 1. Any digit
   if (/\d/.test(line)) return true;
   // 2. Named reference mid-sentence (not sentence-start capital)
   if (/[a-z,]\s+[A-Z][a-z]{2,}/.test(line)) return true;
-  // 3. Measurement unit
-  if (/\b(percent|%|mile|miles|foot|feet|meter|meters|km|kilometer|pound|kg|kilogram|second|seconds|minute|minutes|hour|hours|day|days|week|weeks|year|years|degree|degrees|mph|kph|billion|million|thousand|dollar|euro|cent|\$)\b/i.test(ll)) return true;
+  // 3. Measurement unit — "year(s)" alone is too generic; require an adjacent digit.
+  if (/\b(percent|%|mile|miles|foot|feet|meter|meters|km|kilometer|pound|kg|kilogram|second|seconds|minute|minutes|hour|hours|degree|degrees|mph|kph|billion|million|thousand|dollar|euro|cent|\$)\b/i.test(ll)) return true;
+  if (/\d\s*(years?)\b/i.test(line)) return true;
   // 4. Strong causal connector (not just "so" or "that is why" — requires real mechanism word)
   if (/\b(because|therefore|as a result|which means|led to|resulted in|caused|triggered|due to|consequently)\b/i.test(ll)) return true;
   // 5. Concrete physical / observable noun (a specific object that can be pointed at)
@@ -689,7 +750,10 @@ function lineHasHardAnchor(line: string): boolean {
   ]);
   const edMatches = ll.match(/\b(\w+)ed\b/g) ?? [];
   for (const m of edMatches) {
-    if (!STATIVE_OR_ABSTRACT_ED.has(m) && m.replace(/ed$/, "").length >= 4) {
+    // The regex captures the stem (e.g. "motivat" from "motivated").
+    // Check the full -ed word (stem + "ed") against the stative set.
+    const fullWord = m + "ed";
+    if (!STATIVE_OR_ABSTRACT_ED.has(fullWord) && m.length >= 4) {
       return true;
     }
   }
@@ -898,6 +962,37 @@ function buildFallbackHookFromScript(script: string): string {
     return capitalizedTopic.length > 0
       ? `${capitalizedTopic} needs one specific example, result, or consequence before the hook can feel strong.`
       : "This script needs one specific example, result, or consequence before the hook can feel strong.";
+  }
+
+  // ── Scenario opener + final payoff combination ──────────────────────────
+  // For "Imagine X / What if X" scripts, combine the opening premise with the final payoff.
+  const firstLineLower = firstLine.toLowerCase();
+  const isScenarioOpener =
+    /^(imagine|what if|picture this)\b/i.test(firstLineLower);
+  if (isScenarioOpener && bodyLines.length >= 3) {
+    const finalPayoffLine = bodyLines[bodyLines.length - 1] ?? "";
+    const candidatePayoff = finalPayoffLine.trim();
+    const candidateWc = candidatePayoff.split(/\s+/).length;
+    const payoffLower = candidatePayoff.toLowerCase();
+    const isStrongFinalLine =
+      candidateWc >= 4 && candidateWc <= 14 &&
+      !payoffLower.startsWith("but") &&
+      (
+        /\b(never|always|still|even|only|just|yet)\b/i.test(candidatePayoff) ||
+        /\b(has|have|is|are) (a|an|the)?\s*\w+/i.test(candidatePayoff) ||
+        candidateWc <= 8
+      );
+    if (isStrongFinalLine) {
+      const premiseCleaned = firstLine
+        .replace(/^(imagine|what if|picture this)[,.]?\s*/i, "")
+        .replace(/[.!?]+$/, "")
+        .trim();
+      const payoffCleaned = candidatePayoff.replace(/[.!?]+$/, "").trim().toLowerCase();
+      const premiseWc = premiseCleaned.split(/\s+/).length;
+      if (premiseWc >= 4 && premiseWc <= 14) {
+        return `What if ${premiseCleaned.toLowerCase()} — and ${payoffCleaned}?`;
+      }
+    }
   }
 
   const numberLine = bodyLines.find(line =>

@@ -159,8 +159,15 @@ const displayFixes: string[] = analysis.fixes.map((fix) => {
   return fix;
 });
   
-  const improvedHookReason =
+ const improvedHookReason =
   aiHookReason || getHookRewriteReason(activeScript);
+
+const hookCopyButtonLabel =
+  aiHookMode === "diagnostic"
+    ? "Copy Advice"
+    : analysis.hook.score >= 70
+    ? "Copy Version"
+    : "Copy Hook";
 
   function handleCopyHook() {
     navigator.clipboard.writeText(improvedHook);
@@ -992,9 +999,7 @@ const displayFixes: string[] = analysis.fixes.map((fix) => {
               onClick={handleCopyHook}
               className="absolute left-[30px] top-[360px] h-[40px] w-[130px] rounded-[12px] border border-[#24242A] bg-[#EF4444] text-[14px] font-semibold leading-[24px] text-white transition hover:bg-[#dc2626]"
             >
-              {aiHookMode === "diagnostic"
-                ? (copiedHook ? "Copied!" : "Copy Advice")
-                : (copiedHook ? "Copied!" : "Copy Hook")}
+              {copiedHook ? "Copied!" : hookCopyButtonLabel}
             </button>
 
             <button
@@ -1068,9 +1073,7 @@ const displayFixes: string[] = analysis.fixes.map((fix) => {
                 onClick={handleCopyHook}
                 className="flex-1 h-[40px] rounded-[12px] border border-[#24242A] bg-[#EF4444] text-[13px] font-semibold text-white focus:outline-none focus:ring-0"
               >
-                {aiHookMode === "diagnostic"
-                  ? (copiedHook ? "Copied!" : "Copy Advice")
-                  : (copiedHook ? "Copied!" : "Copy Hook")}
+                {copiedHook ? "Copied!" : hookCopyButtonLabel}
               </button>
               <button
                 onClick={() => setIsHookModalOpen(false)}
@@ -1587,6 +1590,17 @@ function extractUniversalSignals(text: string): UniversalSignals {
   for (const p of stakesPhrases) {
     if (lower.includes(p)) stakesScore += 10;
   }
+  // Emotional story stakes — human relationship + transformation signals
+  const emotionalStakePhrases = [
+    "cried", "crying", "tears", "sobbed", "broke down",
+    "struggled", "starving", "hungry", "hardship", "poor",
+    "never forgot", "changed her life", "changed his life", "changed their life",
+    "years later", "after becoming", "kindness", "helped him", "helped her",
+    "believed in him", "believed in her",
+  ];
+  for (const p of emotionalStakePhrases) {
+    if (lower.includes(p)) stakesScore += 8;
+  }
   stakesScore = Math.min(stakesScore, 100);
 
   // ── Specificity score ──────────────────────────────────────────────────────
@@ -2088,6 +2102,25 @@ function calculateHookStrength(
 
   if (hasContrastStatementHook) score += 20;
 
+// ── Challenge / bet / stunt hooks ─────────────────────────────────────────
+  // "Can you X?", "I bet $Y he couldn't", "Is it possible to X?" are strong
+  // viral hook patterns that the general scoring misses.
+  const isChallengeQuestion =
+    /^(can you|could you|is it possible|would you|what if you)\b/i.test(lower) ||
+    /\b(slice|cut|break|survive|catch|dodge|beat|outrun)\b.{0,30}\?/i.test(firstSentence);
+  if (isChallengeQuestion) score += 22;
+
+  const hasBetOrStake =
+    /\$[\d,]+/.test(firstSentence) ||
+    /\b\d[\d,]* (dollars?|bucks)\b/i.test(firstSentence) ||
+    /\b(bet|wager|i don'?t believe|he couldn'?t|she couldn'?t|they couldn'?t)\b/i.test(lower);
+  if (hasBetOrStake) score += 18;
+
+  const hasChallengeObject =
+    /\b(katana|sword|bullet|bullet-proof|chainsaw|axe|hammer|blowtorch|acid|explosive)\b/i.test(lower) &&
+    isChallengeQuestion;
+  if (hasChallengeObject) score += 10;
+
 // ── Question mark in first sentence ───────────────────────────────────────
   // Questions are one valid hook type but NOT the only one.
   // Statement hooks with specificity can be equally strong.
@@ -2512,6 +2545,137 @@ if (signals.genericPenalty >= 42) strength -= 22;
   return Math.min(100, Math.max(0, Math.round(strength)));
 }
 
+
+
+// ─── Script type detection ───────────────────────────────────────────────────
+
+type ScriptType =
+  | "viral_challenge"
+  | "giveaway_or_prize"
+  | "emotional_story"
+  | "educational_explainer"
+  | "auto_caption_transcript"
+  | "generic_advice"
+  | "general";
+
+function detectScriptType(text: string): ScriptType {
+  const lower = text.toLowerCase();
+
+  // Auto-caption: messy transcript markers
+  if (
+    lower.includes("[music]") ||
+    lower.includes(">>") ||
+    (text.split(/\n/).filter(l => l.trim().length > 0).length >= 4 &&
+      text.split(/[.!?]/).filter(Boolean).length < 3 &&
+      lower === lower) // all lowercase signal
+  ) {
+    return "auto_caption_transcript";
+  }
+
+  // Viral challenge: impossible test + money/object stake
+  const hasChallengeVerb =
+    /\b(slice|cut|break|survive|smash|destroy|catch|dodge|block|stop|open|find|lift|throw|eat|drink|hold|beat|outrun|outlast|endure|withstand)\b/i.test(text) ||
+    /\b(put it to the test|let's try|only one chance|one shot|final attempt|last try)\b/i.test(lower);
+  // "wins/win" alone is too broad (e.g. "junk food wins") — require actual money/prize context
+  const hasMoneySake =
+    /\$[\d,]+|\b\d[\d,]* (dollars|dollar|bucks|usd)\b/i.test(text) ||
+    /\b(bet|wager|prize|reward|keep it|gets to keep)\b/i.test(lower) ||
+    (/\b(win|won|wins)\b/i.test(lower) && /\b(subscriber|challenge|prize|cash|giveaway|money|bet)\b/i.test(lower));
+  const hasChallengeObject =
+    /\b(katana|sword|bullet|gun|car|truck|bus|tank|rocket|phone|iphone|ipad|laptop|ps5|xbox|diamond|gold|cash|bag|vault|safe|lock|ice|fire|acid|chainsaw|axe|hammer)\b/i.test(lower);
+  const hasImpossiblePremise =
+    /\b(can you|could you|is it possible|sounds impossible|nobody thought|no one believed|they said it couldn't)\b/i.test(lower) ||
+    /\b(impossible|unbreakable|unkillable|unbeatable|unstoppable|unsliceable)\b/i.test(lower);
+  const hasSubscriberChallenge =
+    /\b(subscriber|sub|subscribers)\b/i.test(lower) &&
+    /\b(gets?|wins?|keeps?|chose|chosen|selected|picked|random)\b/i.test(lower);
+
+  if (
+    (hasChallengeVerb && hasMoneySake) ||
+    (hasImpossiblePremise && hasMoneySake) ||
+    (hasChallengeVerb && hasChallengeObject && hasImpossiblePremise)
+  ) {
+    return "viral_challenge";
+  }
+
+  // Giveaway / prize: subscriber reward or prize drop
+  const hasGiveawaySignal =
+    /\b(giveaway|give away|giving away|giving a|handed|handing out)\b/i.test(lower);
+  const hasPrizeObject =
+    /\b(iphone|ipad|ps5|xbox|car|truck|cash|money|\$[\d,]+|\d[\d,]* dollars?|laptop|macbook|drone|watch|airpods|tv|television)\b/i.test(lower);
+  const hasRandomWinner =
+    /\b(wherever|whatever|whichever|random|randomly|lands on|spins|points to|drops on|falls on)\b/i.test(lower) &&
+    /\b(subscriber|person|winner|country|city|name)\b/i.test(lower);
+  const hasPrizeCTA =
+    /\b(subscribe|hit subscribe|smash subscribe)\b/i.test(lower) &&
+    hasPrizeObject;
+
+  if (
+    (hasGiveawaySignal && hasPrizeObject) ||
+    hasRandomWinner ||
+    (hasSubscriberChallenge && hasPrizeObject) ||
+    hasPrizeCTA
+  ) {
+    return "giveaway_or_prize";
+  }
+
+  // Emotional story: human relationship + stakes + transformation
+  const hasEmotionalMarker =
+    /\b(cried|crying|tears|sobbed|broke down|emotional|moved|touched)\b/i.test(lower) ||
+    /\b(father|mother|dad|mom|parent|son|daughter|family|brother|sister|friend|wife|husband)\b/i.test(lower) ||
+    /\b(poor|struggled|homeless|starving|hungry|hardship|difficult life|grew up without)\b/i.test(lower);
+  const hasStoryArc =
+    /\b(years later|after becoming|changed (his|her|their|my) life|never forgot|always remembered|went back|returned|finally|one day when)\b/i.test(lower) ||
+    /\b(kindness|helped (him|her|them|me)|believed in (him|her|them|me)|gave (him|her|them|me))\b/i.test(lower);
+  const hasNamedPerson =
+    /\b[A-Z][a-z]{2,}\b/.test(text) &&
+    (hasEmotionalMarker || hasStoryArc);
+
+  if ((hasEmotionalMarker && hasStoryArc) || (hasNamedPerson && hasEmotionalMarker)) {
+    return "emotional_story";
+  }
+
+  // Educational explainer: fact + mechanism + consequence
+  const hasFactualPremise =
+    /\b(did you know|the reason|the real reason|here's why|this is why|scientists|researchers|studies show|research shows|according to)\b/i.test(lower) ||
+    /\d[\d,]*\s*(miles|km|feet|meters|percent|%|seconds|minutes|hours|days|years|degrees|mph|kph|billion|million|thousand)/i.test(lower);
+  const hasMechanismExplain =
+    /\b(because|which means|that means|as a result|the reason is|this happens|this causes|what happens|how this works)\b/i.test(lower);
+
+  if (hasFactualPremise && hasMechanismExplain) {
+    return "educational_explainer";
+  }
+
+  // Generic advice: mostly platitudes, no concrete anchor
+  const genericPhrases = [
+    "motivation is", "discipline is", "success is", "failure is",
+    "never give up", "work hard", "stay focused", "believe in yourself",
+    "is the key to", "is very important", "everyone wants", "most people want",
+    "you can do it", "keep going", "keep working", "is possible for anyone",
+  ];
+  const genericHits = genericPhrases.filter(p => lower.includes(p)).length;
+  const hasConcreteAnchor =
+    /\d/.test(text) ||
+    /[a-z,]\s+[A-Z][a-z]{2,}/.test(text) ||
+    /\b(found|went|came|gave|took|saw|ran|broke|drove|won|built|caught|heard)\b/i.test(lower);
+
+  if (genericHits >= 2 && !hasConcreteAnchor) {
+    return "generic_advice";
+  }
+
+  return "general";
+}
+
+// ─── Auto-caption normalizer ─────────────────────────────────────────────────
+
+function normalizeAutoCaptionScript(text: string): string {
+  return text
+    .replace(/\[music\]/gi, "")
+    .replace(/^>>\s*/gm, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 // ─── Main analysis ───────────────────────────────────────────────────────────
 
 function analyzeScript(
@@ -2523,9 +2687,19 @@ function analyzeScript(
   const lines = scriptLines;
   const totalLines = lines.length;
 
-  const firstSentence = text.split(/[.!?]/)[0]?.trim() ?? text.trim();
-  const signals = extractUniversalSignals(text);
-  const structures = detectScriptStructures(lines, text);
+  const scriptType = detectScriptType(text);
+
+  // Normalize auto-caption transcripts before scoring
+  const normalizedText = scriptType === "auto_caption_transcript"
+    ? normalizeAutoCaptionScript(text)
+    : text;
+  const normalizedLines = scriptType === "auto_caption_transcript"
+    ? createScriptLines(normalizedText)
+    : lines;
+
+  const firstSentence = normalizedText.split(/[.!?]/)[0]?.trim() ?? normalizedText.trim();
+  const signals = extractUniversalSignals(normalizedText);
+  const structures = detectScriptStructures(normalizedLines, normalizedText);
 
   const hookScore = text.length > 0
     ? Math.max(18, clampScore(calculateHookStrength(firstSentence, signals)))
@@ -2618,6 +2792,62 @@ const hasStructuredEscalation =
 
   overallScore = clampScore(overallScore);
 
+  // ── Script-type calibration boosts ────────────────────────────────────────
+  // These run AFTER the main score is computed and apply type-aware floors.
+
+  // Viral challenge / giveaway: floor hook and overall when premise is clear.
+  let calibratedHookScore = displayHookScore;
+
+  if (scriptType === "viral_challenge" || scriptType === "giveaway_or_prize") {
+    const firstLower2 = firstSentence.toLowerCase();
+    const hasStakeInFirst =
+      /\$[\d,]+|\b\d[\d,]* (dollars?|bucks|usd)\b/i.test(firstSentence) ||
+      /\b(iphone|ipad|ps5|xbox|car|prize|giveaway|bet)\b/i.test(firstLower2) ||
+      /\b(can you|impossible|wherever|whatever|whichever)\b/i.test(firstLower2);
+
+    // If the first line has a clear challenge/stake signal, floor hook at 62
+    if (hasStakeInFirst && calibratedHookScore < 62) {
+      calibratedHookScore = 62;
+    }
+
+    const hasChallengePremise =
+      /\$[\d,]+|\b\d[\d,]* (dollars?|bucks|usd)\b/i.test(normalizedText) ||
+      /\b(iphone|ipad|ps5|xbox|car|prize|giveaway)\b/i.test(normalizedText.toLowerCase()) ||
+      /\b(wherever|whatever|whichever).{3,40}\b(subscriber|person|country|city|name)\b/i.test(normalizedText.toLowerCase()) ||
+      /\b(bet|challenge|impossible|can you)\b/i.test(normalizedText.toLowerCase());
+
+    if (hasChallengePremise && overallScore < 58) {
+      overallScore = 58;
+    }
+    if (hasChallengePremise && calibratedHookScore >= 55 && overallScore < 65) {
+      overallScore = Math.max(overallScore, 63);
+    }
+  }
+
+  // Emotional story: floor overall at 52 when emotional arc signals are present.
+  // (stakesScore threshold lowered to 10 so emotional phrases from Patch 2 count)
+  if (scriptType === "emotional_story") {
+    if (overallScore < 52 && signals.stakesScore >= 10) {
+      overallScore = 52;
+    }
+    // If the story has a clear named person + payoff arc, push to 55
+    const hasNamedPersonAndArc =
+      /\b[A-Z][a-z]{2,}\b/.test(text) &&
+      /\b(years later|after becoming|changed (his|her|their) life|never forgot|went back|returned)\b/i.test(normalizedText.toLowerCase());
+    if (hasNamedPersonAndArc && overallScore < 55) {
+      overallScore = 55;
+    }
+  }
+
+  // Auto-caption: reduce generic penalty impact (messy transcripts look generic)
+  if (scriptType === "auto_caption_transcript") {
+    if (overallScore < 50 && signals.genericPenalty < 42) {
+      overallScore = Math.max(overallScore, 50);
+    }
+  }
+
+  overallScore = clampScore(overallScore);
+
   const hookRewriteSuggestion = createHookRewrite(text);
 
   // ── Hook status flags — drive risky parts, fixes, button label, scene breakdown ─
@@ -2658,6 +2888,10 @@ const hasStructuredEscalation =
     }
   }
 
+  // ── Script-type context for risky parts ───────────────────────────────────
+  const isViralOrGiveaway = scriptType === "viral_challenge" || scriptType === "giveaway_or_prize";
+  const isEmotionalStory = scriptType === "emotional_story";
+
   // ── 1. Very short script ────────────────────────────────────────────────────
   if (charCount < 180) {
     riskyParts.push({
@@ -2695,7 +2929,15 @@ const hasStructuredEscalation =
      lastLine.split(/\s+/).length <= 10) ||
     lastLineIsStructurallyGeneric;
 
- if (hookNeedsWork && effectiveHookScore < 45) {
+ // For viral/giveaway scripts with a clear premise, don't mark opening as weak
+  const viralHasClearPremise =
+    isViralOrGiveaway && (
+      /\$[\d,]+|\b\d[\d,]* (dollars?|bucks|usd)\b/i.test(normalizedText) ||
+      /\b(iphone|ipad|ps5|xbox|car|giveaway|wherever|whatever|whichever).{0,40}(lands?|wins?|gets?|keep)\b/i.test(normalizedText.toLowerCase()) ||
+      /\b(bet|challenge|impossible|can you)\b/i.test(firstSentence.toLowerCase())
+    );
+
+ if (hookNeedsWork && effectiveHookScore < 45 && !viralHasClearPremise) {
     // Check if the script has a strong payoff/consequence that should be the hook
     // Do NOT label as "strong payoff" if the ending is generic/motivational — it is not a payoff worth moving
     if (!isGenericMotivationalEnding && (structures.hasStrongPayoffLate || structures.hasConsequencePayoff)) {
@@ -2902,7 +3144,9 @@ if (middleFlat && !isGoodScript && retentionRisk >= 35) {
     wordCount >= 35 &&
     overallScore < 58 &&
     !hasStructuredEscalation &&
-    !middleHasConcreteContent
+    !middleHasConcreteContent &&
+    !isViralOrGiveaway &&
+    !isEmotionalStory
   ) {
     if (!riskyParts.some(p => p.title === "No reason to keep watching.")) {
       riskyParts.push({
@@ -2938,6 +3182,38 @@ if (middleFlat && !isGoodScript && retentionRisk >= 35) {
   }
 
   // ── Build fixes — context-aware, not generic ────────────────────────────────
+
+  // Script-type-specific fixes (prepended before generic logic)
+  if (isViralOrGiveaway) {
+    const lowerNorm = normalizedText.toLowerCase();
+    const hasCTAInterrupt =
+      /\b(subscribe|follow|hit subscribe|smash subscribe)\b/i.test(lowerNorm) &&
+      normalizedLines.length >= 4 &&
+      normalizedLines.slice(0, Math.floor(normalizedLines.length * 0.8)).some(l =>
+        /\b(subscribe|follow)\b/i.test(l.toLowerCase())
+      );
+    if (hasCTAInterrupt) {
+      addFix("Move the subscribe CTA to after the payoff — placing it before the challenge resolves may cause viewers to drop.");
+    }
+    if (payoffStrength < 40) {
+      addFix("Add one clear consequence: what happens if the challenge fails or succeeds?");
+    }
+    if (!structures.hasConsequencePayoff && wordCount > 30) {
+      addFix("Make the challenge outcome clearer before any CTA — viewers need to know if it worked.");
+    }
+  }
+
+  if (isEmotionalStory) {
+    if (payoffStrength < 35) {
+      addFix("Make the emotional payoff more specific — what exactly changed, and how does the viewer feel the impact?");
+    }
+    if (hookNeedsWork && effectiveHookScore < 65) {
+      addFix("Open with the most emotional or unexpected moment from the story — not just the setup.");
+    }
+    if (signals.specificityScore < 20) {
+      addFix("Add one specific named detail, place, or action to make the story feel real rather than general.");
+    }
+  }
 
   // Primary weakness fix — only add hook rewrites when hook actually needs work
   if (primaryWeak === "hook" && hookNeedsWork && effectiveHookScore < 65) {
@@ -3278,14 +3554,14 @@ if (middleFlat && !isGoodScript && retentionRisk >= 35) {
       label: getOverallLabel(overallScore),
       color: "#FFFFFF",
       ringColor: overallScore >= 75 ? "#22C55E" : overallScore >= 60 ? "#F59E0B" : "#EF4444",
-      description: getOverallDescription(overallScore, issueTitles, structures, hookIsAcceptable),
+      description: getOverallDescription(overallScore, issueTitles, structures, hookIsAcceptable, scriptType),
     },
     hook: {
-      score: displayHookScore,
-      label: getHookLabel(displayHookScore),
-      color: getHookColor(displayHookScore),
-      ringColor: getHookColor(displayHookScore),
-      description: getHookDescription(displayHookScore, issueTitles, structures),
+      score: calibratedHookScore,
+      label: getHookLabel(calibratedHookScore),
+      color: getHookColor(calibratedHookScore),
+      ringColor: getHookColor(calibratedHookScore),
+      description: getHookDescription(calibratedHookScore, issueTitles, structures),
     },
     risk: {
       score: retentionRisk,
@@ -3457,9 +3733,39 @@ function createHookRewrite(script: string): string {
   
   function clientLineHasHardAnchor(line: string): boolean {
     const ll = line.toLowerCase();
+
+    // Generic-advice lines never count as hard anchors (mirrors API guard).
+    const CLIENT_GENERIC_ADVICE_PATTERNS: RegExp[] = [
+      /\bwork(s|ed|ing)? hard\b/i,
+      /\bevery\s*day\b/i,
+      /\bdaily\b/i,
+      /\bnever give up\b/i,
+      /\bstay focus(ed)?\b/i,
+      /\bkeep going\b/i,
+      /\bbelieve in yourself\b/i,
+      /\bsuccess is possible\b/i,
+      /\bmotivation is\b/i,
+      /\bdiscipline is\b/i,
+      /\bconsistency is key\b/i,
+      /\bis (the )?key to\b/i,
+      /\bis (very |extremely |really |truly )?important\b/i,
+      /\bis possible for anyone\b/i,
+      /\byou (should|must|need to|have to) (work|try|stay|keep|believe|focus|push)\b/i,
+      /\bif you keep going\b/i,
+      /\byou (can|will) succeed\b/i,
+      /\bwants? to (stay|be|feel) (motivated|focused|disciplined|inspired)\b/i,
+    ];
+    const matchesAdvice = CLIENT_GENERIC_ADVICE_PATTERNS.some(p => p.test(line));
+    const hasRealAnchorDespiteAdvice =
+      /\d/.test(line) ||
+      /[a-z,]\s+[A-Z][a-z]{2,}/.test(line) ||
+      /\$\s*\d/.test(line);
+    if (matchesAdvice && !hasRealAnchorDespiteAdvice) return false;
+
     if (/\d/.test(line)) return true;
     if (/[a-z,]\s+[A-Z][a-z]{2,}/.test(line)) return true;
-    if (/\b(percent|%|mile|miles|foot|feet|meter|meters|km|second|seconds|minute|minutes|hour|hours|day|days|week|weeks|year|years|degree|degrees|mph|kph|billion|million|thousand|dollar|\$)\b/i.test(ll)) return true;
+    if (/\b(percent|%|mile|miles|foot|feet|meter|meters|km|second|seconds|minute|minutes|hour|hours|degree|degrees|mph|kph|billion|million|thousand|dollar|\$)\b/i.test(ll)) return true;
+    if (/\d\s*(days?|weeks?|years?)\b/i.test(line)) return true;
     if (/\b(because|therefore|as a result|which means|led to|resulted in|caused|triggered|due to)\b/i.test(ll)) return true;
     if (/\b(table|chair|floor|wall|door|window|room|building|school|hospital|street|road|ship|boat|car|truck|plane|phone|screen|camera|footage|image|photo|food|water|fire|smoke|blood|body|hand|face|mountain|ocean|river|lake|forest)\b/i.test(ll)) return true;
     if (/\b(found|went|came|gave|took|saw|ran|fell|grew|flew|broke|drove|woke|won|built|bought|caught|dug|drew|drank|ate|fought|heard|held|led|lit|met|paid|shook|shot|slept|spoke|stood|stole|swam|taught|threw|thought|wrote)\b/i.test(ll)) return true;
@@ -3486,6 +3792,45 @@ function createHookRewrite(script: string): string {
     return capitalizedTopic.length > 0
       ? `${capitalizedTopic} needs one specific example, result, or consequence before the hook can feel strong.`
       : "This script needs one specific example, result, or consequence before the hook can feel strong.";
+  }
+
+  // ── Step 0: scenario opener + final payoff combination ───────────────────
+  // For "Imagine X / What if X" scripts, the strongest hook combines the opening
+  // scenario premise with the final payoff/realization line.
+  // E.g. "Imagine the world went silent for one minute" + "Even silence has a sound"
+  // → "What if the world went silent for one minute — and even silence has a sound?"
+  const isScenarioOpener =
+    /^(imagine|what if|picture this)\b/i.test(firstLower);
+  if (isScenarioOpener && bodyLines.length >= 3) {
+    const finalPayoffLine = bodyLines[bodyLines.length - 1] ?? "";
+    const secondToLastLine = bodyLines[bodyLines.length - 2] ?? "";
+    // Pick the last line as payoff candidate — prefer it if it's a realization/paradox/twist
+    const candidatePayoff = finalPayoffLine.trim();
+    const candidateWc = candidatePayoff.split(/\s+/).length;
+    const payoffLower = candidatePayoff.toLowerCase();
+    const isStrongFinalLine =
+      candidateWc >= 4 && candidateWc <= 14 &&
+      !payoffLower.startsWith("but") && // avoid "But then you would notice..."
+      (
+        // Paradox / realization patterns
+        /\b(never|always|still|even|only|just|yet)\b/i.test(candidatePayoff) ||
+        // Identity / reversal
+        /\b(has|have|is|are) (a|an|the)?\s*\w+/i.test(candidatePayoff) ||
+        // Short punchy conclusion
+        candidateWc <= 8
+      );
+    if (isStrongFinalLine) {
+      // Extract the scenario premise from the first line (trim "Imagine" / "What if")
+      const premiseCleaned = firstLine
+        .replace(/^(imagine|what if|picture this)[,.]?\s*/i, "")
+        .replace(/[.!?]+$/, "")
+        .trim();
+      const payoffCleaned = candidatePayoff.replace(/[.!?]+$/, "").trim().toLowerCase();
+      const premiseWc = premiseCleaned.split(/\s+/).length;
+      if (premiseWc >= 4 && premiseWc <= 14) {
+        return `What if ${premiseCleaned.toLowerCase()} — and ${payoffCleaned}?`;
+      }
+    }
   }
 
   // ── Step 1: specific number + measurement unit (universal — any niche) ────
@@ -3777,7 +4122,23 @@ function getRiskColor(score: number): string {
   return "#22C55E";
 }
 
-function getOverallDescription(score: number, issues: string[], structures?: ScriptStructures, hookIsAcceptable?: boolean): string {
+function getOverallDescription(score: number, issues: string[], structures?: ScriptStructures, hookIsAcceptable?: boolean, scriptType?: ScriptType): string {
+  if (scriptType === "viral_challenge" || scriptType === "giveaway_or_prize") {
+    if (score >= 75) return "Strong viral premise with clear stakes. The challenge and payoff work well together.";
+    if (score >= 60) return "Clear challenge premise. Tightening the payoff or moving the prize detail earlier could push it higher.";
+    if (score >= 45) return "The premise is recognizable, but the structure could be tighter — lead with the strongest stake or challenge.";
+    return "The challenge premise needs a clearer stake or more concrete outcome to hook viewers fast.";
+  }
+  if (scriptType === "emotional_story") {
+    if (score >= 75) return "Strong emotional arc. The setup, story, and payoff connect well.";
+    if (score >= 55) return "Clear emotional story. A sharper opening moment or more specific payoff detail would push it further.";
+    return "The story has emotional potential but needs a clearer arc — set up the stakes earlier and make the payoff more specific.";
+  }
+  if (scriptType === "auto_caption_transcript") {
+    if (score >= 65) return "Strong underlying structure despite transcript formatting. The hook and payoff work well.";
+    if (score >= 50) return "Clear Shorts structure in the transcript. A tighter hook or cleaner payoff would improve retention.";
+    return "The transcript has a workable structure, but the opening and payoff could be stronger.";
+  }
   if (score < 60 && issues.some(i => i.includes("strong payoff appears too late"))) {
     return "The strongest consequence is buried at the end. Move it to the opening and the whole script improves.";
   }
