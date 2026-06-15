@@ -144,16 +144,15 @@ export default function HomePage() {
           </p>
 
           
-            <a
-  href="#analyzer"
-  onClick={(event) => {
-    event.preventDefault();
-    document.getElementById("analyzer")?.scrollIntoView({ behavior: "smooth" });
-  }}
-  className="absolute left-0 top-[300px] flex h-[56px] w-[210px] items-center justify-center rounded-[14px] border border-[#EF4444] bg-[#EF4444] text-[17px] font-semibold leading-[24px] text-white transition hover:bg-[#dc2626]"
->
-  Start Analyzing
-</a>
+            href="#analyzer"
+            onClick={(event) => {
+              event.preventDefault();
+              document.getElementById("analyzer")?.scrollIntoView({ behavior: "smooth" });
+            }}
+            className="absolute left-0 top-[300px] flex h-[56px] w-[210px] items-center justify-center rounded-[14px] border border-[#24242A] bg-[#EF4444] text-[16px] font-semibold leading-[24px] text-white transition hover:bg-[#dc2626]"
+          >
+            Start Analyzing
+          </a>
 
           <p className="absolute left-0 top-[372px] w-[600px] text-[13px] font-normal leading-[20px] text-[#777A85]">
             Currently optimized for YouTube Shorts scripts. More formats coming soon.
@@ -192,21 +191,8 @@ export default function HomePage() {
             </div>
 
             <div className="mt-[14px] rounded-[12px] border border-[#24242A] bg-[#0B0C10] px-[14px] py-[12px]">
-              <p className="text-[12px] font-semibold leading-[18px] text-white">
-  Suggested Fix
-</p>
-<p className="mt-[6px] text-[12px] font-normal leading-[18px] text-[#B3B3B3]">
-  Cut the slow intro and start with the main value before viewers scroll.
-</p>
-            </div>
-          </div>
-        </div>
-
-        <section
-          id="analyzer"
-          className="absolute left-[270px] top-[717px] h-[700px] w-[720px] rounded-[20px] border border-[#24242A] bg-[#0B0C10]"
-        >
-          <h2 className="absolute left-[25px] top-[30px] h-[24px] w-[118px] text-[22px] font-semibold leading-[24px] text-white">
+              <p className="text-[12px] font-semibold leading-[18px]
+         <h2 className="absolute left-[25px] top-[30px] h-[24px] w-[118px] text-[22px] font-semibold leading-[24px] text-white">
             Your Script
           </h2>
 
@@ -379,7 +365,7 @@ export default function HomePage() {
               Get a hook score, retention risk, risky timestamps, and concrete fixes before your video goes live.
             </p>
 
-            <a
+            
               href="#analyzer-mobile"
               onClick={(event) => {
                 event.preventDefault();
