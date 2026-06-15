@@ -36,10 +36,20 @@ export default function HomePage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analyzeError, setAnalyzeError] = useState("");
 
+  function handleScriptChange(event: React.ChangeEvent<HTMLTextAreaElement>) {
+    const val = event.target.value;
+    setScript(val);
+
+    if (val.length > maxCharacters) {
+      setAnalyzeError("Script is too long. Please shorten it to 1,000 characters or less.");
+    } else if (analyzeError) {
+      setAnalyzeError("");
+    }
+  }
+
   const maxCharacters = 1000;
 
   function handleAnalyze() {
-    setAnalyzeError("");
     const cleanedScript = script.trim();
 
     if (cleanedScript.length === 0) {
@@ -47,11 +57,12 @@ export default function HomePage() {
       return;
     }
 
-    if (cleanedScript.length > maxCharacters) {
-      setAnalyzeError("Your script is over 1000 characters. Please shorten it.");
+    if (script.length > maxCharacters) {
+      setAnalyzeError("Script is too long. Please shorten it to 1,000 characters or less.");
       return;
     }
 
+    setAnalyzeError("");
     setIsAnalyzing(true);
 
     try {
@@ -145,8 +156,7 @@ export default function HomePage() {
           <div className="absolute left-[30px] top-[157px] h-[468px] w-[660px] rounded-[16px] border border-[#24242A] bg-[#0B1018]/[0.0784]">
             <textarea
               value={script}
-              maxLength={maxCharacters}
-              onChange={(event) => setScript(event.target.value)}
+              onChange={handleScriptChange}
               placeholder="Paste your script here..."
               className="h-full w-full resize-none rounded-[16px] bg-transparent px-[20px] py-[20px] text-[14px] font-normal leading-[24px] text-[#B3B3B3] outline-none placeholder:text-[#777A85]"
             />
@@ -158,14 +168,14 @@ export default function HomePage() {
             )}
           </div>
 
-          <p className="absolute left-[30px] top-[641px] h-[24px] w-[260px] whitespace-nowrap text-[20px] font-normal leading-[24px] text-[#B3B3B3]">
+          <p className={`absolute left-[30px] top-[641px] h-[24px] w-[260px] whitespace-nowrap text-[20px] font-normal leading-[24px] ${script.length > maxCharacters ? "text-[#EF4444]" : "text-[#B3B3B3]"}`}>
             {script.length} / 1000 characters
           </p>
         </section>
 
         <button
           onClick={handleAnalyze}
-          disabled={isAnalyzing}
+          disabled={isAnalyzing || script.trim().length === 0 || script.length > maxCharacters}
           className="absolute left-[295px] top-[840px] h-[56px] w-[230px] rounded-[14px] border border-[#24242A] bg-[#EF4444] text-[17px] font-semibold leading-[24px] text-white transition hover:bg-[#dc2626] disabled:cursor-not-allowed disabled:opacity-80"
         >
           {isAnalyzing ? "Analyzing..." : "Analyze Script"}
@@ -275,17 +285,16 @@ export default function HomePage() {
           <div className="mx-[20px] mb-[12px] rounded-[16px] border border-[#24242A] bg-[#0B0C10] px-[18px] pt-[14px] pb-[14px]">
             <div className="flex items-baseline justify-between mb-[4px]">
               <p className="text-[16px] font-semibold text-white">Your Script</p>
-              <p className="text-[13px] font-normal text-[#B3B3B3]">{script.length} / 1000 characters</p>
+              <p className={`text-[13px] font-normal ${script.length > maxCharacters ? "text-[#EF4444]" : "text-[#B3B3B3]"}`}>{script.length} / 1000 characters</p>
             </div>
             <p className="text-[12px] font-normal text-[#B3B3B3] mb-[10px]">Best for 15–60 second videos.</p>
             <div className="w-full rounded-[12px] border border-[#24242A] bg-[#050505] mb-[10px]">
               <textarea
                 value={script}
-                maxLength={maxCharacters}
-                onChange={(e) => setScript(e.target.value)}
-                placeholder="Paste your script here..."
-                rows={7}
-                className="w-full resize-none rounded-[12px] bg-transparent px-[14px] py-[12px] text-[12px] font-normal leading-[21px] text-[#B3B3B3] outline-none focus:outline-none focus:ring-0 placeholder:text-[#777A85]"
+              onChange={handleScriptChange}
+              placeholder="Paste your script here..."
+              rows={7}
+              className="w-full resize-none rounded-[12px] bg-transparent px-[14px] py-[12px] text-[12px] font-normal leading-[21px] text-[#B3B3B3] outline-none focus:outline-none focus:ring-0 placeholder:text-[#777A85]"
               />
             </div>
             {script.length === 0 && (
@@ -306,7 +315,7 @@ export default function HomePage() {
           <div className="px-[20px] mb-[10px]">
             <button
               onClick={handleAnalyze}
-              disabled={isAnalyzing}
+              disabled={isAnalyzing || script.trim().length === 0 || script.length > maxCharacters}
               className="w-full h-[56px] rounded-[14px] text-[16px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-80 focus:outline-none focus:ring-0"
               style={{ background: "linear-gradient(135deg, #EF4444, #DC2626)" }}
             >

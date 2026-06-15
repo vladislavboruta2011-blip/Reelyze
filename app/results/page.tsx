@@ -364,7 +364,16 @@ const hookCopyButtonLabel =
                 Your Script
               </h2>
 
-              <div className="absolute left-[30px] top-[85px] h-[470px] w-[600px] overflow-hidden rounded-[16px] border border-[#24242A] bg-[#0B1018]/[0.0784]">
+              {savedTitle && (
+                <div className="absolute left-[30px] top-[68px] flex items-center gap-[8px]">
+                  <p className="text-[13px] font-medium leading-[20px] text-[#B3B3B3]">Topic:</p>
+                  <div className="rounded-[8px] border border-[#24242A] bg-[#0B1018] px-[10px] py-[2px]">
+                    <p className="text-[13px] font-medium leading-[20px] text-white">{savedTitle}</p>
+                  </div>
+                </div>
+              )}
+
+              <div className={`absolute ${savedTitle ? "top-[108px]" : "top-[85px]"} left-[30px] h-[447px] w-[600px] overflow-hidden rounded-[16px] border border-[#24242A] bg-[#0B1018]/[0.0784]`}>
                 <div className="h-full w-full overflow-y-auto px-[20px] py-[22px] pr-[14px]">
                   <div className="flex flex-col gap-[8px]">
                     {scriptLines.map((line, index) => {
@@ -392,7 +401,7 @@ const hookCopyButtonLabel =
                 </div>
               </div>
 
-              <p className="absolute left-[44px] top-[581px] h-[24px] w-[280px] text-[14px] font-normal leading-[24px] text-[#B3B3B3]">
+              <p className={`absolute left-[44px] ${savedTitle ? "top-[604px]" : "top-[581px]"} h-[24px] w-[280px] text-[14px] font-normal leading-[24px] text-[#B3B3B3]`}>
                 {characterCount} / 1000 characters - ~
                 {formatTime(estimatedDuration)}
               </p>
@@ -774,6 +783,14 @@ const hookCopyButtonLabel =
 
                 {mobileScriptOpen && (
                   <div className="mt-[10px] w-full rounded-[14px] border border-[#24242A] bg-[#0B0C10] p-[16px]">
+                    {savedTitle && (
+                      <div className="flex items-center gap-[6px] mb-[10px]">
+                        <p className="text-[10px] font-medium text-[#B3B3B3]">Topic:</p>
+                        <div className="rounded-[6px] border border-[#24242A] bg-[#0B1018] px-[8px] py-[2px]">
+                          <p className="text-[10px] font-medium text-white">{savedTitle}</p>
+                        </div>
+                      </div>
+                    )}
                     <div className="max-h-[320px] overflow-y-auto flex flex-col gap-[8px]">
                       {scriptLines.map((line, index) => {
                         const status: LineStatus = analysis.riskyLineIndexes.includes(index) ? "risky" : analysis.warningLineIndexes.includes(index) ? "warning" : "normal";
