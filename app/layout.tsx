@@ -19,7 +19,10 @@ export const metadata: Metadata = {
   },
   description:
     "Analyze YouTube Shorts scripts before publishing. Get hook scoring, retention risk, risky timestamps, and specific fixes.",
-  icons: {
+  verification: {
+  google: "IO-mo2mPD8RyYDpw",
+},
+    icons: {
     icon: "/logo.png",
     shortcut: "/logo.png",
     apple: "/logo.png",
