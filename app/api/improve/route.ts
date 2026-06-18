@@ -101,8 +101,13 @@ function hasAnyConcreteAnchor(script: string): boolean {
     // 4. Strong causal/consequence connector (real mechanism word)
     if (/\b(because|therefore|as a result|which means|led to|resulted in|caused|triggered|due to|consequently)\b/i.test(ll)) return true;
 
-    // 5. Concrete physical/observable noun
-    if (/\b(table|chair|floor|wall|door|window|room|building|office|school|hospital|station|airport|street|road|field|court|stage|ring|track|lab|store|market|ship|boat|car|truck|plane|phone|screen|camera|footage|image|photo|signal|message|food|water|fire|smoke|snow|rain|blood|body|hand|face|eye|voice|sound|light|shadow|key|box|bag|gun|knife|rope|wire|bridge|tower|mountain|ocean|river|lake|forest)\b/i.test(ll)) return true;
+    // 5. Concrete physical/observable noun — static natural nouns (mountain, ocean, etc.)
+    // only count when the line is NOT a simple static description.
+    const _hasConcreteNoun5 = /\b(table|chair|floor|wall|door|window|room|building|office|school|hospital|station|airport|street|road|field|court|stage|ring|track|lab|store|market|ship|boat|car|truck|plane|phone|screen|camera|footage|image|photo|signal|message|food|fire|smoke|snow|rain|blood|hand|face|eye|voice|sound|light|shadow|key|box|bag|gun|knife|rope|wire|bridge|tower)\b/i.test(ll);
+    const _hasNaturalNoun5 = /\b(mountain|ocean|river|lake|forest|water|body)\b/i.test(ll);
+    const _isStaticDesc5 = /^[a-z\s,]+ (is|are|was|were) (a |an |the |very |extremely |really |so |quite )?\w/i.test(line);
+    if (_hasConcreteNoun5) return true;
+    if (_hasNaturalNoun5 && !_isStaticDesc5) return true;
 
     // 6. High-confidence irregular past tense (clear event/action)
     if (/\b(found|went|came|gave|took|saw|ran|fell|grew|flew|broke|drove|woke|won|built|bought|caught|dug|drew|drank|ate|fought|heard|held|led|lit|met|paid|shook|shot|slept|spoke|stood|stole|swam|taught|threw|thought|wrote)\b/i.test(ll)) return true;
@@ -871,8 +876,17 @@ function lineHasHardAnchor(line: string): boolean {
   if (/\d\s*(years?)\b/i.test(line)) return true;
   // 4. Strong causal connector (not just "so" or "that is why" — requires real mechanism word)
   if (/\b(because|therefore|as a result|which means|led to|resulted in|caused|triggered|due to|consequently)\b/i.test(ll)) return true;
-  // 5. Concrete physical / observable noun (a specific object that can be pointed at)
-  if (/\b(table|chair|floor|wall|door|window|room|building|office|school|hospital|station|airport|street|road|field|court|stage|ring|track|lab|store|market|ship|boat|car|truck|plane|phone|screen|camera|footage|image|photo|signal|message|food|water|fire|smoke|snow|rain|blood|body|hand|face|eye|voice|sound|light|shadow|box|bag|gun|knife|rope|wire|bridge|tower|mountain|ocean|river|lake|forest)\b/i.test(ll)) return true;
+  // 5. Concrete physical / observable noun — only counts when paired with an
+  // action/event OR when NOT in a static "X is a Y" sentence structure.
+  // "Everest is a very tall mountain" should NOT count — static assertion.
+  // "The ship hit a mountain of ice" SHOULD count — action present.
+  const hasConcreteNoun = /\b(table|chair|floor|wall|door|window|room|building|office|school|hospital|station|airport|street|road|field|court|stage|ring|track|lab|store|market|ship|boat|car|truck|plane|phone|screen|camera|footage|image|photo|signal|message|food|fire|smoke|snow|rain|blood|hand|face|eye|voice|sound|light|shadow|box|bag|gun|knife|rope|wire|bridge|tower)\b/i.test(ll);
+  // High-altitude / natural nouns (mountain, ocean, etc.) only count when the line
+  // is NOT a simple static description ("X is a Y" or "X is very/extremely Y")
+  const hasNaturalNoun = /\b(mountain|ocean|river|lake|forest|water|body)\b/i.test(ll);
+  const isStaticDescription = /^[a-z\s,]+ (is|are|was|were) (a |an |the |very |extremely |really |so |quite |always |often )?\w/i.test(line);
+  if (hasConcreteNoun) return true;
+  if (hasNaturalNoun && !isStaticDescription) return true;
   // 6. High-confidence irregular past tense (closed list — no ambiguous stative forms)
   if (/\b(found|went|came|gave|took|saw|ran|fell|grew|flew|broke|drove|woke|won|built|bought|caught|dug|drew|drank|ate|fought|heard|held|led|lit|met|paid|shook|shot|slept|spoke|stood|stole|swam|taught|threw|thought|wrote)\b/i.test(ll)) return true;
   // 7. Non-stative -ed verb: any -ed word that is NOT in the stative list
