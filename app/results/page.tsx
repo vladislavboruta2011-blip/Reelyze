@@ -2073,12 +2073,75 @@ function detectScriptStructures(lines: string[], fullText: string): ScriptStruct
 
 function calculateHookStrength(
   firstSentence: string,
-  signals: UniversalSignals
+  signals: UniversalSignals,
+  script: string = ""
 ): number {
   const lower = firstSentence.toLowerCase();
   const wordCount = firstSentence.split(/\s+/).filter(Boolean).length;
 
   let score = 38;
+
+// ── Tier-0: paradox / contradiction / mechanism hooks ─────────────────────
+  // Detects "wins before he even leaves", "starts before defenders react",
+  // "already ... before", "not because ... but because", "sounds strange but",
+  // "the real reason is", etc. Universal — no hardcoded topics.
+  //
+  // Rules:
+  // 1. First line matches a paradox/contrast/mechanism pattern.
+  // 2. First line contains a concrete subject+action (not just the pattern).
+  // 3. At least 2 body lines develop the mechanism (not just restate).
+  const PARADOX_PATTERNS: RegExp[] = [
+    /\bbefore (he|she|they|it) even\b/i,
+    /\bbefore (he|she|they|it) (leaves?|left|jumps?|jumped|lands?|landed|reacts?|reacted|realizes?|realized|notices?|noticed)\b/i,
+    /\bbefore (defenders?|people|anyone|everyone|viewers?)\b/i,
+    /\balready .{2,40} before\b/i,
+    /\bstarts? before\b/i,
+    /\bwins? .{2,30} before\b/i,
+    /\bnot because .{2,60} but because\b/i,
+    /\bnot just .{2,40} but\b/i,
+    /\bmost people think .{2,60} but\b/i,
+    /\bsounds? (strange|odd|impossible|wrong|counterintuitive) but\b/i,
+    /\bthe (strange|scary|real|hidden|surprising|counterintuitive) (part|reason|truth) is\b/i,
+    /\bbefore (it even|they even|the ball|the cross|the pass|the shot)\b/i,
+  ];
+  const hasParadoxPattern = PARADOX_PATTERNS.some(p => p.test(firstSentence));
+
+  // Concrete subject: named entity OR subject+verb with a physical/action noun
+  const hasConcreteSubject =
+    /\b[A-Z][a-z]{2,}\b/.test(firstSentence) ||
+    /\b(jump|jumps|win|wins|score|scores|shoot|shoots|land|lands|react|reacts|move|moves|start|starts|reach|reaches|leave|leaves|defend|defends)\b/i.test(firstSentence) ||
+    /\b(header|shot|pass|ball|defender|ground|air|cross|body)\b/i.test(firstSentence);
+
+  // Mechanism development: body lines explain HOW/WHY, not just repeat
+  const bodyForParadox = script.split(/[\n.!?]/).map(l => l.trim()).filter(Boolean).slice(1);
+  const mechanismLineCount = bodyForParadox.filter(line => {
+    const ll = line.toLowerCase();
+    return (
+      /\b(because|which means|that means|as a result|the reason|so that|therefore|this means|which causes|in order to|due to|that is why|before the|while the|when the)\b/i.test(ll) ||
+      /\b(body|force|timing|position|space|angle|balance|momentum|control|load|transfer|plant|explode|drive|push|reach|attack|create|set up)\b/i.test(ll) ||
+      (ll.includes(" before ") && !ll.includes("before the script")) ||
+      (ll.includes("not just") || ll.includes("it is not about") || ll.includes("but his") || ll.includes("but her") || ll.includes("but their"))
+    );
+  }).length;
+
+  const isGenericTopicAnnouncement =
+    /^(sharks?|success|failure|life|time|people|money|work|effort|discipline|motivation|focus|mindset|goals?|habits?) (is|are|was|were) (very |extremely |really |so |quite |always |often )?(dangerous|important|key|essential|hard|easy|powerful|possible|incredible|amazing|necessary|needed|useful|real|true|common|rare|unique|special|good|bad|great|terrible|best|worst|only|enough)/i.test(firstSentence.trim()) ||
+    /^(ronaldo|lebron|curry|messi|jordan|kobe) (jumps?|runs?|scores?|shoots?|wins?) (high|fast|well|hard|great|amazing)?\s*(because (he|she) is|because of his|because of her)?\s*(powerful|strong|fast|quick|talented|gifted|hard.?working|dedicated|focused|the best|the greatest)?\.?$/i.test(firstSentence.trim());
+
+  let paradoxBonus = 0;
+  if (hasParadoxPattern && hasConcreteSubject && !isGenericTopicAnnouncement) {
+    paradoxBonus += 22; // base paradox bonus
+    if (mechanismLineCount >= 2) paradoxBonus += 12; // script develops the mechanism
+    if (mechanismLineCount >= 4) paradoxBonus += 8;  // deep mechanism development
+  }
+  score += paradoxBonus;
+
+  // ── Generic topic announcement penalty ────────────────────────────────────
+  // Penalizes hooks that just state a broad topic without consequence/contrast.
+  // Only fires when NO paradox/curiosity signal rescued it.
+  if (isGenericTopicAnnouncement && paradoxBonus === 0) {
+    score -= 22;
+  }
 
   // ── Tier-1: direct curiosity / pattern-interrupt openers ──────────────────
   const tier1Hooks = [
@@ -2314,10 +2377,11 @@ const hasNamedSubject = /\b[A-Z][a-z]{2,}\b/.test(firstSentence);
     "can reach your goals", "success is", "failure is",
     "time is ", "life is ", "people are ",
   ];
-  const isGenericHook = genericHookPhrases.some(p => lower.includes(p));
+  const isGenericHook = genericHookPhrases.some(p => lower.includes(p)) || isGenericTopicAnnouncement;
   // Only penalize if no structural signal rescued it
   if (
     isGenericHook &&
+    paradoxBonus === 0 &&
     tier1Hits === 0 && tier2Hits === 0 && tier3Hits === 0 &&
     !hasVisualScaleComparison && !hasContrastStatementHook &&
     !hasScenarioSignal && !hasNumericSignal
@@ -2777,7 +2841,7 @@ function analyzeScript(
     );
 
   let hookScore = text.length > 0
-    ? Math.max(18, clampScore(calculateHookStrength(firstSentence, signals)))
+    ? Math.max(18, clampScore(calculateHookStrength(firstSentence, signals, normalizedText)))
     : 0;
 
   if (hasVisualMysteryOpening && hookScore < 82) {
@@ -3854,7 +3918,11 @@ function createHookRewrite(script: string): string {
     if (/\b(percent|%|mile|miles|foot|feet|meter|meters|km|second|seconds|minute|minutes|hour|hours|degree|degrees|mph|kph|billion|million|thousand|dollar|\$)\b/i.test(ll)) return true;
     if (/\d\s*(days?|weeks?|years?)\b/i.test(line)) return true;
     if (/\b(because|therefore|as a result|which means|led to|resulted in|caused|triggered|due to)\b/i.test(ll)) return true;
-    if (/\b(table|chair|floor|wall|door|window|room|building|school|hospital|street|road|ship|boat|car|truck|plane|phone|screen|camera|footage|image|photo|food|water|fire|smoke|blood|body|hand|face|mountain|ocean|river|lake|forest)\b/i.test(ll)) return true;
+    const _cln = /\b(table|chair|floor|wall|door|window|room|building|school|hospital|street|road|ship|boat|car|truck|plane|phone|screen|camera|footage|image|photo|food|fire|smoke|blood|hand|face)\b/i.test(ll);
+    const _natln = /\b(mountain|ocean|river|lake|forest|water|body)\b/i.test(ll);
+    const _staticln = /^[a-z\s,]+ (is|are|was|were) (a |an |the |very |extremely |really |so |quite )?\w/i.test(line);
+    if (_cln) return true;
+    if (_natln && !_staticln) return true;
     if (/\b(found|went|came|gave|took|saw|ran|fell|grew|flew|broke|drove|woke|won|built|bought|caught|dug|drew|drank|ate|fought|heard|held|led|lit|met|paid|shook|shot|slept|spoke|stood|stole|swam|taught|threw|thought|wrote)\b/i.test(ll)) return true;
     const CLIENT_STATIVE = new Set([
       "focused","motivated","inspired","excited","tired","worried","scared",
