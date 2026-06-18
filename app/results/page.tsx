@@ -2765,9 +2765,24 @@ function analyzeScript(
   const signals = extractUniversalSignals(normalizedText);
   const structures = detectScriptStructures(normalizedLines, normalizedText);
 
-  const hookScore = text.length > 0
+  const firstLower = firstSentence.toLowerCase();
+  const bodyAfterHook = normalizedLines.slice(1).join(" ").toLowerCase();
+
+  const hasVisualMysteryOpening =
+    /\b(ship|boat|plane|camera|room|city|house|car|train|building|door|table|food|cargo|message|signal|footage)\b/i.test(firstSentence) &&
+    /\b(found|discovered|drifting|empty|abandoned|open|untouched|still|gone|missing|disappeared|vanished|no signs|no emergency|no clear reason)\b/i.test(normalizedText) &&
+    (
+      /\b(still|untouched|gone|missing|disappeared|vanished|no signs|no emergency|no clear reason|every person|nobody|no one)\b/i.test(bodyAfterHook) ||
+      /\bwith .{0,70} still\b/i.test(firstLower)
+    );
+
+  let hookScore = text.length > 0
     ? Math.max(18, clampScore(calculateHookStrength(firstSentence, signals)))
     : 0;
+
+  if (hasVisualMysteryOpening && hookScore < 82) {
+    hookScore = 82;
+  }
   const structureRisk = calculateRetentionStructure(lines, signals, structures);
   const payoffStrength = calculatePayoffStrength(lines, signals);
 
@@ -2818,11 +2833,14 @@ const hasStructuredEscalation =
 
   const effectiveHookScore = Math.min(88, hookScore + openingWindowBonus);
 
-  const hookNeedsWork =
-    effectiveHookScore < 58 ||
-    hasFillerOpener ||
-    hasGenericHookOpener ||
-    (openingWindowSignals.hasScenarioOpener && !openingWindowSignals.scenarioHasStakes && effectiveHookScore < 55);
+    const hookNeedsWork =
+    !hasVisualMysteryOpening &&
+    (
+      effectiveHookScore < 58 ||
+      hasFillerOpener ||
+      hasGenericHookOpener ||
+      (openingWindowSignals.hasScenarioOpener && !openingWindowSignals.scenarioHasStakes && effectiveHookScore < 55)
+    );
 
   const hookIsAcceptable = !hookNeedsWork;
   const hookIsStrong = effectiveHookScore >= 70 && hookIsAcceptable;
@@ -2855,6 +2873,11 @@ const hasStructuredEscalation =
   else if (signals.genericPenalty >= 12) overallScore = Math.min(overallScore, 72);
 
   overallScore = clampScore(overallScore);
+
+    if (hasVisualMysteryOpening) {
+    if (overallScore < 72) overallScore = 72;
+    if (retentionRisk > 45) retentionRisk = 45;
+  }
 
   // ── Script-type calibration boosts ────────────────────────────────────────
   // These run AFTER the main score is computed and apply type-aware floors.

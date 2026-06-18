@@ -225,6 +225,17 @@ HOOK GENERATION RULES:
 - The improvedHook should not simply copy or lightly rephrase an existing script sentence unless that sentence is already clearly the strongest possible hook. For weak hooks, transform the strongest concrete cause/effect into a sharper opening -- do not just extract a middle sentence and trim it. Prefer the hidden cause, the surprising consequence, or the final payoff over repeating a middle explanation line.
 - When the script contains both a cause and a consequence (e.g. an object or action that triggers a later result), the best Shorts hook often combines them into one short line: cause + consequence, object + consequence, or hidden reason + result. Compress the causal chain into a single punchy statement rather than quoting one link of it.
 - Bad long-form style: "Most people think mornings are ruined by waking up tired, but it actually starts with your phone at night." Too explanatory: "Your morning does not start when you wake up -- it begins with your phone at night." Too extractive (lightly rephrases a middle script line): "Checking your phone first thing makes your morning feel boring." Better Shorts style: "Your phone at night is ruining tomorrow morning." / "Your morning starts with last night's scroll." / "Your brain starts tomorrow before sleep."
+- For weak hooks where the script later reveals a hidden mechanism, do NOT summarize the mechanism as an explanation. Turn it into a curiosity gap.
+- Bad hook style: "The method works because it creates a better result." This explains the answer instead of creating curiosity.
+- Bad hook style: "It's not just the obvious reason — the secret is a hidden mechanism." This starts unclear and sounds generic.
+- Better hook style: "The result starts before the obvious moment."
+- Better hook style: "The hidden mechanism happens before anyone notices."
+- Bad hooks explain the answer. Good hooks make the viewer want the answer.
+- The first 5 words must be understandable without previous context. Do not start improved hooks with vague pronouns like "It", "This", "That", "He", "She", or "They" unless the subject is named inside the same phrase.
+- Avoid "secret" phrasing. It usually sounds generic. Use the actual mechanism, consequence, contradiction, number, or visual detail instead.
+- Avoid weak belief-contrast openings like "Many think...", "Most people think...", or "Everyone thinks..." unless the hook also contains a very specific number, consequence, visual detail, or contradiction in the first clause.
+- Avoid "but it's really about..." phrasing. It sounds explanatory. A better hook should make the mechanism feel like a reveal, not explain it fully.
+- Strong hooks should be instantly understandable and punchy. Prefer "X happens before Y" over "Many people think X, but it is really about Y."
 
 HOOK TYPE RECOGNITION — score these as STRONG even without a question mark:
 - Numeric/stat hook: specific number + named subject + unusual scenario → 72–85
@@ -356,6 +367,14 @@ const BANNED_HOOK_OPENERS = [
   "welcome back",
   "hey guys",
   "so today",
+  "it's not just",
+  "it is not just",
+  "this is not just",
+  "that's not just",
+  "that is not just",
+  "the secret",
+  "here's why",
+  "here is why",
 ];
 
 // ── Quality signals: a good hook must contain at least one ──────────────────
@@ -368,7 +387,7 @@ const HOOK_QUALITY_SIGNALS = [
   " but ", "however", "not what", "not really", "is not ", "does not ",
   "most people think", "most creators think", "everyone thinks",
   // consequence / stakes
-  " cost", " lost", " destroy", " fail", " ruin", "before it", "by the time",
+    " cost", " lost", " destroy", " fail", " ruin", "before it", "before he", "before she", "before they", "before you", "before the", "by the time",
   " one mistake", " one decision", "too late", "already ",
   // mystery / withhold
   "until ", "except ", "one detail", "something was",
@@ -402,6 +421,126 @@ function isHookQualityAcceptable(hook: string): boolean {
 function isBannedOpener(hook: string): boolean {
   const lower = hook.toLowerCase().trimStart();
   return BANNED_HOOK_OPENERS.some(opener => lower.startsWith(opener));
+}
+
+function isExplanatorySummaryHook(hook: string): boolean {
+  const lower = hook.toLowerCase();
+
+  return (
+    /\bmaking (him|her|it|them|you)\b/i.test(lower) ||
+    /\bthis helps (him|her|it|them|you)\b/i.test(lower) ||
+    /\bthis makes (him|her|it|them|you)\b/i.test(lower) ||
+    /\bwhich makes (him|her|it|them|you)\b/i.test(lower) ||
+    /\bthat is why\b/i.test(lower)
+  );
+}
+
+function isUnclearStandaloneHook(hook: string): boolean {
+  const lower = hook.toLowerCase().trimStart();
+
+  return (
+    /^(it|this|that|he|she|they)\b/i.test(lower) ||
+    /\bsecret\b/i.test(lower)
+  );
+}
+
+function isWeakBeliefContrastHook(hook: string): boolean {
+  const lower = hook.toLowerCase().trimStart();
+
+  return (
+    /^(many|most|everyone|people)\s+(people\s+)?(think|believe|assume)\b/i.test(lower) ||
+    /\bbut\s+(it'?s|it is|this is|that is)\s+really\s+about\b/i.test(lower) ||
+    /\bbut\s+(the\s+)?(real|actual)\s+(secret|reason|point)\s+is\b/i.test(lower)
+  );
+}
+
+function isConclusionHook(hook: string): boolean {
+  const lower = hook.toLowerCase().trimStart();
+
+  return (
+    /^(that is why|that's why|this is why|that is how|this is how|that is what|this is what)\b/i.test(lower)
+  );
+}
+
+function buildClearStandaloneFallbackHook(script: string): string {
+  const lines = script.split(/[\n.!?]/).map(l => l.trim()).filter(Boolean);
+  const firstLine = lines[0] ?? "";
+  const bodyLines = lines.slice(1);
+  const bodyText = bodyLines.join(" ");
+  const fullText = script.toLowerCase();
+
+  const namedSubjectMatch = firstLine.match(/\b[A-Z][a-z]{2,}(?:\s+[A-Z][a-z]{2,})?\b/);
+  const subject =
+    namedSubjectMatch?.[0] ??
+    firstLine.match(/^(.+?)\s+(is|are|was|were|does|do|can|could|will|would|has|have)\b/i)?.[1]?.trim() ??
+    "";
+
+  const hasBeforeJumpMechanism =
+    /\bbefore\b/i.test(bodyText) &&
+    /\bjump|jumps|jumping|ground|air\b/i.test(bodyText);
+
+  const isHeaderOrAirScript =
+    /\bheader|headers|heading|aerial|in the air\b/i.test(fullText);
+
+  if (subject.length > 0 && hasBeforeJumpMechanism && isHeaderOrAirScript) {
+    return `${subject} wins headers before he even leaves the ground.`;
+  }
+
+  const physicalMechanismLine = bodyLines.find(line => {
+    const ll = line.toLowerCase();
+
+    return (
+      /\b(ground|foot|feet|leg|legs|hip|hips|knee|knees|ankle|ankles|body|spring|force|power|speed|balance)\b/i.test(ll) &&
+      /\b(jump|jumps|jumping|power|force|explosive|upward|transfer|loads?|drives?)\b/i.test(ll)
+    );
+  });
+
+  if (subject.length > 0 && physicalMechanismLine) {
+    const ll = physicalMechanismLine.toLowerCase();
+
+    if (/\bspring\b/i.test(ll)) {
+      return `${subject}'s body loads like a spring before the jump.`;
+    }
+
+    if (/\bground\b|\bfoot\b|\bfeet\b/i.test(ll)) {
+      return `${subject}'s jump starts before he leaves the ground.`;
+    }
+
+    return `${subject}'s power comes from a detail most viewers miss.`;
+  }
+
+  const visualLine = bodyLines.find(line => {
+    const ll = line.toLowerCase();
+
+    return (
+      /\bstill\b|\buntouched\b|\bleft behind\b|\bgone\b|\bmissing\b|\bvanished\b|\bdisappeared\b|\bno signs\b|\bno one\b|\bnobody\b|\bevery person\b/i.test(ll)
+    );
+  });
+
+  if (visualLine) {
+    const cleaned = visualLine.replace(/[.!?]+$/, "").trim();
+    const words = cleaned.split(/\s+/);
+
+    return words.length <= 14
+      ? `${capitalizeFirstChar(cleaned)}.`
+      : `${capitalizeFirstChar(words.slice(0, 14).join(" "))}.`;
+  }
+
+  const numberLine = bodyLines.find(line =>
+    /\d[\d,]*(?:\.\d+)?/.test(line) &&
+    /\b(miles per hour|mph|kph|km\/h|feet|foot|meters|percent|%|seconds|minutes|hours|days|years|degrees|times|million|billion|thousand)\b/i.test(line)
+  );
+
+  if (numberLine) {
+    const cleaned = numberLine.replace(/[.!?]+$/, "").trim();
+    const words = cleaned.split(/\s+/);
+
+    return words.length <= 16
+      ? `${capitalizeFirstChar(cleaned)}.`
+      : `${capitalizeFirstChar(words.slice(0, 16).join(" "))}.`;
+  }
+
+  return "This script needs one sharper result or visual detail before Reelyze can write a stronger hook.";
 }
 
 const INCOMPLETE_ENDING_WORDS = new Set([
@@ -1128,9 +1267,13 @@ function parseHookResponse(raw: string, script: string): ImproveHookResult {
         : "";
 
     // ── Validation layer ──────────────────────────────────────────────────
-    const basicValidationFails =
+        const basicValidationFails =
       improvedHook.length === 0 ||
-      isBannedOpener(improvedHook) ||
+           isBannedOpener(improvedHook) ||
+            isExplanatorySummaryHook(improvedHook) ||
+      isUnclearStandaloneHook(improvedHook) ||
+           isWeakBeliefContrastHook(improvedHook) ||
+      isConclusionHook(improvedHook) ||
       isTooSimilar(improvedHook, firstLine) ||
       !isHookQualityAcceptable(improvedHook) ||
       endsWithIncompletePhrase(improvedHook);
@@ -1155,7 +1298,11 @@ function parseHookResponse(raw: string, script: string): ImproveHookResult {
 
           if (
             candidate.length > 0 &&
-            !isBannedOpener(candidate) &&
+                                    !isBannedOpener(candidate) &&
+                        !isExplanatorySummaryHook(candidate) &&
+            !isUnclearStandaloneHook(candidate) &&
+                        !isWeakBeliefContrastHook(candidate) &&
+            !isConclusionHook(candidate) &&
             !isTooSimilar(candidate, firstLine) &&
             isHookQualityAcceptable(candidate) &&
             !endsWithIncompletePhrase(candidate) &&
@@ -1170,10 +1317,15 @@ function parseHookResponse(raw: string, script: string): ImproveHookResult {
     }
 
     // If still failing, build a deterministic hook from the anchor
-    if (
+        if (
       improvedHook.length === 0 ||
-      isBannedOpener(improvedHook) ||
+            isBannedOpener(improvedHook) ||
+            isExplanatorySummaryHook(improvedHook) ||
+      isUnclearStandaloneHook(improvedHook) ||
+            isWeakBeliefContrastHook(improvedHook) ||
+      isConclusionHook(improvedHook) ||
       isTooSimilar(improvedHook, firstLine) ||
+      !isHookQualityAcceptable(improvedHook) ||
       endsWithIncompletePhrase(improvedHook) ||
       (scriptAnchor !== null && !hookContainsAnchor(improvedHook, scriptAnchor))
     ) {
@@ -1258,14 +1410,40 @@ function parseHookResponse(raw: string, script: string): ImproveHookResult {
       };
     }
 
+        const finalHookIsInvalid =
+      isBannedOpener(improvedHook) ||
+      isExplanatorySummaryHook(improvedHook) ||
+      isUnclearStandaloneHook(improvedHook) ||
+      isWeakBeliefContrastHook(improvedHook) ||
+      isConclusionHook(improvedHook) ||
+      endsWithIncompletePhrase(improvedHook);
+
+    if (finalHookIsInvalid) {
+      const safeHook = buildClearStandaloneFallbackHook(script);
+      return {
+        status: "improved",
+        improvedHook: safeHook,
+        reason: buildSpecificReason(firstLine, safeHook, script),
+        mode: "rewrite",
+      };
+    }
+
     return { status: "improved", improvedHook, reason, mode: "rewrite" };
   } catch {
     console.error("[improve] JSON parse failed, raw:", raw);
-    const fallback = buildAnchorHook(script, scriptAnchor) ?? buildFallbackHookFromScript(script);
+        const fallback = buildAnchorHook(script, scriptAnchor) ?? buildFallbackHookFromScript(script);
+    const safeFallback =
+      isConclusionHook(fallback) ||
+      isUnclearStandaloneHook(fallback) ||
+      isWeakBeliefContrastHook(fallback) ||
+      isExplanatorySummaryHook(fallback)
+        ? buildClearStandaloneFallbackHook(script)
+        : fallback;
+
     return {
       status: "improved",
-      improvedHook: fallback,
-      reason: buildSpecificReason(firstLine, fallback, script),
+      improvedHook: safeFallback,
+      reason: buildSpecificReason(firstLine, safeFallback, script),
       mode: "rewrite",
     };
   }
