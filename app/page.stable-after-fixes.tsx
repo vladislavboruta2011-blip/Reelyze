@@ -74,7 +74,7 @@ function Navbar() {
     <header className="relative z-10 mx-auto flex h-[96px] w-full max-w-[1280px] items-center justify-between px-8">
       <a href="/" className="flex items-center gap-3">
         <img src="/logo.png" alt="Reelyze" className="h-10 w-10 object-contain" />
-        <span className="text-[18px] font-bold tracking-[0.16em] text-white">REELYZE</span>
+        <span className="text-[22px] font-bold tracking-[0.18em] text-white">REELYZE</span>
       </a>
 
       <nav className="hidden items-center gap-9 text-[15px] font-medium text-[#A1A1AA] md:flex">
@@ -219,17 +219,17 @@ function HeroSection() {
           Reelyze helps creators improve hooks, pacing, and retention before the video goes live.
         </p>
 
-                <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="mt-10 flex flex-col gap-4 sm:flex-row">
           <a
-            href="#analyzer"
+            href="#how-it-works"
             onClick={(e) => {
               e.preventDefault();
-              document.getElementById("analyzer")?.scrollIntoView({ behavior: "smooth" });
+              document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" });
             }}
-            className="inline-flex h-[54px] items-center justify-center gap-2.5 rounded-[12px] bg-[#DC2626] px-7 text-[17px] font-semibold text-white shadow-[0_0_40px_rgba(220,38,38,0.30)] transition hover:bg-[#EF4444]"
+            className="inline-flex h-[60px] items-center justify-center gap-3 rounded-[14px] border border-[#252830] bg-[#111114] px-7 text-[18px] font-semibold text-white transition hover:border-white/20 hover:bg-[#17171C]"
           >
-            Start Analyzing
-            <ArrowRight className="h-4 w-4" />
+            <Play className="h-5 w-5" style={{ fill: "white" }} />
+            See How It Works
           </a>
 
           <a
@@ -238,9 +238,9 @@ function HeroSection() {
               e.preventDefault();
               document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" });
             }}
-            className="inline-flex h-[54px] items-center justify-center gap-2.5 rounded-[12px] border border-[#24242A] bg-[#0B0B0F] px-6 text-[16px] font-semibold text-white transition hover:border-white/15 hover:bg-[#111114]"
+            className="inline-flex h-[60px] items-center justify-center gap-3 rounded-[14px] border border-[#252830] bg-[#111114] px-7 text-[18px] font-semibold text-white transition hover:border-white/20 hover:bg-[#17171C]"
           >
-            <Play className="h-4 w-4" style={{ fill: "white" }} />
+            <Play className="h-5 w-5 fill-white" />
             See How It Works
           </a>
         </div>
@@ -338,9 +338,8 @@ function ValueSection() {
           <Target className="h-4 w-4 text-[#EF4444]" />
           Before you publish
         </Badge>
-                <h2 className="mt-8 text-[48px] font-extrabold leading-[1.02] tracking-[-0.055em] text-white md:text-[70px] lg:text-[78px]">
-          Built to find what viewers{" "}
-          <span className="text-[#EF4444]">skip.</span>
+        <h2 className="mt-8 text-[48px] font-extrabold leading-[1.02] tracking-[-0.055em] text-white md:text-[70px] lg:text-[78px]">
+          Built to find what viewers skip.
         </h2>
         <p className="mx-auto mt-7 max-w-[700px] text-[20px] leading-[1.75] text-[#B3B3B3]">
           Reelyze turns your script into clear feedback: what works, what feels slow, and what to improve before you post.
@@ -595,270 +594,209 @@ export default function HomePage() {
         </div>
       </div>
 
-            {/* ══════════════════════════════════
-          MOBILE LAYOUT
+      {/* ══════════════════════════════════
+          MOBILE LAYOUT (unchanged)
       ══════════════════════════════════ */}
-      <div className="relative block min-h-screen overflow-x-hidden bg-[#050505] lg:hidden">
-        <div className="pointer-events-none absolute left-1/2 top-[-140px] h-[320px] w-[320px] -translate-x-1/2 rounded-full bg-[#EF4444]/[0.10] blur-[95px]" />
-        <div className="pointer-events-none absolute right-[-140px] top-[420px] h-[280px] w-[280px] rounded-full bg-[#DC2626]/[0.07] blur-[100px]" />
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.035)_1px,transparent_1px)] [background-size:26px_26px] opacity-[0.10]" />
+      <div className="block lg:hidden bg-[#050505]">
+        <div className="mx-auto w-full max-w-[390px] flex flex-col pb-[100px]">
 
-        <div className="relative z-10 mx-auto flex w-full max-w-[430px] flex-col px-5 pb-14">
           {/* Header */}
-          <div className="flex items-center justify-between pt-7">
-                        <a href="/" className="flex items-center gap-2.5">
-              <img
-                src="/logo.png"
-                alt="Reelyze"
-                className="h-[32px] w-[32px] object-contain"
-              />
-              <span className="text-[14px] font-bold tracking-[0.16em] text-white">
-  REELYZE
-</span>
-            </a>
-
-            <Link
-              href="/results"
-              className="inline-flex h-[34px] items-center justify-center rounded-full border border-[#24242A] bg-[#0B0B0F]/80 px-4 text-[12px] font-semibold text-[#B3B3B3]"
-            >
-              Results
-            </Link>
+          <div className="flex items-center justify-between px-[20px] pt-[28px] pb-[20px]">
+            <div className="flex items-center gap-[10px]">
+              <div className="flex h-[30px] w-[30px] items-center justify-center rounded-[8px] bg-[#EF4444]">
+                <span className="text-[14px] font-bold text-white">R</span>
+              </div>
+              <p className="text-[15px] font-semibold leading-[24px] text-white">Reelyze</p>
+            </div>
+            <div className="flex h-[32px] w-[96px] items-center justify-center rounded-full border border-[#24242A] bg-[#0B0C10]">
+              <span className="text-[13px] font-medium text-[#EF4444]">Shorts AI</span>
+            </div>
           </div>
 
           {/* Hero */}
-          <section className="pt-12">
-            <div className="inline-flex h-[30px] items-center rounded-full border border-[#3A1B22] bg-[#1A0D11] px-3.5">
-              <span className="text-[11px] font-semibold text-[#EF4444]">
-                YouTube Shorts script analyzer
+          <div className="px-[20px] mb-[24px]">
+            <div className="mb-[16px] inline-flex h-[28px] items-center rounded-full border border-[#24242A] bg-[#0B0C10] px-[14px]">
+              <span className="text-[11px] font-semibold leading-[24px] text-[#EF4444]">
+                For YouTube Shorts scripts
               </span>
             </div>
-
-            <h1 className="mt-5 max-w-[370px] text-[41px] font-bold leading-[43px] tracking-[-0.065em] text-white">
-              Fix weak scripts before{" "}
-              <span className="text-[#EF4444]">viewers scroll.</span>
+            <h1 className="text-[30px] font-semibold leading-[36px] text-white">
+              Analyze your Shorts script <span className="text-[#EF4444]">before you upload.</span>
             </h1>
-
-            <p className="mt-4 max-w-[350px] text-[15px] font-medium leading-[24px] text-[#9A9AA3]">
-              Reelyze reviews your hook, pacing, risky moments, and payoff before you upload your Short.
+            <p className="mt-[10px] text-[13px] font-normal leading-[20px] text-[#B3B3B3]">
+              Get a hook score, retention risk, risky timestamps, and concrete fixes before your video goes live.
             </p>
-
             <a
               href="#analyzer-mobile"
               onClick={(e) => {
                 e.preventDefault();
                 document.getElementById("analyzer-mobile")?.scrollIntoView({ behavior: "smooth" });
               }}
-              className="mt-6 inline-flex h-[54px] w-full items-center justify-center gap-2 rounded-[15px] bg-[#DC2626] text-[15px] font-bold text-white shadow-[0_0_40px_rgba(220,38,38,0.28)] transition hover:bg-[#EF4444] active:scale-[0.99]"
+              className="mt-[16px] flex h-[48px] w-full items-center justify-center rounded-[14px] bg-[#EF4444] text-[15px] font-semibold text-white"
             >
               Start Analyzing
-              <ArrowRight className="h-4 w-4" />
             </a>
+            <p className="mt-[10px] text-[11px] font-normal leading-[18px] text-[#777A85]">
+              Currently optimized for YouTube Shorts scripts. More formats coming soon.
+            </p>
+          </div>
 
-            <div className="mt-4 flex items-center gap-3 text-[11px] font-medium text-[#777A85]">
-              <span>Shorts-first</span>
-              <span className="h-1 w-1 rounded-full bg-[#3A3A42]" />
-              <span>1,000 characters</span>
-              <span className="h-1 w-1 rounded-full bg-[#3A3A42]" />
-              <span>No upload needed</span>
+          {/* Analyzer heading */}
+          <div className="px-[20px] mb-[20px]">
+            <h2 className="text-[24px] font-semibold leading-[30px] text-white mb-[8px]" id="analyzer-mobile">
+              Paste your script
+            </h2>
+            <p className="text-[13px] font-normal leading-[20px] text-[#B3B3B3]">
+              Paste your Shorts script and get hook, retention, and payoff feedback in seconds.
+            </p>
+          </div>
+
+          {/* Video title card */}
+          <div className="mx-[20px] mb-[12px] rounded-[16px] border border-[#24242A] bg-[#0B0C10] px-[18px] pt-[14px] pb-[16px]">
+            <div className="flex items-baseline gap-[8px] mb-[4px]">
+              <p className="text-[16px] font-semibold text-white">Video title</p>
+              <p className="text-[14px] font-semibold text-[#B3B3B3]">Optional</p>
             </div>
-          </section>
-
-          {/* Preview card */}
-          <section className="mt-8 overflow-hidden rounded-[24px] border border-[#24242A] bg-[#0B0B0F]/95 p-4 shadow-[0_22px_70px_rgba(0,0,0,0.45)]">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[15px] font-bold tracking-[-0.02em] text-white">Script Review</p>
-                <p className="mt-1 text-[11px] text-[#777A85]">Preview result</p>
-              </div>
-
-              <div className="rounded-full border border-[#3A1B22] bg-[#1A0D11] px-3 py-1.5">
-                <span className="text-[11px] font-semibold text-[#EF4444]">AI feedback</span>
-              </div>
+            <p className="text-[12px] font-normal text-[#B3B3B3] mb-[10px]">Helps Reelyze understand the context.</p>
+            <div className="flex h-[38px] w-full items-center rounded-[10px] border border-[#24242A] bg-[#050505] px-[14px]">
+              <input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Add your video title or topic"
+                className="h-full w-full bg-transparent text-[12px] font-normal text-[#B3B3B3] outline-none focus:outline-none focus:ring-0 placeholder:text-[#777A85]"
+              />
             </div>
+          </div>
 
-            <div className="mt-4 grid grid-cols-3 gap-2">
-              <div className="rounded-[15px] border border-[#24242A] bg-[#101014] p-3">
-                <p className="text-[10px] font-medium text-[#777A85]">Overall</p>
-                <p className="mt-2 text-[24px] font-semibold leading-none text-white">82</p>
-              </div>
-
-              <div className="rounded-[15px] border border-[#3A1B22] bg-[#1A0D11] p-3">
-                <p className="text-[10px] font-medium text-[#A98B91]">Hook</p>
-                <p className="mt-2 text-[24px] font-semibold leading-none text-[#EF4444]">91</p>
-              </div>
-
-              <div className="rounded-[15px] border border-[#24242A] bg-[#101014] p-3">
-                <p className="text-[10px] font-medium text-[#777A85]">Risk</p>
-                <p className="mt-2 text-[20px] font-semibold leading-none text-[#FF9A1F]">Med</p>
-              </div>
-            </div>
-
-            <div className="mt-4 space-y-2">
-              <div className="rounded-[14px] border border-[#3A1B22] bg-[#1A0D11] px-3.5 py-3">
-                <p className="text-[11px] font-semibold text-[#EF4444]">0:00 Hook issue</p>
-                <p className="mt-1 text-[12px] leading-[18px] text-[#E8D5D8]">
-                  Opening needs a clearer reason to keep watching.
-                </p>
-              </div>
-
-              <div className="rounded-[14px] border border-[#24242A] bg-[#101014] px-3.5 py-3">
-                <p className="text-[11px] font-semibold text-[#B3B3B3]">Suggested fix</p>
-                <p className="mt-1 text-[12px] leading-[18px] text-[#777A85]">
-                  Add a sharper contrast or specific outcome in the first line.
-                </p>
-              </div>
-            </div>
-          </section>
-
-          {/* Analyzer */}
-          <section
-            id="analyzer-mobile"
-            className="mt-8 scroll-mt-6 rounded-[24px] border border-[#24242A] bg-[#0B0B0F]/95 p-4 shadow-[0_22px_70px_rgba(0,0,0,0.45)]"
-          >
-            <div className="mb-5">
-              <div className="mb-3 inline-flex h-[28px] items-center rounded-full border border-[#3A1B22] bg-[#1A0D11] px-3">
-                <span className="text-[10px] font-semibold text-[#EF4444]">New analysis</span>
-              </div>
-
-              <h2 className="text-[27px] font-bold leading-[32px] tracking-[-0.055em] text-white">
-                Paste your script.
-              </h2>
-
-              <p className="mt-2 text-[13px] leading-[21px] text-[#8F8F99]">
-                Get a hook score, retention risk, risky timestamps, and specific fixes.
+          {/* Script card */}
+          <div className="mx-[20px] mb-[12px] rounded-[16px] border border-[#24242A] bg-[#0B0C10] px-[18px] pt-[14px] pb-[14px]">
+            <div className="flex items-baseline justify-between mb-[4px]">
+              <p className="text-[16px] font-semibold text-white">Your Script</p>
+              <p className={`text-[13px] font-normal ${script.length > maxCharacters ? "text-[#EF4444]" : "text-[#B3B3B3]"}`}>
+                {script.length} / 1000 characters
               </p>
             </div>
-
-            {/* Title input */}
-            <div className="rounded-[18px] border border-[#24242A] bg-[#101014] p-4">
-              <div className="mb-2 flex items-baseline gap-2">
-                <p className="text-[14px] font-semibold text-white">Video title</p>
-                <p className="text-[11px] font-medium text-[#777A85]">Optional</p>
-              </div>
-
-              <div className="flex h-[43px] w-full items-center rounded-[13px] border border-[#24242A] bg-[#050505] px-3.5">
-                <input
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Add your video title or topic"
-                  className="h-full w-full bg-transparent text-[13px] text-[#B3B3B3] outline-none placeholder:text-[#555560]"
-                />
-              </div>
+            <p className="text-[12px] font-normal text-[#B3B3B3] mb-[10px]">Best for 15–60 second videos.</p>
+            <div className="w-full rounded-[12px] border border-[#24242A] bg-[#050505] mb-[10px]">
+              <textarea
+                value={script}
+                onChange={handleScriptChange}
+                placeholder="Paste your script here..."
+                rows={7}
+                className="w-full resize-none rounded-[12px] bg-transparent px-[14px] py-[12px] text-[12px] font-normal leading-[21px] text-[#B3B3B3] outline-none focus:outline-none focus:ring-0 placeholder:text-[#777A85]"
+              />
             </div>
-
-            {/* Script input */}
-            <div className="mt-3 rounded-[18px] border border-[#24242A] bg-[#101014] p-4">
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <p className="text-[14px] font-semibold text-white">Your Script</p>
-                <p className={`shrink-0 text-[11px] font-medium ${script.length > maxCharacters ? "text-[#EF4444]" : "text-[#777A85]"}`}>
-                  {script.length} / {maxCharacters}
-                </p>
+            {script.length === 0 && (
+              <p className="text-[10px] font-normal leading-[18px] text-[#777A85] mb-[8px]">
+                You can copy it from Google Docs, Notion, or any other tool.
+              </p>
+            )}
+            <div className="flex items-center justify-between mt-[4px]">
+              <div className="flex items-center gap-[6px]">
+                <Clock size={13} className="text-[#B3B3B3]" />
+                <p className="text-[13px] font-normal text-[#B3B3B3]">~{formatMobileDuration(script)} estimated</p>
               </div>
-
-              <div className="overflow-hidden rounded-[14px] border border-[#24242A] bg-[#050505]">
-                <textarea
-                  value={script}
-                  onChange={handleScriptChange}
-                  placeholder="Paste your script here."
-                  rows={7}
-                  className="w-full resize-none rounded-[14px] bg-transparent px-3.5 py-3 text-[13px] leading-[22px] text-[#B3B3B3] outline-none placeholder:text-[#555560]"
-                />
-              </div>
-
-              {script.length > maxCharacters && (
-                <p className="mt-3 text-[11px] font-medium leading-[18px] text-[#EF4444]">
-                  Script is too long. Shorten it to 1,000 characters or less.
-                </p>
-              )}
-
-              <div className="mt-3 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-1.5">
-                  <Clock size={13} className="text-[#777A85]" />
-                  <p className="text-[12px] text-[#777A85]">~{formatMobileDuration(script)} estimated</p>
-                </div>
-
-                <p className="rounded-full border border-[#24242A] bg-[#0B0B0F] px-2.5 py-1 text-[11px] font-medium text-[#777A85]">
-                  Shorts only
-                </p>
-              </div>
+              <p className="text-[12px] font-normal text-[#B3B3B3]">Shorts only</p>
             </div>
+          </div>
 
+          {/* Analyze button */}
+          <div className="px-[20px] mb-[10px]">
             <button
               onClick={handleAnalyze}
               disabled={isAnalyzing || script.trim().length === 0 || script.length > maxCharacters}
-              className="mt-4 inline-flex h-[54px] w-full items-center justify-center gap-2 rounded-[15px] text-[15px] font-semibold transition disabled:cursor-not-allowed disabled:bg-[#3A1010] disabled:text-[#6B3030] disabled:opacity-70 disabled:shadow-none enabled:bg-[#DC2626] enabled:text-white enabled:shadow-[0_0_34px_rgba(220,38,38,0.30)] enabled:hover:bg-[#EF4444] active:scale-[0.99]"
+              className="w-full h-[56px] rounded-[14px] text-[16px] font-semibold transition focus:outline-none focus:ring-0 disabled:cursor-not-allowed disabled:bg-[#3A1010] disabled:text-[#6B3030] disabled:opacity-70 enabled:text-white"
+style={
+  (script.trim().length === 0 || script.length > maxCharacters)
+    ? {}
+    : { background: "linear-gradient(135deg, #EF4444, #DC2626)" }
+}
             >
-              {isAnalyzing ? (
-                "Analyzing..."
-              ) : (
-                <>
-                  Analyze Script
-                  <ArrowRight className="h-4 w-4" />
-                </>
-              )}
+              {isAnalyzing ? "Analyzing..." : "Analyze Script"}
             </button>
+          </div>
 
+          {/* Error + privacy */}
+          <div className="px-[20px] mb-[20px] flex flex-col gap-[8px]">
             {analyzeError && (
-              <div className="mt-3 rounded-[13px] border border-[#3A1B22] bg-[#1A0D11] px-3.5 py-3">
-                <p className="text-[12px] font-medium leading-[18px] text-[#EF4444]">{analyzeError}</p>
-              </div>
+              <p className="text-[12px] text-[#EF4444]">{analyzeError}</p>
             )}
-
-            <div className="mt-3 flex items-start gap-2 rounded-[13px] border border-[#24242A] bg-[#101014] px-3.5 py-3">
-              <Lock size={13} className="mt-0.5 shrink-0 text-[#777A85]" />
-              <p className="text-[12px] leading-[18px] text-[#777A85]">
-                Your script is only used to generate this analysis.
-              </p>
+            <div className="flex items-center gap-[8px]">
+              <Lock size={12} className="text-[#B3B3B3] shrink-0" />
+              <p className="text-[12px] font-normal text-[#B3B3B3]">Your script is only used to generate this analysis.</p>
             </div>
-          </section>
+          </div>
 
           {/* What Reelyze checks */}
-          <section className="mt-8">
-            <p className="mb-3 text-[16px] font-semibold text-white">What Reelyze checks</p>
-
-            <div className="grid grid-cols-1 gap-2.5">
+          <div className="mx-[20px] rounded-[16px] border border-[#24242A] bg-[#0B0C10] px-[18px] pt-[16px] pb-[16px]">
+            <p className="text-[16px] font-semibold text-white mb-[12px]">What Reelyze checks</p>
+            <div className="flex flex-col gap-[8px]">
               {[
-                { icon: <Target size={16} />, title: "Hook strength", desc: "Scores your opening line." },
-                { icon: <BarChart3 size={16} />, title: "Retention risk", desc: "Finds where viewers may drop." },
-                { icon: <Lightbulb size={16} />, title: "Payoff quality", desc: "Checks if the ending feels worth it." },
-                { icon: <ShieldCheck size={16} />, title: "Suggested fixes", desc: "Gives specific improvements." },
+                { icon: <Target size={18} />, title: "Hook strength", desc: "Scores your opening line." },
+                { icon: <BarChart3 size={18} />, title: "Retention risk", desc: "Finds where viewers may drop." },
+                { icon: <Lightbulb size={18} />, title: "Payoff quality", desc: "Checks if the ending feels worth it." },
+                { icon: <ShieldCheck size={18} />, title: "Suggested fixes", desc: "Gives specific improvements." },
               ].map((item) => (
-                <div key={item.title} className="flex min-h-[58px] items-center gap-3 rounded-[16px] border border-[#24242A] bg-[#0B0B0F]/90 px-3.5">
-                  <div className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[11px] border border-[#3A1B22] bg-[#1A0D11] text-[#EF4444]">
+                <div key={item.title} className="flex h-[56px] w-full items-center gap-[12px] rounded-[12px] border border-[#24242A] bg-[#0B0C10] px-[12px]">
+                  <div className="flex h-[32px] w-[32px] shrink-0 items-center justify-center text-[#EF4444]">
                     {item.icon}
                   </div>
-
                   <div>
-                    <p className="text-[13px] font-semibold text-white">{item.title}</p>
-                    <p className="mt-0.5 text-[11px] leading-[16px] text-[#777A85]">{item.desc}</p>
+                    <p className="text-[14px] font-semibold text-white">{item.title}</p>
+                    <p className="text-[12px] font-normal text-[#B3B3B3]">{item.desc}</p>
                   </div>
                 </div>
               ))}
             </div>
-          </section>
+          </div>
 
-          {/* Bottom CTA */}
-          <section className="mt-8 rounded-[24px] border border-[#3A1B22] bg-[#1A0D11] p-5">
-            <h2 className="text-[23px] font-bold leading-[29px] tracking-[-0.055em] text-white">
-              Improve the script before recording.
+          {/* Mobile features section */}
+          <div className="mt-[28px] px-[20px]">
+            <h2 className="text-[24px] font-semibold leading-[30px] text-white text-center mb-[10px]">
+              Built to find what viewers skip.
             </h2>
-
-            <p className="mt-2 text-[13px] leading-[21px] text-[#A98B91]">
-              Paste your next Short idea and see where viewers may lose interest.
+            <p className="text-[13px] font-normal leading-[20px] text-[#B3B3B3] text-center mb-[20px]">
+              Reelyze reviews your script, highlights weak moments, and shows what could make viewers lose interest before your video goes live.
             </p>
+            <div className="flex flex-col gap-[12px]">
+              <div className="rounded-[16px] border border-[#24242A] bg-[#0B0C10] px-[18px] py-[18px]">
+                <Target size={26} className="text-[#EF4444]" />
+                <p className="mt-[10px] text-[15px] font-semibold text-white">Hook Analysis</p>
+                <p className="mt-[6px] text-[12px] font-normal leading-[20px] text-[#B3B3B3]">
+                  See if your opening creates enough curiosity to keep viewers watching.
+                </p>
+              </div>
+              <div className="rounded-[16px] border border-[#24242A] bg-[#0B0C10] px-[18px] py-[18px]">
+                <BarChart3 size={26} className="text-[#EF4444]" />
+                <p className="mt-[10px] text-[15px] font-semibold text-white">Retention Feedback</p>
+                <p className="mt-[6px] text-[12px] font-normal leading-[20px] text-[#B3B3B3]">
+                  Find weak sections, slow moments, and parts that may lose momentum.
+                </p>
+              </div>
+              <div className="rounded-[16px] border border-[#24242A] bg-[#0B0C10] px-[18px] py-[18px]">
+                <Lightbulb size={26} className="text-[#EF4444]" />
+                <p className="mt-[10px] text-[15px] font-semibold text-white">Actionable Fixes</p>
+                <p className="mt-[6px] text-[12px] font-normal leading-[20px] text-[#B3B3B3]">
+                  Get specific changes to improve your hook, pacing, and payoff.
+                </p>
+              </div>
+            </div>
+          </div>
 
-            <a
-              href="#analyzer-mobile"
-              onClick={(e) => {
-                e.preventDefault();
-                document.getElementById("analyzer-mobile")?.scrollIntoView({ behavior: "smooth" });
-              }}
-              className="mt-5 inline-flex h-[48px] w-full items-center justify-center gap-2 rounded-[14px] bg-[#DC2626] text-[14px] font-semibold text-white transition hover:bg-[#EF4444]"
-            >
-              Try Reelyze
-              <ArrowRight className="h-4 w-4" />
-            </a>
-          </section>
+        </div>
+
+        {/* Fixed bottom nav */}
+        <div className="fixed bottom-0 left-0 right-0 z-50 h-[80px] border-t border-[#24242A] bg-[#0B090D] lg:hidden">
+          <div className="mx-auto flex h-full w-full max-w-[390px] items-center justify-between px-[20px]">
+            <Link href="/" className="flex h-[38px] w-[150px] items-center justify-center gap-[6px] rounded-[14px] border border-[#2A1014] bg-[#12080A] focus:outline-none focus:ring-0">
+              <PencilLine size={14} className="text-[#EF4444]" />
+              <span className="text-[13px] font-semibold text-[#EF4444]">New analysis</span>
+            </Link>
+            <Link href="/results" className="flex h-[38px] w-[115px] items-center justify-center gap-[6px] rounded-[14px] border border-[#24242A] bg-[#0B0C10] focus:outline-none focus:ring-0">
+              <SquarePen size={13} className="text-white" />
+              <span className="text-[13px] font-semibold text-white">Results</span>
+            </Link>
+          </div>
         </div>
       </div>
 

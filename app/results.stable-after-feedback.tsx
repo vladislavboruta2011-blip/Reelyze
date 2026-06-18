@@ -238,7 +238,7 @@ const hookCopyButtonLabel =
         <aside className="fixed left-0 top-0 z-30 flex h-screen w-[230px] flex-col border-r border-[#24242A]/60 bg-[#050505]">
           <div className="flex items-center gap-3 px-6 py-7">
             <img src="/logo.png" alt="Reelyze" className="h-9 w-9 object-contain" />
-            <span className="text-[15px] font-bold tracking-[0.16em] text-white">REELYZE</span>
+            <span className="text-[17px] font-bold tracking-[0.16em] text-white">REELYZE</span>
           </div>
           <nav className="flex flex-col gap-1.5 px-4">
             <Link href="/results" className="flex h-[46px] items-center gap-3 rounded-[12px] border border-[#3A1B22] bg-[#1A0D11] px-4">
@@ -431,7 +431,7 @@ const hookCopyButtonLabel =
                         </div>
                       )}
                     </div>
-                    <div className="max-h-[480px] min-w-0 overflow-y-auto overflow-x-hidden rounded-[16px] border border-[#24242A] bg-[#101014] p-4">
+                    <div className="rounded-[16px] border border-[#24242A] bg-[#101014] p-4 max-h-[480px] overflow-y-auto">
                       <div className="flex flex-col gap-2">
                         {scriptLines.map((line, index) => {
                           const status: LineStatus = analysis.riskyLineIndexes.includes(index) ? "risky" : analysis.warningLineIndexes.includes(index) ? "warning" : "normal";
@@ -439,20 +439,16 @@ const hookCopyButtonLabel =
                           const isWarning = status === "warning";
                           return (
                             <div key={`${lineTimestamps[index] ?? index}-${line}`}
-                              className={["grid min-w-0 grid-cols-[48px_minmax(0,1fr)] gap-3 rounded-[10px] px-3 py-2.5 text-[13px] leading-[1.6]", isRisky ? "border border-[#3A1B22] bg-[#1A0D11]" : isWarning ? "border border-[#FF9A1F]/25 bg-[#FF9A1F]/[0.06]" : "border border-transparent"].join(" ")}
+                              className={["grid grid-cols-[48px_1fr] gap-3 rounded-[10px] px-3 py-2.5 text-[13px] leading-[1.6]", isRisky ? "border border-[#3A1B22] bg-[#1A0D11]" : isWarning ? "border border-[#FF9A1F]/25 bg-[#FF9A1F]/[0.06]" : "border border-transparent"].join(" ")}
                             >
                               <span className={isRisky ? "text-[#EF4444]" : isWarning ? "text-[#FF9A1F]" : "text-[#777A85]"}>{lineTimestamps[index] ?? formatTime(estimatedDuration)}</span>
-                              <span className={`${isRisky ? "text-[#EF4444]" : isWarning ? "text-[#FF9A1F]" : "text-[#B3B3B3]"} min-w-0 break-words [overflow-wrap:anywhere]`}>
-  {line}
-</span>
+                              <span className={isRisky ? "text-[#EF4444]" : isWarning ? "text-[#FF9A1F]" : "text-[#B3B3B3]"}>{line}</span>
                             </div>
                           );
                         })}
                       </div>
                     </div>
-                    <p className="mt-4 text-[12px] text-[#777A85]">
-  {characterCount} / 1000 Characters — ~{formatTime(estimatedDuration)} estimated
-</p>
+                    <p className="mt-4 text-[12px] text-[#777A85]">{characterCount} / 1000 characters — ~{formatTime(estimatedDuration)} estimated</p>
                   </Card>
 
                   {/* Right column */}
@@ -606,7 +602,7 @@ const hookCopyButtonLabel =
             </Link>
             <div className="flex items-center gap-2.5">
               <img src="/logo.png" alt="Reelyze" className="h-7 w-7 object-contain" />
-              <span className="text-[14px] font-bold tracking-[0.16em] text-white">REELYZE</span>
+              <span className="text-[15px] font-bold tracking-[0.14em] text-white">REELYZE</span>
             </div>
             <button onClick={handleShare} className="flex h-[42px] w-[42px] items-center justify-center rounded-[12px] border border-[#24242A] bg-[#0B0B0F]">
               <Share2 size={17} className="text-[#777A85]" />
@@ -776,7 +772,7 @@ const hookCopyButtonLabel =
                 >
                   <h2 className="text-[15px] font-semibold text-white">Your Script</h2>
                   <div className="flex items-center gap-2">
-                    <span className="text-[11px] text-[#777A85]">{characterCount} / 1000 Characters</span>
+                    <span className="text-[11px] text-[#777A85]">{characterCount} / 1000 chars</span>
                     <ChevronDown size={15} className={`text-[#777A85] transition-transform ${mobileScriptOpen ? "rotate-180" : ""}`} />
                   </div>
                 </button>
@@ -936,63 +932,49 @@ const hookCopyButtonLabel =
 
       </div>
 
-            {isFeedbackOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-5 backdrop-blur-[2px]">
-          <div className="relative w-full max-w-[360px] rounded-[22px] border border-[#24242A] bg-[#0B0B0F] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.70)]">
+      {isFeedbackOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-[2px]">
+          <div className="relative h-[310px] w-[460px] rounded-[20px] border border-[#24242A] bg-[#0B0C10]">
             <button
               onClick={() => setIsFeedbackOpen(false)}
-              className="absolute right-4 top-4 text-[22px] font-normal leading-none text-[#B3B3B3] transition hover:text-white"
+              className="absolute right-[20px] top-[18px] text-[22px] font-normal leading-[24px] text-[#B3B3B3] transition hover:text-white"
             >
-              ×
+              x
             </button>
 
-            <h2 className="pr-8 text-[22px] font-semibold leading-[28px] tracking-[-0.03em] text-white">
-  {mobileFeedback === "helpful" ? "What did you like?" : "What was wrong?"}
-</h2>
+            <h2 className="absolute left-[30px] top-[30px] text-[22px] font-semibold leading-[24px] text-white">
+              What was wrong?
+            </h2>
 
-            <p className="mt-2 text-[13px] font-normal leading-[21px] text-[#B3B3B3]">
-  {mobileFeedback === "helpful"
-    ? "Tell us what felt useful, accurate, or helpful in this analysis."
-    : "Tell us what felt inaccurate, confusing, or not useful in this analysis."}
-</p>
+            <p className="absolute left-[30px] top-[65px] w-[360px] text-[14px] font-normal leading-[22px] text-[#B3B3B3]">
+              Tell us what felt inaccurate, confusing, or not useful in this
+              analysis.
+            </p>
 
             <textarea
               value={feedbackText}
               onChange={(event) => setFeedbackText(event.target.value)}
-              placeholder={
-  mobileFeedback === "helpful"
-    ? "Tell us what you liked..."
-    : "Write your feedback here..."
-}
-              rows={4}
-              className="mt-4 w-full resize-none rounded-[14px] border border-[#24242A] bg-[#101014] px-3.5 py-3 text-[13px] font-normal leading-[20px] text-white outline-none placeholder:text-[#777A85] focus:border-[#3A1B22]"
+              placeholder="Write your feedback here..."
+              className="absolute left-[30px] top-[115px] h-[105px] w-[400px] resize-none rounded-[12px] border border-[#24242A] bg-[#0B1018] px-[14px] py-[12px] text-[14px] font-normal leading-[20px] text-white outline-none placeholder:text-[#777A85]"
             />
 
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              <button
-                onClick={() => {
-                  setIsFeedbackOpen(false);
-                  setFeedbackText("");
-                  setMobileSelectedReason("Other");
-setMobileFeedbackSubmitted(true);
-setFeedbackMessage(
-  mobileFeedback === "helpful"
-    ? "Thanks — feedback noted."
-    : "Thanks — we will improve Reelyze."
-);
-                }}
-                className="h-[44px] rounded-[12px] bg-[#DC2626] text-[13px] font-semibold text-white transition hover:bg-[#EF4444]"
-              >
-                Send feedback
-              </button>
+            <button
+              onClick={() => {
+                setIsFeedbackOpen(false);
+                setFeedbackText("");
+                setFeedbackMessage("Thanks - we will improve Reelyze.");
+              }}
+              className="absolute left-[30px] top-[240px] h-[44px] w-[160px] rounded-[12px] border border-[#24242A] bg-[#EF4444] text-[14px] font-semibold leading-[24px] text-white transition hover:bg-[#dc2626]"
+            >
+              Send feedback
+            </button>
 
-              <button
-                onClick={() => setIsFeedbackOpen(false)}
-                className="h-[44px] rounded-[12px] border border-[#24242A] bg-[#101014] text-[13px] font-semibold text-white transition hover:bg-[#17171C]"
-              >
-                Cancel
-              </button>
-            </div>
+            <button
+              onClick={() => setIsFeedbackOpen(false)}
+              className="absolute left-[205px] top-[240px] h-[44px] w-[120px] rounded-[12px] border border-[#24242A] bg-[#111217] text-[14px] font-semibold leading-[24px] text-white transition hover:bg-[#1A0608]"
+            >
+              Cancel
+            </button>
           </div>
         </div>
       )}

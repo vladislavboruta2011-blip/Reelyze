@@ -17,8 +17,6 @@ import {
   ChevronDown,
   ChevronRight,
   Zap,
-  Target,
-  ShieldCheck,
 } from "lucide-react";
 
 const inter = Inter({
@@ -61,22 +59,6 @@ type AnalysisResult = {
 const fallbackScript =
   "What if one small change could make viewers watch until the end? But the real problem is not editing speed. It is that the first line gives viewers no reason to stay.";
 
-function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return (
-    <div className={`rounded-[22px] border border-[#24242A] bg-[#0B0B0F] ${className}`}>
-      {children}
-    </div>
-  );
-}
-
-function IconBox({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-[10px] border border-[#3A1B22] bg-[#1A0D11] text-[#EF4444]">
-      {children}
-    </div>
-  );
-}
-
 function pluralize(count: number, singular: string, plural: string) {
   return count === 1
     ? `${count} ${singular}`
@@ -103,14 +85,6 @@ const [mobileScriptOpen, setMobileScriptOpen] = useState(false);
   const [mobileSceneOpen, setMobileSceneOpen] = useState(false);
   const [mobileFixesOpen, setMobileFixesOpen] = useState(false);
   const [shareMessage, setShareMessage] = useState("");
-  const [desktopFeedback, setDesktopFeedback] = useState<"helpful" | "dislike" | null>(null);
-  const [desktopSelectedReason, setDesktopSelectedReason] = useState<string | null>(null);
-  const [desktopFeedbackSubmitted, setDesktopFeedbackSubmitted] = useState(false);
-  const [desktopOtherFeedbackOpen, setDesktopOtherFeedbackOpen] = useState(false);
-  const [desktopOtherFeedbackText, setDesktopOtherFeedbackText] = useState("");
-  const [mobileFeedback, setMobileFeedback] = useState<"helpful" | "dislike" | null>(null);
-  const [mobileSelectedReason, setMobileSelectedReason] = useState<string | null>(null);
-  const [mobileFeedbackSubmitted, setMobileFeedbackSubmitted] = useState(false);
   
   useEffect(() => {
     try {
@@ -233,452 +207,464 @@ const hookCopyButtonLabel =
       className={`${inter.className} min-h-screen bg-[#050505] text-white antialiased`}
     >
       {/* DESKTOP */}
-      <div className="hidden lg:flex">
-        {/* Sidebar */}
-        <aside className="fixed left-0 top-0 z-30 flex h-screen w-[230px] flex-col border-r border-[#24242A]/60 bg-[#050505]">
-          <div className="flex items-center gap-3 px-6 py-7">
-            <img src="/logo.png" alt="Reelyze" className="h-9 w-9 object-contain" />
-            <span className="text-[15px] font-bold tracking-[0.16em] text-white">REELYZE</span>
-          </div>
-          <nav className="flex flex-col gap-1.5 px-4">
-            <Link href="/results" className="flex h-[46px] items-center gap-3 rounded-[12px] border border-[#3A1B22] bg-[#1A0D11] px-4">
-              <SquarePen size={16} className="text-[#EF4444]" />
-              <span className="text-[14px] font-semibold text-[#EF4444]">Results</span>
-            </Link>
-            <Link href="/" className="flex h-[46px] items-center gap-3 rounded-[12px] px-4 transition hover:bg-white/[0.03]">
-              <PencilLine size={16} className="text-[#777A85]" />
-              <span className="text-[14px] font-medium text-[#777A85]">New Analysis</span>
-            </Link>
-          </nav>
-          <div className="mt-auto px-4 pb-10 pt-8">
-            <div className="rounded-[18px] border border-[#24242A]/70 bg-[#0B0B0F] p-5">
-              <p className="text-[14px] font-semibold text-white">Rate this analysis</p>
-              <p className="mt-1.5 text-[12px] text-[#777A85]">Was this review helpful?</p>
-              <div className="mt-3.5 flex gap-2">
-                <button
-                  onClick={() => { setDesktopFeedback("helpful"); setDesktopSelectedReason(null); setDesktopFeedbackSubmitted(false); }}
-                  className={["flex h-[38px] flex-1 items-center justify-center gap-1.5 rounded-[10px] border text-[13px] font-medium transition", desktopFeedback === "helpful" ? "border-[#22C55E]/60 bg-[#22C55E]/10 text-[#22C55E]" : "border-[#24242A] text-[#B3B3B3] hover:border-[#22C55E]/40 hover:text-white"].join(" ")}
-                >
-                  <ThumbsUp size={14} />
-                  Helpful
-                </button>
-                <button
-                  onClick={() => { setDesktopFeedback(desktopFeedback === "dislike" ? null : "dislike"); setDesktopSelectedReason(null); setDesktopFeedbackSubmitted(false); }}
-                  className={["flex h-[38px] w-[42px] items-center justify-center rounded-[10px] border transition", desktopFeedback === "dislike" ? "border-[#EF4444]/60 bg-[#EF4444]/10 text-[#EF4444]" : "border-[#24242A] text-[#B3B3B3] hover:border-white/20 hover:text-white"].join(" ")}
-                >
-                  <ThumbsDown size={14} />
-                </button>
-              </div>
+      <div className="hidden lg:block overflow-auto">
+      <div className="relative h-[1200px] min-w-[1440px] bg-[#050505]">
+        <aside className="absolute left-0 top-0 h-[1200px] w-[230px] border border-[#24242A] bg-[#07080D]">
+          <img
+            src="/logo.png"
+            alt="Reelyze logo"
+            className="absolute left-[20px] top-[28px] h-[36px] w-[36px] object-contain"
+          />
 
-              {desktopFeedback === "helpful" && !desktopFeedbackSubmitted && (
-                <div className="mt-3">
-                  <p className="text-[11px] text-[#777A85] mb-1.5">What was helpful?</p>
-                  <div className="flex flex-col gap-1.5">
-                    {["Accurate score", "Useful fixes", "Clear explanation", "Other"].map((reason) => (
-                      <button
-                        key={reason}
-                        onClick={() => {
-                          if (reason === "Other") { setDesktopOtherFeedbackOpen(true); return; }
-                          setDesktopSelectedReason(reason);
-                          setDesktopFeedbackSubmitted(true);
-                        }}
-                        className={["w-full rounded-[8px] border px-2.5 py-2 text-left text-[12px] font-medium transition", desktopSelectedReason === reason ? "border-[#22C55E]/50 bg-[#22C55E]/10 text-[#22C55E]" : "border-[#24242A] text-[#777A85] hover:border-[#22C55E]/30 hover:text-[#B3B3B3]"].join(" ")}
-                      >
-                        {reason}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+          <p className="absolute left-[70px] top-[40px] h-[24px] w-[84px] text-[22px] font-semibold leading-[24px] text-white">
+            Reelyze
+          </p>
 
-              {desktopFeedback === "dislike" && !desktopFeedbackSubmitted && (
-                <div className="mt-3">
-                  <p className="text-[11px] text-[#777A85] mb-1.5">What was wrong?</p>
-                  <div className="flex flex-col gap-1.5">
-                    {["Wrong score", "Bad suggestions", "Not specific enough", "Other"].map((reason) => (
-                      <button
-                        key={reason}
-                        onClick={() => {
-                          if (reason === "Other") { setDesktopOtherFeedbackOpen(true); return; }
-                          setDesktopSelectedReason(reason);
-                          setDesktopFeedbackSubmitted(true);
-                        }}
-                        className={["w-full rounded-[8px] border px-2.5 py-2 text-left text-[12px] font-medium transition", desktopSelectedReason === reason ? "border-[#EF4444]/50 bg-[#EF4444]/10 text-[#EF4444]" : "border-[#24242A] text-[#777A85] hover:border-[#EF4444]/30 hover:text-[#B3B3B3]"].join(" ")}
-                      >
-                        {reason}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+          <Link
+            href="/results"
+            className="absolute left-[22px] top-[120px] flex h-[56px] w-[186px] items-center gap-3 rounded-[14px] border border-[#24242A] bg-[#1A0608] px-[20px]"
+          >
+            <SquarePen size={18} className="text-[#EF4444]" />
+            <span className="text-[16px] font-semibold leading-[24px] text-[#EF4444]">
+              Results
+            </span>
+          </Link>
 
-              {desktopFeedbackSubmitted && (
-                <p className="mt-2.5 text-[12px]" style={{ color: desktopFeedback === "helpful" ? "#22C55E" : "#EF4444" }}>
-                  {desktopFeedback === "helpful" ? "Thanks — feedback noted." : "Thanks — we'll use this to improve."}
-                </p>
-              )}
-            </div>
+          <Link
+            href="/"
+            className="absolute left-[22px] top-[190px] flex h-[56px] w-[186px] items-center gap-3 rounded-[14px] border border-[#24242A] bg-[#0B0C10] px-[20px]"
+          >
+            <PencilLine size={18} className="text-white" />
+            <span className="text-[16px] font-semibold leading-[24px] text-white">
+              New Analysis
+            </span>
+          </Link>
+
+          <div className="absolute left-[22px] top-[730px] h-[195px] w-[186px] overflow-hidden rounded-[20px] border border-[#24242A] bg-[#0B0C10]">
+            <p className="absolute left-[12px] top-[20px] h-[24px] w-[155px] text-[18px] font-bold leading-[24px] text-white">
+              Rate this analysis
+            </p>
+
+            <p className="absolute left-[13px] top-[50px] h-[24px] w-[153px] text-[13px] font-normal leading-[24px] text-[#B3B3B3]">
+              Was this review helpful?
+            </p>
+
+            <button
+              onClick={() => {
+                setFeedbackMessage("Thanks! Glad this was helpful.");
+              }}
+              className="absolute left-[12px] top-[88px] flex h-[42px] w-[162px] items-center justify-center gap-2 rounded-[10px] border border-[#EF4444] bg-transparent text-[13px] font-medium leading-[24px] text-white transition hover:bg-[#1A0608]"
+            >
+              <ThumbsUp size={15} />
+              Helpful
+            </button>
+
+            <button
+              onClick={() => {
+                setIsFeedbackOpen(true);
+              }}
+              className="absolute left-[12px] top-[132px] flex h-[42px] w-[162px] items-center justify-center gap-2 rounded-[10px] border border-[#24242A] bg-[#111217] text-[13px] font-medium leading-[24px] text-white transition hover:bg-[#1A0608]"
+            >
+              <ThumbsDown size={15} />
+              Not helpful
+            </button>
+
+            {feedbackMessage && (
+              <p className="absolute left-[10px] top-[176px] w-[166px] truncate text-center text-[11px] font-normal leading-[14px] text-[#B3B3B3]">
+                {feedbackMessage}
+              </p>
+            )}
           </div>
         </aside>
 
-        {/* Main content */}
-        <section className="min-h-screen w-full pl-[230px]">
-          <div className="mx-auto w-full max-w-[1320px] px-9 py-11">
+        <h1 className="absolute left-[267px] top-[34px] h-[24px] w-[226px] text-[32px] font-semibold leading-[24px] text-white">
+          Script Review
+        </h1>
 
-            {/* Header */}
-            <div className="mb-7 flex items-start justify-between gap-6">
-              <div>
-                <h1 className="text-[36px] font-semibold tracking-[-0.02em] text-white">Script Review</h1>
-                <p className="mt-1.5 text-[14px] text-[#777A85]">
-                  Analyzed just now —{" "}
-                  <span className="text-[#B3B3B3]">{savedTitle || "YouTube Shorts Script"}</span>
-                </p>
-              </div>
-              <Link href="/" className="inline-flex h-[42px] shrink-0 items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-5 text-[14px] font-semibold text-white transition hover:border-[#EF4444]/50 hover:bg-[#EF4444]/10">
-                <PencilLine size={15} />
-                New Analysis
-              </Link>
-            </div>
+        <p className="absolute left-[270px] top-[78px] h-[24px] w-[462px] text-[16px] font-normal leading-[24px] text-[#B3B3B3]">
+          Analyzed just now - YouTube Shorts Script
+        </p>
 
-            {/* Loading state */}
-            {!isStorageLoaded && (
-              <Card className="p-8 mb-6">
-                <p className="text-[20px] font-semibold text-white">Loading results...</p>
-                <p className="mt-3 text-[14px] text-[#777A85]">Please wait while Reelyze checks your latest analysis.</p>
-              </Card>
-            )}
+        {!isStorageLoaded && (
+          <div className="absolute left-[270px] top-[135px] h-[220px] w-[720px] rounded-[20px] border border-[#24242A] bg-[#0B0C10]">
+            <h2 className="absolute left-[30px] top-[35px] text-[26px] font-semibold leading-[32px] text-white">
+              Loading results...
+            </h2>
 
-            {/* Error state */}
-            {storageError && (
-              <div className="mb-6 rounded-[22px] border border-[#EF4444]/30 bg-[#1A0D11] p-8">
-                <p className="text-[15px] text-[#EF4444]">{storageError}</p>
-              </div>
-            )}
+            <p className="absolute left-[30px] top-[85px] w-[560px] text-[16px] font-normal leading-[24px] text-[#B3B3B3]">
+              Please wait while Reelyze checks your latest analysis.
+            </p>
+          </div>
+        )}
 
-            {/* Empty state */}
-            {isStorageLoaded && !storageError && !hasAnalyzedScript && (
-              <Card className="p-8 mb-6">
-                <h2 className="text-[26px] font-semibold text-white">No script analyzed yet.</h2>
-                <p className="mt-4 text-[15px] text-[#777A85]">Go to New Analysis and paste your YouTube Shorts script first. After you click Analyze Script, your results will appear here.</p>
-                <Link href="/" className="mt-6 inline-flex h-[48px] items-center justify-center rounded-[12px] bg-[#EF4444] px-6 text-[15px] font-semibold text-white transition hover:bg-[#dc2626]">New Analysis</Link>
-              </Card>
-            )}
+        {storageError && (
+          <div className="absolute left-[270px] top-[135px] h-[100px] w-[720px] rounded-[20px] border border-[#EF4444]/30 bg-[#1A0608]">
+            <p className="absolute left-[30px] top-[35px] text-[15px] font-normal leading-[24px] text-[#EF4444]">
+              {storageError}
+            </p>
+          </div>
+        )}
 
-            {/* Results */}
-            {isStorageLoaded && !storageError && hasAnalyzedScript && (
-              <>
-                {/* Score cards */}
-                <div className="mb-6 grid grid-cols-3 gap-5">
-                  <Card className="p-6">
-                    <p className="text-[13px] font-medium text-[#777A85]">Overall Score</p>
-                    <div className="mt-3 flex items-baseline gap-1.5">
-                      <span className="text-[40px] font-bold leading-none tracking-[-0.03em] text-white">{analysis.overall.score}</span>
-                      <span className="text-[14px] text-[#777A85]">/100</span>
-                    </div>
-                    <div className="mt-4 h-[5px] overflow-hidden rounded-full bg-[#1C1C22]">
-                      <div className="h-full rounded-full" style={{ width: `${analysis.overall.score}%`, backgroundColor: analysis.overall.ringColor, boxShadow: `0 0 8px ${analysis.overall.ringColor}55` }} />
-                    </div>
-                    <p className="mt-3.5 text-[14px] font-semibold" style={{ color: analysis.overall.ringColor }}>{analysis.overall.label}</p>
-                    <p className="mt-1 text-[13px] leading-[1.55] text-[#777A85] line-clamp-2">{analysis.overall.description}</p>
-                  </Card>
-                  <Card className="p-6">
-                    <p className="text-[13px] font-medium text-[#777A85]">Hook Score</p>
-                    <div className="mt-3 flex items-baseline gap-1.5">
-                      <span className="text-[40px] font-bold leading-none tracking-[-0.03em] text-white">{analysis.hook.score}</span>
-                      <span className="text-[14px] text-[#777A85]">/100</span>
-                    </div>
-                    <div className="mt-4 h-[5px] overflow-hidden rounded-full bg-[#1C1C22]">
-                      <div className="h-full rounded-full" style={{ width: `${analysis.hook.score}%`, backgroundColor: analysis.hook.color, boxShadow: `0 0 8px ${analysis.hook.color}55` }} />
-                    </div>
-                    <p className="mt-3.5 text-[14px] font-semibold" style={{ color: analysis.hook.color }}>{analysis.hook.label}</p>
-                    <p className="mt-1 text-[13px] leading-[1.55] text-[#777A85] line-clamp-2">{analysis.hook.description}</p>
-                  </Card>
-                  <Card className="p-6">
-                    <p className="text-[13px] font-medium text-[#777A85]">Retention Risk</p>
-                    <div className="mt-3 flex items-baseline gap-1.5">
-                      <span className="text-[40px] font-bold leading-none tracking-[-0.03em] text-white">{analysis.risk.score}</span>
-                      <span className="text-[14px] text-[#777A85]">/100</span>
-                    </div>
-                    <div className="mt-4 h-[5px] overflow-hidden rounded-full bg-[#1C1C22]">
-                      <div className="h-full rounded-full" style={{ width: `${analysis.risk.score}%`, backgroundColor: analysis.risk.color, boxShadow: `0 0 8px ${analysis.risk.color}55` }} />
-                    </div>
-                    <p className="mt-3.5 text-[14px] font-semibold" style={{ color: analysis.risk.color }}>{analysis.risk.label}</p>
-                    <p className="mt-1 text-[13px] leading-[1.55] text-[#777A85] line-clamp-2">{analysis.risk.description}</p>
-                  </Card>
-                </div>
+        {isStorageLoaded && !storageError && !hasAnalyzedScript && (
+          <div className="absolute left-[270px] top-[135px] h-[220px] w-[720px] rounded-[20px] border border-[#24242A] bg-[#0B0C10]">
+            <h2 className="absolute left-[30px] top-[35px] text-[26px] font-semibold leading-[32px] text-white">
+              No script analyzed yet.
+            </h2>
 
-                {/* Main Takeaway */}
-                <div className="mb-6 rounded-[16px] border border-[#3A1B22] bg-[#1A0D11] px-5 py-4 shadow-[0_0_28px_rgba(239,68,68,0.07)]">
-                  <div className="flex items-start gap-3">
-                    <Target size={16} className="mt-0.5 shrink-0 text-[#EF4444]" />
-                    <div>
-                      <p className="text-[12.5px] font-semibold text-[#EF4444]">Main Takeaway</p>
-                      <p className="mt-1 text-[13px] leading-[1.6] text-[#E8D5D8]">{analysis.overall.description}</p>
-                    </div>
+            <p className="absolute left-[30px] top-[85px] w-[560px] text-[16px] font-normal leading-[24px] text-[#B3B3B3]">
+              Go to New Analysis and paste your YouTube Shorts script first.
+              After you click Analyze Script, your results will appear here.
+            </p>
+
+            <Link
+              href="/"
+              className="absolute left-[30px] top-[145px] flex h-[48px] w-[190px] items-center justify-center rounded-[12px] border border-[#24242A] bg-[#EF4444] text-[15px] font-semibold leading-[24px] text-white transition hover:bg-[#dc2626]"
+            >
+              New Analysis
+            </Link>
+          </div>
+        )}
+
+        {isStorageLoaded && !storageError && hasAnalyzedScript && (
+          <>
+            <section className="absolute left-[270px] top-[115px] h-[170px] w-[1140px] rounded-[20px] border border-[#24242A] bg-[#0B0C10]">
+              <ScoreBlock
+                left={0}
+                title="Overall Score"
+                score={analysis.overall.score}
+                label={analysis.overall.label}
+                labelColor={analysis.overall.color}
+                ringColor={analysis.overall.ringColor}
+                description={analysis.overall.description}
+              />
+
+              <ScoreBlock
+                left={380}
+                title="Hook Score"
+                score={analysis.hook.score}
+                label={analysis.hook.label}
+                labelColor={analysis.hook.color}
+                ringColor={analysis.hook.ringColor}
+                description={analysis.hook.description}
+              />
+
+              <ScoreBlock
+                left={760}
+                title="Retention Risk"
+                score={analysis.risk.score}
+                label={analysis.risk.label}
+                labelColor={analysis.risk.color}
+                ringColor={analysis.risk.ringColor}
+                description={analysis.risk.description}
+              />
+            </section>
+
+            <section className="absolute left-[270px] top-[305px] h-[615px] w-[660px] rounded-[20px] border border-[#24242A] bg-[#0B0C10]">
+              <h2 className="absolute left-[25px] top-[35px] h-[24px] w-[118px] text-[22px] font-semibold leading-[24px] text-white">
+                Your Script
+              </h2>
+
+              {savedTitle && (
+                <div className="absolute left-[30px] top-[68px] flex items-center gap-[8px]">
+                  <p className="text-[13px] font-medium leading-[20px] text-[#B3B3B3]">Topic:</p>
+                  <div className="rounded-[8px] border border-[#24242A] bg-[#0B1018] px-[10px] py-[2px]">
+                    <p className="text-[13px] font-medium leading-[20px] text-white">{savedTitle}</p>
                   </div>
                 </div>
+              )}
 
-                {/* Script + right column */}
-                <div className="grid grid-cols-[1.35fr_0.9fr] items-start gap-5">
-                  {/* Script card */}
-                  <Card className="p-6">
-                    <div className="mb-4 flex flex-wrap items-center gap-3">
-                      <h2 className="text-[17px] font-semibold text-white">Your Script</h2>
-                      {savedTitle && (
-                        <div className="flex items-center gap-2 rounded-[8px] border border-[#24242A] bg-[#101014] px-3 py-1">
-                          <span className="text-[12px] text-[#777A85]">Topic:</span>
-                          <span className="text-[12px] font-medium text-white">{savedTitle}</span>
-                        </div>
-                      )}
-                    </div>
-                    <div className="max-h-[480px] min-w-0 overflow-y-auto overflow-x-hidden rounded-[16px] border border-[#24242A] bg-[#101014] p-4">
-                      <div className="flex flex-col gap-2">
-                        {scriptLines.map((line, index) => {
-                          const status: LineStatus = analysis.riskyLineIndexes.includes(index) ? "risky" : analysis.warningLineIndexes.includes(index) ? "warning" : "normal";
-                          const isRisky = status === "risky";
-                          const isWarning = status === "warning";
-                          return (
-                            <div key={`${lineTimestamps[index] ?? index}-${line}`}
-                              className={["grid min-w-0 grid-cols-[48px_minmax(0,1fr)] gap-3 rounded-[10px] px-3 py-2.5 text-[13px] leading-[1.6]", isRisky ? "border border-[#3A1B22] bg-[#1A0D11]" : isWarning ? "border border-[#FF9A1F]/25 bg-[#FF9A1F]/[0.06]" : "border border-transparent"].join(" ")}
-                            >
-                              <span className={isRisky ? "text-[#EF4444]" : isWarning ? "text-[#FF9A1F]" : "text-[#777A85]"}>{lineTimestamps[index] ?? formatTime(estimatedDuration)}</span>
-                              <span className={`${isRisky ? "text-[#EF4444]" : isWarning ? "text-[#FF9A1F]" : "text-[#B3B3B3]"} min-w-0 break-words [overflow-wrap:anywhere]`}>
-  {line}
-</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                    <p className="mt-4 text-[12px] text-[#777A85]">
-  {characterCount} / 1000 Characters — ~{formatTime(estimatedDuration)} estimated
-</p>
-                  </Card>
+              <div className={`absolute ${savedTitle ? "top-[108px]" : "top-[85px]"} left-[30px] h-[447px] w-[600px] overflow-hidden rounded-[16px] border border-[#24242A] bg-[#0B1018]/[0.0784]`}>
+                <div className="h-full w-full overflow-y-auto px-[20px] py-[22px] pr-[14px]">
+                  <div className="flex flex-col gap-[8px]">
+                    {scriptLines.map((line, index) => {
+                      const status: LineStatus = analysis.riskyLineIndexes.includes(
+                        index
+                      )
+                        ? "risky"
+                        : analysis.warningLineIndexes.includes(index)
+                        ? "warning"
+                        : "normal";
 
-                  {/* Right column */}
-                  <div className="flex flex-col gap-6">
-                    {/* Risky Parts */}
-                    <Card className="p-6">
-                      <div className="mb-5 flex items-center justify-between">
-                        <h2 className="text-[17px] font-semibold text-white">Risky Parts</h2>
-                        <span className="text-[12px] font-medium text-[#777A85]">{pluralize(analysis.riskyParts.length, "found", "found")}</span>
-                      </div>
-                      <div className="flex flex-col gap-3">
-                        {analysis.riskyParts.length === 0 ? (
-                          <div>
-                            <p className="text-[14px] font-medium text-white">{analysis.fixes.length > 0 ? "No major risky parts found." : "No risky parts found."}</p>
-                            <p className="mt-1 text-[13px] leading-[1.55] text-[#777A85]">{analysis.fixes.length > 0 ? "The script works overall, but a few areas could still be tightened." : "This script stays focused and does not contain any major drop-off points."}</p>
-                          </div>
-                        ) : (
-                          analysis.riskyParts.map((part) => (
-                            <div key={`${part.time}-${part.title}`} className="rounded-[14px] border border-[#24242A] bg-[#101014] p-4">
-                              <p className="text-[12px] font-semibold text-[#EF4444]">{part.time}</p>
-                              <p className="mt-1.5 text-[14px] font-medium text-white">{part.title}</p>
-                              <p className="mt-1 text-[13px] leading-[1.55] text-[#777A85]">{part.description}</p>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </Card>
-
-                    {/* Suggested Fixes */}
-                    <Card className="p-6">
-                      <div className="mb-5 flex items-center justify-between">
-                        <h2 className="text-[17px] font-semibold text-white">Suggested Fixes</h2>
-                        <span className="text-[12px] font-medium text-[#777A85]">{pluralize(displayFixes.length, "suggestion", "suggestions")}</span>
-                      </div>
-                      {analysis.fixes.length > 0 && analysis.hook.score < 75 && (
-                        <button
-                          onClick={async () => {
-                            setCopiedHook(false);
-                            setImproveError("");
-                            setIsImprovingHook(true);
-                            setIsHookModalOpen(true);
-                            try {
-                              const response = await fetch("/api/improve", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ script: activeScript, title: savedTitle }) });
-                              if (!response.ok) throw new Error(`Server error: ${response.status}`);
-                              const data: { status?: string; improvedHook?: string; reason?: string; mode?: string } = await response.json();
-                              const hookText = typeof data.improvedHook === "string" && data.improvedHook.trim().length > 0 ? data.improvedHook.trim() : "AI hook improvement is unavailable right now.";
-                              const hookReason = typeof data.reason === "string" && data.reason.trim().length > 0 ? data.reason.trim() : data.status === "good" ? "The hook is already clear, specific, and creates curiosity without needing a rewrite." : "The hook was adjusted to improve clarity, curiosity, or payoff connection.";
-                              setAiHook(hookText);
-                              setAiHookReason(hookReason);
-                              setAiHookStatus(typeof data.status === "string" ? data.status : "improved");
-                              setAiHookMode(data.mode === "diagnostic" ? "diagnostic" : "rewrite");
-                            } catch {
-                              setImproveError("Could not improve hook. Please try again.");
-                              setAiHook("AI hook improvement is unavailable right now.");
-                              setAiHookReason("Reelyze could not generate a custom explanation.");
-                              setAiHookMode("rewrite");
-                            } finally {
-                              setIsImprovingHook(false);
-                            }
-                          }}
-                          className="mb-5 inline-flex h-[38px] items-center gap-2 rounded-[10px] bg-[#DC2626] px-4 text-[13px] font-semibold text-white shadow-[0_0_32px_rgba(220,38,38,0.30)] transition hover:bg-[#EF4444]"
-                        >
-                          <ShieldCheck size={15} />
-                          {analysis.hook.score >= 70 ? "Refine Script" : "Improve Hook"}
-                        </button>
-                      )}
-                      <div className="flex flex-col gap-3">
-                        {displayFixes.length === 0 ? (
-                          <div>
-                            <p className="text-[14px] font-medium text-white">No fixes needed.</p>
-                            <p className="mt-1 text-[13px] leading-[1.55] text-[#777A85]">The script already performs well based on the current analysis.</p>
-                          </div>
-                        ) : (
-                          displayFixes.map((fix, index) => (
-                            <div key={`${fix}-${index}`} className="flex items-start gap-3 rounded-[12px] border border-[#24242A] bg-[#101014] px-3 py-3">
-                              <IconBox>
-                                {index % 3 === 0 ? <AudioLines size={18} /> : index % 3 === 1 ? <Scissors size={18} /> : <FastForward size={18} />}
-                              </IconBox>
-                              <p className="text-[13px] leading-[1.65] text-[#B3B3B3]">{fix}</p>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </Card>
-                  </div>
-                </div>
-
-                {/* Scene Breakdown */}
-                <Card className="mt-5 p-6">
-                  <h2 className="mb-4 text-[17px] font-semibold text-white">Scene Breakdown</h2>
-                  <div className="flex h-[7px] w-full overflow-hidden rounded-full bg-[#1C1C22]">
-                    {analysis.sceneSegments.map((segment, index) => {
-                      const totalDesktopWidth = 1110;
-                      const pct = segment.width / totalDesktopWidth;
                       return (
-                        <div key={`${segment.label}-${index}`} className="h-full" style={{ width: `${pct * 100}%`, backgroundColor: segment.color, opacity: 0.88 }} />
+                        <ScriptLine
+                          key={`${lineTimestamps[index] ?? index}-${line}`}
+                          time={
+                            lineTimestamps[index] ??
+                            formatTime(estimatedDuration)
+                          }
+                          status={status}
+                          text={line}
+                        />
                       );
                     })}
                   </div>
-                  <div className="mt-3 grid grid-cols-5 text-[11.5px] text-[#555560]">
-                    {scaleLabels.map((label, i) => (
-                      <p key={label} className={i === 4 ? "text-right" : ""}>{label}</p>
-                    ))}
-                  </div>
-                  <div className="mt-4 flex items-center gap-6">
-                    {analysis.sceneSegments.map((segment, index) => (
-                      <div key={`${segment.label}-${index}`} className="flex items-center gap-2">
-                        <span className="h-[4px] w-[16px] rounded-full" style={{ backgroundColor: segment.color }} />
-                        <span className="text-[12px] text-[#777A85]">{segment.label}</span>
-                      </div>
-                    ))}
-                  </div>
-                </Card>
-              </>
-            )}
+                </div>
+              </div>
 
-          </div>
-        </section>
+              <p className={`absolute left-[44px] ${savedTitle ? "top-[604px]" : "top-[581px]"} h-[24px] w-[280px] text-[14px] font-normal leading-[24px] text-[#B3B3B3]`}>
+                {characterCount} / 1000 characters - ~
+                {formatTime(estimatedDuration)}
+              </p>
+            </section>
+
+            <section className="absolute left-[950px] top-[305px] h-[300px] w-[460px] overflow-hidden rounded-[20px] border border-[#24242A] bg-[#0B0C10]">
+              <h2 className="absolute left-[25px] top-[35px] h-[24px] text-[22px] font-semibold leading-[24px] text-white">
+                Risky Parts
+              </h2>
+
+              <p className="absolute left-[360px] top-[35px] h-[24px] text-[14px] font-normal leading-[24px] text-[#B3B3B3]">
+                {pluralize(analysis.riskyParts.length, "found", "found")}
+              </p>
+
+              <div className="absolute left-[25px] top-[78px] h-[205px] w-[410px] overflow-y-auto pr-[8px]">
+                <div className="flex flex-col gap-[18px]">
+                  {analysis.riskyParts.length === 0 ? (
+  <div className="absolute left-[0px] top-[0px] w-[360px]">
+    <p className="text-[15px] font-medium leading-[24px] text-white">
+      {analysis.fixes.length > 0 ? "No major risky parts found." : "No risky parts found."}
+    </p>
+    <p className="mt-[4px] text-[14px] font-normal leading-[22px] text-[#B3B3B3]">
+      {analysis.fixes.length > 0
+        ? "The script works overall, but a few areas could still be tightened."
+        : "This script stays focused and does not contain any major drop-off points."}
+    </p>
+  </div>
+) : (
+  analysis.riskyParts.map((part) => (
+    <RiskyItem
+      key={`${part.time}-${part.title}`}
+      time={part.time}
+      title={part.title}
+      description={part.description}
+    />
+  ))
+)}
+                </div>
+              </div>
+            </section>
+
+            <section className="absolute left-[950px] top-[625px] h-[295px] w-[460px] overflow-hidden rounded-[20px] border border-[#24242A] bg-[#0B0C10]">
+              <h2 className="absolute left-[25px] top-[30px] h-[24px] text-[22px] font-semibold leading-[24px] text-white">
+                Suggested Fixes
+              </h2>
+        
+              <p className="absolute left-[300px] top-[30px] h-[24px] text-[14px] font-normal leading-[24px] text-[#B3B3B3]">
+                {pluralize(analysis.fixes.length, "suggestion", "suggestions")}
+              </p>
+
+             {analysis.fixes.length > 0 && analysis.hook.score < 75 && (
+              <button
+                onClick={async () => {
+                setCopiedHook(false);
+                setImproveError("");
+                setIsImprovingHook(true);
+                setIsHookModalOpen(true);
+
+                try {
+                  const response = await fetch("/api/improve", {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                      script: activeScript,
+                      title: savedTitle,
+                    }),
+                  });
+
+                  if (!response.ok) {
+                    throw new Error(`Server error: ${response.status}`);
+                  }
+
+                  const data: { status?: string; improvedHook?: string; reason?: string; mode?: string } =
+                    await response.json();
+
+                  const hookText: string =
+                    typeof data.improvedHook === "string" && data.improvedHook.trim().length > 0
+                      ? data.improvedHook.trim()
+                      : "AI hook improvement is unavailable right now.";
+
+                  const hookReason: string =
+                    typeof data.reason === "string" && data.reason.trim().length > 0
+                      ? data.reason.trim()
+                      : data.status === "good"
+                      ? "The hook is already clear, specific, and creates curiosity without needing a rewrite."
+                      : "The hook was adjusted to improve clarity, curiosity, or payoff connection.";
+
+                  setAiHook(hookText);
+                  setAiHookReason(hookReason);
+                  setAiHookStatus(typeof data.status === "string" ? data.status : "improved");
+                  setAiHookMode(data.mode === "diagnostic" ? "diagnostic" : "rewrite");
+                } catch {
+                  setImproveError("Could not improve hook. Please try again.");
+                  setAiHook("AI hook improvement is unavailable right now.");
+                  setAiHookReason("Reelyze could not generate a custom explanation.");
+                  setAiHookMode("rewrite");
+                } finally {
+                  setIsImprovingHook(false);
+                }
+              }}
+                className="absolute left-[25px] top-[55px] h-[28px] w-[125px] rounded-[9px] border border-[#EF4444]/40 bg-[#1A0608] text-[12px] font-semibold leading-[20px] text-[#EF4444] transition hover:bg-[#2A080C]"
+              >
+                {analysis.hook.score >= 70 ? "Refine Script" : "Improve Hook"}
+              </button>
+             )}
+              <div className="absolute left-[20px] top-[96px] h-[185px] w-[420px] overflow-y-auto pr-[18px]">
+                <div className="flex flex-col gap-[18px] pt-[2px]">
+                  {displayFixes.length === 0 ? (
+  <div className="absolute left-[0px] top-[0px] w-[360px]">
+    <p className="text-[15px] font-medium leading-[24px] text-white">
+      No fixes needed.
+    </p>
+    <p className="mt-[4px] text-[14px] font-normal leading-[22px] text-[#B3B3B3]">
+      The script already performs well based on the current analysis.
+    </p>
+  </div>
+) : (
+  displayFixes.map((fix, index) => (
+    <FixItem
+      key={`${fix}-${index}`}
+      icon={
+        index % 3 === 0 ? (
+          <AudioLines size={20} />
+        ) : index % 3 === 1 ? (
+          <Scissors size={20} />
+        ) : (
+          <FastForward size={20} />
+        )
+      }
+      text={fix}
+    />
+  ))
+)}
+                </div>
+              </div>
+            </section>
+
+            <section className="absolute left-[270px] top-[950px] h-[155px] w-[1140px] rounded-[20px] border border-[#24242A] bg-[#0B0C10]">
+              <h2 className="absolute left-[25px] top-[15px] h-[24px] text-[22px] font-semibold leading-[24px] text-white">
+                Scene Breakdown
+              </h2>
+
+              <div className="absolute left-[25px] top-[60px] flex h-[5px] w-[1110px] overflow-hidden rounded-[999px]">
+                {analysis.sceneSegments.map((segment, index) => (
+                  <div
+                    key={`${segment.label}-${index}`}
+                    className="h-[5px]"
+                    style={{
+                      width: `${segment.width}px`,
+                      backgroundColor: segment.color,
+                    }}
+                  />
+                ))}
+              </div>
+
+              <div className="absolute left-[25px] top-[80px] grid w-[1110px] grid-cols-5 text-[14px] font-medium leading-[24px] text-[#B3B3B3]">
+                <p>{scaleLabels[0]}</p>
+                <p>{scaleLabels[1]}</p>
+                <p>{scaleLabels[2]}</p>
+                <p>{scaleLabels[3]}</p>
+                <p className="text-right">{scaleLabels[4]}</p>
+              </div>
+
+              <div className="absolute left-[25px] top-[115px] flex items-center gap-[55px]">
+                {analysis.sceneSegments.map((segment, index) => (
+                  <Legend
+                    key={`${segment.label}-${index}`}
+                    color={segment.color}
+                    label={segment.label}
+                  />
+                ))}
+              </div>
+            </section>
+          </>
+        )}
+      </div>
       </div>
 
-      {/* Desktop other feedback modal */}
-      {desktopOtherFeedbackOpen && (
-        <div className="fixed inset-0 z-50 hidden lg:flex items-center justify-center bg-black/60 backdrop-blur-[3px]">
-          <div className="relative w-full max-w-[460px] rounded-[24px] border border-[#24242A] bg-[#0B0B0F] p-8 shadow-[0_24px_80px_rgba(0,0,0,0.7)]">
-            <button onClick={() => setDesktopOtherFeedbackOpen(false)} className="absolute right-5 top-5 text-[20px] text-[#777A85] transition hover:text-white">×</button>
-            <h2 className="text-[20px] font-semibold text-white">{desktopFeedback === "helpful" ? "What did you like?" : "What did not work?"}</h2>
-            <p className="mt-1.5 text-[13px] text-[#777A85]">Your feedback helps improve Reelyze.</p>
-            <textarea
-              value={desktopOtherFeedbackText}
-              onChange={(e) => setDesktopOtherFeedbackText(e.target.value)}
-              placeholder={desktopFeedback === "helpful" ? "Tell us what you liked about this analysis..." : "Tell us what was wrong or missing..."}
-              rows={5}
-              className="mt-5 w-full resize-none rounded-[12px] border border-[#24242A] bg-[#101014] px-4 py-3 text-[13px] leading-[1.65] text-[#B3B3B3] outline-none placeholder:text-[#555560]"
-            />
-            <div className="mt-4 flex gap-3">
-              <button onClick={() => { setDesktopOtherFeedbackOpen(false); setDesktopOtherFeedbackText(""); setDesktopFeedbackSubmitted(true); }} className="h-[40px] rounded-[10px] bg-[#DC2626] px-5 text-[13px] font-semibold text-white transition hover:bg-[#EF4444]">Submit</button>
-              <button onClick={() => setDesktopOtherFeedbackOpen(false)} className="h-[40px] rounded-[10px] border border-[#24242A] bg-[#101014] px-5 text-[13px] font-semibold text-white transition hover:bg-[#17171C]">Cancel</button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* MOBILE */}
-      <div className="block lg:hidden bg-[#050505] min-h-screen">
-        <div className="mx-auto w-full max-w-[430px] flex flex-col pb-[100px]">
+      <div className="block lg:hidden bg-[#050505]">
+        <div className="relative mx-auto w-full max-w-[390px] flex flex-col pb-[120px]">
 
-          {/* Header */}
-          <div className="flex items-center justify-between px-5 pt-11 pb-4">
-            <Link href="/" className="flex h-[42px] w-[42px] items-center justify-center rounded-[12px] border border-[#24242A] bg-[#0B0B0F]">
-              <ArrowLeft size={17} className="text-[#EF4444]" />
+          {/* Шапка */}
+          <div className="flex items-center justify-between px-[20px] pt-[44px] pb-[16px]">
+            <Link href="/" className="flex h-[44px] w-[44px] items-center justify-center rounded-[12px] border border-[#24242A] bg-[#0B0C10] focus:outline-none focus:ring-0">
+              <ArrowLeft size={18} className="text-[#EF4444]" />
             </Link>
-            <div className="flex items-center gap-2.5">
-              <img src="/logo.png" alt="Reelyze" className="h-7 w-7 object-contain" />
-              <span className="text-[14px] font-bold tracking-[0.16em] text-white">REELYZE</span>
+            <div className="flex items-center gap-[10px]">
+              <div className="flex h-[30px] w-[30px] items-center justify-center rounded-[8px] bg-[#EF4444]">
+                <span className="text-[14px] font-bold text-white">R</span>
+              </div>
+              <p className="text-[15px] font-semibold leading-[24px] text-white">Reelyze</p>
             </div>
-            <button onClick={handleShare} className="flex h-[42px] w-[42px] items-center justify-center rounded-[12px] border border-[#24242A] bg-[#0B0B0F]">
-              <Share2 size={17} className="text-[#777A85]" />
+            <button
+              onClick={handleShare}
+              className="flex h-[44px] w-[44px] items-center justify-center rounded-[12px] border border-[#24242A] bg-[#0B0C10] focus:outline-none focus:ring-0"
+            >
+              <Share2 size={18} className="text-white" />
             </button>
           </div>
 
           {shareMessage && (
-            <p className="px-5 -mt-1 mb-2 text-[11px] text-[#777A85]">{shareMessage}</p>
+            <p className="px-[20px] -mt-[8px] mb-[8px] text-[11px] font-normal text-[#B3B3B3]">
+              {shareMessage}
+            </p>
           )}
 
-          {/* Title */}
-          <div className="px-5 mb-5">
-            <h1 className="text-[28px] font-semibold tracking-[-0.02em] text-white">Script Review</h1>
-            <p className="mt-1 text-[12px] text-[#777A85]">
-              Analyzed just now — <span className="text-[#B3B3B3]">{savedTitle || "YouTube Shorts Script"}</span>
+          {/* Заголовок */}
+          <div className="px-[20px] mb-[16px]">
+            <h1 className="text-[30px] font-semibold leading-[36px] text-white">Script Review</h1>
+            <p className="mt-[6px] text-[10px] font-normal leading-[20px] text-[#B3B3B3]">
+              Analyzed just now • {savedTitle || "YouTube Shorts Script"}
             </p>
           </div>
 
-          {/* Loading */}
+          {/* Стейти завантаження */}
           {!isStorageLoaded && (
-            <div className="mx-5 mb-4 rounded-[18px] border border-[#24242A] bg-[#0B0B0F] p-5">
+            <div className="mx-[20px] mb-[16px] rounded-[16px] border border-[#24242A] bg-[#0B0C10] p-[20px]">
               <p className="text-[15px] font-semibold text-white">Loading results...</p>
-              <p className="mt-1.5 text-[13px] text-[#777A85]">Please wait a moment.</p>
             </div>
           )}
-
-          {/* Error */}
           {storageError && (
-            <div className="mx-5 mb-4 rounded-[18px] border border-[#EF4444]/30 bg-[#1A0D11] p-5">
+            <div className="mx-[20px] mb-[16px] rounded-[16px] border border-[#EF4444]/30 bg-[#1A0608] p-[20px]">
               <p className="text-[13px] text-[#EF4444]">{storageError}</p>
             </div>
           )}
-
-          {/* Empty state */}
           {isStorageLoaded && !storageError && !hasAnalyzedScript && (
-            <div className="mx-5 mb-4 rounded-[18px] border border-[#24242A] bg-[#0B0B0F] p-6">
-              <p className="text-[18px] font-semibold text-white mb-2">No script analyzed yet.</p>
-              <p className="text-[13px] leading-[1.6] text-[#777A85] mb-5">Go to New Analysis and paste your script first.</p>
-              <Link href="/" className="flex h-[44px] w-full items-center justify-center rounded-[12px] bg-[#DC2626] text-[14px] font-semibold text-white">New Analysis</Link>
+            <div className="mx-[20px] mb-[16px] rounded-[16px] border border-[#24242A] bg-[#0B0C10] p-[24px]">
+              <p className="text-[18px] font-semibold text-white mb-[10px]">No script analyzed yet.</p>
+              <p className="text-[13px] font-normal leading-[20px] text-[#B3B3B3] mb-[20px]">Go to New Analysis and paste your script first.</p>
+              <Link href="/" className="flex h-[44px] w-full items-center justify-center rounded-[12px] bg-[#EF4444] text-[14px] font-semibold text-white focus:outline-none focus:ring-0">New Analysis</Link>
             </div>
           )}
 
           {isStorageLoaded && !storageError && hasAnalyzedScript && (
-            <div className="flex flex-col gap-3 px-5">
+            <div className="flex flex-col gap-[14px] px-[20px]">
 
-              {/* Score cards — horizontal row */}
-              <div className="grid grid-cols-3 gap-2.5">
+              {/* Три скор-картки */}
+             <div className="flex gap-[10px]">
                 {[
-                  { label: "Overall", score: analysis.overall.score, color: analysis.overall.ringColor, status: analysis.overall.label },
-                  { label: "Hook", score: analysis.hook.score, color: analysis.hook.color, status: analysis.hook.label },
-                  { label: "Risk", score: analysis.risk.score, color: analysis.risk.color, status: analysis.risk.label },
-                ].map((item) => (
-                  <div key={item.label} className="flex flex-col items-center justify-center gap-1 rounded-[16px] border border-[#24242A] bg-[#0B0B0F] py-4 px-2">
-                    <p className="text-[10px] font-medium text-[#777A85] text-center">{item.label}</p>
-                    <span className="text-[32px] font-bold leading-none tracking-[-0.03em] text-white">{item.score}</span>
-                    <div className="w-full h-[3px] rounded-full bg-[#1C1C22] overflow-hidden">
-                      <div className="h-full rounded-full" style={{ width: `${item.score}%`, backgroundColor: item.color }} />
-                    </div>
-                    <p className="text-[10px] font-semibold" style={{ color: item.color }}>{item.status}</p>
+                  { label: "Overall Score", score: analysis.overall.score, color: analysis.overall.ringColor, status: analysis.overall.label },
+                  { label: "Hook Score", score: analysis.hook.score, color: analysis.hook.color, status: analysis.hook.label },
+                  { label: "Retention Risk", score: analysis.risk.score, color: analysis.risk.color, status: analysis.risk.label },
+                ].map((item) => (<div key={item.label} className="flex h-[120px] w-full flex-col items-center justify-center rounded-[14px] border border-[#24242A] bg-[#0B0C10] gap-[4px] px-[6px]">
+                  
+                    <p className="text-[10px] font-semibold text-white text-center leading-[13px]">{item.label}</p>
+                    <MiniRing score={item.score} color={item.color} />
+                    <p className="text-[10px] font-semibold leading-[14px]" style={{ color: item.color }}>{item.status}</p>
                   </div>
                 ))}
               </div>
 
-              {/* Main Takeaway */}
-              <div className="rounded-[18px] border border-[#3A1B22] bg-[#1A0D11] px-4 py-4 shadow-[0_0_24px_rgba(239,68,68,0.07)]">
-                <div className="flex items-start gap-3">
-                  <Target size={15} className="mt-0.5 shrink-0 text-[#EF4444]" />
-                  <div>
-                    <p className="text-[11px] font-semibold text-[#EF4444] mb-1">Main Takeaway</p>
-                    <p className="text-[13px] leading-[1.6] text-[#E8D5D8]">{analysis.overall.description}</p>
-                  </div>
+              {/* Main Takeaways */}
+              <div className="w-full rounded-[16px] border border-[#24242A] bg-[#0B0C10] p-[20px]">
+                <div className="flex items-center gap-[10px] mb-[10px]">
+                  <Zap size={18} className="text-[#EF4444] shrink-0" />
+                  <p className="text-[18px] font-semibold text-white">Main takeaways</p>
                 </div>
+                <p className="text-[11px] font-normal leading-[22px] text-[#D1D1D1] mb-[16px]">{analysis.overall.description}</p>
+
+                {/* Кнопка Improve/Refine */}
                 {analysis.fixes.length > 0 && analysis.hook.score < 75 && (
                   <button
                     onClick={async () => {
@@ -687,7 +673,11 @@ const hookCopyButtonLabel =
                       setIsImprovingHook(true);
                       setIsHookModalOpen(true);
                       try {
-                        const response = await fetch("/api/improve", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ script: activeScript, title: savedTitle }) });
+                        const response = await fetch("/api/improve", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ script: activeScript, title: savedTitle }),
+                        });
                         if (!response.ok) throw new Error(`Server error: ${response.status}`);
                         const data: { status?: string; improvedHook?: string; reason?: string; mode?: string } = await response.json();
                         const hookText = typeof data.improvedHook === "string" && data.improvedHook.trim().length > 0 ? data.improvedHook.trim() : "AI hook improvement is unavailable right now.";
@@ -705,140 +695,147 @@ const hookCopyButtonLabel =
                         setIsImprovingHook(false);
                       }
                     }}
-                    className="mt-4 w-full h-[44px] inline-flex items-center justify-center gap-2 rounded-[12px] bg-[#DC2626] text-[14px] font-semibold text-white shadow-[0_0_24px_rgba(220,38,38,0.25)] transition hover:bg-[#EF4444]"
+                    className="w-full h-[48px] rounded-[12px] bg-[#EF4444] text-[16px] font-semibold text-white focus:outline-none focus:ring-0"
                   >
-                    <ShieldCheck size={15} />
                     {analysis.hook.score >= 70 ? "Refine Script" : "Improve Hook"}
                   </button>
                 )}
               </div>
 
               {/* Risky Parts */}
-              <div className="rounded-[18px] border border-[#24242A] bg-[#0B0B0F] overflow-hidden">
-                <div className="flex items-center justify-between px-5 pt-4 pb-3">
-                  <h2 className="text-[15px] font-semibold text-white">Risky Parts</h2>
-                  <span className="text-[11px] font-medium text-[#777A85]">{pluralize(analysis.riskyParts.length, "found", "found")}</span>
+              <div className="w-full rounded-[16px] border border-[#24242A] bg-[#0B0C10]">
+                <div className="flex items-center justify-between px-[20px] pt-[16px] pb-[12px]">
+                  <p className="text-[18px] font-semibold text-white">Risky Parts</p>
+                  <p className="text-[10px] font-normal text-[#B3B3B3]">{pluralize(analysis.riskyParts.length, "found", "found")}</p>
                 </div>
-                <div className="px-4 pb-4 flex flex-col gap-2.5">
+                <div className="px-[14px] pb-[16px] flex flex-col gap-[8px]">
                   {analysis.riskyParts.length === 0 ? (
-                    <div className="rounded-[12px] border border-[#24242A] bg-[#101014] px-4 py-3">
-                      <p className="text-[13px] font-medium text-white">{analysis.fixes.length > 0 ? "No major risky parts found." : "No risky parts found."}</p>
-                      <p className="mt-1 text-[12px] leading-[1.5] text-[#777A85]">{analysis.fixes.length > 0 ? "The script works overall, but a few areas could still be tightened." : "This script stays focused and does not contain any major drop-off points."}</p>
-                    </div>
+                    <p className="text-[13px] font-normal text-[#B3B3B3] px-[6px]">
+                      {analysis.fixes.length > 0 ? "No major risky parts found." : "No risky parts found."}
+                    </p>
                   ) : (
-                    analysis.riskyParts.map((part) => (
-                      <div key={`${part.time}-${part.title}`} className="rounded-[12px] border border-[#24242A] bg-[#101014] p-4">
-                        <p className="text-[11px] font-semibold text-[#EF4444]">{part.time}</p>
-                        <p className="mt-1 text-[13px] font-medium text-white">{part.title}</p>
-                        <p className="mt-0.5 text-[12px] leading-[1.5] text-[#777A85]">{part.description}</p>
+                    analysis.riskyParts.slice(0, 2).map((part) => (
+                      <div key={`${part.time}-${part.title}`} className="flex items-start gap-[8px] rounded-[10px] bg-[#0B0C10] p-[8px]">
+                        <div className="flex h-[36px] min-w-[82px] items-center justify-center rounded-[8px] bg-[#2A0B0E]">
+                          <p className="text-[12px] font-medium text-[#EF4444]">{part.time.split(" - ")[0]}</p>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] font-semibold text-white truncate">{part.title}</p>
+                          <p className="text-[10px] font-normal leading-[18px] text-[#B3B3B3] line-clamp-2">{part.description}</p>
+                        </div>
                       </div>
                     ))
+                  )}
+                  {analysis.riskyParts.length > 2 && (
+                    <div className="flex items-center justify-center gap-[4px] pt-[4px]">
+                      <p className="text-[11px] font-semibold text-white">View all risky parts</p>
+                      <ChevronRight size={13} className="text-white" />
+                    </div>
                   )}
                 </div>
               </div>
 
               {/* Suggested Fixes */}
-              <div className="rounded-[18px] border border-[#24242A] bg-[#0B0B0F] overflow-hidden">
-                <div className="flex items-center justify-between px-5 pt-4 pb-3">
-                  <h2 className="text-[15px] font-semibold text-white">Suggested Fixes</h2>
-                  <span className="text-[11px] font-medium text-[#777A85]">{pluralize(displayFixes.length, "suggestion", "suggestions")}</span>
+              <div className="w-full rounded-[16px] border border-[#24242A] bg-[#0B0C10]">
+                <div className="flex items-center justify-between px-[20px] pt-[16px] pb-[12px]">
+                  <p className="text-[18px] font-semibold text-white">Suggested Fixes</p>
+                  <p className="text-[10px] font-normal text-[#B3B3B3]">{pluralize(displayFixes.length, "suggestion", "suggestions")}</p>
                 </div>
-                <div className="px-4 pb-4 flex flex-col gap-2.5">
+                <div className="px-[14px] pb-[16px] flex flex-col gap-[10px]">
                   {displayFixes.length === 0 ? (
-                    <div className="rounded-[12px] border border-[#24242A] bg-[#101014] px-4 py-3">
-                      <p className="text-[13px] font-medium text-white">No fixes needed.</p>
-                      <p className="mt-1 text-[12px] text-[#777A85]">The script already performs well.</p>
-                    </div>
+                    <p className="text-[13px] font-normal text-[#B3B3B3] px-[6px]">No fixes needed.</p>
                   ) : (
                     (mobileFixesOpen ? displayFixes : displayFixes.slice(0, 3)).map((fix, index) => (
-                      <div key={`${fix}-${index}`} className="flex items-start gap-3 rounded-[12px] border border-[#24242A] bg-[#101014] px-3 py-3">
-                        <IconBox>
+                      <div key={`${fix}-${index}`} className="flex items-start gap-[10px]">
+                        <div className="flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-[8px] border border-[#2A1014] bg-[#17080A] text-[#EF4444]">
                           {index % 3 === 0 ? <AudioLines size={16} /> : index % 3 === 1 ? <Scissors size={16} /> : <FastForward size={16} />}
-                        </IconBox>
-                        <p className="flex-1 text-[12px] leading-[1.6] text-[#B3B3B3]">{fix}</p>
+                        </div>
+                        <p className="flex-1 text-[11px] font-normal leading-[22px] text-[#D1D1D1]">{fix}</p>
                       </div>
                     ))
                   )}
                   {displayFixes.length > 3 && (
-                    <button onClick={() => setMobileFixesOpen(!mobileFixesOpen)} className="flex w-full items-center justify-center gap-1.5 pt-1">
-                      <span className="text-[12px] font-semibold text-[#777A85]">{mobileFixesOpen ? "Show fewer" : "View all suggestions"}</span>
-                      <ChevronRight size={12} className={`text-[#777A85] transition-transform ${mobileFixesOpen ? "rotate-90" : ""}`} />
+                    <button
+                      onClick={() => setMobileFixesOpen(!mobileFixesOpen)}
+                      className="flex w-full items-center justify-center gap-[4px] pt-[4px] focus:outline-none focus:ring-0"
+                    >
+                      <p className="text-[11px] font-semibold text-white">
+                        {mobileFixesOpen ? "Show fewer suggestions" : "View all suggestions"}
+                      </p>
+                      <ChevronRight size={13} className={`text-white transition-transform ${mobileFixesOpen ? "rotate-90" : ""}`} />
                     </button>
                   )}
                 </div>
               </div>
 
               {/* Your Script — accordion */}
-              <div className="rounded-[18px] border border-[#24242A] bg-[#0B0B0F] overflow-hidden">
+              <div className="flex flex-col">
                 <button
                   onClick={() => setMobileScriptOpen(!mobileScriptOpen)}
-                  className="flex w-full items-center justify-between px-5 py-4"
+                  className="flex h-[56px] w-full items-center justify-between rounded-[14px] border border-[#24242A] bg-[#0B0C10] px-[16px] focus:outline-none focus:ring-0"
                 >
-                  <h2 className="text-[15px] font-semibold text-white">Your Script</h2>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] text-[#777A85]">{characterCount} / 1000 Characters</span>
-                    <ChevronDown size={15} className={`text-[#777A85] transition-transform ${mobileScriptOpen ? "rotate-180" : ""}`} />
+                  <p className="text-[14px] font-semibold text-white">Your Script</p>
+                  <div className="flex items-center gap-[8px]">
+                    <p className="text-[10px] font-normal text-[#B3B3B3]">{characterCount} / 1000 characters</p>
+                    <ChevronDown size={16} className={`text-white transition-transform ${mobileScriptOpen ? "rotate-180" : ""}`} />
                   </div>
                 </button>
+
                 {mobileScriptOpen && (
-                  <div className="px-4 pb-4">
+                  <div className="mt-[10px] w-full rounded-[14px] border border-[#24242A] bg-[#0B0C10] p-[16px]">
                     {savedTitle && (
-                      <div className="flex items-center gap-2 mb-3">
-                        <span className="text-[11px] text-[#777A85]">Topic:</span>
-                        <div className="rounded-[6px] border border-[#24242A] bg-[#101014] px-2.5 py-0.5">
-                          <span className="text-[11px] font-medium text-white">{savedTitle}</span>
+                      <div className="flex items-center gap-[6px] mb-[10px]">
+                        <p className="text-[10px] font-medium text-[#B3B3B3]">Topic:</p>
+                        <div className="rounded-[6px] border border-[#24242A] bg-[#0B1018] px-[8px] py-[2px]">
+                          <p className="text-[10px] font-medium text-white">{savedTitle}</p>
                         </div>
                       </div>
                     )}
-                    <div className="rounded-[12px] border border-[#24242A] bg-[#101014] p-3 max-h-[300px] overflow-y-auto">
-                      <div className="flex flex-col gap-1.5">
-                        {scriptLines.map((line, index) => {
-                          const status: LineStatus = analysis.riskyLineIndexes.includes(index) ? "risky" : analysis.warningLineIndexes.includes(index) ? "warning" : "normal";
-                          const isRisky = status === "risky";
-                          const isWarning = status === "warning";
-                          return (
-                            <div key={`${lineTimestamps[index] ?? index}-${line}`}
-                              className={["grid grid-cols-[44px_1fr] gap-2.5 rounded-[8px] px-2.5 py-2 text-[12px] leading-[1.55]", isRisky ? "border border-[#3A1B22] bg-[#1A0D11]" : isWarning ? "border border-[#FF9A1F]/20 bg-[#FF9A1F]/[0.05]" : "border border-transparent"].join(" ")}
-                            >
-                              <span className={isRisky ? "text-[#EF4444]" : isWarning ? "text-[#FF9A1F]" : "text-[#555560]"}>{lineTimestamps[index] ?? formatTime(estimatedDuration)}</span>
-                              <span className={isRisky ? "text-[#EF4444]" : isWarning ? "text-[#FF9A1F]" : "text-[#B3B3B3]"}>{line}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
+                    <div className="max-h-[320px] overflow-y-auto flex flex-col gap-[8px]">
+                      {scriptLines.map((line, index) => {
+                        const status: LineStatus = analysis.riskyLineIndexes.includes(index) ? "risky" : analysis.warningLineIndexes.includes(index) ? "warning" : "normal";
+                        return <ScriptLine key={`${lineTimestamps[index] ?? index}-${line}`} time={lineTimestamps[index] ?? formatTime(estimatedDuration)} status={status} text={line} />;
+                      })}
                     </div>
-                    <p className="mt-2 text-[11px] text-[#555560]">~{formatTime(estimatedDuration)} estimated</p>
                   </div>
                 )}
               </div>
 
               {/* Scene Breakdown — accordion */}
-              <div className="rounded-[18px] border border-[#24242A] bg-[#0B0B0F] overflow-hidden">
+              <div className="flex flex-col">
                 <button
                   onClick={() => setMobileSceneOpen(!mobileSceneOpen)}
-                  className="flex w-full items-center justify-between px-5 py-4"
+                  className="flex h-[56px] w-full items-center justify-between rounded-[14px] border border-[#24242A] bg-[#0B0C10] px-[16px] focus:outline-none focus:ring-0"
                 >
-                  <h2 className="text-[15px] font-semibold text-white">Scene Breakdown</h2>
-                  <ChevronDown size={15} className={`text-[#777A85] transition-transform ${mobileSceneOpen ? "rotate-180" : ""}`} />
+                  <p className="text-[14px] font-semibold text-white">Scene Breakdown</p>
+                  <ChevronDown size={16} className={`text-white transition-transform ${mobileSceneOpen ? "rotate-180" : ""}`} />
                 </button>
+
                 {mobileSceneOpen && (
-                  <div className="px-4 pb-4">
-                    <div className="flex h-[6px] w-full overflow-hidden rounded-full bg-[#1C1C22] mb-3">
+                  <div className="mt-[10px] w-full rounded-[14px] border border-[#24242A] bg-[#0B0C10] p-[16px]">
+                    <div className="flex h-[5px] w-full overflow-hidden rounded-full mb-[10px]">
                       {analysis.sceneSegments.map((segment, index) => {
-                        const pct = segment.width / 1110;
-                        return <div key={`${segment.label}-${index}`} className="h-full" style={{ width: `${pct * 100}%`, backgroundColor: segment.color, opacity: 0.9 }} />;
+                        const totalDesktopWidth = 1110;
+                        const pct = segment.width / totalDesktopWidth;
+                        return (
+                          <div
+                            key={`${segment.label}-${index}`}
+                            className="h-[5px]"
+                            style={{ width: `${pct * 100}%`, backgroundColor: segment.color }}
+                          />
+                        );
                       })}
                     </div>
-                    <div className="grid grid-cols-5 text-[10px] text-[#555560] mb-3">
-                      {scaleLabels.map((label, i) => (
-                        <p key={label} className={i === 4 ? "text-right" : ""}>{label}</p>
-                      ))}
-                    </div>
-                    <div className="flex flex-wrap gap-3">
+                   <div className="flex flex-col gap-[8px]">
                       {analysis.sceneSegments.map((segment, index) => (
-                        <div key={`${segment.label}-${index}`} className="flex items-center gap-1.5">
-                          <span className="h-[3px] w-[14px] rounded-full" style={{ backgroundColor: segment.color }} />
-                          <span className="text-[11px] text-[#777A85]">{segment.label}</span>
+                        <div key={`${segment.label}-${index}`} className="flex items-center gap-[10px]">
+                          <span
+                            className="h-[4px] w-[24px] shrink-0 rounded-full"
+                            style={{ backgroundColor: segment.color }}
+                          />
+                          <p className="text-[12px] font-normal leading-[18px] text-[#B3B3B3]">
+                            {segment.label}
+                          </p>
                         </div>
                       ))}
                     </div>
@@ -847,70 +844,34 @@ const hookCopyButtonLabel =
               </div>
 
               {/* Rate This Analysis */}
-              <div className="rounded-[18px] border border-[#24242A] bg-[#0B0B0F] px-5 py-4">
-                <p className="text-[14px] font-semibold text-white">Rate this analysis</p>
-                <p className="mt-1 text-[12px] text-[#777A85]">Was this review helpful?</p>
-                <div className="mt-3 flex gap-2.5">
-                  <button
-                    onClick={() => { setMobileFeedback("helpful"); setMobileSelectedReason(null); setMobileFeedbackSubmitted(false); }}
-                    className={["flex h-[40px] flex-1 items-center justify-center gap-1.5 rounded-[10px] border text-[13px] font-semibold transition", mobileFeedback === "helpful" ? "border-[#22C55E]/50 bg-[#22C55E]/10 text-[#22C55E]" : "border-[#24242A] bg-[#101014] text-[#B3B3B3]"].join(" ")}
-                  >
-                    <ThumbsUp size={13} />
-                    Helpful
-                  </button>
-                  <button
-                    onClick={() => { setMobileFeedback(mobileFeedback === "dislike" ? null : "dislike"); setMobileSelectedReason(null); setMobileFeedbackSubmitted(false); }}
-                    className={["flex h-[40px] w-[48px] items-center justify-center rounded-[10px] border transition", mobileFeedback === "dislike" ? "border-[#EF4444]/50 bg-[#EF4444]/10 text-[#EF4444]" : "border-[#24242A] bg-[#101014] text-[#777A85]"].join(" ")}
-                  >
-                    <ThumbsDown size={14} />
-                  </button>
+              <div className="flex flex-col">
+                <div className="rounded-[14px] border border-[#24242A] bg-[#0B0C10] px-[16px] py-[14px]">
+                  <p className="text-[14px] font-semibold leading-[18px] text-white">
+                    Rate this analysis
+                  </p>
+                  <p className="mt-[4px] text-[11px] font-normal leading-[16px] text-[#B3B3B3]">
+                    Was this review helpful?
+                  </p>
+                  <div className="mt-[12px] flex items-center gap-[10px]">
+                    <button
+                      onClick={() => setFeedbackMessage("Thanks! Glad this was helpful.")}
+                      className="flex h-[36px] w-[110px] items-center justify-center gap-[4px] rounded-[10px] border border-[#E40000] bg-[#0B0C10] text-[12px] font-semibold text-white focus:outline-none focus:ring-0"
+                    >
+                      <ThumbsUp size={13} className="text-[#EF4444]" />
+                      Helpful
+                    </button>
+                    <button
+                      onClick={() => setIsFeedbackOpen(true)}
+                      className="flex h-[36px] w-[130px] items-center justify-center gap-[4px] rounded-[10px] border border-[#24242A] bg-[#0B0C10] text-[11px] font-semibold text-white focus:outline-none focus:ring-0"
+                    >
+                      <ThumbsDown size={13} />
+                      Not helpful
+                    </button>
+                  </div>
                 </div>
-
-                {mobileFeedback === "helpful" && !mobileFeedbackSubmitted && (
-                  <div className="mt-3">
-                    <p className="text-[11px] text-[#777A85] mb-1.5">What was helpful?</p>
-                    <div className="flex flex-col gap-1.5">
-                      {["Accurate score", "Useful fixes", "Clear explanation", "Other"].map((reason) => (
-                        <button
-                          key={reason}
-                          onClick={() => {
-                            if (reason === "Other") { setIsFeedbackOpen(true); return; }
-                            setMobileSelectedReason(reason);
-                            setMobileFeedbackSubmitted(true);
-                          }}
-                          className={["w-full rounded-[8px] border px-2.5 py-2 text-left text-[12px] font-medium transition", mobileSelectedReason === reason ? "border-[#22C55E]/50 bg-[#22C55E]/10 text-[#22C55E]" : "border-[#24242A] bg-[#101014] text-[#777A85] hover:border-[#22C55E]/30 hover:text-[#B3B3B3]"].join(" ")}
-                        >
-                          {reason}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {mobileFeedback === "dislike" && !mobileFeedbackSubmitted && (
-                  <div className="mt-3">
-                    <p className="text-[11px] text-[#777A85] mb-1.5">What was wrong?</p>
-                    <div className="flex flex-col gap-1.5">
-                      {["Wrong score", "Bad suggestions", "Not specific enough", "Other"].map((reason) => (
-                        <button
-                          key={reason}
-                          onClick={() => {
-                            if (reason === "Other") { setIsFeedbackOpen(true); return; }
-                            setMobileSelectedReason(reason);
-                            setMobileFeedbackSubmitted(true);
-                          }}
-                          className={["w-full rounded-[8px] border px-2.5 py-2 text-left text-[12px] font-medium transition", mobileSelectedReason === reason ? "border-[#EF4444]/50 bg-[#EF4444]/10 text-[#EF4444]" : "border-[#24242A] bg-[#101014] text-[#777A85] hover:border-[#EF4444]/30 hover:text-[#B3B3B3]"].join(" ")}
-                        >
-                          {reason}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {mobileFeedbackSubmitted && (
-                  <p className="mt-2 text-[12px]" style={{ color: mobileFeedback === "helpful" ? "#22C55E" : "#EF4444" }}>
-                    {mobileFeedback === "helpful" ? "Thanks — feedback noted." : "Thanks — we'll use this to improve."}
+                {feedbackMessage && (
+                  <p className="mt-[8px] px-[4px] text-[11px] font-normal text-[#B3B3B3]">
+                    {feedbackMessage}
                   </p>
                 )}
               </div>
@@ -921,78 +882,70 @@ const hookCopyButtonLabel =
         </div>
 
         {/* Bottom nav */}
-        <div className="fixed bottom-0 left-0 right-0 z-50 h-[76px] border-t border-[#24242A] bg-[#050505]/95 backdrop-blur-[8px]">
-          <div className="mx-auto flex h-full w-full max-w-[430px] items-center justify-between px-5">
-            <Link href="/" className="flex h-[40px] items-center justify-center gap-2 rounded-[12px] border border-[#24242A] bg-[#0B0B0F] px-5 text-[13px] font-semibold text-white">
-              <PencilLine size={14} className="text-[#777A85]" />
-              New analysis
+        <div className="fixed bottom-0 left-0 right-0 z-50 h-[80px] border-t border-[#24242A] bg-[#0B090D]">
+          <div className="mx-auto flex h-full w-full max-w-[390px] items-center justify-between px-[20px]">
+            <Link
+              href="/"
+              className="flex h-[38px] w-[150px] items-center justify-center gap-[6px] rounded-[14px] border border-[#24242A] bg-[#0B0C10] focus:outline-none focus:ring-0"
+            >
+              <PencilLine size={14} className="text-white" />
+              <span className="text-[13px] font-semibold text-white">New analysis</span>
             </Link>
-            <Link href="/results" className="flex h-[40px] items-center justify-center gap-2 rounded-[12px] border border-[#3A1B22] bg-[#1A0D11] px-5 text-[13px] font-semibold text-[#EF4444]">
-              <SquarePen size={13} />
-              Results
+            <Link
+              href="/results"
+              className="flex h-[38px] w-[115px] items-center justify-center gap-[6px] rounded-[14px] border border-[#2A1014] bg-[#12080A] focus:outline-none focus:ring-0"
+            >
+              <SquarePen size={13} className="text-[#EF4444]" />
+              <span className="text-[13px] font-semibold text-[#EF4444]">Results</span>
             </Link>
           </div>
         </div>
 
       </div>
 
-            {isFeedbackOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-5 backdrop-blur-[2px]">
-          <div className="relative w-full max-w-[360px] rounded-[22px] border border-[#24242A] bg-[#0B0B0F] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.70)]">
+      {isFeedbackOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-[2px]">
+          <div className="relative h-[310px] w-[460px] rounded-[20px] border border-[#24242A] bg-[#0B0C10]">
             <button
               onClick={() => setIsFeedbackOpen(false)}
-              className="absolute right-4 top-4 text-[22px] font-normal leading-none text-[#B3B3B3] transition hover:text-white"
+              className="absolute right-[20px] top-[18px] text-[22px] font-normal leading-[24px] text-[#B3B3B3] transition hover:text-white"
             >
-              ×
+              x
             </button>
 
-            <h2 className="pr-8 text-[22px] font-semibold leading-[28px] tracking-[-0.03em] text-white">
-  {mobileFeedback === "helpful" ? "What did you like?" : "What was wrong?"}
-</h2>
+            <h2 className="absolute left-[30px] top-[30px] text-[22px] font-semibold leading-[24px] text-white">
+              What was wrong?
+            </h2>
 
-            <p className="mt-2 text-[13px] font-normal leading-[21px] text-[#B3B3B3]">
-  {mobileFeedback === "helpful"
-    ? "Tell us what felt useful, accurate, or helpful in this analysis."
-    : "Tell us what felt inaccurate, confusing, or not useful in this analysis."}
-</p>
+            <p className="absolute left-[30px] top-[65px] w-[360px] text-[14px] font-normal leading-[22px] text-[#B3B3B3]">
+              Tell us what felt inaccurate, confusing, or not useful in this
+              analysis.
+            </p>
 
             <textarea
               value={feedbackText}
               onChange={(event) => setFeedbackText(event.target.value)}
-              placeholder={
-  mobileFeedback === "helpful"
-    ? "Tell us what you liked..."
-    : "Write your feedback here..."
-}
-              rows={4}
-              className="mt-4 w-full resize-none rounded-[14px] border border-[#24242A] bg-[#101014] px-3.5 py-3 text-[13px] font-normal leading-[20px] text-white outline-none placeholder:text-[#777A85] focus:border-[#3A1B22]"
+              placeholder="Write your feedback here..."
+              className="absolute left-[30px] top-[115px] h-[105px] w-[400px] resize-none rounded-[12px] border border-[#24242A] bg-[#0B1018] px-[14px] py-[12px] text-[14px] font-normal leading-[20px] text-white outline-none placeholder:text-[#777A85]"
             />
 
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              <button
-                onClick={() => {
-                  setIsFeedbackOpen(false);
-                  setFeedbackText("");
-                  setMobileSelectedReason("Other");
-setMobileFeedbackSubmitted(true);
-setFeedbackMessage(
-  mobileFeedback === "helpful"
-    ? "Thanks — feedback noted."
-    : "Thanks — we will improve Reelyze."
-);
-                }}
-                className="h-[44px] rounded-[12px] bg-[#DC2626] text-[13px] font-semibold text-white transition hover:bg-[#EF4444]"
-              >
-                Send feedback
-              </button>
+            <button
+              onClick={() => {
+                setIsFeedbackOpen(false);
+                setFeedbackText("");
+                setFeedbackMessage("Thanks - we will improve Reelyze.");
+              }}
+              className="absolute left-[30px] top-[240px] h-[44px] w-[160px] rounded-[12px] border border-[#24242A] bg-[#EF4444] text-[14px] font-semibold leading-[24px] text-white transition hover:bg-[#dc2626]"
+            >
+              Send feedback
+            </button>
 
-              <button
-                onClick={() => setIsFeedbackOpen(false)}
-                className="h-[44px] rounded-[12px] border border-[#24242A] bg-[#101014] text-[13px] font-semibold text-white transition hover:bg-[#17171C]"
-              >
-                Cancel
-              </button>
-            </div>
+            <button
+              onClick={() => setIsFeedbackOpen(false)}
+              className="absolute left-[205px] top-[240px] h-[44px] w-[120px] rounded-[12px] border border-[#24242A] bg-[#111217] text-[14px] font-semibold leading-[24px] text-white transition hover:bg-[#1A0608]"
+            >
+              Cancel
+            </button>
           </div>
         </div>
       )}
