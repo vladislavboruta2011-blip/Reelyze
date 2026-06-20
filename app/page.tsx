@@ -461,7 +461,7 @@ function AnalyzerSection({
 
             <div className="flex items-center gap-2 text-[13px] text-[#777A85]">
               <Lock className="h-3.5 w-3.5 shrink-0" />
-              <span>Your script is only used to generate this analysis and is never stored.</span>
+              <span>Your script is only used to generate this analysis.</span>
             </div>
           </div>
         </div>
