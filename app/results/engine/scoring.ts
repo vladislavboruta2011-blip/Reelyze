@@ -991,9 +991,19 @@ function calculateHookStrength(
     );
   }).length;
 
+  // Detect flat generic claims regardless of topic or subject name.
+  const flatCopulaClaim =
+    /^(?:[a-z][a-z'-]*)(?:\s+[a-z][a-z'-]*){0,3}\s+(is|are|was|were)\s+(very |extremely |really |so |quite |always |often )?(dangerous|important|key|essential|hard|easy|powerful|possible|incredible|amazing|necessary|needed|useful|real|true|common|rare|unique|special|good|bad|great|terrible|best|worst|only|enough)\.?$/i.test(
+      firstSentence.trim()
+    );
+
+  const flatPerformanceClaim =
+    /^(?:[A-Z][A-Za-z'-]*)(?:\s+[A-Z][A-Za-z'-]*){0,2}\s+[a-z]+s\s+(high|fast|well|hard|great|amazingly?)\s+(because\s+(he|she|they|it)\s+(is|are)|because of\s+(his|her|their|its))\s+(powerful|strong|fast|quick|talented|gifted|hard.?working|dedicated|focused|the best|the greatest)\.?$/i.test(
+      firstSentence.trim()
+    );
+
   const isGenericTopicAnnouncement =
-    /^(sharks?|success|failure|life|time|people|money|work|effort|discipline|motivation|focus|mindset|goals?|habits?) (is|are|was|were) (very |extremely |really |so |quite |always |often )?(dangerous|important|key|essential|hard|easy|powerful|possible|incredible|amazing|necessary|needed|useful|real|true|common|rare|unique|special|good|bad|great|terrible|best|worst|only|enough)/i.test(firstSentence.trim()) ||
-    /^(ronaldo|lebron|curry|messi|jordan|kobe) (jumps?|runs?|scores?|shoots?|wins?) (high|fast|well|hard|great|amazing)?\s*(because (he|she) is|because of his|because of her)?\s*(powerful|strong|fast|quick|talented|gifted|hard.?working|dedicated|focused|the best|the greatest)?\.?$/i.test(firstSentence.trim());
+    flatCopulaClaim || flatPerformanceClaim;
 
   let paradoxBonus = 0;
   if (hasParadoxPattern && hasConcreteSubject && !isGenericTopicAnnouncement) {
