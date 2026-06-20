@@ -147,7 +147,7 @@ function buildEarlyDiagnosticResponse(script: string): ImproveHookResult {
   return {
     status: "improved",
     improvedHook: capitalizedTopic.length > 0
-      ? `${capitalizedTopic} needs one specific example, result, or consequence before the hook can feel strong.`
+      ? `The script about ${capitalizedTopic} needs one specific example, result, or consequence before the hook can feel strong.`
       : "This script needs one specific example, result, or consequence before the hook can feel strong.",
     reason: "The script is too abstract to rewrite into a stronger hook without inventing unsupported ideas. Add one concrete example, result, consequence, number, or real situation first.",
     mode: "diagnostic",
@@ -981,7 +981,7 @@ function buildGenericScriptResponse(_script: string, mainTopicWord: string): Imp
   // no "requires discipline", no framing not supported by the script.
   const improvedHook =
     capitalizedTopic.length > 0
-      ? `${capitalizedTopic} needs one specific example, result, or consequence before the hook can feel strong.`
+      ? `The script about ${capitalizedTopic} needs one specific example, result, or consequence before the hook can feel strong.`
       : "This script needs one specific example, result, or consequence before the hook can feel strong.";
 
   const reason =
@@ -1113,7 +1113,7 @@ function buildFallbackHookFromScript(script: string): string {
     const topicWord = firstWords.find(w => !stopWords.has(w) && w.length >= 4) ?? "";
     const capitalizedTopic = topicWord ? capitalizeFirstChar(topicWord) : "";
     return capitalizedTopic.length > 0
-      ? `${capitalizedTopic} needs one specific example, result, or consequence before the hook can feel strong.`
+      ? `The script about ${capitalizedTopic} needs one specific example, result, or consequence before the hook can feel strong.`
       : "This script needs one specific example, result, or consequence before the hook can feel strong.";
   }
 
@@ -1398,7 +1398,7 @@ function parseHookResponse(raw: string, script: string): ImproveHookResult {
         const topicWord = firstWords.find(w => !stopWordsSet.has(w) && w.length >= 4) ?? "";
         const cap = topicWord ? topicWord.charAt(0).toUpperCase() + topicWord.slice(1) : "";
         const diagnosticHook = cap.length > 0
-          ? `${cap} needs one specific example, result, or consequence before the hook can feel strong.`
+          ? `The script about ${cap} needs one specific example, result, or consequence before the hook can feel strong.`
           : "This script needs one specific example, result, or consequence before the hook can feel strong.";
         const diagnosticReason = "The script is too abstract to rewrite into a stronger hook without inventing unsupported ideas. Add one concrete example, result, consequence, number, or real situation first.";
         return { status: "improved", improvedHook: diagnosticHook, reason: diagnosticReason, mode: "diagnostic" };
@@ -1417,7 +1417,7 @@ function parseHookResponse(raw: string, script: string): ImproveHookResult {
       return {
         status: "improved",
         improvedHook: capFinal.length > 0
-          ? `${capFinal} needs one specific example, result, or consequence before the hook can feel strong.`
+          ? `The script about ${capFinal} needs one specific example, result, or consequence before the hook can feel strong.`
           : "This script needs one specific example, result, or consequence before the hook can feel strong.",
         reason: "The script is too abstract to rewrite into a stronger hook without inventing unsupported ideas. Add one concrete example, result, consequence, number, or real situation first.",
         mode: "diagnostic",

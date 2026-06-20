@@ -2997,7 +2997,7 @@ function createHookRewrite(script: string): string {
     const topicWord = firstWords.find(w => !stopWords.has(w) && w.length >= 4) ?? "";
     const capitalizedTopic = topicWord ? topicWord.charAt(0).toUpperCase() + topicWord.slice(1) : "";
     return capitalizedTopic.length > 0
-      ? `${capitalizedTopic} needs one specific example, result, or consequence before the hook can feel strong.`
+      ? `The script about ${capitalizedTopic} needs one specific example, result, or consequence before the hook can feel strong.`
       : "This script needs one specific example, result, or consequence before the hook can feel strong.";
   }
 
