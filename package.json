@@ -11,9 +11,10 @@
     "test:scoring:phase0": "tsx tests/run.ts",
     "test:scoring:detectors": "tsx tests/detectors.ts",
     "test:scoring:real": "tsx tests/real-scripts.ts",
-    "test:scoring": "npm run scoring:sync && npm run test:scoring:phase0 && npm run test:scoring:detectors && npm run test:scoring:real && npm run test:scoring:ranking && npm run test:scoring:invariance",
+    "test:scoring": "npm run scoring:sync && npm run test:scoring:phase0 && npm run test:scoring:detectors && npm run test:scoring:real && npm run test:scoring:ranking && npm run test:scoring:invariance && npm run test:scoring:edge",
     "test:scoring:ranking": "tsx tests/ranking-guardrails.ts",
-    "test:scoring:invariance": "tsx tests/invariance.ts"
+    "test:scoring:invariance": "tsx tests/invariance.ts",
+    "test:scoring:edge": "tsx tests/edge-cases.ts"
   },
   "dependencies": {
     "lucide-react": "^1.17.0",
