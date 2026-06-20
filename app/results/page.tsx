@@ -2254,14 +2254,17 @@ function detectScriptStructures(lines: string[], fullText: string): ScriptStruct
   // Universal: detects any specific number with a unit paired with a mechanism word.
   // Does not reference topic-specific terms like "gravity" or "one sixth".
   const hasNumericPremise =
-    /\d[\d,]*\s*(miles per hour|mph|kph|km\/h|feet|meters|%|percent|billion|million|thousand|degrees|times|seconds|minutes|hours|days|years|kilograms|pounds)/i.test(lower) &&
+    hasSpecificQuantity(fullText) &&
     (lower.includes("because") || lower.includes("that means") ||
      lower.includes("which means") || lower.includes("the reason") ||
      lower.includes("mechanism") || lower.includes("as a result") ||
      lower.includes("the result") || lower.includes("not about") ||
-     lower.includes("so ") || lower.includes("would") ||
      lower.includes("therefore") || lower.includes("this means") ||
-     lower.includes("which causes") || lower.includes("which creates"));
+     lower.includes("which causes") || lower.includes("which creates") ||
+     /\b(came|comes|come|resulted|results?) from\b/i.test(lower) ||
+     /\b(caused by|led to)\b/i.test(lower) ||
+     /\b(then|after that|instead)\b.{0,120}\b(removed|replaced|changed|switched|focused|cut|reduced|added)\b/i.test(lower) ||
+     /\bby (replacing|removing|adding|changing|using|switching|cutting|increasing|reducing)\b/i.test(lower));
 
   // ── Weak payoff ────────────────────────────────────────────────────────────
   // The last line offers no new consequence, result, or unresolved tension.
