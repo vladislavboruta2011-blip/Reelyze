@@ -798,7 +798,7 @@ export default function HomePage() {
               )}
             </button>
 
-            {analyzeError && (
+            {analyzeError && script.length <= maxCharacters && (
               <div className="mt-3 rounded-[13px] border border-[#3A1B22] bg-[#1A0D11] px-3.5 py-3">
                 <p className="text-[12px] font-medium leading-[18px] text-[#EF4444]">{analyzeError}</p>
               </div>
