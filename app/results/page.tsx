@@ -3045,8 +3045,15 @@ function detectScriptType(text: string): ScriptType {
     /\$[\d,]+|\b\d[\d,]* (dollars|dollar|bucks|usd)\b/i.test(text) ||
     /\b(bet|wager|prize|reward|keep it|gets to keep)\b/i.test(lower) ||
     (/\b(win|won|wins)\b/i.test(lower) && /\b(subscriber|challenge|prize|cash|giveaway|money|bet)\b/i.test(lower));
-  const hasChallengeObject =
-    /\b(katana|sword|bullet|gun|car|truck|bus|tank|rocket|phone|iphone|ipad|laptop|ps5|xbox|diamond|gold|cash|bag|vault|safe|lock|ice|fire|acid|chainsaw|axe|hammer)\b/i.test(lower);
+  // Structural viral-challenge signals.
+  // Do not depend on a closed catalog of familiar objects.
+  const hasDirectChallengeQuestion =
+    /^(can you|could you|is it possible)\b/i.test(text.trim()) &&
+    hasChallengeVerb;
+
+  const hasAttemptSignal =
+    /\b(test|tested|testing|attempt|attempted|try|tried|trying|final attempt|last try|finally began)\b/i.test(lower) ||
+    /\bput .{0,30} to the test\b/i.test(lower);
   const hasImpossiblePremise =
     /\b(can you|could you|is it possible|sounds impossible|nobody thought|no one believed|they said it couldn't)\b/i.test(lower) ||
     /\b(impossible|unbreakable|unkillable|unbeatable|unstoppable|unsliceable)\b/i.test(lower);
@@ -3057,7 +3064,7 @@ function detectScriptType(text: string): ScriptType {
   if (
     (hasChallengeVerb && hasMoneySake) ||
     (hasImpossiblePremise && hasMoneySake) ||
-    (hasChallengeVerb && hasChallengeObject && hasImpossiblePremise)
+    (hasDirectChallengeQuestion && hasAttemptSignal)
   ) {
     return "viral_challenge";
   }

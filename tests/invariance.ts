@@ -8,6 +8,7 @@ import {
 type PairCase = {
   name: string;
   expectedMaxHookDelta: number;
+  expectedMaxOverallDelta: number;
   scriptA: {
     label: string;
     text: string;
@@ -22,6 +23,7 @@ const pairs: PairCase[] = [
   {
     name: "Known athlete vs unknown athlete",
     expectedMaxHookDelta: 3,
+    expectedMaxOverallDelta: 3,
     scriptA: {
       label: "Ronaldo",
       text: `Ronaldo jumps high because he is strong.
@@ -38,6 +40,7 @@ That helps him reach the ball above other players.`,
   {
     name: "Known generic topic vs unknown generic topic",
     expectedMaxHookDelta: 3,
+    expectedMaxOverallDelta: 3,
     scriptA: {
       label: "Sharks",
       text: `Sharks are dangerous.
@@ -54,6 +57,7 @@ Many people are afraid of them.`,
   {
     name: "Sports paradox vs business paradox",
     expectedMaxHookDelta: 5,
+    expectedMaxOverallDelta: 5,
     scriptA: {
       label: "Sports",
       text: `He wins the header before the defender even reacts.
@@ -70,6 +74,7 @@ The email enters the inbox.`,
   {
     name: "Known stunt object vs unknown stunt object",
     expectedMaxHookDelta: 3,
+    expectedMaxOverallDelta: 3,
     scriptA: {
       label: "Katana",
       text: `Can you slice through a katana with a butter knife?
@@ -124,8 +129,14 @@ for (const pair of pairs) {
   const hookInvariant =
     hookDelta <= pair.expectedMaxHookDelta;
 
+  const overallInvariant =
+    overallDelta <= pair.expectedMaxOverallDelta;
+
+  const invariant =
+    hookInvariant && overallInvariant;
+
   console.log(
-    `${hookInvariant ? "✅" : "❌"} ${pair.name}`,
+    `${invariant ? "✅" : "❌"} ${pair.name}`,
   );
 
   console.log(`  A — ${pair.scriptA.label}:`, resultA);
@@ -137,6 +148,10 @@ for (const pair of pairs) {
 
   console.log(
     `  Expected hook delta: ≤${pair.expectedMaxHookDelta}`,
+  );
+
+  console.log(
+    `  Expected overall delta: ≤${pair.expectedMaxOverallDelta}`,
   );
 
   console.log("");
