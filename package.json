@@ -6,7 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "scoring:sync": "tsx scripts/sync-scoring.ts",
+    "test:scoring:phase0": "tsx tests/run.ts",
+    "test:scoring:detectors": "tsx tests/detectors.ts",
+    "test:scoring:real": "tsx tests/real-scripts.ts",
+    "test:scoring": "npm run scoring:sync && npm run test:scoring:phase0 && npm run test:scoring:detectors && npm run test:scoring:real"
   },
   "dependencies": {
     "lucide-react": "^1.17.0",
@@ -23,6 +28,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
     "tailwindcss": "^4",
+    "tsx": "^4.22.4",
     "typescript": "^5"
   }
 }
