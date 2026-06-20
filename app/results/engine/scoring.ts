@@ -751,6 +751,17 @@ export function detectScriptStructures(lines: string[], fullText: string): Scrip
         subjectMatch[1].toLowerCase()
       );
     }
+
+    // Detect several compared subjects inside one long sentence:
+    // "higher than A, below B, ahead of C".
+    const inlineSubjectPattern =
+      /\b(?:than|above|below|ahead of|behind|against|beats?)\s+([A-Z][A-Za-z'-]+(?:\s+[A-Z][A-Za-z'-]+){0,3})\b/g;
+
+    for (const match of trimmed.matchAll(inlineSubjectPattern)) {
+      rankedComparisonSubjects.add(
+        match[1].toLowerCase()
+      );
+    }
   }
 
   const hasRankedComparisonBuildup =
@@ -861,14 +872,17 @@ export function detectScriptStructures(lines: string[], fullText: string): Scrip
   // Universal: detects any specific number with a unit paired with a mechanism word.
   // Does not reference topic-specific terms like "gravity" or "one sixth".
   const hasNumericPremise =
-    /\d[\d,]*\s*(miles per hour|mph|kph|km\/h|feet|meters|%|percent|billion|million|thousand|degrees|times|seconds|minutes|hours|days|years|kilograms|pounds)/i.test(lower) &&
+    hasSpecificQuantity(fullText) &&
     (lower.includes("because") || lower.includes("that means") ||
      lower.includes("which means") || lower.includes("the reason") ||
      lower.includes("mechanism") || lower.includes("as a result") ||
      lower.includes("the result") || lower.includes("not about") ||
-     lower.includes("so ") || lower.includes("would") ||
      lower.includes("therefore") || lower.includes("this means") ||
-     lower.includes("which causes") || lower.includes("which creates"));
+     lower.includes("which causes") || lower.includes("which creates") ||
+     /\b(came|comes|come|resulted|results?) from\b/i.test(lower) ||
+     /\b(caused by|led to)\b/i.test(lower) ||
+     /\b(then|after that|instead)\b.{0,120}\b(removed|replaced|changed|switched|focused|cut|reduced|added)\b/i.test(lower) ||
+     /\bby (replacing|removing|adding|changing|using|switching|cutting|increasing|reducing)\b/i.test(lower));
 
   // ── Weak payoff ────────────────────────────────────────────────────────────
   // The last line offers no new consequence, result, or unresolved tension.
@@ -991,9 +1005,19 @@ function calculateHookStrength(
     );
   }).length;
 
+  // Detect flat generic claims regardless of topic or subject name.
+  const flatCopulaClaim =
+    /^(?:[a-z][a-z'-]*)(?:\s+[a-z][a-z'-]*){0,3}\s+(is|are|was|were)\s+(very |extremely |really |so |quite |always |often )?(dangerous|important|key|essential|hard|easy|powerful|possible|incredible|amazing|necessary|needed|useful|real|true|common|rare|unique|special|good|bad|great|terrible|best|worst|only|enough)\.?$/i.test(
+      firstSentence.trim()
+    );
+
+  const flatPerformanceClaim =
+    /^(?:[A-Z][A-Za-z'-]*)(?:\s+[A-Z][A-Za-z'-]*){0,2}\s+[a-z]+s\s+(high|fast|well|hard|great|amazingly?)\s+(because\s+(he|she|they|it)\s+(is|are)|because of\s+(his|her|their|its))\s+(powerful|strong|fast|quick|talented|gifted|hard.?working|dedicated|focused|the best|the greatest)\.?$/i.test(
+      firstSentence.trim()
+    );
+
   const isGenericTopicAnnouncement =
-    /^(sharks?|success|failure|life|time|people|money|work|effort|discipline|motivation|focus|mindset|goals?|habits?) (is|are|was|were) (very |extremely |really |so |quite |always |often )?(dangerous|important|key|essential|hard|easy|powerful|possible|incredible|amazing|necessary|needed|useful|real|true|common|rare|unique|special|good|bad|great|terrible|best|worst|only|enough)/i.test(firstSentence.trim()) ||
-    /^(ronaldo|lebron|curry|messi|jordan|kobe) (jumps?|runs?|scores?|shoots?|wins?) (high|fast|well|hard|great|amazing)?\s*(because (he|she) is|because of his|because of her)?\s*(powerful|strong|fast|quick|talented|gifted|hard.?working|dedicated|focused|the best|the greatest)?\.?$/i.test(firstSentence.trim());
+    flatCopulaClaim || flatPerformanceClaim;
 
   let paradoxBonus = 0;
   if (hasParadoxPattern && hasConcreteSubject && !isGenericTopicAnnouncement) {
@@ -1110,10 +1134,8 @@ function calculateHookStrength(
     /\b(bet|wager|i don'?t believe|he couldn'?t|she couldn'?t|they couldn'?t)\b/i.test(lower);
   if (hasBetOrStake) score += 18;
 
-  const hasChallengeObject =
-    /\b(katana|sword|bullet|bullet-proof|chainsaw|axe|hammer|blowtorch|acid|explosive)\b/i.test(lower) &&
-    isChallengeQuestion;
-  if (hasChallengeObject) score += 10;
+  // Do not award extra hook points for a closed list of familiar objects.
+  // The challenge structure itself is already rewarded above.
 
 // ── Question mark in first sentence ───────────────────────────────────────
   // Questions are one valid hook type but NOT the only one.
@@ -1621,8 +1643,15 @@ function detectScriptType(text: string): ScriptType {
     /\$[\d,]+|\b\d[\d,]* (dollars|dollar|bucks|usd)\b/i.test(text) ||
     /\b(bet|wager|prize|reward|keep it|gets to keep)\b/i.test(lower) ||
     (/\b(win|won|wins)\b/i.test(lower) && /\b(subscriber|challenge|prize|cash|giveaway|money|bet)\b/i.test(lower));
-  const hasChallengeObject =
-    /\b(katana|sword|bullet|gun|car|truck|bus|tank|rocket|phone|iphone|ipad|laptop|ps5|xbox|diamond|gold|cash|bag|vault|safe|lock|ice|fire|acid|chainsaw|axe|hammer)\b/i.test(lower);
+  // Structural viral-challenge signals.
+  // Do not depend on a closed catalog of familiar objects.
+  const hasDirectChallengeQuestion =
+    /^(can you|could you|is it possible)\b/i.test(text.trim()) &&
+    hasChallengeVerb;
+
+  const hasAttemptSignal =
+    /\b(test|tested|testing|attempt|attempted|try|tried|trying|final attempt|last try|finally began)\b/i.test(lower) ||
+    /\bput .{0,30} to the test\b/i.test(lower);
   const hasImpossiblePremise =
     /\b(can you|could you|is it possible|sounds impossible|nobody thought|no one believed|they said it couldn't)\b/i.test(lower) ||
     /\b(impossible|unbreakable|unkillable|unbeatable|unstoppable|unsliceable)\b/i.test(lower);
@@ -1633,7 +1662,7 @@ function detectScriptType(text: string): ScriptType {
   if (
     (hasChallengeVerb && hasMoneySake) ||
     (hasImpossiblePremise && hasMoneySake) ||
-    (hasChallengeVerb && hasChallengeObject && hasImpossiblePremise)
+    (hasDirectChallengeQuestion && hasAttemptSignal)
   ) {
     return "viral_challenge";
   }
