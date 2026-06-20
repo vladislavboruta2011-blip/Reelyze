@@ -1120,10 +1120,8 @@ function calculateHookStrength(
     /\b(bet|wager|i don'?t believe|he couldn'?t|she couldn'?t|they couldn'?t)\b/i.test(lower);
   if (hasBetOrStake) score += 18;
 
-  const hasChallengeObject =
-    /\b(katana|sword|bullet|bullet-proof|chainsaw|axe|hammer|blowtorch|acid|explosive)\b/i.test(lower) &&
-    isChallengeQuestion;
-  if (hasChallengeObject) score += 10;
+  // Do not award extra hook points for a closed list of familiar objects.
+  // The challenge structure itself is already rewarded above.
 
 // ── Question mark in first sentence ───────────────────────────────────────
   // Questions are one valid hook type but NOT the only one.
