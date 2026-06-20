@@ -72,10 +72,10 @@ function BackgroundDecor() {
 function Navbar() {
   return (
     <header className="relative z-10 mx-auto flex h-[96px] w-full max-w-[1280px] items-center justify-between px-8">
-      <a href="/" className="flex items-center gap-3">
+      <Link href="/" className="flex items-center gap-3">
         <img src="/logo.png" alt="Reelyze" className="h-10 w-10 object-contain" />
         <span className="text-[18px] font-bold tracking-[0.16em] text-white">REELYZE</span>
-      </a>
+      </Link>
 
       <nav className="hidden items-center gap-9 text-[15px] font-medium text-[#A1A1AA] md:flex">
         <a href="#features" className="transition hover:text-white">Features</a>
@@ -468,7 +468,7 @@ function AnalyzerSection({
 
         {/* Right: what you get */}
         <div className="rounded-[20px] border border-[#24242A] bg-[#0B0B0F] p-6 h-fit">
-          <p className="text-[17px] font-semibold text-white mb-5">What you'll get</p>
+          <p className="text-[17px] font-semibold text-white mb-5">What you&apos;ll get</p>
           <div className="flex flex-col gap-4">
             {[
               { icon: <BarChart3 className="h-5 w-5" />, title: "Overall Score", desc: "See how strong your script is before posting." },
@@ -606,7 +606,7 @@ export default function HomePage() {
         <div className="relative z-10 mx-auto flex w-full max-w-[430px] flex-col px-5 pb-14">
           {/* Header */}
           <div className="flex items-center justify-between pt-7">
-                        <a href="/" className="flex items-center gap-2.5">
+                        <Link href="/" className="flex items-center gap-2.5">
               <img
                 src="/logo.png"
                 alt="Reelyze"
@@ -615,7 +615,7 @@ export default function HomePage() {
               <span className="text-[14px] font-bold tracking-[0.16em] text-white">
   REELYZE
 </span>
-            </a>
+            </Link>
 
             <Link
               href="/results"
