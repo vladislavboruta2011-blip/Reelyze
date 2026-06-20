@@ -38,6 +38,54 @@ function estimateDuration(script: string) {
 }
 import { testCases } from "./fixtures";
 
+type DetectorKey =
+  | "hasPersistenceArc"
+  | "hasCapabilityViolation"
+  | "hasAnomalySequence"
+  | "hasConsequenceProgression";
+
+const structureExpectations: Record<
+  string,
+  Record<DetectorKey, boolean>
+> = {
+  "Dog grave story": {
+    hasPersistenceArc: true,
+    hasCapabilityViolation: false,
+    hasAnomalySequence: false,
+    hasConsequenceProgression: false,
+  },
+  "Coma language story": {
+    hasPersistenceArc: false,
+    hasCapabilityViolation: true,
+    hasAnomalySequence: false,
+    hasConsequenceProgression: false,
+  },
+  "Village vanished story": {
+    hasPersistenceArc: false,
+    hasCapabilityViolation: false,
+    hasAnomalySequence: true,
+    hasConsequenceProgression: false,
+  },
+  "Pacific Ocean weak factual script": {
+    hasPersistenceArc: false,
+    hasCapabilityViolation: false,
+    hasAnomalySequence: false,
+    hasConsequenceProgression: false,
+  },
+  "Startup losing money story": {
+    hasPersistenceArc: false,
+    hasCapabilityViolation: false,
+    hasAnomalySequence: false,
+    hasConsequenceProgression: true,
+  },
+  "Generic motivation weak script": {
+    hasPersistenceArc: false,
+    hasCapabilityViolation: false,
+    hasAnomalySequence: false,
+    hasConsequenceProgression: false,
+  },
+};
+
 function inRange(value: number, range: [number, number]) {
   return value >= range[0] && value <= range[1];
 }
@@ -61,7 +109,32 @@ for (const test of testCases) {
   const overallPass = inRange(overall, test.expected.overall);
   const retentionPass = inRange(retention, test.expected.retention);
 
-  const pass = hookPass && overallPass && retentionPass;
+  const expectedStructure = structureExpectations[test.name];
+
+  if (!expectedStructure) {
+    throw new Error(
+      `Missing structure expectations for: ${test.name}`,
+    );
+  }
+
+  const detectorChecks = (
+    Object.keys(expectedStructure) as DetectorKey[]
+  ).map((key) => ({
+    key,
+    actual: structures[key],
+    expected: expectedStructure[key],
+    pass: structures[key] === expectedStructure[key],
+  }));
+
+  const structuresPass = detectorChecks.every(
+    (check) => check.pass,
+  );
+
+  const pass =
+    hookPass &&
+    overallPass &&
+    retentionPass &&
+    structuresPass;
 
   if (!pass) failed++;
 
@@ -69,6 +142,14 @@ for (const test of testCases) {
   console.log(`  Hook:      ${hook} expected ${test.expected.hook[0]}-${test.expected.hook[1]} ${hookPass ? "" : "❌"}`);
   console.log(`  Overall:   ${overall} expected ${test.expected.overall[0]}-${test.expected.overall[1]} ${overallPass ? "" : "❌"}`);
   console.log(`  Retention: ${retention} expected ${test.expected.retention[0]}-${test.expected.retention[1]} ${retentionPass ? "" : "❌"}`);
+
+  console.log("  Detector assertions:");
+
+  for (const check of detectorChecks) {
+    console.log(
+      `    ${check.key}: ${check.actual} expected ${check.expected} ${check.pass ? "" : "❌"}`,
+    );
+  }
 
   console.log("  Debug:");
   console.log("    Lines:", lines);
