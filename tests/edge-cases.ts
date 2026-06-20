@@ -161,16 +161,19 @@ for (const edgeCase of assertedCases) {
 
 const knownGap = evaluate(knownGapScript);
 
-console.log("\n— Known gap: multiple comparisons in one long sentence");
+console.log("\n— Multiple comparisons in one long sentence");
+
+const longSentenceRankingDetected =
+  knownGap.structures.hasListBuildup &&
+  knownGap.structures.escalationQuality === "list";
+
 console.log(
-  `  hasListBuildup: ${knownGap.structures.hasListBuildup}`,
+  `${longSentenceRankingDetected ? "✅" : "❌"} long-sentence ranking is detected as list buildup`,
 );
-console.log(
-  `  escalationQuality: ${knownGap.structures.escalationQuality}`,
-);
-console.log(
-  "  TODO: detect several ranked subjects even when all comparisons share one sentence.",
-);
+
+if (!longSentenceRankingDetected) {
+  failures += 1;
+}
 
 if (failures > 0) {
   console.error(`\nResult: ${failures} edge-case assertion(s) failed.`);

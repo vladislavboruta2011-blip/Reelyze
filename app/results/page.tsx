@@ -2144,6 +2144,17 @@ function detectScriptStructures(lines: string[], fullText: string): ScriptStruct
         subjectMatch[1].toLowerCase()
       );
     }
+
+    // Detect several compared subjects inside one long sentence:
+    // "higher than A, below B, ahead of C".
+    const inlineSubjectPattern =
+      /\b(?:than|above|below|ahead of|behind|against|beats?)\s+([A-Z][A-Za-z'-]+(?:\s+[A-Z][A-Za-z'-]+){0,3})\b/g;
+
+    for (const match of trimmed.matchAll(inlineSubjectPattern)) {
+      rankedComparisonSubjects.add(
+        match[1].toLowerCase()
+      );
+    }
   }
 
   const hasRankedComparisonBuildup =
