@@ -1883,13 +1883,13 @@ function detectPersistenceArc(lines: string[]): { has: boolean; strong: boolean 
   const hasDurationOrRepetition =
     /\d+\s*(years?|months?|weeks?|days?|hours?)\b/i.test(text) ||
     new RegExp(`\\b${SPELLED_OUT_NUMBERS}\\b\\s+(years?|months?|weeks?|days?|hours?)\\b`, "i").test(text) ||
-    /\b(every day|each day|every morning|every night|every year|day after day|again and again|over and over|year after year)\b/i.test(lower);
+    /\b(every day|each day|every morning|every night|every year|day after day|night after night|week after week|month after month|year after year|time after time|again and again|over and over)\b/i.test(lower);
 
   const hasResistance =
     /\b(tried to (stop|move|remove|change|take|force)|attempted to (stop|move|remove)|forced (it|him|her|them) (away|out|to leave)|kept (trying to|attempting to))\b/i.test(lower);
 
   const hasContinuation =
-    /\b(still|kept (coming|returning|going|waiting|sitting|showing up)|continued to|never stopped|would not leave|refused to (leave|move|go)|never left|always (came|returned))\b/i.test(lower);
+    /\b(kept (coming|returning|going|waiting|sitting|showing up)|continued to|never stopped|would not leave|refused to (leave|move|go)|never left|always (came|returned)( back)?|came back|returned again|went back|showed up again|remained there|stayed there|still (came|returned|waited|sat|stood|remained|stayed|showed up))\b/i.test(lower);
 
   const has = hasDurationOrRepetition && hasContinuation;
   const strong = has && hasResistance;
@@ -1935,9 +1935,13 @@ function detectCapabilityViolation(lines: string[]): { has: boolean; strong: boo
   });
 
   const hasDoesItAnyway =
-    /\b(but then|and yet|somehow|until one day|suddenly|then,?\s+(he|she|it|they)|managed to|was able to)\b/i.test(lower) ||
+    /\b(but then|and yet|somehow|until one day|suddenly|minutes? later|moments? later|seconds? later|hours? later|shortly after|soon after|then,?\s+(he|she|it|they)|managed to|was able to)\b/i.test(lower) ||
     hasDirectViolation ||
     hasContrastAbility;
+
+  const hasExplainedAcquisition =
+    /\b(trained|practiced|studied|took lessons|received training|enrolled in (classes|lessons)|learned)\b.{0,40}\b(for|over|during)\s+(several\s+|a few\s+|\d+\s+)?(hours?|days?|weeks?|months?|years?)\b/i.test(lower) ||
+    /\bafter\s+(several\s+|a few\s+|\d+\s+)?(hours?|days?|weeks?|months?|years?)\s+of\s+(training|practice|lessons|study)\b/i.test(lower);
 
   const hasReversal =
     /\b(never did it again|lost the ability|could not do it again|just as suddenly|stopped working|never happened again|returned to normal|went back to normal|came back like nothing happened)\b/i.test(lower) ||
@@ -1945,8 +1949,11 @@ function detectCapabilityViolation(lines: string[]): { has: boolean; strong: boo
     /\bnormal (voice|speech|movement|ability)\s+came back\b/i.test(lower);
 
   const has =
-    hasDirectViolation ||
-    (hasInability && hasAbilityEvent && hasDoesItAnyway);
+    !hasExplainedAcquisition &&
+    (
+      hasDirectViolation ||
+      (hasInability && hasAbilityEvent && hasDoesItAnyway)
+    );
 
   const strong = has && hasReversal;
 
@@ -1958,15 +1965,23 @@ function detectAnomalySequence(lines: string[]): { has: boolean; strong: boolean
   const lower = text.toLowerCase();
 
   const hasAbnormalEvent =
-    /\b(disappeared|vanished|went silent|stopped responding|found (empty|abandoned|drifting|deserted)|gone without (a trace|warning))\b/i.test(lower);
+    /\b(disappeared|vanished|went silent|stopped responding|stopped transmitting|ceased all communication|communication ceased|communications ceased|lost contact|contact was lost|found (empty|abandoned|drifting|deserted)|gone without (a trace|warning))\b/i.test(lower);
 
   const hasPhysicalClue =
-    /\bstill (on|in|at|sitting|lying)\b|\buntouched\b|\bno signs of\b|\bleft behind\b/i.test(lower);
+    /\bstill (on|in|at|sitting|lying|running)\b|\buntouched\b|\bno signs of\b|\bleft behind\b|\bremained exactly where\b|\bwere exactly where\b/i.test(lower);
 
   const hasInvestigationOrNoResolution =
-    /\b(searched|investigated|looked for|no one (knows|ever found|explained)|never (explained|found|solved|recovered)|remains a mystery|to this day)\b/i.test(lower);
+    /\b(searched|investigated|looked for|found no trace|no trace of|could not locate|couldn'?t locate|no one (knows|ever found|explained)|never (explained|found|solved|recovered)|remains a mystery|to this day)\b/i.test(lower);
 
-  const has = hasAbnormalEvent && (hasPhysicalClue || hasInvestigationOrNoResolution);
+  const hasOrdinaryResolution =
+    /\b(was|were) (caused|explained) by\b/i.test(lower) ||
+    /\b(because of|due to|after) (a |the )?(power cut|power outage|outage|maintenance|technical issue|equipment failure)\b/i.test(lower) ||
+    /\b(restored|fixed|repaired|resolved) (the )?(power|electricity|connection|signal|system|problem)\b/i.test(lower);
+
+  const has =
+    hasAbnormalEvent &&
+    !hasOrdinaryResolution &&
+    (hasPhysicalClue || hasInvestigationOrNoResolution);
   const strong = hasAbnormalEvent && hasPhysicalClue && hasInvestigationOrNoResolution;
   return { has, strong };
 }
@@ -1976,22 +1991,26 @@ function detectConsequenceProgression(lines: string[]): { has: boolean; strong: 
   const lower = text.toLowerCase();
 
   const hasBadState =
-    /\b(losing money|losing \$[\d,]+|losing thousands|losing millions|monthly losses?|running out of|could not pay|couldn'?t pay|in debt|shutting down|about to (close|fail|collapse)|failing|on the verge of|expenses exceeded revenue|costs exceeded revenue)\b/i.test(lower);
+    /\b(losing money|losing \$[\d,]+|losing thousands|losing millions|monthly losses?|running out of|could not pay|couldn'?t pay|in debt|shutting down|about to (close|fail|collapse)|failing|on the verge of|expenses exceeded revenue|costs exceeded revenue|costs? (were )?(higher|greater) than (sales|revenue|income)|spending (was )?(higher|greater) than (sales|revenue|income)|(sales|revenue|income) (was|were) (below|lower than) (costs?|expenses|spending))\b/i.test(lower);
 
   const hasAttemptedFix =
     /\b(tried to|attempted to|cut costs|changed (the|their)|switched to|decided to try|added (another|more|one more)|built (another|more|one more)|launched (another|more|one more)|thought .{0,50} would (save|fix|solve|help|work))\b/i.test(lower);
 
   const hasWorseResult =
-    /\b(but it got worse|still wasn'?t enough|continued to (lose|fail|struggle)|even worse|nothing changed|kept losing|made (the )?losses worse|losses (grew|increased|worsened)|every launch made .{0,30} worse|each launch made .{0,30} worse)\b/i.test(lower);
+    /\b(but it got worse|still wasn'?t enough|continued to (lose|fail|struggle)|even worse|nothing changed|failed to help|did not help|didn'?t help|kept losing|made (the )?losses worse|losses (grew|increased|worsened)|every launch made .{0,30} worse|each launch made .{0,30} worse)\b/i.test(lower);
 
   const hasDecisiveChange =
-    /\b(finally|instead|decided to|pivoted|focused on|cut|dropped|removed|stopped)\b/i.test(lower) &&
-    /\b(then|finally|instead|after that|so they|focused on|pivoted|removed|dropped|stopped)\b/i.test(lower);
+    /\b(finally|instead|decided to|pivoted|focused on|cut|dropped|removed|stopped|narrowed|simplified|reduced|limited)\b/i.test(lower) &&
+    /\b(then|finally|instead|after that|so they|focused on|pivoted|removed|dropped|stopped|narrowed|simplified|reduced|limited)\b/i.test(lower);
 
   const hasMeasurableImprovement =
-    /\b(grew|increased|recovered|turned around|doubled|tripled|saved the|became profitable|reached profitability|made a profit|broke even|revenue (grew|increased|doubled|passed|exceeded|overtook)|revenue finally (passed|exceeded|overtook)|profit finally|expenses fell below revenue)\b/i.test(lower);
+    /\b(grew|increased|recovered|turned around|doubled|tripled|saved the|became profitable|reached profitability|made a profit|broke even|revenue (grew|increased|doubled|passed|exceeded|overtook)|revenue finally (passed|exceeded|overtook)|profit finally|expenses fell below revenue|(income|sales|revenue) (was|were) (greater|higher) than (spending|costs?|expenses)|(income|sales|revenue) exceeded (spending|costs?|expenses))\b/i.test(lower);
+
+  const hasExternalOutcomeShift =
+    /\b(competitor|rival|another company|another business|other company|other business)\b.{0,60}\b(revenue|profit|sales|income)\s+(grew|increased|rose|improved|doubled|tripled|exceeded)\b/i.test(lower);
 
   const has =
+    !hasExternalOutcomeShift &&
     hasBadState &&
     (hasAttemptedFix || hasWorseResult) &&
     hasDecisiveChange &&

@@ -73,6 +73,66 @@ Within 60 days, revenue exceeded costs.`,
     script: `The company launched a new logo.
 Revenue increased during the following month.`,
   },
+  {
+    name: "Persistence paraphrase — week after week",
+    detector: "hasPersistenceArc",
+    expected: true,
+    script: `Week after week, the fox returned to the same porch.
+The owner chased it away, but it came back the next evening.`,
+  },
+  {
+    name: "Persistence false positive — unrelated still",
+    detector: "hasPersistenceArc",
+    expected: false,
+    script: `The museum was closed for three years.
+It is still located in the center of the city.`,
+  },
+  {
+    name: "Capability paraphrase — unexplained performance",
+    detector: "hasCapabilityViolation",
+    expected: true,
+    script: `He had never touched a violin.
+Minutes later, he performed the entire concerto perfectly.`,
+  },
+  {
+    name: "Capability false positive — ability after training",
+    detector: "hasCapabilityViolation",
+    expected: false,
+    script: `She had never learned to swim.
+But then she trained for months and was able to cross the pool.`,
+  },
+  {
+    name: "Anomaly paraphrase — communication ceased",
+    detector: "hasAnomalySequence",
+    expected: true,
+    script: `The research team ceased all communication.
+Their meals and notebooks remained exactly where they were.
+Rescue crews found no trace of them.`,
+  },
+  {
+    name: "Anomaly false positive — explained power cut",
+    detector: "hasAnomalySequence",
+    expected: false,
+    script: `The office went silent after the power cut.
+Engineers investigated the problem and restored the electricity.`,
+  },
+  {
+    name: "Progression paraphrase — costs to recovery",
+    detector: "hasConsequenceProgression",
+    expected: true,
+    script: `Costs were higher than sales.
+Their first redesign failed to help.
+They narrowed the product to one customer group.
+By summer, income was greater than spending.`,
+  },
+  {
+    name: "Progression false positive — mixed subjects",
+    detector: "hasConsequenceProgression",
+    expected: false,
+    script: `The report said the company was losing money.
+Analysts tried to explain why.
+Instead, they focused on a competitor whose revenue increased.`,
+  },
 ];
 
 function createScriptLines(script: string): string[] {
