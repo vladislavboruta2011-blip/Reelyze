@@ -726,7 +726,12 @@ export function detectScriptStructures(lines: string[], fullText: string): Scrip
 
   // Ranked comparisons can form a list even when individual lines
   // are longer than the normal short-line threshold.
-  const rankedComparisonLineCount = bodyLines.filter((line) => {
+  //
+  // Guardrail: repeated measurements of the same subject over days,
+  // weeks, or distances are progression, not a ranked comparison list.
+  const rankedComparisonSubjects = new Set<string>();
+
+  for (const line of bodyLines) {
     const trimmed = line.trim();
     const lineLower = trimmed.toLowerCase();
 
@@ -735,18 +740,21 @@ export function detectScriptStructures(lines: string[], fullText: string): Scrip
         lineLower
       );
 
-    const hasComparableAnchor =
-      /\d/.test(trimmed) ||
-      /\b(inches?|feet|foot|meters?|seconds?|minutes?|hours?|days?|weeks?|months?|years?|percent|dollars?)\b/i.test(
-        lineLower
-      ) ||
-      /^[A-Z][A-Za-z'-]+(?:\s+[A-Z][A-Za-z'-]+)+\b/.test(trimmed);
+    if (!hasComparisonMarker) continue;
 
-    return hasComparisonMarker && hasComparableAnchor;
-  }).length;
+    const subjectMatch = trimmed.match(
+      /^(?:against\s+|but\s+|and\s+)?([A-Z][A-Za-z'-]+(?:\s+[A-Z][A-Za-z'-]+){1,3})\b/
+    );
+
+    if (subjectMatch) {
+      rankedComparisonSubjects.add(
+        subjectMatch[1].toLowerCase()
+      );
+    }
+  }
 
   const hasRankedComparisonBuildup =
-    rankedComparisonLineCount >= 3;
+    rankedComparisonSubjects.size >= 3;
 
   const hasListBuildup =
     hasRankedComparisonBuildup ||

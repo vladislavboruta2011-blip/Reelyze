@@ -11,7 +11,8 @@
     "test:scoring:phase0": "tsx tests/run.ts",
     "test:scoring:detectors": "tsx tests/detectors.ts",
     "test:scoring:real": "tsx tests/real-scripts.ts",
-    "test:scoring": "npm run scoring:sync && npm run test:scoring:phase0 && npm run test:scoring:detectors && npm run test:scoring:real"
+    "test:scoring": "npm run scoring:sync && npm run test:scoring:phase0 && npm run test:scoring:detectors && npm run test:scoring:real && npm run test:scoring:ranking",
+    "test:scoring:ranking": "tsx tests/ranking-guardrails.ts"
   },
   "dependencies": {
     "lucide-react": "^1.17.0",
