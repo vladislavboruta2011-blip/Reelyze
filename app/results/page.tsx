@@ -2117,7 +2117,32 @@ function detectScriptStructures(lines: string[], fullText: string): ScriptStruct
     );
   }).length;
 
+  // Ranked comparisons can form a list even when individual lines
+  // are longer than the normal short-line threshold.
+  const rankedComparisonLineCount = bodyLines.filter((line) => {
+    const trimmed = line.trim();
+    const lineLower = trimmed.toLowerCase();
+
+    const hasComparisonMarker =
+      /\b(higher|lower|further|farther|closer|close to|above|below|ahead|behind|more than|less than|almost|nearly|even higher|slightly above|slightly below|beats?|wins?|remains ahead)\b/i.test(
+        lineLower
+      );
+
+    const hasComparableAnchor =
+      /\d/.test(trimmed) ||
+      /\b(inches?|feet|foot|meters?|seconds?|minutes?|hours?|days?|weeks?|months?|years?|percent|dollars?)\b/i.test(
+        lineLower
+      ) ||
+      /^[A-Z][A-Za-z'-]+(?:\s+[A-Z][A-Za-z'-]+)+\b/.test(trimmed);
+
+    return hasComparisonMarker && hasComparableAnchor;
+  }).length;
+
+  const hasRankedComparisonBuildup =
+    rankedComparisonLineCount >= 3;
+
   const hasListBuildup =
+    hasRankedComparisonBuildup ||
     (maxConsecutiveShort >= 3 && concreteShortLineCount >= 2) ||
     (maxConsecutiveShort >= 2 && hasEscalationFollowUp && concreteShortLineCount >= 1);
 
