@@ -44,6 +44,24 @@ function evaluate(script: string): CheckContext {
 
 const assertedCases: EdgeCase[] = [
   {
+    name: "Capability violation with misleading practice simile",
+    script: `A boy woke up after surgery and could suddenly play songs he had never learned.
+Before the operation, he had never touched a piano.
+But when he sat down, both hands moved like he had practiced for years.`,
+    checks: [
+      {
+        label: "practice simile is not treated as real training",
+        test: ({ structures }) => structures.hasCapabilityViolation,
+        expected: "hasCapabilityViolation = true",
+      },
+      {
+        label: "capability violation receives a strong hook score",
+        test: ({ hook }) => hook >= 75,
+        expected: "Hook ≥ 75",
+      },
+    ],
+  },
+  {
     name: "Auto captions without punctuation",
     script:
       "this dog waited outside the same hospital every morning for six years nurses tried to move him during storms and freezing nights he always returned before sunrise nobody had trained him to do it he was waiting for the owner who never came back",

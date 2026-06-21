@@ -102,6 +102,26 @@ Minutes later, he performed the entire concerto perfectly.`,
 But then she trained for months and was able to cross the pool.`,
   },
   {
+    name: "Capability simile — implied practice is not real training",
+    detector: "hasCapabilityViolation",
+    expected: true,
+    script: `A boy woke up after surgery and could suddenly play songs he had never learned.
+Before the operation, he had never touched a piano.
+But when he sat down, both hands moved like he had practiced for years.`,
+  },
+  {
+    name: "Capability negative — real long-term training",
+    detector: "hasCapabilityViolation",
+    expected: false,
+    script: `A boy practiced piano every day for five years and became highly skilled.`,
+  },
+  {
+    name: "Capability bare verb — could play without studying",
+    detector: "hasCapabilityViolation",
+    expected: true,
+    script: `A woman had never studied music, but suddenly she could play a complex song perfectly.`,
+  },
+  {
     name: "Anomaly paraphrase — communication ceased",
     detector: "hasAnomalySequence",
     expected: true,

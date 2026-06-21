@@ -1904,7 +1904,7 @@ function detectCapabilityViolation(lines: string[]): { has: boolean; strong: boo
     /\b(had never|has never|never (learned|trained|studied|practiced|spoken|performed|could|been able)|could not|couldn'?t|should not be able|wasn'?t supposed to|was not supposed to|was unable to|had no way to|did not know how to|didn'?t know how to|only (spoke|knew|used|could))\b/i;
 
   const abilityPattern =
-    /\b(speaking|spoke|answered|reading|read|writing|wrote|playing|played|performing|performed|walking|walked|running|ran|moving|moved|using|used|understanding|understood|recognizing|recognized|solving|solved|remembering|remembered|managed to|was able to)\b/i;
+    /\b(speaking|speak|spoke|answered|reading|read|writing|write|wrote|playing|play|played|performing|perform|performed|walking|walk|walked|running|run|ran|moving|move|moved|using|use|used|understanding|understand|understood|recognizing|recognize|recognized|solving|solve|solved|remembering|remember|remembered|managed to|was able to)\b/i;
 
   const hasInability = inabilityPattern.test(lower);
   const hasAbilityEvent = abilityPattern.test(lower);
@@ -1939,9 +1939,17 @@ function detectCapabilityViolation(lines: string[]): { has: boolean; strong: boo
     hasDirectViolation ||
     hasContrastAbility;
 
+  // Ignore hypothetical comparisons such as
+  // "moved like he had practiced for years". They describe how the
+  // performance looked, not a real period of training.
+  const acquisitionText = lower.replace(
+    /\b(?:like|as if|as though)\s+(?:he|she|they|it|someone)\s+had\s+(?:trained|practiced|studied|learned)\b.{0,40}\b(?:for|over|during)\s+(?:several\s+|a few\s+|\d+\s+)?(?:hours?|days?|weeks?|months?|years?)\b/gi,
+    "",
+  );
+
   const hasExplainedAcquisition =
-    /\b(trained|practiced|studied|took lessons|received training|enrolled in (classes|lessons)|learned)\b.{0,40}\b(for|over|during)\s+(several\s+|a few\s+|\d+\s+)?(hours?|days?|weeks?|months?|years?)\b/i.test(lower) ||
-    /\bafter\s+(several\s+|a few\s+|\d+\s+)?(hours?|days?|weeks?|months?|years?)\s+of\s+(training|practice|lessons|study)\b/i.test(lower);
+    /\b(trained|practiced|studied|took lessons|received training|enrolled in (classes|lessons)|learned)\b.{0,40}\b(for|over|during)\s+(several\s+|a few\s+|\d+\s+)?(hours?|days?|weeks?|months?|years?)\b/i.test(acquisitionText) ||
+    /\bafter\s+(several\s+|a few\s+|\d+\s+)?(hours?|days?|weeks?|months?|years?)\s+of\s+(training|practice|lessons|study)\b/i.test(acquisitionText);
 
   const hasReversal =
     /\b(never did it again|lost the ability|could not do it again|just as suddenly|stopped working|never happened again|returned to normal|went back to normal|came back like nothing happened)\b/i.test(lower) ||
@@ -2700,6 +2708,13 @@ function calculateHookStrength(
   if (hasAnyUniversalNarrative && !isGenericTopicAnnouncement) {
     score += 18;
     if (hasPersonalConcreteOpener || hasNamedSubject) score += 6;
+  }
+
+  // A confirmed impossible-skill contradiction is inherently a strong
+  // curiosity hook. Prevent generic opener heuristics from leaving it
+  // below the strong-hook threshold, without inflating stronger cases.
+  if (capabilityCheck.has && !isGenericTopicAnnouncement) {
+    score = Math.max(score, 75);
   }
 
   const signalFamiliesFired = [
