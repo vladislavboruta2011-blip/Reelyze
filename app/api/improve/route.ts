@@ -174,10 +174,32 @@ export async function POST(req: Request): Promise<Response> {
       );
     }
 
-const script = (body as { script: string; title?: string }).script;
+    const script = (body as { script: string; title?: string }).script.trim();
     const title = typeof (body as { script: string; title?: string }).title === "string"
       ? (body as { script: string; title?: string }).title!.trim()
       : "";
+
+    if (script.length === 0) {
+      return Response.json(
+        {
+          status: "error",
+          improvedHook: "AI hook improvement is unavailable right now.",
+          reason: "A non-empty script must be provided.",
+        } satisfies ImproveHookResult,
+        { status: 400 }
+      );
+    }
+
+    if (script.length > 1000) {
+      return Response.json(
+        {
+          status: "error",
+          improvedHook: "AI hook improvement is unavailable right now.",
+          reason: "Script is too long. Keep it to 1,000 characters or less.",
+        } satisfies ImproveHookResult,
+        { status: 400 }
+      );
+    }
 
     // ── ABSOLUTE EARLY GUARD — must run before any AI call ──────────────────
     const earlyNoAnchorGuard = !hasAnyConcreteAnchor(script);
