@@ -1683,7 +1683,7 @@ function extractUniversalSignals(text: string): UniversalSignals {
   const numberMatches = text.match(/\d[\d,]*(?:\.\d+)?/g) ?? [];
   specificityScore += Math.min(numberMatches.length * 10, 30);
   // Units
-  if (/\b(feet|miles|mph|kph|percent|%|seconds|minutes|hours|days|years|meters|kilograms|pounds|degrees|billion|million|thousand)\b/i.test(text)) {
+  if (/\b(inch(?:es)?|feet|miles|mph|kph|percent|%|seconds|minutes|hours|days|years|meters|kilograms|pounds|degrees|billion|million|thousand)\b/i.test(text)) {
     specificityScore += 20;
   }
   // Named entities
@@ -2344,7 +2344,7 @@ function hasSpecificQuantity(sentence: string): boolean {
   // Numeral + unit (covers existing digit-based cases plus dollar amounts)
   if (/\$[\d,]+/.test(sentence)) return true;
   if (
-    /\d[\d,]*(?:\.\d+)?\s*(percent|%|miles?|mph|kph|km|feet|foot|meters?|seconds?|minutes?|hours?|days?|weeks?|months?|years?|degrees?|times|billion|million|thousand|dollars?)/i.test(
+    /\d[\d,]*(?:\.\d+)?\s*(percent|%|inch(?:es)?|miles?|mph|kph|km|feet|foot|meters?|seconds?|minutes?|hours?|days?|weeks?|months?|years?|degrees?|times|billion|million|thousand|dollars?)/i.test(
       sentence
     )
   ) {
@@ -2352,7 +2352,7 @@ function hasSpecificQuantity(sentence: string): boolean {
   }
   // Spelled-out number + unit: "six years", "ten seconds", "a dozen times"
   const wordUnitPattern = new RegExp(
-    `\\b${SPELLED_OUT_NUMBERS}\\b\\s+(percent|miles?|feet|foot|meters?|seconds?|minutes?|hours?|days?|weeks?|months?|years?|degrees?|times)\\b`,
+    `\\b${SPELLED_OUT_NUMBERS}\\b\\s+(percent|inch(?:es)?|miles?|feet|foot|meters?|seconds?|minutes?|hours?|days?|weeks?|months?|years?|degrees?|times)\\b`,
     "i"
   );
   return wordUnitPattern.test(sentence);
@@ -2579,7 +2579,7 @@ function calculateHookStrength(
   // A hook with a specific number + named subject + unusual scenario is strong
   // without needing a question. "Ronaldo would jump over 20 feet" = strong.
   const hasNumber = /\d/.test(firstSentence);
-  const hasUnit = /\b(feet|foot|miles|km|mph|kph|percent|%|seconds|minutes|hours|days|years|meters|kilograms|pounds|degrees|times|billion|million|thousand)\b/i.test(firstSentence);
+  const hasUnit = /\b(inch(?:es)?|feet|foot|miles|km|mph|kph|percent|%|seconds|minutes|hours|days|years|meters|kilograms|pounds|degrees|times|billion|million|thousand)\b/i.test(firstSentence);
   const hasNamedSubject = /\b[A-Z][a-z]{2,}\b/.test(firstSentence);
   const hasSpecificQuantityWord = hasSpecificQuantity(firstSentence);
   if (hasNumber && hasUnit) score += 16;

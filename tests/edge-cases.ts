@@ -135,6 +135,33 @@ Every detail in the letter came true.`,
     ],
   },
   {
+    name: "Spelled-out inches are a specific quantity",
+    script: `Ronaldo jumps six inches higher than Stephen Curry because his recorded reach is greater.`,
+    checks: [
+      {
+        label: "spelled-out inches form a numeric premise",
+        test: ({ structures }) => structures.hasNumericPremise,
+        expected: "hasNumericPremise = true",
+      },
+      {
+        label: "spelled-out inches receive measurement specificity",
+        test: ({ hook }) => hook >= 55,
+        expected: "Hook ≥ 55",
+      },
+    ],
+  },
+  {
+    name: "Singular inch is a specific quantity",
+    script: `Ronaldo jumps 1 inch higher than Stephen Curry because his recorded reach is greater.`,
+    checks: [
+      {
+        label: "singular inch forms a numeric premise",
+        test: ({ structures }) => structures.hasNumericPremise,
+        expected: "hasNumericPremise = true",
+      },
+    ],
+  },
+  {
     name: "Specific quantities written as words",
     script: `This runner improved more in six weeks than he had in two years.
 He cut ten seconds from his race time.
