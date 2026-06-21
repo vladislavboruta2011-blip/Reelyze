@@ -179,7 +179,7 @@ By week six, he reached the national qualifying standard.`,
 ];
 
 const knownGapScript =
-  "Can Ronaldo jump higher than NBA players? Ronaldo reaches six inches higher than Curry, three inches higher than Luka, slightly higher than Kyrie, two inches below Kobe, and seven inches below LeBron.";
+  "Ronaldo can jump higher than Stephen Curry by around six inches, higher than Luka Doncic by three inches, and slightly higher than Kyrie Irving, but Kobe Bryant could beat him by about two inches, while LeBron James could jump nearly seven inches higher.";
 
 console.log("\nReelyze Phase 5 Edge Case Tests\n");
 
@@ -217,6 +217,22 @@ console.log(
 );
 
 if (!longSentenceRankingDetected) {
+  failures += 1;
+}
+
+const longSentenceOverallPasses = knownGap.overall >= 55;
+console.log(
+  `${longSentenceOverallPasses ? "✅" : "❌"} structured comparison receives Overall ≥ 55 — actual ${knownGap.overall}`,
+);
+if (!longSentenceOverallPasses) {
+  failures += 1;
+}
+
+const longSentenceRetentionPasses = knownGap.retention <= 55;
+console.log(
+  `${longSentenceRetentionPasses ? "✅" : "❌"} structured comparison keeps Retention Risk ≤ 55 — actual ${knownGap.retention}`,
+);
+if (!longSentenceRetentionPasses) {
   failures += 1;
 }
 

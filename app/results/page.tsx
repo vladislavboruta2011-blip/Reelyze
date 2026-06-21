@@ -2132,7 +2132,11 @@ function detectScriptStructures(lines: string[], fullText: string): ScriptStruct
   // weeks, or distances are progression, not a ranked comparison list.
   const rankedComparisonSubjects = new Set<string>();
 
-  for (const line of bodyLines) {
+  // Auto-caption normalization can split one semantic comparison sentence
+  // into mechanical chunks. The first chunk may contain the first compared
+  // subject, so ranked-comparison detection must inspect every chunk.
+  // Other list heuristics still use bodyLines and continue excluding the hook.
+  for (const line of lines) {
     const trimmed = line.trim();
     const lineLower = trimmed.toLowerCase();
 
