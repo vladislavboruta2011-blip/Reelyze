@@ -674,6 +674,41 @@ export function detectNarrativeArc(lines: string[]): {
   return { hasNarrativeArc, turnIndex, arcIsEarly };
 }
 
+function hasStrongOutcomePayoff(text: string): boolean {
+  const lower = text.toLowerCase();
+
+  // A measurable result can be expressed as a multiplier without repeating
+  // the original number: retention doubled, costs halved, revenue tripled.
+  const hasMultiplicativeOutcome =
+    /\b(?:doubled|tripled|quadrupled|halved)\b/.test(lower);
+
+  // A measured change must connect an outcome verb to a concrete result.
+  const hasMeasuredChange =
+    /\b(?:increased|decreased|grew|rose|fell|dropped|improved|declined|cut|reduced)\b[^.!?]{0,80}\b(?:by|to|from)\s+(?:\d[\d,.]*|one|two|three|four|five|six|seven|eight|nine|ten|hundred|thousand|million|billion)\b/.test(
+      lower,
+    );
+
+  // Reaching or crossing a concrete threshold is also a resolved outcome.
+  const hasThresholdOutcome =
+    /\b(?:reached|hit|passed|exceeded)\s+(?:\d[\d,.]*|one|two|three|four|five|six|seven|eight|nine|ten|hundred|thousand|million|billion)\b/.test(
+      lower,
+    );
+
+  // A final transformation into an extreme state forms a strong reversal:
+  // something silent becomes one of the loudest things, for example.
+  const hasSuperlativeTransformation =
+    /\b(?:(?:would|could|can|will|may|might)\s+)?(?:actually\s+)?(?:become|became|becomes|turn|turns|turned)\s+(?:into\s+)?(?:one of the|the)\s+(?:most|least|[a-z]+est)\b/.test(
+      lower,
+    );
+
+  return (
+    hasMultiplicativeOutcome ||
+    hasMeasuredChange ||
+    hasThresholdOutcome ||
+    hasSuperlativeTransformation
+  );
+}
+
 export function detectScriptStructures(lines: string[], fullText: string): ScriptStructures {
   const lower = fullText.toLowerCase();
   const totalLines = lines.length;
@@ -833,8 +868,11 @@ export function detectScriptStructures(lines: string[], fullText: string): Scrip
   const lastThirdLines = lines.slice(Math.floor(totalLines * 0.70));
   const lastThirdText = lastThirdLines.join(" ").toLowerCase();
 
+  const hasStrongOutcome = hasStrongOutcomePayoff(lastThirdText);
+
   // Universal consequence markers: any strong causal or consequential statement
   const hasConsequencePayoff =
+    hasStrongOutcome ||
     // explicit causal payoff
     /that is why|that's why|the real reason|the reason is|it turns out/.test(lastThirdText) ||
     // strong continuation / unstoppable force
@@ -858,6 +896,7 @@ export function detectScriptStructures(lines: string[], fullText: string): Scrip
   const lastLineLower = lastLine.toLowerCase();
   // Widened: any line ending with a causal/consequence structure
   const lastLineIsStructuralConsequence =
+    hasStrongOutcomePayoff(lastLineLower) ||
     // consequence / behavioral outcome (universal)
     /training your (brain|mind|body)|controls (your|how)|permanent/.test(lastLineLower) ||
     /you do not control|you lose control|once it (is|becomes|goes)/.test(lastLineLower) ||
@@ -1568,6 +1607,9 @@ function calculatePayoffStrength(
   // Detected via structural pattern, not topic-specific phrases.
   // Works for mystery, science, business, sports, psychology, or any niche.
   let narrativePayoffScore = 0;
+
+  // Quantified outcomes and extreme-state transformations are resolved payoffs.
+  if (hasStrongOutcomePayoff(lastThird)) narrativePayoffScore += 13;
 
   // Sudden reveal / transformation (universal)
   if (/suddenly (became|turned|changed|revealed|showed)/.test(lastThird)) narrativePayoffScore += 13;

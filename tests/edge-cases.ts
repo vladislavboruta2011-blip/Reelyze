@@ -12,6 +12,7 @@ type CheckContext = {
   overall: number;
   retention: number;
   structures: ReturnType<typeof detectScriptStructures>;
+  riskyParts: ReturnType<typeof analyzeScript>["riskyParts"];
 };
 
 type Check = {
@@ -39,6 +40,7 @@ function evaluate(script: string): CheckContext {
     overall: result.overall.score,
     retention: result.risk.score,
     structures,
+    riskyParts: result.riskyParts,
   };
 }
 
@@ -173,6 +175,98 @@ By week six, he reached the national qualifying standard.`,
         label: "spelled-out quantities form a numeric premise",
         test: ({ structures }) => structures.hasNumericPremise,
         expected: "hasNumericPremise = true",
+      },
+    ],
+  },
+  {
+    name: "Quantified outcome is a strong payoff",
+    script: `This app was losing users every week.
+The team kept adding features, but every update made the product harder to use.
+Then they removed most of the features and focused on one core problem.
+Users started returning more often.
+Within 60 days, user retention doubled, and the company finally became profitable.`,
+    checks: [
+      {
+        label: "quantified outcome is classified as consequence payoff",
+        test: ({ structures }) => structures.hasConsequencePayoff,
+        expected: "hasConsequencePayoff = true",
+      },
+      {
+        label: "quantified outcome is not flagged as weak payoff",
+        test: ({ riskyParts }) =>
+          !riskyParts.some((part) =>
+            part.title.toLowerCase().includes("payoff"),
+          ),
+        expected: "no payoff warning",
+      },
+    ],
+  },
+  {
+    name: "Generic business outcome stays weak",
+    script: `This app was losing users every week.
+The team kept adding features, but every update made the product harder to use.
+Then they removed most of the features and focused on one core problem.
+Users started returning more often.
+The changes helped the company.`,
+    checks: [
+      {
+        label: "generic business ending is not a consequence payoff",
+        test: ({ structures }) => !structures.hasConsequencePayoff,
+        expected: "hasConsequencePayoff = false",
+      },
+      {
+        label: "generic business ending remains flagged",
+        test: ({ riskyParts }) =>
+          riskyParts.some((part) =>
+            part.title.toLowerCase().includes("payoff"),
+          ),
+        expected: "payoff warning remains",
+      },
+    ],
+  },
+  {
+    name: "Paradox reversal is a strong payoff",
+    script: `Imagine the world went completely silent for one minute.
+At first, it would seem peaceful.
+But without outside noise, you would begin hearing your heartbeat, breathing, and every movement inside your body.
+Those internal sounds would feel impossible to ignore.
+Complete silence would actually become one of the loudest things you had ever experienced.`,
+    checks: [
+      {
+        label: "opposite-state reversal is classified as consequence payoff",
+        test: ({ structures }) => structures.hasConsequencePayoff,
+        expected: "hasConsequencePayoff = true",
+      },
+      {
+        label: "paradox reversal is not flagged as weak payoff",
+        test: ({ riskyParts }) =>
+          !riskyParts.some((part) =>
+            part.title.toLowerCase().includes("payoff"),
+          ),
+        expected: "no payoff warning",
+      },
+    ],
+  },
+  {
+    name: "Generic paradox ending stays weak",
+    script: `Imagine the world went completely silent for one minute.
+At first, it would seem peaceful.
+But without outside noise, you would begin hearing your heartbeat, breathing, and every movement inside your body.
+Those internal sounds would feel unusual.
+Complete silence would be a strange experience.`,
+    checks: [
+      {
+        label: "generic strange ending is not a consequence payoff",
+        test: ({ structures }) => !structures.hasConsequencePayoff,
+        expected: "hasConsequencePayoff = false",
+      },
+      {
+        label: "generic strange ending remains flagged",
+        test: ({ riskyParts }) =>
+          riskyParts.some((part) =>
+            part.title.toLowerCase().includes("payoff"),
+          ),
+        expected: "payoff warning remains",
       },
     ],
   },
