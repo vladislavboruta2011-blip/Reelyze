@@ -430,6 +430,196 @@ It remains a mystery to this day.`,
       },
     ],
   },
+  {
+    name: "Final numeric maximum completes a comparison",
+    script: `How far can each design send the signal?
+The first reaches 120 meters.
+The second reaches 145 meters.
+The third reaches 170 meters.
+The fourth reaches 190 meters.
+The final design reaches 230 meters.`,
+    checks: [
+      {
+        label: "ordered measurements form list buildup",
+        test: ({ structures }) => structures.hasListBuildup,
+        expected: "hasListBuildup = true",
+      },
+      {
+        label: "final strict maximum completes the comparison",
+        test: ({ structures }) => structures.hasConsequencePayoff,
+        expected: "hasConsequencePayoff = true",
+      },
+      {
+        label: "final strict maximum is not a weak payoff",
+        test: ({ structures }) => !structures.hasWeakPayoff,
+        expected: "hasWeakPayoff = false",
+      },
+      {
+        label: "completed maximum receives no payoff warning",
+        test: ({ riskyParts }) =>
+          !riskyParts.some((part) =>
+            part.title.toLowerCase().includes("payoff"),
+          ),
+        expected: "no payoff warning",
+      },
+    ],
+  },
+  {
+    name: "Final numeric minimum completes a comparison",
+    script: `Which process uses the least energy?
+The first uses 90 units.
+The second uses 75 units.
+The third uses 62 units.
+The fourth uses 51 units.
+The final process uses only 38 units.`,
+    checks: [
+      {
+        label: "descending measurements form list buildup",
+        test: ({ structures }) => structures.hasListBuildup,
+        expected: "hasListBuildup = true",
+      },
+      {
+        label: "final strict minimum completes the comparison",
+        test: ({ structures }) => structures.hasConsequencePayoff,
+        expected: "hasConsequencePayoff = true",
+      },
+      {
+        label: "final strict minimum is not a weak payoff",
+        test: ({ structures }) => !structures.hasWeakPayoff,
+        expected: "hasWeakPayoff = false",
+      },
+      {
+        label: "completed minimum receives no payoff warning",
+        test: ({ riskyParts }) =>
+          !riskyParts.some((part) =>
+            part.title.toLowerCase().includes("payoff"),
+          ),
+        expected: "no payoff warning",
+      },
+    ],
+  },
+  {
+    name: "Comparative chain ends with a universal leader",
+    script: `Which route is faster?
+The coastal route beats the mountain route.
+The tunnel route is faster than the coastal route.
+The bridge route finishes ahead of the tunnel route.
+But the direct route is faster than every other option.`,
+    checks: [
+      {
+        label: "repeated comparative relationships form list buildup",
+        test: ({ structures }) => structures.hasListBuildup,
+        expected: "hasListBuildup = true",
+      },
+      {
+        label: "universal final comparison completes the ranking",
+        test: ({ structures }) => structures.hasConsequencePayoff,
+        expected: "hasConsequencePayoff = true",
+      },
+      {
+        label: "comparative culmination receives list escalation",
+        test: ({ structures }) => structures.escalationQuality === "list",
+        expected: 'escalationQuality = "list"',
+      },
+      {
+        label: "comparative culmination receives no payoff warning",
+        test: ({ riskyParts }) =>
+          !riskyParts.some((part) =>
+            part.title.toLowerCase().includes("payoff"),
+          ),
+        expected: "no payoff warning",
+      },
+    ],
+  },
+  {
+    name: "Generic close does not complete an ordered comparison",
+    script: `How far can each design send the signal?
+The first reaches 120 meters.
+The second reaches 145 meters.
+The third reaches 170 meters.
+The fourth reaches 190 meters.
+All of these designs are impressive.`,
+    checks: [
+      {
+        label: "ordered measurements still form list buildup",
+        test: ({ structures }) => structures.hasListBuildup,
+        expected: "hasListBuildup = true",
+      },
+      {
+        label: "generic final statement is not a ranking payoff",
+        test: ({ structures }) => !structures.hasConsequencePayoff,
+        expected: "hasConsequencePayoff = false",
+      },
+      {
+        label: "generic final statement remains a weak payoff",
+        test: ({ structures }) => structures.hasWeakPayoff,
+        expected: "hasWeakPayoff = true",
+      },
+      {
+        label: "unfinished comparison retains payoff warning",
+        test: ({ riskyParts }) =>
+          riskyParts.some((part) =>
+            part.title.toLowerCase().includes("payoff"),
+          ),
+        expected: "payoff warning remains",
+      },
+    ],
+  },
+  {
+    name: "Non-extreme final value does not complete a ranking",
+    script: `Which battery lasts the longest?
+Model A lasts 10 hours.
+Model B lasts 15 hours.
+Model C lasts 12 hours.
+Model D lasts 14 hours.
+Model E lasts 13 hours.`,
+    checks: [
+      {
+        label: "distinct measured options form list buildup",
+        test: ({ structures }) => structures.hasListBuildup,
+        expected: "hasListBuildup = true",
+      },
+      {
+        label: "non-extreme final value is not a ranking payoff",
+        test: ({ structures }) => !structures.hasConsequencePayoff,
+        expected: "hasConsequencePayoff = false",
+      },
+      {
+        label: "non-extreme ending remains a weak payoff",
+        test: ({ structures }) => structures.hasWeakPayoff,
+        expected: "hasWeakPayoff = true",
+      },
+      {
+        label: "non-extreme ending retains payoff warning",
+        test: ({ riskyParts }) =>
+          riskyParts.some((part) =>
+            part.title.toLowerCase().includes("payoff"),
+          ),
+        expected: "payoff warning remains",
+      },
+    ],
+  },
+  {
+    name: "Temporal measurements are not a ranked list",
+    script: `The project changed throughout the week.
+On Monday it had 10 tasks.
+On Tuesday it had 14 tasks.
+On Wednesday it had 12 tasks.
+On Thursday it had 16 tasks.
+The team reviewed the results on Friday.`,
+    checks: [
+      {
+        label: "one subject measured over time is not list buildup",
+        test: ({ structures }) => !structures.hasListBuildup,
+        expected: "hasListBuildup = false",
+      },
+      {
+        label: "temporal measurements do not receive list escalation",
+        test: ({ structures }) => structures.escalationQuality !== "list",
+        expected: 'escalationQuality != "list"',
+      },
+    ],
+  },
 ];
 
 const knownGapScript =

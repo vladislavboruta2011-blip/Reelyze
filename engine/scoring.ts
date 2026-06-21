@@ -767,35 +767,52 @@ export function detectScriptStructures(lines: string[], fullText: string): Scrip
     );
   }).length;
 
-  // Ranked comparisons can form a list even when individual lines
-  // are longer than the normal short-line threshold.
-  //
-  // Guardrail: repeated measurements of the same subject over days,
-  // weeks, or distances are progression, not a ranked comparison list.
+  // Repeated samples of one subject across time or distance are progression,
+  // not a list of competing options.
+  const repeatedContextPattern =
+    /^(?:(?:on|during)\s+(?:(?:day|week|month|year|hour|minute|second)\s+[a-z0-9-]+|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b|at\s+\d[\d,.]*\s*(?:meters?|kilometers?|miles?|feet|yards?|seconds?|minutes?|hours?)\b|(?:day|week|month|year|hour|minute|second)\s+[a-z0-9-]+\b)/i;
+
+  const repeatedContextLineCount = bodyLines.filter((line) =>
+    repeatedContextPattern.test(line.trim())
+  ).length;
+
+  const hasRepeatedContextSeries = repeatedContextLineCount >= 3;
+
+  // Ranked comparisons can form a list even when individual lines are longer
+  // than the normal short-line threshold or use ordinary lowercase subjects.
   const rankedComparisonSubjects = new Set<string>();
+  let comparisonLineCount = 0;
+
+  const comparisonMarkerPattern =
+    /\b(higher|lower|further|farther|faster|slower|longer|shorter|better|worse|stronger|weaker|larger|smaller|closer|close to|above|below|ahead|behind|more than|less than|almost|nearly|even higher|slightly above|slightly below|beats?|wins?|remains ahead)\b/i;
+
+  const comparisonSubjectPattern =
+    /^(?:but\s+|and\s+|against\s+)?((?:the\s+)?[A-Za-z][A-Za-z'-]*(?:\s+[A-Za-z][A-Za-z'-]*){0,3}?)\s+(?:is|are|was|were|beats?|wins?|finishes?|ranks?|places?|comes?|remains?|stays?|jumps?|runs?|moves?|travels?|lasts?|uses?|reaches?)\b/i;
 
   // Auto-caption normalization can split one semantic comparison sentence
-  // into mechanical chunks. The first chunk may contain the first compared
-  // subject, so ranked-comparison detection must inspect every chunk.
-  // Other list heuristics still use bodyLines and continue excluding the hook.
+  // into mechanical chunks, so inspect every normalized line.
   for (const line of lines) {
     const trimmed = line.trim();
     const lineLower = trimmed.toLowerCase();
 
-    const hasComparisonMarker =
-      /\b(higher|lower|further|farther|closer|close to|above|below|ahead|behind|more than|less than|almost|nearly|even higher|slightly above|slightly below|beats?|wins?|remains ahead)\b/i.test(
-        lineLower
+    if (!comparisonMarkerPattern.test(lineLower)) continue;
+
+    comparisonLineCount += 1;
+
+    const ordinarySubjectMatch = trimmed.match(comparisonSubjectPattern);
+    if (ordinarySubjectMatch) {
+      rankedComparisonSubjects.add(
+        ordinarySubjectMatch[1].toLowerCase()
       );
+    }
 
-    if (!hasComparisonMarker) continue;
-
-    const subjectMatch = trimmed.match(
+    const namedSubjectMatch = trimmed.match(
       /^(?:against\s+|but\s+|and\s+)?([A-Z][A-Za-z'-]+(?:\s+[A-Z][A-Za-z'-]+){1,3})\b/
     );
 
-    if (subjectMatch) {
+    if (namedSubjectMatch) {
       rankedComparisonSubjects.add(
-        subjectMatch[1].toLowerCase()
+        namedSubjectMatch[1].toLowerCase()
       );
     }
 
@@ -811,13 +828,78 @@ export function detectScriptStructures(lines: string[], fullText: string): Scrip
     }
   }
 
+  const hasComparativeChain =
+    !hasRepeatedContextSeries &&
+    comparisonLineCount >= 3 &&
+    rankedComparisonSubjects.size >= 3;
+
   const hasRankedComparisonBuildup =
+    !hasRepeatedContextSeries &&
     rankedComparisonSubjects.size >= 3;
 
   const hasListBuildup =
     hasRankedComparisonBuildup ||
-    (maxConsecutiveShort >= 3 && concreteShortLineCount >= 2) ||
-    (maxConsecutiveShort >= 2 && hasEscalationFollowUp && concreteShortLineCount >= 1);
+    hasComparativeChain ||
+    (
+      !hasRepeatedContextSeries &&
+      (
+        (maxConsecutiveShort >= 3 && concreteShortLineCount >= 2) ||
+        (maxConsecutiveShort >= 2 && hasEscalationFollowUp && concreteShortLineCount >= 1)
+      )
+    );
+
+  // Numeric ranking culmination: the ending itself contains a measured option
+  // whose value is a strict maximum or minimum among at least three predecessors.
+  const measuredOptionLines = bodyLines.flatMap((line, lineIndex) => {
+    const numericMatches = Array.from(
+      line.matchAll(/-?\d[\d,]*(?:\.\d+)?/g)
+    );
+    const measurement = numericMatches.at(-1);
+
+    if (!measurement) return [];
+
+    const value = Number(measurement[0].replace(/,/g, ""));
+    if (!Number.isFinite(value)) return [];
+
+    return [{ lineIndex, value }];
+  });
+
+  const finalMeasuredOption = measuredOptionLines.at(-1);
+  const priorMeasuredValues = measuredOptionLines
+    .slice(0, -1)
+    .map((item) => item.value);
+
+  const finalMeasurementIsStrictExtreme =
+    finalMeasuredOption !== undefined &&
+    priorMeasuredValues.length >= 3 &&
+    (
+      finalMeasuredOption.value > Math.max(...priorMeasuredValues) ||
+      finalMeasuredOption.value < Math.min(...priorMeasuredValues)
+    );
+
+  const hasNumericRankingCulmination =
+    hasListBuildup &&
+    !hasRepeatedContextSeries &&
+    measuredOptionLines.length >= 4 &&
+    finalMeasuredOption?.lineIndex === bodyLines.length - 1 &&
+    finalMeasurementIsStrictExtreme;
+
+  // Comparative culmination: the final option is compared against the entire
+  // remaining set rather than merely against one previous item.
+  const rankingEndingLine = (lines[totalLines - 1] ?? "").toLowerCase();
+  const endingHasUniversalComparisonScope =
+    /\b(?:every|any)\s+other\b|\ball\s+(?:of\s+)?(?:the\s+)?others?\b|\bthe rest\b|\beveryone else\b|\beverything else\b/.test(
+      rankingEndingLine
+    );
+
+  const hasComparativeRankingCulmination =
+    hasComparativeChain &&
+    comparisonMarkerPattern.test(rankingEndingLine) &&
+    endingHasUniversalComparisonScope;
+
+  const hasRankingCulmination =
+    hasNumericRankingCulmination ||
+    hasComparativeRankingCulmination;
 
   // ── Mystery clue buildup ──────────────────────────────────────────────────
   // A mystery requires a concrete abnormal event. Generic statements such as
@@ -885,6 +967,7 @@ export function detectScriptStructures(lines: string[], fullText: string): Scrip
   const hasConsequencePayoff =
     hasStrongOutcome ||
     hasConcreteMysteryPayoff ||
+    hasRankingCulmination ||
     // explicit causal payoff
     /that is why|that's why|the real reason|the reason is|it turns out/.test(lastThirdText) ||
     // strong continuation / unstoppable force
@@ -2238,7 +2321,11 @@ const hasStructuredEscalation =
  if (hookNeedsWork && effectiveHookScore < 45 && !viralHasClearPremise) {
     // Check if the script has a strong payoff/consequence that should be the hook
     // Do NOT label as "strong payoff" if the ending is generic/motivational — it is not a payoff worth moving
-    if (!isGenericMotivationalEnding && (structures.hasStrongPayoffLate || structures.hasConsequencePayoff)) {
+    if (
+      !isGenericMotivationalEnding &&
+      !structures.hasListBuildup &&
+      (structures.hasStrongPayoffLate || structures.hasConsequencePayoff)
+    ) {
       riskyParts.push({
         time: createTimeRange(0, 0.25, duration),
         title: "Strong payoff appears too late.",
@@ -2404,6 +2491,7 @@ if (middleFlat && !isGoodScript && retentionRisk >= 35) {
   // sets lastLineIsStrong to false, but guard explicitly here for clarity and safety.
   if (
     !isGenericMotivationalEnding &&
+    !structures.hasListBuildup &&
     lastLineIsStrong &&
     hookNeedsWork &&
     effectiveHookScore < 55 &&
@@ -2515,7 +2603,10 @@ if (middleFlat && !isGoodScript && retentionRisk >= 35) {
 
   // Primary weakness fix — only add hook rewrites when hook actually needs work
   if (primaryWeak === "hook" && hookNeedsWork && effectiveHookScore < 65) {
-    if (structures.hasStrongPayoffLate || structures.hasConsequencePayoff) {
+    if (
+      !structures.hasListBuildup &&
+      (structures.hasStrongPayoffLate || structures.hasConsequencePayoff)
+    ) {
       // The consequence exists — just needs to move forward
       addFix("Lead with the consequence: move your strongest final line to the very beginning.");
    } else if (structures.hasMysteryClueBuildup) {
