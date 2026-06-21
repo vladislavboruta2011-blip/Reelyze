@@ -270,6 +270,166 @@ Complete silence would be a strange experience.`,
       },
     ],
   },
+  {
+    name: "Concrete disappearance mystery uses evidence buildup",
+    script: `A research boat vanished during a routine trip.
+Two days later, rescuers found it drifting with the engine still running.
+Food remained on the table, every life jacket was still aboard, and there was no sign of a struggle.
+Search teams checked the surrounding ocean for a week.
+No one ever found the six crew members.`,
+    checks: [
+      {
+        label: "concrete disappearance forms an anomaly sequence",
+        test: ({ structures }) => structures.hasAnomalySequence,
+        expected: "hasAnomalySequence = true",
+      },
+      {
+        label: "physical evidence forms mystery clue buildup",
+        test: ({ structures }) => structures.hasMysteryClueBuildup,
+        expected: "hasMysteryClueBuildup = true",
+      },
+      {
+        label: "concrete clues receive mystery escalation",
+        test: ({ structures }) => structures.escalationQuality === "mystery",
+        expected: 'escalationQuality = "mystery"',
+      },
+      {
+        label: "specific unresolved disappearance is a consequence payoff",
+        test: ({ structures }) => structures.hasConsequencePayoff,
+        expected: "hasConsequencePayoff = true",
+      },
+      {
+        label: "concrete mystery is not flagged for weak middle or payoff",
+        test: ({ riskyParts }) =>
+          !riskyParts.some((part) => {
+            const title = part.title.toLowerCase();
+            return title.includes("payoff") || title.includes("middle may lose");
+          }),
+        expected: "no weak-middle or payoff warning",
+      },
+    ],
+  },
+  {
+    name: "Vague strange event is not a mystery structure",
+    script: `Something very strange happened one night.
+People said it looked unusual.
+Nobody understood what was going on.
+The situation appeared mysterious.
+To this day, no one knows what really happened.`,
+    checks: [
+      {
+        label: "vague event is not an anomaly sequence",
+        test: ({ structures }) => !structures.hasAnomalySequence,
+        expected: "hasAnomalySequence = false",
+      },
+      {
+        label: "vague descriptions are not mystery clue buildup",
+        test: ({ structures }) => !structures.hasMysteryClueBuildup,
+        expected: "hasMysteryClueBuildup = false",
+      },
+      {
+        label: "generic mystery phrase is not a consequence payoff",
+        test: ({ structures }) => !structures.hasConsequencePayoff,
+        expected: "hasConsequencePayoff = false",
+      },
+      {
+        label: "generic mystery phrase is not called a strong late payoff",
+        test: ({ riskyParts }) =>
+          !riskyParts.some(
+            (part) => part.title === "Strong payoff appears too late.",
+          ),
+        expected: "no strong-payoff-late warning",
+      },
+      {
+        label: "vague ending remains flagged as weak payoff",
+        test: ({ riskyParts }) =>
+          riskyParts.some((part) =>
+            part.title.toLowerCase().includes("payoff"),
+          ),
+        expected: "payoff warning remains",
+      },
+    ],
+  },
+  {
+    name: "Concrete signal mystery uses evidence buildup",
+    script: `A radio station stopped transmitting in the middle of a live broadcast.
+When police entered the studio, the microphones were still on and every chair was empty.
+The doors were locked from the inside.
+Investigators searched the building but found no trace of the presenters.
+The interruption was never explained.`,
+    checks: [
+      {
+        label: "concrete signal loss forms an anomaly sequence",
+        test: ({ structures }) => structures.hasAnomalySequence,
+        expected: "hasAnomalySequence = true",
+      },
+      {
+        label: "studio evidence forms mystery clue buildup",
+        test: ({ structures }) => structures.hasMysteryClueBuildup,
+        expected: "hasMysteryClueBuildup = true",
+      },
+      {
+        label: "studio clues receive mystery escalation",
+        test: ({ structures }) => structures.escalationQuality === "mystery",
+        expected: 'escalationQuality = "mystery"',
+      },
+      {
+        label: "specific unexplained interruption is a consequence payoff",
+        test: ({ structures }) => structures.hasConsequencePayoff,
+        expected: "hasConsequencePayoff = true",
+      },
+      {
+        label: "concrete signal mystery is not flagged for weak middle or payoff",
+        test: ({ riskyParts }) =>
+          !riskyParts.some((part) => {
+            const title = part.title.toLowerCase();
+            return title.includes("payoff") || title.includes("middle may lose");
+          }),
+        expected: "no weak-middle or payoff warning",
+      },
+    ],
+  },
+  {
+    name: "Generic unexplained event stays weak",
+    script: `This was one of the strangest events anyone had seen.
+Everything about it seemed unusual.
+People looked for answers.
+Nobody could explain it.
+It remains a mystery to this day.`,
+    checks: [
+      {
+        label: "generic unexplained event is not an anomaly sequence",
+        test: ({ structures }) => !structures.hasAnomalySequence,
+        expected: "hasAnomalySequence = false",
+      },
+      {
+        label: "generic statements are not mystery clue buildup",
+        test: ({ structures }) => !structures.hasMysteryClueBuildup,
+        expected: "hasMysteryClueBuildup = false",
+      },
+      {
+        label: "generic unresolved phrase is not a consequence payoff",
+        test: ({ structures }) => !structures.hasConsequencePayoff,
+        expected: "hasConsequencePayoff = false",
+      },
+      {
+        label: "generic event is not called a strong late payoff",
+        test: ({ riskyParts }) =>
+          !riskyParts.some(
+            (part) => part.title === "Strong payoff appears too late.",
+          ),
+        expected: "no strong-payoff-late warning",
+      },
+      {
+        label: "generic unresolved ending remains flagged",
+        test: ({ riskyParts }) =>
+          riskyParts.some((part) =>
+            part.title.toLowerCase().includes("payoff"),
+          ),
+        expected: "payoff warning remains",
+      },
+    ],
+  },
 ];
 
 const knownGapScript =

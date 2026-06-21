@@ -820,17 +820,23 @@ export function detectScriptStructures(lines: string[], fullText: string): Scrip
     (maxConsecutiveShort >= 2 && hasEscalationFollowUp && concreteShortLineCount >= 1);
 
   // ── Mystery clue buildup ──────────────────────────────────────────────────
+  // A mystery requires a concrete abnormal event. Generic statements such as
+  // "it seemed mysterious" or "nobody understood" are not evidence buildup.
+  const anomaly = detectAnomalySequence(lines);
   const mysteryCluePatterns = [
-    /^no\b/i, /^there were no/i, /^no signs/i, /^nothing/i,
-    /still (there|on|sitting|in)/i, /left behind/i, /still (the same|intact)/i,
-    /cargo/i, /belongings/i, /personal/i, /disappeared/i, /vanished/i,
-    /everybody had/i, /everyone had/i, /nobody knew/i, /no one knew/i,
-    /looked like/i, /it looked/i, /appeared/i,
+    /\b(disappeared|vanished|went silent|stopped responding|stopped transmitting|ceased all communication|communication ceased|communications ceased|lost contact|contact was lost)\b/i,
+    /\bstill (on|in|at|there|sitting|lying|running|open|locked)\b/i,
+    /\b(remained|left behind|untouched|empty|abandoned|drifting)\b/i,
+    /\b(no sign(?:s)? of|found no trace|no trace of|could not locate|couldn'?t locate)\b/i,
+    /\b(searched|investigated|rescue crews?|search teams?|police entered|coast guard)\b/i,
+    /\b(locked from the inside|doors? (?:were )?locked)\b/i,
+    /\b(never explained|never found|no one ever found|nobody ever found|was never recovered)\b/i,
   ];
-  const mysteryClueLines = lines.filter(l =>
-    mysteryCluePatterns.some(p => p.test(l.trim()))
+  const mysteryClueLines = lines.filter((line) =>
+    mysteryCluePatterns.some((pattern) => pattern.test(line.trim()))
   );
-  const hasMysteryClueBuildup = mysteryClueLines.length >= 3;
+  const hasMysteryClueBuildup =
+    anomaly.has && mysteryClueLines.length >= 3;
 
   // ── Contradiction / reversal ──────────────────────────────────────────────
   const hasContradictionReversal =
@@ -869,10 +875,16 @@ export function detectScriptStructures(lines: string[], fullText: string): Scrip
   const lastThirdText = lastThirdLines.join(" ").toLowerCase();
 
   const hasStrongOutcome = hasStrongOutcomePayoff(lastThirdText);
+  const hasConcreteMysteryPayoff =
+    anomaly.has &&
+    /\b(to this day|was never found|were never found|never explained|remains a mystery|no one ever found|nobody ever found|no one knows|nobody knows)\b/.test(
+      lastThirdText,
+    );
 
   // Universal consequence markers: any strong causal or consequential statement
   const hasConsequencePayoff =
     hasStrongOutcome ||
+    hasConcreteMysteryPayoff ||
     // explicit causal payoff
     /that is why|that's why|the real reason|the reason is|it turns out/.test(lastThirdText) ||
     // strong continuation / unstoppable force
@@ -887,8 +899,8 @@ export function detectScriptStructures(lines: string[], fullText: string): Scrip
     /it is not (just|about|the)|not just.*it is|the scary part|the crazy part/.test(lastThirdText) ||
     // status/symbol consequence
     /competing with|symbol of|proof that|what wearing/.test(lastThirdText) ||
-    // history/mystery resolution
-    /to this day|never recovered|was never found|changed everything|changed history/.test(lastThirdText);
+    // irreversible historical consequence
+    /never recovered|changed everything|changed history/.test(lastThirdText);
 
   // ── Strong payoff appearing late (placement issue) ────────────────────
   // The last line contains a structural consequence but hook was a filler intro.
@@ -957,7 +969,6 @@ export function detectScriptStructures(lines: string[], fullText: string): Scrip
   const narrativeArc = detectNarrativeArc(lines);
   const persistence = detectPersistenceArc(lines);
   const capability = detectCapabilityViolation(lines);
-  const anomaly = detectAnomalySequence(lines);
   const progression = detectConsequenceProgression(lines);
 
   return {
@@ -1576,16 +1587,29 @@ function calculatePayoffStrength(
 
   const lastThird = lines.slice(Math.floor(lines.length * 0.6)).join(" ").toLowerCase();
   const fullText = lines.join(" ").toLowerCase();
+  const anomaly = detectAnomalySequence(lines);
 
   // Strong explicit payoff phrases in the last third
   const payoffPhrases = [
     "that's why", "the result", "changed everything", "changed history",
-    "never recovered", "to this day", "years later", "lost their lives",
-    "ended forever", "still remains", "was never found", "the aftermath",
-    "what followed", "that decision", "it worked", "it failed",
+    "never recovered", "years later", "lost their lives",
+    "ended forever", "the aftermath", "what followed",
+    "that decision", "it worked", "it failed",
   ];
   const payoffHits = payoffPhrases.filter(p => lastThird.includes(p)).length;
   strength += payoffHits * 14;
+
+  // Unresolved-mystery language is rewarding only when the script contains
+  // a concrete anomaly and evidence, not merely a vague mystery claim.
+  const mysteryPayoffPhrases = [
+    "to this day", "still remains", "was never found", "were never found",
+    "never explained", "remains a mystery", "no one ever found",
+    "nobody ever found", "no one knows", "nobody knows",
+  ];
+  const mysteryPayoffHits = anomaly.has
+    ? mysteryPayoffPhrases.filter((phrase) => lastThird.includes(phrase)).length
+    : 0;
+  strength += mysteryPayoffHits * 14;
 
   // Resolution phrases
   const resolutionPhrases = [
@@ -1618,9 +1642,19 @@ function calculatePayoffStrength(
   // Identity / social consequence (universal subject)
   if (/proof that (you|it|they|this)|says (about|something about) (you|them|it)/.test(lastThird)) narrativePayoffScore += 13;
   if (/how (everyone|people|others) (see|look|view|judge)/.test(lastThird)) narrativePayoffScore += 13;
-  // Mystery resolution (universal)
-  if (/(was|were|has been|have been) never (found|solved|explained|identified|recovered)/.test(lastThird)) narrativePayoffScore += 13;
-  if (/(the case|the investigation|the inquiry) (remains|is still|has never)/.test(lastThird)) narrativePayoffScore += 10;
+  // Mystery resolution requires a concrete anomaly elsewhere in the script.
+  if (
+    anomaly.has &&
+    /(was|were|has been|have been) never (found|solved|explained|identified|recovered)/.test(lastThird)
+  ) {
+    narrativePayoffScore += 13;
+  }
+  if (
+    anomaly.has &&
+    /(the case|the investigation|the inquiry) (remains|is still|has never)/.test(lastThird)
+  ) {
+    narrativePayoffScore += 10;
+  }
   // Consequence threshold / "might be enough" (universal)
   if (/that might be enough|might be enough to|just enough to/.test(lastThird)) narrativePayoffScore += 13;
   // Competing with / surpassing a concept (universal)
@@ -1657,7 +1691,7 @@ function calculatePayoffStrength(
 
   // No resolution at all
   if (
-    payoffHits === 0 && resolutionHits === 0 &&
+    payoffHits === 0 && mysteryPayoffHits === 0 && resolutionHits === 0 &&
     weakPayoffHits === 0 && narrativePayoffScore === 0 &&
     signals.consequenceScore === 0
   ) {
