@@ -13,6 +13,8 @@ type CheckContext = {
   retention: number;
   structures: ReturnType<typeof detectScriptStructures>;
   riskyParts: ReturnType<typeof analyzeScript>["riskyParts"];
+  takeaway: string;
+  fixes: string[];
 };
 
 type Check = {
@@ -41,6 +43,8 @@ function evaluate(script: string): CheckContext {
     retention: result.risk.score,
     structures,
     riskyParts: result.riskyParts,
+    takeaway: result.overall.description,
+    fixes: result.fixes,
   };
 }
 
@@ -617,6 +621,90 @@ The team reviewed the results on Friday.`,
         label: "temporal measurements do not receive list escalation",
         test: ({ structures }) => structures.escalationQuality !== "list",
         expected: 'escalationQuality != "list"',
+      },
+    ],
+  },
+  {
+    name: "Generic advice feedback stays focused",
+    script: `Success on social media is very important.
+Many creators want more views.
+You need to work hard and stay consistent.
+Always improve your content.
+Anything is possible if you believe in yourself.`,
+    checks: [
+      {
+        label: "main takeaway identifies generic or repetitive content",
+        test: ({ takeaway }) =>
+          /generic|repeat|restate|same idea|specific/i.test(takeaway) &&
+          !/opening|first line|very top/i.test(takeaway),
+        expected: "takeaway focuses on genericness, not the hook",
+      },
+      {
+        label: "only one semantic opening fix is shown",
+        test: ({ fixes }) =>
+          fixes.filter((fix) =>
+            /opening|first line|open with|rewrite the opening|lead with/i.test(fix)
+          ).length <= 1,
+        expected: "at most one opening-focused fix",
+      },
+    ],
+  },
+  {
+    name: "Completed ranking feedback respects its structure",
+    script: `Which option finished first?
+Alpha reached 12 points.
+Beta reached 18 points.
+Gamma reached 24 points.
+Delta reached 31 points.
+Epsilon finished with 40 points.`,
+    checks: [
+      {
+        label: "completed ranking receives no payoff-improvement fix",
+        test: ({ fixes }) =>
+          !fixes.some((fix) =>
+            /expand the payoff|make the payoff more specific|payoff feel more earned|payoff feel clearly rewarded/i.test(fix)
+          ),
+        expected: "no payoff-improvement fix",
+      },
+      {
+        label: "numeric ranking is not told to add a number",
+        test: ({ fixes }) =>
+          !fixes.some((fix) =>
+            /include a number|add (?:one )?(?:more )?(?:specific )?(?:example, )?number/i.test(fix)
+          ),
+        expected: "no redundant add-number fix",
+      },
+      {
+        label: "valid list buildup receives no false middle warning",
+        test: ({ riskyParts }) =>
+          !riskyParts.some((part) =>
+            /middle|momentum/i.test(part.title)
+          ),
+        expected: "no middle or momentum warning",
+      },
+    ],
+  },
+  {
+    name: "Concrete transformation payoff is not contradicted",
+    script: `Today I want to tell you about a startup that was having problems.
+The founders kept adding new features.
+Each launch made the losses worse.
+Then they removed their biggest product.
+Within 90 days, revenue passed expenses by $40,000.`,
+    checks: [
+      {
+        label: "quantified transformation ending receives no weak-payoff warning",
+        test: ({ riskyParts }) =>
+          !riskyParts.some((part) =>
+            /weak.*payoff|payoff could be stronger/i.test(part.title)
+          ),
+        expected: "no weak-payoff warning",
+      },
+      {
+        label: "quantified transformation ending receives no payoff fix",
+        test: ({ fixes }) =>
+          !fixes.some((fix) => /payoff|outcome clearer/i.test(fix)),
+        expected: "no payoff-focused fix",
       },
     ],
   },

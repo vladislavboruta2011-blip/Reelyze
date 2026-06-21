@@ -2082,8 +2082,13 @@ function hasStrongOutcomePayoff(text: string): boolean {
     );
 
   // Reaching or crossing a concrete threshold is also a resolved outcome.
+  // The measured margin may follow the compared object:
+  // "revenue passed expenses by $40,000".
   const hasThresholdOutcome =
-    /\b(?:reached|hit|passed|exceeded)\s+(?:\d[\d,.]*|one|two|three|four|five|six|seven|eight|nine|ten|hundred|thousand|million|billion)\b/.test(
+    /\b(?:reached|hit|passed|exceeded)\s+(?:[$€£]\s*)?(?:\d[\d,.]*|one|two|three|four|five|six|seven|eight|nine|ten|hundred|thousand|million|billion)\b/.test(
+      lower,
+    ) ||
+    /\b(?:passed|exceeded|surpassed|overtook)\b[^.!?]{1,60}\bby\s+(?:[$€£]\s*)?(?:\d[\d,.]*|one|two|three|four|five|six|seven|eight|nine|ten|hundred|thousand|million|billion)\b/.test(
       lower,
     );
 
@@ -3410,9 +3415,29 @@ function classifyPrimaryWeakness(
 
 function buildMainTakeaway(
   script: string, hookScore: number, payoffStrength: number, retentionRisk: number,
-  signals: UniversalSignals, structures: ScriptStructures
+  signals: UniversalSignals, structures: ScriptStructures, issueTitles: string[] = []
 ): string {
-  const weakness = classifyPrimaryWeakness(hookScore, payoffStrength, retentionRisk, signals, structures);
+  const issueText = issueTitles.join(" ").toLowerCase();
+
+  // Keep the headline aligned with the concrete feedback shown below it.
+  // A detected genericness issue takes priority over a secondary weak hook.
+  const weakness: Weakness =
+    /script feels too generic|repetitive|generic script/.test(issueText)
+      ? "repetitive"
+      : /strong payoff appears too late|weak opening|hook needs|curiosity gap/.test(issueText)
+        ? "weak-hook"
+        : /weak or generic payoff|payoff could be stronger|weak payoff/.test(issueText)
+          ? "weak-payoff"
+          : /middle|momentum/.test(issueText)
+            ? "weak-middle"
+            : classifyPrimaryWeakness(
+                hookScore,
+                payoffStrength,
+                retentionRisk,
+                signals,
+                structures,
+              );
+
   return hashPick(script + weakness, TAKEAWAY_TEMPLATES[weakness]);
 }
 
@@ -3502,6 +3527,11 @@ const hasStructuredEscalation =
   const hasNumericSpecificity = signals.specificityScore >= 30;
   const isShortSimple = charCount < 350 && totalLines <= 5;
   const isVeryShort = charCount < 130;
+  const isStructurallyCompleteShort =
+    charCount < 180 &&
+    totalLines >= 4 &&
+    hasStructuredEscalation &&
+    structures.hasConsequencePayoff;
 
   const shortScriptSignalCount = [
     /\d/.test(text) && /\b(feet|miles|mph|kph|percent|%|seconds|minutes|hours|days|years|meters|billion|million|thousand|degrees|\$)\b/i.test(text),
@@ -3662,7 +3692,7 @@ const hasStructuredEscalation =
 
   type WeakArea = "hook" | "short" | "payoff" | "generic" | "middle" | "none";
   let primaryWeak: WeakArea = "none";
-  if (isVeryShort || charCount < 180) {
+  if ((isVeryShort || charCount < 180) && !isStructurallyCompleteShort) {
     primaryWeak = "short";
   } else if (hookNeedsWork && effectiveHookScore < 45) {
     primaryWeak = "hook";
@@ -3680,9 +3710,48 @@ const hasStructuredEscalation =
   const riskyLineIndexes: number[] = [];
   const warningLineIndexes: number[] = [];
 
+  function getFixSemanticKey(value: string): string {
+    const lower = value.toLowerCase();
+
+    if (/opening|first line|open with|rewrite the opening|lead with|sharpen the first/.test(lower)) {
+      return "opening";
+    }
+    if (/payoff|final line|end with|outcome clearer|challenge outcome|viewer feels rewarded|viewer feels clearly rewarded/.test(lower)) {
+      return "payoff";
+    }
+    if (/include a number|specific detail|named reference|real-world example|make the script feel grounded|make it feel grounded/.test(lower)) {
+      return "specificity";
+    }
+    if (/raise the stakes|what is at risk|what was lost/.test(lower)) {
+      return "stakes";
+    }
+    if (/middle section|pattern interrupt|unexpected turn|add a contrast|contrast line/.test(lower)) {
+      return "middle";
+    }
+    if (/cut repeated|make each line earn|tighten any line|cut any sentence/.test(lower)) {
+      return "tighten";
+    }
+
+    return lower
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim()
+      .slice(0, 80);
+  }
+
+  function dedupeFixes(values: string[]): string[] {
+    const seen = new Set<string>();
+
+    return values.filter((value) => {
+      const key = getFixSemanticKey(value);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
   const fixKeys = new Set<string>();
   function addFix(text: string) {
-    const key = text.toLowerCase().slice(0, 60);
+    const key = getFixSemanticKey(text);
     if (!fixKeys.has(key)) {
       fixKeys.add(key);
       fixes.push(text);
@@ -3694,7 +3763,7 @@ const hasStructuredEscalation =
   const isEmotionalStory = scriptType === "emotional_story";
 
   // ── 1. Very short script ────────────────────────────────────────────────────
-  if (charCount < 180) {
+  if (charCount < 180 && !isStructurallyCompleteShort) {
     riskyParts.push({
       time: createTimeRange(0.1, 0.8, duration),
       title: "Script may be too short.",
@@ -4120,7 +4189,11 @@ if (middleFlat && !isGoodScript && retentionRisk >= 35) {
   if (fluffPhrases.some(p => lower.includes(p))) {
     addFix("Replace filler phrases with a specific example, concrete consequence, or direct insight.");
   }
-  if (charCount < 180 && primaryWeak !== "short") {
+  if (
+    charCount < 180 &&
+    !isStructurallyCompleteShort &&
+    primaryWeak !== "short"
+  ) {
     addFix("Add one stronger example or consequence before the final payoff.");
   }
   if (charCount > 850) {
@@ -4202,7 +4275,7 @@ if (middleFlat && !isGoodScript && retentionRisk >= 35) {
   }
 
   let uniqueRiskyParts = dedupeRiskyParts(mergedRiskyParts);
-  let uniqueFixes = fixes.slice(0, 5);
+  let uniqueFixes = dedupeFixes(fixes).slice(0, 5);
   const uniqueRiskyIndexes = [...new Set(riskyLineIndexes)]
     .filter(i => i >= 0 && i < totalLines)
     .sort((a, b) => a - b);
@@ -4227,7 +4300,7 @@ if (middleFlat && !isGoodScript && retentionRisk >= 35) {
       });
       if (!uniqueRiskyIndexes.includes(0)) uniqueRiskyIndexes.push(0);
     }
-    if (uniqueRiskyParts.length < 2) {
+    if (uniqueRiskyParts.length < 2 && !hasStructuredEscalation) {
       uniqueRiskyParts.push({
         time: createTimeRange(0.35, 0.65, duration),
         title: "Middle may lose momentum.",
@@ -4235,16 +4308,32 @@ if (middleFlat && !isGoodScript && retentionRisk >= 35) {
       });
       uniqueRiskyIndexes.push(Math.max(1, Math.floor(totalLines / 2)));
     }
-    if (uniqueFixes.length < 4) {
+    if (uniqueFixes.length < 4 && !isStructurallyCompleteShort) {
       if (hookNeedsWork && effectiveHookScore < 65 && !uniqueFixes.some(f => f.toLowerCase().includes("rewrite") || f.toLowerCase().includes("sharpen") || f.toLowerCase().includes("opening line") || f.toLowerCase().includes("lead with"))) {
         uniqueFixes.push("Rewrite the opening line — lead with the strongest consequence, contrast, or specific detail from your script.");
-      } else if (!uniqueFixes.some(f => f.toLowerCase().includes("sharpen") || f.toLowerCase().includes("tighten") || f.toLowerCase().includes("payoff"))) {
+      } else if (
+        !structures.hasConsequencePayoff &&
+        !uniqueFixes.some(f =>
+          f.toLowerCase().includes("sharpen") ||
+          f.toLowerCase().includes("tighten") ||
+          f.toLowerCase().includes("payoff")
+        )
+      ) {
         uniqueFixes.push("Make the payoff more specific so the viewer feels rewarded.");
       }
-      if (signals.contrastScore < 20 && !uniqueFixes.some(f => f.toLowerCase().includes("contrast"))) {
+      if (
+        signals.contrastScore < 20 &&
+        !hasStructuredEscalation &&
+        !uniqueFixes.some(f => f.toLowerCase().includes("contrast"))
+      ) {
         uniqueFixes.push("Add a contrast or pattern interrupt in the middle section.");
       }
-      if (signals.payoffScore < 20 && signals.consequenceScore < 15 && !uniqueFixes.some(f => f.toLowerCase().includes("payoff"))) {
+      if (
+        signals.payoffScore < 20 &&
+        signals.consequenceScore < 15 &&
+        !structures.hasConsequencePayoff &&
+        !uniqueFixes.some(f => f.toLowerCase().includes("payoff"))
+      ) {
         uniqueFixes.push("Make the payoff more specific so the viewer feels rewarded.");
       }
       if (uniqueFixes.length < 4) {
@@ -4252,7 +4341,7 @@ if (middleFlat && !isGoodScript && retentionRisk >= 35) {
       }
     }
     uniqueRiskyParts = dedupeRiskyParts(uniqueRiskyParts);
-    uniqueFixes = [...new Set(uniqueFixes)].slice(0, 5);
+    uniqueFixes = dedupeFixes(uniqueFixes).slice(0, 5);
   } else if (overallScore < 75) {
     const alreadyHasOpeningPartMid = uniqueRiskyParts.some(p =>
       p.title.toLowerCase().includes("weak opening") ||
@@ -4287,7 +4376,12 @@ if (middleFlat && !isGoodScript && retentionRisk >= 35) {
       if (hookNeedsWork && effectiveHookScore < 68 && !uniqueFixes.some(f => f.toLowerCase().includes("sharpen") || f.toLowerCase().includes("rewrite") || f.toLowerCase().includes("lead with"))) {
         uniqueFixes.push("Sharpen the first line with a stronger curiosity gap or clearer contrast.");
       }
-      if (signals.contrastScore < 15 && signals.openLoopScore < 15 && !uniqueFixes.some(f => f.toLowerCase().includes("contrast") || f.toLowerCase().includes("turn"))) {
+      if (
+        signals.contrastScore < 15 &&
+        signals.openLoopScore < 15 &&
+        !hasStructuredEscalation &&
+        !uniqueFixes.some(f => f.toLowerCase().includes("contrast") || f.toLowerCase().includes("turn"))
+      ) {
         uniqueFixes.push("Add a contrast or unexpected turn in the middle section.");
       }
       if (signals.payoffScore < 20 && signals.consequenceScore < 15 && !lastLineIsStrong && !uniqueFixes.some(f => f.toLowerCase().includes("payoff") || f.toLowerCase().includes("result"))) {
@@ -4298,7 +4392,7 @@ if (middleFlat && !isGoodScript && retentionRisk >= 35) {
       }
     }
     uniqueRiskyParts = dedupeRiskyParts(uniqueRiskyParts);
-    uniqueFixes = [...new Set(uniqueFixes)].slice(0, 5);
+    uniqueFixes = dedupeFixes(uniqueFixes).slice(0, 5);
   }
 
  if (uniqueRiskyParts.length === 0 && overallScore >= 80) {
@@ -4338,6 +4432,8 @@ if (middleFlat && !isGoodScript && retentionRisk >= 35) {
     }
   }
 
+  uniqueFixes = dedupeFixes(uniqueFixes).slice(0, 5);
+
   const hasEndingFlagged = uniqueRiskyParts.some(p =>
     p.title.toLowerCase().includes("payoff") ||
     p.title.toLowerCase().includes("too long") ||
@@ -4356,7 +4452,15 @@ if (middleFlat && !isGoodScript && retentionRisk >= 35) {
   );
 
   const issueTitles = uniqueRiskyParts.map(p => p.title.toLowerCase());
-  const mainTakeaway = buildMainTakeaway(text, calibratedHookScore, payoffStrength, retentionRisk, signals, structures);
+  const mainTakeaway = buildMainTakeaway(
+    text,
+    calibratedHookScore,
+    payoffStrength,
+    retentionRisk,
+    signals,
+    structures,
+    issueTitles,
+  );
 
   return {
     overall: {
