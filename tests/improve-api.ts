@@ -1,3 +1,5 @@
+import { spawnSync } from "node:child_process";
+
 process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || "test-key";
 
 type TestCase = {
@@ -9,6 +11,95 @@ type TestCase = {
 };
 
 async function main() {
+  const envWithoutOpenAIKey = { ...process.env };
+  delete envWithoutOpenAIKey.OPENAI_API_KEY;
+  delete envWithoutOpenAIKey.OPENAI_ADMIN_KEY;
+
+  const noKeyProbe = spawnSync(
+    "npx",
+    [
+      "tsx",
+      "-e",
+      `import("./app/api/improve/route.ts").then(async ({ POST }) => {
+        globalThis.fetch = async () => {
+          throw new Error("Unexpected external API call during deterministic no-key test");
+        };
+
+        const request = new Request("http://localhost/api/improve", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            script: "Success is very important. You need to work hard every day.",
+            title: "Success",
+          }),
+        });
+
+        const response = await POST(request);
+        const payload = await response.json();
+
+        if (
+          response.status !== 200 ||
+          payload.mode !== "diagnostic" ||
+          typeof payload.reason !== "string"
+        ) {
+          throw new Error(
+            "Expected deterministic diagnostic response without OPENAI_API_KEY"
+          );
+        }
+
+        const aiRequiredRequest = new Request("http://localhost/api/improve", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            script: "A car crossed 100 miles in one hour because its engine was modified.",
+            title: "Modified car test",
+          }),
+        });
+
+        const aiRequiredResponse = await POST(aiRequiredRequest);
+        const aiRequiredPayload = await aiRequiredResponse.json();
+
+        if (
+          aiRequiredResponse.status !== 503 ||
+          aiRequiredPayload.status !== "error" ||
+          typeof aiRequiredPayload.reason !== "string" ||
+          /credential|api.?key|openai|missing/i.test(aiRequiredPayload.reason)
+        ) {
+          throw new Error(
+            "Expected a safe 503 response for an AI-dependent request without OPENAI_API_KEY"
+          );
+        }
+
+        console.log("NO_KEY_DETERMINISTIC_PASS");
+        console.log("NO_KEY_AI_REQUIRED_PASS");
+      }).catch((error) => {
+        console.error(error instanceof Error ? error.message : error);
+        process.exit(1);
+      });`,
+    ],
+    {
+      cwd: process.cwd(),
+      env: envWithoutOpenAIKey,
+      encoding: "utf8",
+    }
+  );
+
+  console.log("\nReelyze Improve API Validation Tests\n");
+
+  if (
+    noKeyProbe.status === 0 &&
+    noKeyProbe.stdout.includes("NO_KEY_DETERMINISTIC_PASS") &&
+    noKeyProbe.stdout.includes("NO_KEY_AI_REQUIRED_PASS")
+  ) {
+    console.log("✅ PASS — Deterministic guard works without OPENAI_API_KEY");
+    console.log("✅ PASS — AI-dependent request returns safe 503 without OPENAI_API_KEY");
+  } else {
+    console.error("❌ FAIL — Deterministic guard works without OPENAI_API_KEY");
+    console.error(noKeyProbe.stderr.trim() || noKeyProbe.stdout.trim());
+    process.exitCode = 1;
+    return;
+  }
+
   const originalFetch = globalThis.fetch;
 
   globalThis.fetch = (async () => {
@@ -50,8 +141,6 @@ async function main() {
     ];
 
     let failures = 0;
-
-    console.log("\nReelyze Improve API Validation Tests\n");
 
     for (const testCase of cases) {
       const request = new Request("http://localhost/api/improve", {

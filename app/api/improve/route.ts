@@ -1,9 +1,5 @@
 import OpenAI from "openai";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY as string,
-});
-
 export type ImproveHookResult = {
   status: "good" | "improved" | "error";
   improvedHook: string;
@@ -370,6 +366,21 @@ Return only valid JSON matching the exact schema.`;
       return Response.json(buildGenericScriptResponse(script, mainTopicWord));
     }
     console.log("[improve][TEST1] NOT generic — calling AI");
+
+    const apiKey = process.env.OPENAI_API_KEY?.trim();
+
+    if (!apiKey) {
+      return Response.json(
+        {
+          status: "error",
+          improvedHook: "AI hook improvement is unavailable right now.",
+          reason: "AI hook improvement is temporarily unavailable.",
+        } satisfies ImproveHookResult,
+        { status: 503 }
+      );
+    }
+
+    const openai = new OpenAI({ apiKey });
 
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
