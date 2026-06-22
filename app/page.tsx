@@ -362,6 +362,8 @@ function ValueSection() {
   );
 }
 
+const MAX_TITLE_CHARACTERS = 200;
+
 // ─── Desktop: analyzer section ────────────────────────────────────────────────
 
 function AnalyzerSection({
@@ -411,6 +413,7 @@ function AnalyzerSection({
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
+                maxLength={MAX_TITLE_CHARACTERS}
                 placeholder="Add your video title or topic"
                 className="h-full w-full bg-transparent text-[14px] text-[#B3B3B3] outline-none placeholder:text-[#777A85]"
               />
@@ -548,6 +551,8 @@ export default function HomePage() {
 
   function handleAnalyze() {
     const cleanedScript = script.trim();
+    const cleanedTitle = title.trim();
+
     if (cleanedScript.length === 0) {
       setAnalyzeError("Please paste your script before analyzing.");
       return;
@@ -556,11 +561,15 @@ export default function HomePage() {
       setAnalyzeError("Script is too long. Please shorten it to 1,000 characters or less.");
       return;
     }
+    if (cleanedTitle.length > MAX_TITLE_CHARACTERS) {
+      setAnalyzeError("Title is too long. Please shorten it to 200 characters or less.");
+      return;
+    }
     setAnalyzeError("");
     setIsAnalyzing(true);
     try {
       sessionStorage.setItem("reelyze-script", cleanedScript);
-      sessionStorage.setItem("reelyze-title", title.trim());
+      sessionStorage.setItem("reelyze-title", cleanedTitle);
       localStorage.removeItem("reelyze-script");
       router.push("/results");
     } catch {
@@ -740,6 +749,7 @@ export default function HomePage() {
                 <input
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
+                  maxLength={MAX_TITLE_CHARACTERS}
                   placeholder="Add your video title or topic"
                   className="h-full w-full bg-transparent text-[13px] text-[#B3B3B3] outline-none placeholder:text-[#555560]"
                 />
