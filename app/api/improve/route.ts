@@ -223,7 +223,6 @@ export async function POST(req: Request): Promise<Response> {
 
     // ── ABSOLUTE EARLY GUARD — must run before any AI call ──────────────────
     const earlyNoAnchorGuard = !hasAnyConcreteAnchor(script);
-    console.log("[improve] earlyNoAnchorGuard:", earlyNoAnchorGuard);
     if (earlyNoAnchorGuard) {
       return Response.json(buildEarlyDiagnosticResponse(script));
     }
@@ -360,12 +359,9 @@ Return only valid JSON matching the exact schema.`;
 
     // ── Generic script guard ───────────────────────────────────────────────
     const { isGeneric, mainTopicWord } = isVeryGenericScript(script);
-    console.log("[improve][TEST1] isGeneric:", isGeneric, "| mainTopicWord:", mainTopicWord);
     if (isGeneric) {
-      console.log("[improve][TEST1] returning buildGenericScriptResponse");
       return Response.json(buildGenericScriptResponse(script, mainTopicWord));
     }
-    console.log("[improve][TEST1] NOT generic — calling AI");
 
     const apiKey = process.env.OPENAI_API_KEY?.trim();
 
@@ -393,10 +389,8 @@ Return only valid JSON matching the exact schema.`;
     });
 
     const raw = response.choices[0]?.message?.content?.trim() ?? "";
-    console.log("[improve][TEST1] raw AI output:", raw);
 
     const result = parseHookResponse(raw, script);
-    console.log("[improve][TEST1] final result:", JSON.stringify(result));
 
     return Response.json(result);
   } catch (error) {
@@ -420,10 +414,7 @@ Return only valid JSON matching the exact schema.`;
       );
     }
 
-    console.error("[improve] error:", error);
-    const message =
-      error instanceof Error ? error.message : "Unknown error";
-    console.error("[improve] detail:", message);
+    console.error("[improve] request failed.");
     return Response.json(
       {
         status: "error",
@@ -1020,9 +1011,6 @@ function isVeryGenericScript(script: string): {
   // We use 0.35 as the threshold (not 0.5) because lines that fall through
   // the abstract detector as "neither" (like "That is why X is possible") 
   // dilute the ratio — a script with all vague lines should still be caught.
-  console.log("[improve][TEST1] lines:", lines);
-  console.log("[improve][TEST1] anchorCount:", anchorCount);
-  console.log("[improve][TEST1] abstractCount:", abstractCount, "totalLines:", lines.length, "abstractRatio:", abstractRatio);
 
   const isGeneric = lines.length >= 4 && abstractRatio >= 0.35;
 
@@ -1521,7 +1509,7 @@ function parseHookResponse(raw: string, script: string): ImproveHookResult {
 
     return { status: "improved", improvedHook, reason, mode: "rewrite" };
   } catch {
-    console.error("[improve] JSON parse failed, raw:", raw);
+    console.error("[improve] response parse failed.");
         const fallback = buildAnchorHook(script, scriptAnchor) ?? buildFallbackHookFromScript(script);
     const safeFallback =
       isConclusionHook(fallback) ||

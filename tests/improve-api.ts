@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 
 process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || "test-key";
 
@@ -173,6 +174,28 @@ async function main() {
   } else {
     console.error("❌ FAIL — Invalid OPENAI_API_KEY returns safe 503");
     console.error(invalidKeyProbe.stderr.trim() || invalidKeyProbe.stdout.trim());
+    process.exitCode = 1;
+    return;
+  }
+
+  const routeSource = readFileSync("app/api/improve/route.ts", "utf8");
+  const unsafeProductionLogs = [
+    'console.log("',
+    "[improve][TEST1]",
+    "raw AI output:",
+    "final result:",
+    'console.error("[improve] error:", error)',
+    'console.error("[improve] detail:", message)',
+    "JSON parse failed, raw:",
+  ].filter((pattern) => routeSource.includes(pattern));
+
+  if (unsafeProductionLogs.length === 0) {
+    console.log("✅ PASS — Improve API does not log user or provider payloads");
+  } else {
+    console.error("❌ FAIL — Improve API does not log user or provider payloads");
+    console.error(
+      `  found ${unsafeProductionLogs.length} unsafe production logging pattern(s)`
+    );
     process.exitCode = 1;
     return;
   }
