@@ -208,6 +208,71 @@ const hookCopyButtonLabel =
     }, 1500);
   }
 
+  async function handleImproveHook() {
+    if (isImprovingHook) return;
+
+    setCopiedHook(false);
+    setImproveError("");
+    setAiHook("");
+    setAiHookReason("");
+    setAiHookStatus("");
+    setAiHookMode("");
+    setIsImprovingHook(true);
+    setIsHookModalOpen(true);
+
+    try {
+      const response = await fetch("/api/improve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          script: activeScript,
+          title: savedTitle,
+        }),
+      });
+
+      const data: {
+        status?: string;
+        improvedHook?: string;
+        reason?: string;
+        mode?: string;
+      } = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        const apiReason =
+          typeof data.reason === "string" && data.reason.trim().length > 0
+            ? data.reason.trim()
+            : "Could not improve hook. Please try again.";
+
+        setImproveError(apiReason);
+        return;
+      }
+
+      const hookText =
+        typeof data.improvedHook === "string" &&
+        data.improvedHook.trim().length > 0
+          ? data.improvedHook.trim()
+          : "AI hook improvement is unavailable right now.";
+
+      const hookReason =
+        typeof data.reason === "string" && data.reason.trim().length > 0
+          ? data.reason.trim()
+          : data.status === "good"
+            ? "The hook is already clear, specific, and creates curiosity without needing a rewrite."
+            : "The hook was adjusted to improve clarity, curiosity, or payoff connection.";
+
+      setAiHook(hookText);
+      setAiHookReason(hookReason);
+      setAiHookStatus(
+        typeof data.status === "string" ? data.status : "improved"
+      );
+      setAiHookMode(data.mode === "diagnostic" ? "diagnostic" : "rewrite");
+    } catch {
+      setImproveError("Could not improve hook. Please try again.");
+    } finally {
+      setIsImprovingHook(false);
+    }
+  }
+
   async function handleShare() {
     const shareData = {
       title: savedTitle || "Reelyze Script Review",
@@ -493,30 +558,8 @@ const hookCopyButtonLabel =
                       </div>
                       {analysis.fixes.length > 0 && analysis.hook.score < 75 && (
                         <button
-                          onClick={async () => {
-                            setCopiedHook(false);
-                            setImproveError("");
-                            setIsImprovingHook(true);
-                            setIsHookModalOpen(true);
-                            try {
-                              const response = await fetch("/api/improve", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ script: activeScript, title: savedTitle }) });
-                              if (!response.ok) throw new Error(`Server error: ${response.status}`);
-                              const data: { status?: string; improvedHook?: string; reason?: string; mode?: string } = await response.json();
-                              const hookText = typeof data.improvedHook === "string" && data.improvedHook.trim().length > 0 ? data.improvedHook.trim() : "AI hook improvement is unavailable right now.";
-                              const hookReason = typeof data.reason === "string" && data.reason.trim().length > 0 ? data.reason.trim() : data.status === "good" ? "The hook is already clear, specific, and creates curiosity without needing a rewrite." : "The hook was adjusted to improve clarity, curiosity, or payoff connection.";
-                              setAiHook(hookText);
-                              setAiHookReason(hookReason);
-                              setAiHookStatus(typeof data.status === "string" ? data.status : "improved");
-                              setAiHookMode(data.mode === "diagnostic" ? "diagnostic" : "rewrite");
-                            } catch {
-                              setImproveError("Could not improve hook. Please try again.");
-                              setAiHook("AI hook improvement is unavailable right now.");
-                              setAiHookReason("Reelyze could not generate a custom explanation.");
-                              setAiHookMode("rewrite");
-                            } finally {
-                              setIsImprovingHook(false);
-                            }
-                          }}
+                          onClick={handleImproveHook}
+                          disabled={isImprovingHook}
                           className="mb-5 inline-flex h-[38px] items-center gap-2 rounded-[10px] bg-[#DC2626] px-4 text-[13px] font-semibold text-white shadow-[0_0_32px_rgba(220,38,38,0.30)] transition hover:bg-[#EF4444]"
                         >
                           <ShieldCheck size={15} />
@@ -685,30 +728,8 @@ const hookCopyButtonLabel =
                 </div>
                 {analysis.fixes.length > 0 && analysis.hook.score < 75 && (
                   <button
-                    onClick={async () => {
-                      setCopiedHook(false);
-                      setImproveError("");
-                      setIsImprovingHook(true);
-                      setIsHookModalOpen(true);
-                      try {
-                        const response = await fetch("/api/improve", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ script: activeScript, title: savedTitle }) });
-                        if (!response.ok) throw new Error(`Server error: ${response.status}`);
-                        const data: { status?: string; improvedHook?: string; reason?: string; mode?: string } = await response.json();
-                        const hookText = typeof data.improvedHook === "string" && data.improvedHook.trim().length > 0 ? data.improvedHook.trim() : "AI hook improvement is unavailable right now.";
-                        const hookReason = typeof data.reason === "string" && data.reason.trim().length > 0 ? data.reason.trim() : "The hook was adjusted to improve clarity, curiosity, or payoff connection.";
-                        setAiHook(hookText);
-                        setAiHookReason(hookReason);
-                        setAiHookStatus(typeof data.status === "string" ? data.status : "improved");
-                        setAiHookMode(data.mode === "diagnostic" ? "diagnostic" : "rewrite");
-                      } catch {
-                        setImproveError("Could not improve hook. Please try again.");
-                        setAiHook("AI hook improvement is unavailable right now.");
-                        setAiHookReason("Reelyze could not generate a custom explanation.");
-                        setAiHookMode("rewrite");
-                      } finally {
-                        setIsImprovingHook(false);
-                      }
-                    }}
+                    onClick={handleImproveHook}
+                    disabled={isImprovingHook}
                     className="mt-4 w-full h-[44px] inline-flex items-center justify-center gap-2 rounded-[12px] bg-[#DC2626] text-[14px] font-semibold text-white shadow-[0_0_24px_rgba(220,38,38,0.25)] transition hover:bg-[#EF4444]"
                   >
                     <ShieldCheck size={15} />

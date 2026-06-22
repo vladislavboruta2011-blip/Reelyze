@@ -16,7 +16,8 @@
     "test:scoring:invariance": "tsx tests/invariance.ts",
     "test:scoring:edge": "tsx tests/edge-cases.ts",
     "test:api:improve": "tsx tests/improve-api.ts",
-    "test": "npm run test:scoring && npm run test:api:improve"
+    "test": "npm run test:scoring && npm run test:api:improve && npm run test:ui:improve",
+    "test:ui:improve": "tsx tests/results-improve-ui.ts"
   },
   "dependencies": {
     "lucide-react": "^1.17.0",
