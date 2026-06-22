@@ -214,6 +214,17 @@ export async function POST(req: Request): Promise<Response> {
       );
     }
 
+    if (title.length > 200) {
+      return Response.json(
+        {
+          status: "error",
+          improvedHook: "AI hook improvement is unavailable right now.",
+          reason: "Title is too long. Keep it to 200 characters or less.",
+        } satisfies ImproveHookResult,
+        { status: 400 }
+      );
+    }
+
     // ── ABSOLUTE EARLY GUARD — must run before any AI call ──────────────────
     const earlyNoAnchorGuard = !hasAnyConcreteAnchor(script);
     console.log("[improve] earlyNoAnchorGuard:", earlyNoAnchorGuard);

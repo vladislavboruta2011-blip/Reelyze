@@ -38,6 +38,15 @@ async function main() {
         expectedStatus: 400,
         expectedReason: /1000|too long|character/i,
       },
+      {
+        name: "Title over 200 characters is rejected",
+        body: {
+          script: "A car crossed 100 miles in one hour.",
+          title: "x".repeat(201),
+        },
+        expectedStatus: 400,
+        expectedReason: /title|200|too long|character/i,
+      },
     ];
 
     let failures = 0;
