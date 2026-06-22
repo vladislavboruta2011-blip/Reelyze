@@ -100,6 +100,83 @@ async function main() {
     return;
   }
 
+  const invalidKeyProbe = spawnSync(
+    "npx",
+    [
+      "tsx",
+      "-e",
+      `globalThis.fetch = async () =>
+        new Response(
+          JSON.stringify({
+            error: {
+              message: "Incorrect API key provided",
+              type: "invalid_request_error",
+              code: "invalid_api_key",
+            },
+          }),
+          {
+            status: 401,
+            headers: {
+              "Content-Type": "application/json",
+              "x-request-id": "test-request",
+            },
+          }
+        );
+
+      import("./app/api/improve/route.ts").then(async ({ POST }) => {
+        const request = new Request("http://localhost/api/improve", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            script: "A car crossed 100 miles in one hour because its engine was modified.",
+            title: "Modified car test",
+          }),
+        });
+
+        const response = await POST(request);
+        const payload = await response.json();
+
+        if (
+          response.status !== 503 ||
+          payload.status !== "error" ||
+          typeof payload.reason !== "string" ||
+          /credential|api.?key|openai|invalid_request_error|test-request/i.test(
+            payload.reason
+          )
+        ) {
+          throw new Error(
+            "Expected a safe 503 response for an invalid OPENAI_API_KEY"
+          );
+        }
+
+        console.log("INVALID_KEY_SAFE_503_PASS");
+      }).catch((error) => {
+        console.error(error instanceof Error ? error.message : error);
+        process.exit(1);
+      });`,
+    ],
+    {
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        OPENAI_API_KEY: "test-invalid-key",
+      },
+      encoding: "utf8",
+    }
+  );
+
+  if (
+    invalidKeyProbe.status === 0 &&
+    invalidKeyProbe.stdout.includes("INVALID_KEY_SAFE_503_PASS")
+  ) {
+    console.log("✅ PASS — Invalid OPENAI_API_KEY returns safe 503");
+  } else {
+    console.error("❌ FAIL — Invalid OPENAI_API_KEY returns safe 503");
+    console.error(invalidKeyProbe.stderr.trim() || invalidKeyProbe.stdout.trim());
+    process.exitCode = 1;
+    return;
+  }
+
   const originalFetch = globalThis.fetch;
 
   globalThis.fetch = (async () => {

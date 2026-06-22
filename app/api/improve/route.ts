@@ -400,6 +400,26 @@ Return only valid JSON matching the exact schema.`;
 
     return Response.json(result);
   } catch (error) {
+    const upstreamStatus =
+      typeof error === "object" &&
+      error !== null &&
+      "status" in error &&
+      typeof (error as { status?: unknown }).status === "number"
+        ? (error as { status: number }).status
+        : undefined;
+
+    if (upstreamStatus === 401 || upstreamStatus === 403) {
+      console.error("[improve] AI provider authentication failed.");
+      return Response.json(
+        {
+          status: "error",
+          improvedHook: "AI hook improvement is unavailable right now.",
+          reason: "AI hook improvement is temporarily unavailable.",
+        } satisfies ImproveHookResult,
+        { status: 503 }
+      );
+    }
+
     console.error("[improve] error:", error);
     const message =
       error instanceof Error ? error.message : "Unknown error";
