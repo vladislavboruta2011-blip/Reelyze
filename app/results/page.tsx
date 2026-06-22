@@ -171,6 +171,7 @@ const [mobileScriptOpen, setMobileScriptOpen] = useState(false);
 }, [activeScript]);
 
 const improvedHook = aiHook || fallbackImprovedHook;
+const modalHookText = improveError ? "No improved hook was generated." : improvedHook;
 const hookWasActuallyChanged =
   improvedHook.trim().toLowerCase() !== scriptLines[0]?.trim().toLowerCase();
 
@@ -200,6 +201,8 @@ const hookCopyButtonLabel =
     : "Copy Hook";
 
   function handleCopyHook() {
+    if (isImprovingHook || improveError) return;
+
     navigator.clipboard.writeText(improvedHook);
     setCopiedHook(true);
 
@@ -1055,7 +1058,7 @@ setFeedbackMessage(
 
             <div className="absolute left-[30px] top-[115px] h-[86px] w-[460px] rounded-[14px] border border-[#24242A] bg-[#0B1018] px-[16px] py-[14px]">
               <p className="text-[15px] font-normal leading-[22px] text-white">
-                &ldquo;{isImprovingHook ? "Improving hook..." : improvedHook}&rdquo;
+                &ldquo;{isImprovingHook ? "Improving hook..." : modalHookText}&rdquo;
               </p>
             </div>
 
@@ -1086,6 +1089,7 @@ setFeedbackMessage(
 
             <button
               onClick={handleCopyHook}
+              disabled={isImprovingHook || Boolean(improveError)}
               className="absolute left-[30px] top-[360px] h-[40px] w-[130px] rounded-[12px] border border-[#24242A] bg-[#EF4444] text-[14px] font-semibold leading-[24px] text-white transition hover:bg-[#dc2626]"
             >
               {copiedHook ? "Copied!" : hookCopyButtonLabel}
@@ -1130,7 +1134,7 @@ setFeedbackMessage(
 
             <div className="w-full rounded-[12px] border border-[#24242A] bg-[#0B1018] px-[14px] py-[12px] mb-[14px]">
               <p className="text-[13px] font-normal leading-[21px] text-white break-words">
-                &ldquo;{isImprovingHook ? "Improving hook..." : improvedHook}&rdquo;
+                &ldquo;{isImprovingHook ? "Improving hook..." : modalHookText}&rdquo;
               </p>
             </div>
 
@@ -1160,6 +1164,7 @@ setFeedbackMessage(
             <div className="flex gap-[10px]">
               <button
                 onClick={handleCopyHook}
+                disabled={isImprovingHook || Boolean(improveError)}
                 className="flex-1 h-[40px] rounded-[12px] border border-[#24242A] bg-[#EF4444] text-[13px] font-semibold text-white focus:outline-none focus:ring-0"
               >
                 {copiedHook ? "Copied!" : hookCopyButtonLabel}

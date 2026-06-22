@@ -38,6 +38,35 @@ if (jsonIndex >= 0 && okIndex >= 0 && jsonIndex < okIndex) {
   failures += 1;
 }
 
+const hasSafeModalHookText =
+  source.includes(
+    'const modalHookText = improveError ? "No improved hook was generated." : improvedHook;'
+  );
+
+if (hasSafeModalHookText) {
+  console.log("✅ PASS — Failed AI requests do not display a fallback as the generated hook");
+} else {
+  console.error(
+    "❌ FAIL — Improve Hook modal must not present the local fallback as an AI result after an error"
+  );
+  failures += 1;
+}
+
+const copyGuardCount =
+  source.split("disabled={isImprovingHook || Boolean(improveError)}").length - 1;
+
+if (
+  source.includes("if (isImprovingHook || improveError) return;") &&
+  copyGuardCount === 2
+) {
+  console.log("✅ PASS — Copy actions are blocked while loading and after an error");
+} else {
+  console.error(
+    `❌ FAIL — Expected guarded copy handler and two disabled copy buttons, found ${copyGuardCount} disabled buttons`
+  );
+  failures += 1;
+}
+
 if (failures > 0) {
   process.exitCode = 1;
 } else {
