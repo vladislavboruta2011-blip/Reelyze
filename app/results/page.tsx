@@ -83,6 +83,32 @@ function pluralize(count: number, singular: string, plural: string) {
     : `${count} ${plural}`;
 }
 
+type ImproveSuccessPayload = {
+  status: "good" | "improved";
+  improvedHook: string;
+  reason: string;
+  mode?: "diagnostic" | "rewrite";
+};
+
+function isValidImproveSuccessPayload(
+  value: unknown
+): value is ImproveSuccessPayload {
+  if (!value || typeof value !== "object") return false;
+
+  const payload = value as Record<string, unknown>;
+
+  return (
+    (payload.status === "good" || payload.status === "improved") &&
+    typeof payload.improvedHook === "string" &&
+    payload.improvedHook.trim().length > 0 &&
+    typeof payload.reason === "string" &&
+    payload.reason.trim().length > 0 &&
+    (payload.mode === undefined ||
+      payload.mode === "diagnostic" ||
+      payload.mode === "rewrite")
+  );
+}
+
 export default function ResultsPage() {
  const [savedScript, setSavedScript] = useState("");
   const [savedTitle, setSavedTitle] = useState("");
@@ -247,6 +273,11 @@ const hookCopyButtonLabel =
             : "Could not improve hook. Please try again.";
 
         setImproveError(apiReason);
+        return;
+      }
+
+      if (!isValidImproveSuccessPayload(data)) {
+        setImproveError("Could not improve hook. Please try again.");
         return;
       }
 

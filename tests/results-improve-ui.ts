@@ -67,6 +67,19 @@ if (
   failures += 1;
 }
 
+const hasSuccessPayloadGuard =
+  source.includes("function isValidImproveSuccessPayload(") &&
+  source.includes("if (!isValidImproveSuccessPayload(data))");
+
+if (hasSuccessPayloadGuard) {
+  console.log("✅ PASS — Malformed successful API payloads are rejected");
+} else {
+  console.error(
+    "❌ FAIL — Improve Hook must validate a successful API payload before using it"
+  );
+  failures += 1;
+}
+
 if (failures > 0) {
   process.exitCode = 1;
 } else {
