@@ -376,7 +376,11 @@ Return only valid JSON matching the exact schema.`;
       );
     }
 
-    const openai = new OpenAI({ apiKey });
+    const openai = new OpenAI({
+      apiKey,
+      timeout: 15_000,
+      maxRetries: 0,
+    });
 
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",

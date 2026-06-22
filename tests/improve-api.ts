@@ -200,6 +200,22 @@ async function main() {
     return;
   }
 
+  const hasOpenAITimeout =
+    routeSource.includes("timeout: 15_000") ||
+    routeSource.includes("timeout: 15000");
+  const disablesAutomaticRetries = routeSource.includes("maxRetries: 0");
+
+  if (hasOpenAITimeout && disablesAutomaticRetries) {
+    console.log("✅ PASS — Improve API limits AI request duration and retries");
+  } else {
+    console.error("❌ FAIL — Improve API limits AI request duration and retries");
+    console.error(
+      `  timeout configured: ${hasOpenAITimeout}, retries disabled: ${disablesAutomaticRetries}`
+    );
+    process.exitCode = 1;
+    return;
+  }
+
   const originalFetch = globalThis.fetch;
 
   globalThis.fetch = (async () => {
