@@ -155,9 +155,22 @@ function buildEarlyDiagnosticResponse(script: string): ImproveHookResult {
 }
 
 export async function POST(req: Request): Promise<Response> {
-  try {
-    const body: unknown = await req.json();
+  let body: unknown;
 
+  try {
+    body = await req.json();
+  } catch {
+    return Response.json(
+      {
+        status: "error",
+        improvedHook: "AI hook improvement is unavailable right now.",
+        reason: "Invalid JSON request body.",
+      } satisfies ImproveHookResult,
+      { status: 400 }
+    );
+  }
+
+  try {
     if (
       !body ||
       typeof body !== "object" ||

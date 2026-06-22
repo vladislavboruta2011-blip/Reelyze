@@ -3,6 +3,7 @@ process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || "test-key";
 type TestCase = {
   name: string;
   body: unknown;
+  rawBody?: string;
   expectedStatus: number;
   expectedReason: RegExp;
 };
@@ -18,6 +19,13 @@ async function main() {
     const { POST } = await import("../app/api/improve/route");
 
     const cases: TestCase[] = [
+      {
+        name: "Malformed JSON is rejected",
+        body: null,
+        rawBody: '{"script":',
+        expectedStatus: 400,
+        expectedReason: /invalid|json|request/i,
+      },
       {
         name: "Whitespace-only script is rejected",
         body: { script: "   \n\t   ", title: "Empty script" },
@@ -40,7 +48,7 @@ async function main() {
       const request = new Request("http://localhost/api/improve", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(testCase.body),
+        body: testCase.rawBody ?? JSON.stringify(testCase.body),
       });
 
       const response = await POST(request);
