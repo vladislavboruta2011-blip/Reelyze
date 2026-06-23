@@ -226,15 +226,21 @@ const hookCopyButtonLabel =
     ? "Copy Version"
     : "Copy Hook";
 
-  function handleCopyHook() {
+  async function handleCopyHook() {
     if (isImprovingHook || improveError) return;
 
-    navigator.clipboard.writeText(improvedHook);
-    setCopiedHook(true);
+    setCopiedHook(false);
 
-    setTimeout(() => {
+    try {
+      await navigator.clipboard.writeText(improvedHook);
+      setCopiedHook(true);
+
+      setTimeout(() => {
+        setCopiedHook(false);
+      }, 1500);
+    } catch {
       setCopiedHook(false);
-    }, 1500);
+    }
   }
 
   async function handleImproveHook() {

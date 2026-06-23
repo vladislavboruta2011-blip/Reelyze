@@ -80,6 +80,37 @@ if (hasSuccessPayloadGuard) {
   failures += 1;
 }
 
+
+const copyHandlerStart = source.indexOf("function handleCopyHook");
+const copyHandlerEnd =
+  copyHandlerStart >= 0
+    ? source.indexOf("async function handleImproveHook", copyHandlerStart)
+    : -1;
+const copyHandler =
+  copyHandlerStart >= 0 && copyHandlerEnd > copyHandlerStart
+    ? source.slice(copyHandlerStart, copyHandlerEnd)
+    : "";
+
+const clipboardAwaitIndex = copyHandler.indexOf(
+  "await navigator.clipboard.writeText(improvedHook)"
+);
+const copiedSuccessIndex = copyHandler.indexOf("setCopiedHook(true)");
+const handlesClipboardFailure = copyHandler.includes("catch");
+
+if (
+  source.includes("async function handleCopyHook()") &&
+  clipboardAwaitIndex >= 0 &&
+  copiedSuccessIndex > clipboardAwaitIndex &&
+  handlesClipboardFailure
+) {
+  console.log("✅ PASS — Copy success is shown only after clipboard write succeeds");
+} else {
+  console.error(
+    "❌ FAIL — Copy Hook must await clipboard.writeText and must not show success when the write fails"
+  );
+  failures += 1;
+}
+
 if (failures > 0) {
   process.exitCode = 1;
 } else {
