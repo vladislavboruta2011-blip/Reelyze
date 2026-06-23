@@ -58,6 +58,9 @@ type AnalysisResult = {
   sceneSegments: SceneSegment[];
 };
 
+const MAX_SCRIPT_CHARACTERS = 1000;
+const MAX_TITLE_CHARACTERS = 200;
+
 const fallbackScript =
   "What if one small change could make viewers watch until the end? But the real problem is not editing speed. It is that the first line gives viewers no reason to stay.";
 
@@ -144,12 +147,37 @@ const [mobileScriptOpen, setMobileScriptOpen] = useState(false);
         const storedScript = sessionStorage.getItem("reelyze-script");
         const storedTitle = sessionStorage.getItem("reelyze-title");
 
-        if (storedScript) {
-          setSavedScript(storedScript);
+        const hasStoredScript = storedScript !== null;
+        const isValidStoredScript =
+          storedScript !== null &&
+          storedScript.trim().length > 0 &&
+          storedScript.length <= MAX_SCRIPT_CHARACTERS;
+
+        const isValidStoredTitle =
+          storedTitle === null ||
+          (storedTitle.trim().length <= MAX_TITLE_CHARACTERS &&
+            storedTitle.length <= MAX_TITLE_CHARACTERS);
+
+        if (
+          (hasStoredScript && !isValidStoredScript) ||
+          !isValidStoredTitle
+        ) {
+          setStorageError(
+            "Your saved analysis is invalid. Please go back and analyze the script again."
+          );
+          return;
         }
 
-        if (storedTitle) {
-          setSavedTitle(storedTitle);
+        if (isValidStoredScript) {
+          setSavedScript(storedScript.trim());
+        }
+
+        if (
+          storedTitle !== null &&
+          storedTitle.trim().length <= MAX_TITLE_CHARACTERS &&
+          storedTitle.length <= MAX_TITLE_CHARACTERS
+        ) {
+          setSavedTitle(storedTitle.trim());
         }
 
         try {

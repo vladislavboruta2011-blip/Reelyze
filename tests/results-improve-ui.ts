@@ -153,6 +153,46 @@ if (
   failures += 1;
 }
 
+
+const storageEffectStart = source.indexOf("useEffect(() => {");
+const storageEffectEnd =
+  storageEffectStart >= 0
+    ? source.indexOf("\n  }, []);", storageEffectStart)
+    : -1;
+const storageEffect =
+  storageEffectStart >= 0 && storageEffectEnd > storageEffectStart
+    ? source.slice(storageEffectStart, storageEffectEnd)
+    : "";
+
+const validatesStoredScript =
+  storageEffect.includes("storedScript.trim()") &&
+  storageEffect.includes("storedScript.length <= MAX_SCRIPT_CHARACTERS");
+
+const validatesStoredTitle =
+  storageEffect.includes("storedTitle.trim()") &&
+  storageEffect.includes("storedTitle.length <= MAX_TITLE_CHARACTERS");
+
+const rejectsInvalidStoredAnalysis =
+  storageEffect.includes("setStorageError(") &&
+  storageEffect.includes(
+    "Your saved analysis is invalid. Please go back and analyze the script again."
+  );
+
+if (
+  source.includes("const MAX_SCRIPT_CHARACTERS = 1000;") &&
+  source.includes("const MAX_TITLE_CHARACTERS = 200;") &&
+  validatesStoredScript &&
+  validatesStoredTitle &&
+  rejectsInvalidStoredAnalysis
+) {
+  console.log("✅ PASS — Stored analysis data is revalidated before rendering results");
+} else {
+  console.error(
+    "❌ FAIL — Results must reject empty or oversized sessionStorage data before analysis"
+  );
+  failures += 1;
+}
+
 if (failures > 0) {
   process.exitCode = 1;
 } else {
