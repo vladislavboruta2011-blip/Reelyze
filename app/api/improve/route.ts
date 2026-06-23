@@ -418,6 +418,21 @@ Return only valid JSON matching the exact schema.`;
       );
     }
 
+    if (
+      upstreamStatus === 429 ||
+      error instanceof OpenAI.APIConnectionError
+    ) {
+      console.error("[improve] AI provider temporarily unavailable.");
+      return Response.json(
+        {
+          status: "error",
+          improvedHook: "AI hook improvement is unavailable right now.",
+          reason: "AI hook improvement is temporarily unavailable.",
+        } satisfies ImproveHookResult,
+        { status: 503 }
+      );
+    }
+
     console.error("[improve] request failed.");
     return Response.json(
       {

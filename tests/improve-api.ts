@@ -178,6 +178,96 @@ async function main() {
     return;
   }
 
+  const transientProviderProbe = spawnSync(
+    "npx",
+    [
+      "tsx",
+      "-e",
+      `import("./app/api/improve/route.ts").then(async ({ POST }) => {
+        async function expectSafe503(label, mockFetch) {
+          globalThis.fetch = mockFetch;
+
+          const request = new Request("http://localhost/api/improve", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              script: "A car crossed 100 miles in one hour because its engine was modified.",
+              title: "Modified car test",
+            }),
+          });
+
+          const response = await POST(request);
+          const payload = await response.json();
+
+          if (
+            response.status !== 503 ||
+            payload.status !== "error" ||
+            typeof payload.reason !== "string" ||
+            /openai|provider|rate.?limit|network|failure|request.?id/i.test(
+              payload.reason
+            )
+          ) {
+            throw new Error("Expected a safe 503 response for " + label);
+          }
+
+          console.log(label + "_SAFE_503_PASS");
+        }
+
+        await expectSafe503(
+          "RATE_LIMIT",
+          async () =>
+            new Response(
+              JSON.stringify({
+                error: {
+                  message: "Rate limit reached",
+                  type: "requests",
+                  code: "rate_limit_exceeded",
+                },
+              }),
+              {
+                status: 429,
+                headers: { "Content-Type": "application/json" },
+              }
+            )
+        );
+
+        await expectSafe503(
+          "CONNECTION_ERROR",
+          async () => {
+            throw new Error("simulated network failure");
+          }
+        );
+      }).catch((error) => {
+        console.error(error instanceof Error ? error.message : error);
+        process.exit(1);
+      });`,
+    ],
+    {
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        OPENAI_API_KEY: "test-key",
+      },
+      encoding: "utf8",
+    }
+  );
+
+  if (
+    transientProviderProbe.status === 0 &&
+    transientProviderProbe.stdout.includes("RATE_LIMIT_SAFE_503_PASS") &&
+    transientProviderProbe.stdout.includes("CONNECTION_ERROR_SAFE_503_PASS")
+  ) {
+    console.log("✅ PASS — Temporary provider failures return safe 503");
+  } else {
+    console.error("❌ FAIL — Temporary provider failures return safe 503");
+    console.error(
+      transientProviderProbe.stderr.trim() ||
+        transientProviderProbe.stdout.trim()
+    );
+    process.exitCode = 1;
+    return;
+  }
+
   const routeSource = readFileSync("app/api/improve/route.ts", "utf8");
   const unsafeProductionLogs = [
     'console.log("',
