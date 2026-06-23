@@ -387,6 +387,105 @@ async function main() {
     return;
   }
 
+  const oversizedProviderOutputProbe = spawnSync(
+    "npx",
+    [
+      "tsx",
+      "-e",
+      `globalThis.fetch = async () =>
+        new Response(
+          JSON.stringify({
+            id: "chatcmpl-test",
+            object: "chat.completion",
+            created: 0,
+            model: "gpt-4o-mini",
+            choices: [
+              {
+                index: 0,
+                message: {
+                  role: "assistant",
+                  content: JSON.stringify({
+                    hookScore: 70,
+                    improvedHook:
+                      "A rebuilt engine carried this car 100 miles in one hour, but " +
+                      "the same dramatic detail keeps repeating ".repeat(20),
+                    reason:
+                      "The 100 miles anchor creates specificity, but " +
+                      "this explanation keeps repeating unnecessary detail ".repeat(30),
+                  }),
+                },
+                finish_reason: "stop",
+              },
+            ],
+            usage: {
+              prompt_tokens: 1,
+              completion_tokens: 1,
+              total_tokens: 2,
+            },
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+
+      import("./app/api/improve/route.ts").then(async ({ POST }) => {
+        const request = new Request("http://localhost/api/improve", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            script:
+              "This car should never have survived the test. It traveled 100 miles in one hour because its engine was rebuilt.",
+            title: "Modified car test",
+          }),
+        });
+
+        const response = await POST(request);
+        const payload = await response.json();
+
+        if (
+          response.status !== 200 ||
+          typeof payload.improvedHook !== "string" ||
+          typeof payload.reason !== "string" ||
+          payload.improvedHook.length > 240 ||
+          payload.reason.length > 600
+        ) {
+          throw new Error(
+            "Expected successful AI output to be bounded before reaching the UI"
+          );
+        }
+
+        console.log("BOUNDED_AI_OUTPUT_PASS");
+      }).catch((error) => {
+        console.error(error instanceof Error ? error.message : error);
+        process.exit(1);
+      });`,
+    ],
+    {
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        OPENAI_API_KEY: "test-key",
+      },
+      encoding: "utf8",
+    }
+  );
+
+  if (
+    oversizedProviderOutputProbe.status === 0 &&
+    oversizedProviderOutputProbe.stdout.includes("BOUNDED_AI_OUTPUT_PASS")
+  ) {
+    console.log("✅ PASS — Improve API bounds AI-generated hook and reason length");
+  } else {
+    console.error("❌ FAIL — Improve API bounds AI-generated hook and reason length");
+    console.error(
+      oversizedProviderOutputProbe.stderr.trim() ||
+        oversizedProviderOutputProbe.stdout.trim()
+    );
+    process.exitCode = 1;
+    return;
+  }
+
   const localRateLimitProbe = spawnSync(
     "npx",
     [

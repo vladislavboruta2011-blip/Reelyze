@@ -158,6 +158,8 @@ function buildEarlyDiagnosticResponse(script: string): ImproveHookResult {
 }
 
 const MAX_REQUEST_BODY_BYTES = 16_384;
+const MAX_IMPROVED_HOOK_CHARACTERS = 240;
+const MAX_IMPROVE_REASON_CHARACTERS = 600;
 const AI_RATE_LIMIT_MAX_REQUESTS = 10;
 const AI_RATE_LIMIT_WINDOW_MS = 60_000;
 const AI_RATE_LIMIT_MAX_ENTRIES = 10_000;
@@ -170,6 +172,36 @@ type RateLimitEntry = {
 const aiRateLimitEntries = new Map<string, RateLimitEntry>();
 
 class RequestBodyTooLargeError extends Error {}
+
+function truncateGeneratedText(value: string, maxCharacters: number): string {
+  const normalized = value.trim();
+
+  if (normalized.length <= maxCharacters) {
+    return normalized;
+  }
+
+  const sliced = normalized.slice(0, maxCharacters - 1);
+  const lastSpace = sliced.lastIndexOf(" ");
+  const minimumWordBoundary = Math.floor(maxCharacters * 0.75);
+  const cutoff =
+    lastSpace >= minimumWordBoundary ? lastSpace : sliced.length;
+
+  return `${sliced.slice(0, cutoff).trimEnd()}…`;
+}
+
+function boundGeneratedResult(result: ImproveHookResult): ImproveHookResult {
+  return {
+    ...result,
+    improvedHook: truncateGeneratedText(
+      result.improvedHook,
+      MAX_IMPROVED_HOOK_CHARACTERS
+    ),
+    reason: truncateGeneratedText(
+      result.reason,
+      MAX_IMPROVE_REASON_CHARACTERS
+    ),
+  };
+}
 
 function getClientIdentifier(req: Request): string {
   const forwardedFor = req.headers.get("x-forwarded-for");
@@ -574,7 +606,7 @@ Return only valid JSON matching the exact schema.`;
 
     const result = parseHookResponse(raw, script);
 
-    return Response.json(result);
+    return Response.json(boundGeneratedResult(result));
   } catch (error) {
     const upstreamStatus =
       typeof error === "object" &&
