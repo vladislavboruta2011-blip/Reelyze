@@ -288,6 +288,105 @@ async function main() {
     return;
   }
 
+  const unusableProviderOutputProbe = spawnSync(
+    "npx",
+    [
+      "tsx",
+      "-e",
+      `import("./app/api/improve/route.ts").then(async ({ POST }) => {
+        const cases = [
+          ["EMPTY_CONTENT", ""],
+          ["TRUNCATED_JSON", "{\\"hookScore\\": 50"],
+          ["EMPTY_OBJECT", "{}"],
+        ];
+
+        for (const [label, content] of cases) {
+          globalThis.fetch = async () =>
+            new Response(
+              JSON.stringify({
+                id: "chatcmpl-test",
+                object: "chat.completion",
+                created: 0,
+                model: "gpt-4o-mini",
+                choices: [
+                  {
+                    index: 0,
+                    message: {
+                      role: "assistant",
+                      content,
+                    },
+                    finish_reason: "stop",
+                  },
+                ],
+                usage: {
+                  prompt_tokens: 1,
+                  completion_tokens: 1,
+                  total_tokens: 2,
+                },
+              }),
+              {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+              }
+            );
+
+          const request = new Request("http://localhost/api/improve", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              script: "A car crossed 100 miles in one hour because its engine was modified.",
+              title: "Modified car test",
+            }),
+          });
+
+          const response = await POST(request);
+          const payload = await response.json();
+
+          if (
+            response.status !== 502 ||
+            payload.status !== "error" ||
+            typeof payload.reason !== "string" ||
+            /openai|provider|raw|json|parse/i.test(payload.reason)
+          ) {
+            throw new Error(
+              "Expected a safe 502 response for unusable AI output: " + label
+            );
+          }
+
+          console.log(label + "_SAFE_502_PASS");
+        }
+      }).catch((error) => {
+        console.error(error instanceof Error ? error.message : error);
+        process.exit(1);
+      });`,
+    ],
+    {
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        OPENAI_API_KEY: "test-key",
+      },
+      encoding: "utf8",
+    }
+  );
+
+  if (
+    unusableProviderOutputProbe.status === 0 &&
+    unusableProviderOutputProbe.stdout.includes("EMPTY_CONTENT_SAFE_502_PASS") &&
+    unusableProviderOutputProbe.stdout.includes("TRUNCATED_JSON_SAFE_502_PASS") &&
+    unusableProviderOutputProbe.stdout.includes("EMPTY_OBJECT_SAFE_502_PASS")
+  ) {
+    console.log("✅ PASS — Unusable AI responses return safe 502");
+  } else {
+    console.error("❌ FAIL — Unusable AI responses return safe 502");
+    console.error(
+      unusableProviderOutputProbe.stderr.trim() ||
+        unusableProviderOutputProbe.stdout.trim()
+    );
+    process.exitCode = 1;
+    return;
+  }
+
   const routeSource = readFileSync("app/api/improve/route.ts", "utf8");
   const unsafeProductionLogs = [
     'console.log("',

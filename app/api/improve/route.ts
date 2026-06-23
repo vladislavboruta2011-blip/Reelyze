@@ -7,6 +7,13 @@ export type ImproveHookResult = {
   mode?: "diagnostic" | "rewrite";
 };
 
+class UnusableAIResponseError extends Error {
+  constructor() {
+    super("Unusable AI response");
+    this.name = "UnusableAIResponseError";
+  }
+}
+
 // ── Universal generic-advice phrase guard ────────────────────────────────────
 // These are advice/motivational clichés that must NEVER count as concrete
 // anchor material, regardless of which other regex might accidentally match
@@ -405,6 +412,18 @@ Return only valid JSON matching the exact schema.`;
       typeof (error as { status?: unknown }).status === "number"
         ? (error as { status: number }).status
         : undefined;
+
+    if (error instanceof UnusableAIResponseError) {
+      console.error("[improve] AI response was unusable.");
+      return Response.json(
+        {
+          status: "error",
+          improvedHook: "AI hook improvement is unavailable right now.",
+          reason: "Reelyze could not generate a valid hook improvement right now.",
+        } satisfies ImproveHookResult,
+        { status: 502 }
+      );
+    }
 
     if (upstreamStatus === 401 || upstreamStatus === 403) {
       console.error("[improve] AI provider authentication failed.");
@@ -1327,9 +1346,36 @@ function parseHookResponse(raw: string, script: string): ImproveHookResult {
       .replace(/```\s*$/i, "")
       .trim();
 
-    const parsed: Record<string, unknown> = JSON.parse(cleaned);
+    const parsedValue: unknown = JSON.parse(cleaned);
 
-    const hookScore = typeof parsed.hookScore === "number" ? parsed.hookScore : null;
+    if (
+      typeof parsedValue !== "object" ||
+      parsedValue === null ||
+      Array.isArray(parsedValue)
+    ) {
+      throw new UnusableAIResponseError();
+    }
+
+    const parsed = parsedValue as Record<string, unknown>;
+    const hasImprovedHook =
+      typeof parsed.improvedHook === "string" &&
+      parsed.improvedHook.trim().length > 0;
+    const hasHookOption =
+      Array.isArray(parsed.hookOptions) &&
+      parsed.hookOptions.some(
+        option =>
+          typeof option === "object" &&
+          option !== null &&
+          typeof (option as Record<string, unknown>).text === "string" &&
+          ((option as Record<string, unknown>).text as string).trim().length > 0
+      );
+    const hookScore =
+      typeof parsed.hookScore === "number" ? parsed.hookScore : null;
+    const hasStrongScore = hookScore !== null && hookScore >= 80;
+
+    if (!hasImprovedHook && !hasHookOption && !hasStrongScore) {
+      throw new UnusableAIResponseError();
+    }
 
     const aiSaysGood = hookScore !== null && hookScore >= 80;
     if (aiSaysGood) {
@@ -1528,22 +1574,13 @@ function parseHookResponse(raw: string, script: string): ImproveHookResult {
     }
 
     return { status: "improved", improvedHook, reason, mode: "rewrite" };
-  } catch {
+  } catch (error) {
     console.error("[improve] response parse failed.");
-        const fallback = buildAnchorHook(script, scriptAnchor) ?? buildFallbackHookFromScript(script);
-    const safeFallback =
-      isConclusionHook(fallback) ||
-      isUnclearStandaloneHook(fallback) ||
-      isWeakBeliefContrastHook(fallback) ||
-      isExplanatorySummaryHook(fallback)
-        ? buildClearStandaloneFallbackHook(script)
-        : fallback;
 
-    return {
-      status: "improved",
-      improvedHook: safeFallback,
-      reason: buildSpecificReason(firstLine, safeFallback, script),
-      mode: "rewrite",
-    };
+    if (error instanceof UnusableAIResponseError) {
+      throw error;
+    }
+
+    throw new UnusableAIResponseError();
   }
 }
