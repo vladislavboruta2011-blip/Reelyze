@@ -158,8 +158,87 @@ function buildEarlyDiagnosticResponse(script: string): ImproveHookResult {
 }
 
 const MAX_REQUEST_BODY_BYTES = 16_384;
+const AI_RATE_LIMIT_MAX_REQUESTS = 10;
+const AI_RATE_LIMIT_WINDOW_MS = 60_000;
+const AI_RATE_LIMIT_MAX_ENTRIES = 10_000;
+
+type RateLimitEntry = {
+  count: number;
+  windowStartedAt: number;
+};
+
+const aiRateLimitEntries = new Map<string, RateLimitEntry>();
 
 class RequestBodyTooLargeError extends Error {}
+
+function getClientIdentifier(req: Request): string {
+  const forwardedFor = req.headers.get("x-forwarded-for");
+  const forwardedClient = forwardedFor
+    ?.split(",")[0]
+    ?.trim();
+
+  return (
+    forwardedClient ||
+    req.headers.get("x-real-ip")?.trim() ||
+    "unknown-client"
+  );
+}
+
+function consumeAIRateLimit(
+  clientIdentifier: string,
+  now = Date.now()
+): { allowed: boolean; retryAfterSeconds: number } {
+  for (const [key, entry] of aiRateLimitEntries) {
+    if (now - entry.windowStartedAt >= AI_RATE_LIMIT_WINDOW_MS) {
+      aiRateLimitEntries.delete(key);
+    }
+  }
+
+  const existing = aiRateLimitEntries.get(clientIdentifier);
+
+  if (
+    !existing ||
+    now - existing.windowStartedAt >= AI_RATE_LIMIT_WINDOW_MS
+  ) {
+    if (
+      !existing &&
+      aiRateLimitEntries.size >= AI_RATE_LIMIT_MAX_ENTRIES
+    ) {
+      const oldestKey = aiRateLimitEntries.keys().next().value;
+
+      if (oldestKey !== undefined) {
+        aiRateLimitEntries.delete(oldestKey);
+      }
+    }
+
+    aiRateLimitEntries.set(clientIdentifier, {
+      count: 1,
+      windowStartedAt: now,
+    });
+
+    return {
+      allowed: true,
+      retryAfterSeconds: 0,
+    };
+  }
+
+  if (existing.count >= AI_RATE_LIMIT_MAX_REQUESTS) {
+    const remainingMs =
+      AI_RATE_LIMIT_WINDOW_MS - (now - existing.windowStartedAt);
+
+    return {
+      allowed: false,
+      retryAfterSeconds: Math.max(1, Math.ceil(remainingMs / 1000)),
+    };
+  }
+
+  existing.count += 1;
+
+  return {
+    allowed: true,
+    retryAfterSeconds: 0,
+  };
+}
 
 async function readJsonBodyWithLimit(req: Request): Promise<unknown> {
   const contentLength = req.headers.get("content-length");
@@ -442,6 +521,24 @@ Return only valid JSON matching the exact schema.`;
           reason: "AI hook improvement is temporarily unavailable.",
         } satisfies ImproveHookResult,
         { status: 503 }
+      );
+    }
+
+    const rateLimit = consumeAIRateLimit(getClientIdentifier(req));
+
+    if (!rateLimit.allowed) {
+      return Response.json(
+        {
+          status: "error",
+          improvedHook: "AI hook improvement is unavailable right now.",
+          reason: "Too many hook improvement requests. Please try again later.",
+        } satisfies ImproveHookResult,
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(rateLimit.retryAfterSeconds),
+          },
+        }
       );
     }
 

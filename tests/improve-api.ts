@@ -387,6 +387,116 @@ async function main() {
     return;
   }
 
+  const localRateLimitProbe = spawnSync(
+    "npx",
+    [
+      "tsx",
+      "-e",
+      `import("./app/api/improve/route.ts").then(async ({ POST }) => {
+        let providerCalls = 0;
+
+        globalThis.fetch = async () => {
+          providerCalls += 1;
+
+          return new Response(
+            JSON.stringify({
+              id: "chatcmpl-test",
+              object: "chat.completion",
+              created: 0,
+              model: "gpt-4o-mini",
+              choices: [
+                {
+                  index: 0,
+                  message: {
+                    role: "assistant",
+                    content: JSON.stringify({
+                      hookScore: 85,
+                      reason: "The opening already uses the exact 100 miles anchor.",
+                    }),
+                  },
+                  finish_reason: "stop",
+                },
+              ],
+              usage: {
+                prompt_tokens: 1,
+                completion_tokens: 1,
+                total_tokens: 2,
+              },
+            }),
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            }
+          );
+        };
+
+        let finalResponse;
+
+        for (let index = 0; index < 11; index += 1) {
+          const request = new Request("http://localhost/api/improve", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-forwarded-for": "203.0.113.10",
+            },
+            body: JSON.stringify({
+              script: "A car crossed 100 miles in one hour because its engine was modified.",
+              title: "Modified car test",
+            }),
+          });
+
+          finalResponse = await POST(request);
+
+          if (index < 10 && finalResponse.status === 429) {
+            throw new Error("Rate limit blocked an allowed request");
+          }
+        }
+
+        const finalPayload = await finalResponse.json();
+
+        if (
+          finalResponse.status !== 429 ||
+          finalPayload.status !== "error" ||
+          typeof finalPayload.reason !== "string" ||
+          !/too many|rate|limit|later/i.test(finalPayload.reason) ||
+          providerCalls !== 10
+        ) {
+          throw new Error(
+            "Expected the eleventh AI-dependent request from one IP to return 429 before calling the provider"
+          );
+        }
+
+        console.log("LOCAL_RATE_LIMIT_PASS");
+      }).catch((error) => {
+        console.error(error instanceof Error ? error.message : error);
+        process.exit(1);
+      });`,
+    ],
+    {
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        OPENAI_API_KEY: "test-key",
+      },
+      encoding: "utf8",
+    }
+  );
+
+  if (
+    localRateLimitProbe.status === 0 &&
+    localRateLimitProbe.stdout.includes("LOCAL_RATE_LIMIT_PASS")
+  ) {
+    console.log("✅ PASS — Improve API limits repeated AI requests per client");
+  } else {
+    console.error("❌ FAIL — Improve API limits repeated AI requests per client");
+    console.error(
+      localRateLimitProbe.stderr.trim() ||
+        localRateLimitProbe.stdout.trim()
+    );
+    process.exitCode = 1;
+    return;
+  }
+
   const routeSource = readFileSync("app/api/improve/route.ts", "utf8");
   const unsafeProductionLogs = [
     'console.log("',
@@ -405,6 +515,21 @@ async function main() {
     console.error(
       `  found ${unsafeProductionLogs.length} unsafe production logging pattern(s)`
     );
+    process.exitCode = 1;
+    return;
+  }
+
+  const boundsRateLimitMemory =
+    routeSource.includes("AI_RATE_LIMIT_MAX_ENTRIES") &&
+    routeSource.includes("aiRateLimitEntries.delete(") &&
+    routeSource.includes(
+      "aiRateLimitEntries.size >= AI_RATE_LIMIT_MAX_ENTRIES"
+    );
+
+  if (boundsRateLimitMemory) {
+    console.log("✅ PASS — Improve API bounds in-memory rate-limit storage");
+  } else {
+    console.error("❌ FAIL — Improve API bounds in-memory rate-limit storage");
     process.exitCode = 1;
     return;
   }
