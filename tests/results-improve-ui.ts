@@ -111,6 +111,48 @@ if (
   failures += 1;
 }
 
+
+const shareHandlerStart = source.indexOf("async function handleShare");
+const shareHandlerEnd =
+  shareHandlerStart >= 0
+    ? source.indexOf("\n  return (", shareHandlerStart)
+    : -1;
+const shareHandler =
+  shareHandlerStart >= 0 && shareHandlerEnd > shareHandlerStart
+    ? source.slice(shareHandlerStart, shareHandlerEnd)
+    : "";
+
+const avoidsUnshareableResultsUrl =
+  !shareHandler.includes("window.location.href") &&
+  !shareHandler.includes("Review link copied.");
+
+const sharesActualReviewContent =
+  shareHandler.includes("activeScript") &&
+  shareHandler.includes("analysis.overall.score") &&
+  shareHandler.includes("analysis.hook.score") &&
+  shareHandler.includes("analysis.risk.score");
+
+const blocksShareWithoutResults =
+  shareHandler.includes(
+    "if (!isStorageLoaded || storageError || !hasAnalyzedScript) return;"
+  ) &&
+  source.includes(
+    "disabled={!isStorageLoaded || Boolean(storageError) || !hasAnalyzedScript}"
+  );
+
+if (
+  avoidsUnshareableResultsUrl &&
+  sharesActualReviewContent &&
+  blocksShareWithoutResults
+) {
+  console.log("✅ PASS — Share exports actual review content only when results exist");
+} else {
+  console.error(
+    "❌ FAIL — Share must not copy the session-only /results URL or expose fallback content"
+  );
+  failures += 1;
+}
+
 if (failures > 0) {
   process.exitCode = 1;
 } else {

@@ -314,10 +314,20 @@ const hookCopyButtonLabel =
   }
 
   async function handleShare() {
+    if (!isStorageLoaded || storageError || !hasAnalyzedScript) return;
+
+    const reviewText = [
+      savedTitle || "Reelyze Script Review",
+      `Overall Score: ${analysis.overall.score}/100`,
+      `Hook Score: ${analysis.hook.score}/100`,
+      `Retention Risk: ${analysis.risk.score}/100`,
+      "",
+      activeScript,
+    ].join("\n");
+
     const shareData = {
       title: savedTitle || "Reelyze Script Review",
-      text: "Check my Reelyze script review.",
-      url: typeof window !== "undefined" ? window.location.href : "",
+      text: reviewText,
     };
 
     try {
@@ -325,8 +335,8 @@ const hookCopyButtonLabel =
         await navigator.share(shareData);
         setShareMessage("Shared.");
       } else if (typeof navigator !== "undefined" && navigator.clipboard) {
-        await navigator.clipboard.writeText(shareData.url);
-        setShareMessage("Review link copied.");
+        await navigator.clipboard.writeText(reviewText);
+        setShareMessage("Review copied.");
       }
     } catch {
       // user cancelled share or clipboard write failed — ignore
@@ -695,7 +705,11 @@ const hookCopyButtonLabel =
               <img src="/logo.png" alt="Reelyze" className="h-7 w-7 object-contain" />
               <span className="text-[14px] font-bold tracking-[0.16em] text-white">REELYZE</span>
             </div>
-            <button onClick={handleShare} className="flex h-[42px] w-[42px] items-center justify-center rounded-[12px] border border-[#24242A] bg-[#0B0B0F]">
+            <button
+              onClick={handleShare}
+              disabled={!isStorageLoaded || Boolean(storageError) || !hasAnalyzedScript}
+              className="flex h-[42px] w-[42px] items-center justify-center rounded-[12px] border border-[#24242A] bg-[#0B0B0F] disabled:cursor-not-allowed disabled:opacity-40"
+            >
               <Share2 size={17} className="text-[#777A85]" />
             </button>
           </div>
