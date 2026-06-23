@@ -331,10 +331,22 @@ export async function POST(req: Request): Promise<Response> {
       );
     }
 
-    const script = (body as { script: string; title?: string }).script.trim();
-    const title = typeof (body as { script: string; title?: string }).title === "string"
-      ? (body as { script: string; title?: string }).title!.trim()
-      : "";
+    const requestBody = body as Record<string, unknown>;
+
+    if ("title" in requestBody && typeof requestBody.title !== "string") {
+      return Response.json(
+        {
+          status: "error",
+          improvedHook: "AI hook improvement is unavailable right now.",
+          reason: "Title must be a string.",
+        } satisfies ImproveHookResult,
+        { status: 400 }
+      );
+    }
+
+    const script = (requestBody.script as string).trim();
+    const title =
+      typeof requestBody.title === "string" ? requestBody.title.trim() : "";
 
     if (script.length === 0) {
       return Response.json(

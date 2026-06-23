@@ -598,6 +598,15 @@ async function main() {
         expectedStatus: 400,
         expectedReason: /title|200|too long|character/i,
       },
+      {
+        name: "Non-string title is rejected",
+        body: {
+          script: "Success is important and people should work hard every day.",
+          title: 123,
+        },
+        expectedStatus: 400,
+        expectedReason: /title|string|invalid/i,
+      },
     ];
 
     let failures = 0;
