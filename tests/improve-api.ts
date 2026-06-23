@@ -7,6 +7,7 @@ type TestCase = {
   name: string;
   body: unknown;
   rawBody?: string;
+  contentType?: string;
   expectedStatus: number;
   expectedReason: RegExp;
 };
@@ -677,6 +678,16 @@ async function main() {
         expectedReason: /invalid|json|request/i,
       },
       {
+        name: "Non-JSON content type is rejected",
+        body: {
+          script: "A car crossed 100 miles in one hour.",
+          title: "Modified car test",
+        },
+        contentType: "text/plain",
+        expectedStatus: 415,
+        expectedReason: /content.?type|application\/json|unsupported/i,
+      },
+      {
         name: "Whitespace-only script is rejected",
         body: { script: "   \n\t   ", title: "Empty script" },
         expectedStatus: 400,
@@ -713,7 +724,9 @@ async function main() {
     for (const testCase of cases) {
       const request = new Request("http://localhost/api/improve", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": testCase.contentType ?? "application/json",
+        },
         body: testCase.rawBody ?? JSON.stringify(testCase.body),
       });
 

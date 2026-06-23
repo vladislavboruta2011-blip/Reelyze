@@ -320,6 +320,20 @@ async function readJsonBodyWithLimit(req: Request): Promise<unknown> {
 }
 
 export async function POST(req: Request): Promise<Response> {
+  const contentType =
+    req.headers.get("content-type")?.split(";", 1)[0].trim().toLowerCase() ?? "";
+
+  if (contentType != "application/json") {
+    return Response.json(
+      {
+        status: "error",
+        improvedHook: "AI hook improvement is unavailable right now.",
+        reason: "Unsupported Content-Type. Use application/json.",
+      } satisfies ImproveHookResult,
+      { status: 415 }
+    );
+  }
+
   let body: unknown;
 
   try {
