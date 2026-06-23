@@ -157,12 +157,74 @@ function buildEarlyDiagnosticResponse(script: string): ImproveHookResult {
   };
 }
 
+const MAX_REQUEST_BODY_BYTES = 16_384;
+
+class RequestBodyTooLargeError extends Error {}
+
+async function readJsonBodyWithLimit(req: Request): Promise<unknown> {
+  const contentLength = req.headers.get("content-length");
+
+  if (contentLength !== null) {
+    const declaredBytes = Number(contentLength);
+
+    if (
+      Number.isFinite(declaredBytes) &&
+      declaredBytes > MAX_REQUEST_BODY_BYTES
+    ) {
+      throw new RequestBodyTooLargeError();
+    }
+  }
+
+  if (!req.body) {
+    return JSON.parse("");
+  }
+
+  const reader = req.body.getReader();
+  const decoder = new TextDecoder();
+  let receivedBytes = 0;
+  let rawBody = "";
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+
+      if (done) break;
+
+      receivedBytes += value.byteLength;
+
+      if (receivedBytes > MAX_REQUEST_BODY_BYTES) {
+        await reader.cancel();
+        throw new RequestBodyTooLargeError();
+      }
+
+      rawBody += decoder.decode(value, { stream: true });
+    }
+
+    rawBody += decoder.decode();
+  } finally {
+    reader.releaseLock();
+  }
+
+  return JSON.parse(rawBody);
+}
+
 export async function POST(req: Request): Promise<Response> {
   let body: unknown;
 
   try {
-    body = await req.json();
-  } catch {
+    body = await readJsonBodyWithLimit(req);
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) {
+      return Response.json(
+        {
+          status: "error",
+          improvedHook: "AI hook improvement is unavailable right now.",
+          reason: "Request body is too large.",
+        } satisfies ImproveHookResult,
+        { status: 413 }
+      );
+    }
+
     return Response.json(
       {
         status: "error",

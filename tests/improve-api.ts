@@ -436,6 +436,16 @@ async function main() {
 
     const cases: TestCase[] = [
       {
+        name: "Oversized request body is rejected",
+        body: {
+          script: "Success is very important. You need to work hard every day.",
+          title: "Success",
+          padding: "x".repeat(20_000),
+        },
+        expectedStatus: 413,
+        expectedReason: /request|body|payload|too large/i,
+      },
+      {
         name: "Malformed JSON is rejected",
         body: null,
         rawBody: '{"script":',
