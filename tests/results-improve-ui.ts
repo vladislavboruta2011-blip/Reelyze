@@ -232,6 +232,20 @@ if (preservesPreviousStoredAnalysis) {
   failures += 1;
 }
 
+const isolatesLegacyStorageCleanup =
+  analyzeHandler.includes("function clearLegacyStoredScript()") &&
+  analyzeHandler.includes('localStorage.removeItem("reelyze-script")') &&
+  analyzeHandler.includes("clearLegacyStoredScript();");
+
+if (isolatesLegacyStorageCleanup) {
+  console.log("✅ PASS — Legacy localStorage cleanup cannot block a valid analysis");
+} else {
+  console.error(
+    "❌ FAIL — Optional localStorage cleanup must not roll back a valid sessionStorage analysis"
+  );
+  failures += 1;
+}
+
 if (failures > 0) {
   process.exitCode = 1;
 } else {

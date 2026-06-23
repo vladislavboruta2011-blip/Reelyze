@@ -582,6 +582,14 @@ export default function HomePage() {
       }
     };
 
+    function clearLegacyStoredScript() {
+      try {
+        localStorage.removeItem("reelyze-script");
+      } catch {
+        // Legacy cleanup is optional and must not block a valid analysis.
+      }
+    }
+
     setAnalyzeError("");
     setIsAnalyzing(true);
 
@@ -592,7 +600,7 @@ export default function HomePage() {
 
       sessionStorage.setItem("reelyze-script", cleanedScript);
       sessionStorage.setItem("reelyze-title", cleanedTitle);
-      localStorage.removeItem("reelyze-script");
+      clearLegacyStoredScript();
       router.push("/results");
     } catch {
       if (hasStorageSnapshot) {
