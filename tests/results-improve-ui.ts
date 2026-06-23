@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 
 const source = readFileSync("app/results/page.tsx", "utf8");
+const homeSource = readFileSync("app/page.tsx", "utf8");
 let failures = 0;
 
 console.log("\nReelyze Improve Hook UI Regression Tests\n");
@@ -189,6 +190,44 @@ if (
 } else {
   console.error(
     "❌ FAIL — Results must reject empty or oversized sessionStorage data before analysis"
+  );
+  failures += 1;
+}
+
+const analyzeHandlerStart = homeSource.indexOf("function handleAnalyze()");
+const analyzeHandlerEnd =
+  analyzeHandlerStart >= 0
+    ? homeSource.indexOf("\n  return (", analyzeHandlerStart)
+    : -1;
+const analyzeHandler =
+  analyzeHandlerStart >= 0 && analyzeHandlerEnd > analyzeHandlerStart
+    ? homeSource.slice(analyzeHandlerStart, analyzeHandlerEnd)
+    : "";
+
+const analyzeTryIndex = analyzeHandler.indexOf("try {");
+const previousScriptReadIndex = analyzeHandler.indexOf(
+  'previousScript = sessionStorage.getItem("reelyze-script")'
+);
+const previousTitleReadIndex = analyzeHandler.indexOf(
+  'previousTitle = sessionStorage.getItem("reelyze-title")'
+);
+
+const preservesPreviousStoredAnalysis =
+  analyzeTryIndex >= 0 &&
+  previousScriptReadIndex > analyzeTryIndex &&
+  previousTitleReadIndex > analyzeTryIndex &&
+  analyzeHandler.includes(
+    'restoreSessionValue("reelyze-script", previousScript)'
+  ) &&
+  analyzeHandler.includes(
+    'restoreSessionValue("reelyze-title", previousTitle)'
+  );
+
+if (preservesPreviousStoredAnalysis) {
+  console.log("✅ PASS — Analyze restores previous session data when storage fails");
+} else {
+  console.error(
+    "❌ FAIL — Analyze must not leave partially overwritten session data after a storage failure"
   );
   failures += 1;
 }

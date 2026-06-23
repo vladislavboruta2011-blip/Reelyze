@@ -565,14 +565,40 @@ export default function HomePage() {
       setAnalyzeError("Title is too long. Please shorten it to 200 characters or less.");
       return;
     }
+
+    let previousScript: string | null = null;
+    let previousTitle: string | null = null;
+    let hasStorageSnapshot = false;
+
+    const restoreSessionValue = (key: string, value: string | null) => {
+      try {
+        if (value === null) {
+          sessionStorage.removeItem(key);
+        } else {
+          sessionStorage.setItem(key, value);
+        }
+      } catch {
+        // Storage is unavailable; the visible error below remains the source of truth.
+      }
+    };
+
     setAnalyzeError("");
     setIsAnalyzing(true);
+
     try {
+      previousScript = sessionStorage.getItem("reelyze-script");
+      previousTitle = sessionStorage.getItem("reelyze-title");
+      hasStorageSnapshot = true;
+
       sessionStorage.setItem("reelyze-script", cleanedScript);
       sessionStorage.setItem("reelyze-title", cleanedTitle);
       localStorage.removeItem("reelyze-script");
       router.push("/results");
     } catch {
+      if (hasStorageSnapshot) {
+        restoreSessionValue("reelyze-script", previousScript);
+        restoreSessionValue("reelyze-title", previousTitle);
+      }
       setIsAnalyzing(false);
       setAnalyzeError("Something went wrong. Please try again.");
     }
