@@ -420,6 +420,7 @@ Return only valid JSON matching the exact schema.`;
 
     if (
       upstreamStatus === 429 ||
+      (upstreamStatus !== undefined && upstreamStatus >= 500) ||
       error instanceof OpenAI.APIConnectionError
     ) {
       console.error("[improve] AI provider temporarily unavailable.");

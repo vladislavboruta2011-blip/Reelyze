@@ -237,6 +237,26 @@ async function main() {
             throw new Error("simulated network failure");
           }
         );
+
+        for (const status of [500, 502, 503, 504]) {
+          await expectSafe503(
+            "UPSTREAM_" + status,
+            async () =>
+              new Response(
+                JSON.stringify({
+                  error: {
+                    message: "Temporary upstream failure",
+                    type: "server_error",
+                    code: "server_error",
+                  },
+                }),
+                {
+                  status,
+                  headers: { "Content-Type": "application/json" },
+                }
+              )
+          );
+        }
       }).catch((error) => {
         console.error(error instanceof Error ? error.message : error);
         process.exit(1);
