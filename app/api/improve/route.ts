@@ -901,7 +901,6 @@ function buildAnchorHook(
   if (!anchor) return null;
 
   const lines = script.split(/[\n.!?]/).map(l => l.trim()).filter(Boolean);
-  const firstLine = lines[0] ?? "";
   const bodyLines = lines.slice(1);
 
   if (anchor.type === "exactNumberWithUnit") {
@@ -913,19 +912,14 @@ function buildAnchorHook(
     const cleaned = sourceLine.replace(/[.!?]+$/, "").trim();
     const words = cleaned.split(/\s+/);
 
-    // If the sentence is short enough, use it directly
-    if (words.length >= 5 && words.length <= 20) {
-      // Try to frame it with personal stakes if "you" is already present
-      if (cleaned.toLowerCase().includes(" you ") || cleaned.toLowerCase().startsWith("you ")) {
-        return capitalizeFirstChar(cleaned) + ".";
-      }
-      // Add personal framing
-      return `${capitalizeFirstChar(cleaned)} — and you do not even feel it.`;
+    // Keep deterministic fallbacks fully grounded in the source sentence.
+    if (cleaned.length > 0) {
+      return words.length <= 20
+        ? `${capitalizeFirstChar(cleaned)}.`
+        : `${capitalizeFirstChar(words.slice(0, 18).join(" "))}.`;
     }
 
-    // Build a hook using just the number + minimal context
-    const numericCore = anchor.value;
-    return `You are moving at ${numericCore} right now — and you do not even feel it.`;
+    return null;
   }
 
 if (anchor.type === "concreteVisualDetail") {

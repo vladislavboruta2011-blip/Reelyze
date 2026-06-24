@@ -388,6 +388,105 @@ async function main() {
     return;
   }
 
+  const groundedNumericFallbackProbe = spawnSync(
+    "npx",
+    [
+      "tsx",
+      "-e",
+      `globalThis.fetch = async () =>
+        new Response(
+          JSON.stringify({
+            id: "chatcmpl-test",
+            object: "chat.completion",
+            created: 0,
+            model: "gpt-4o-mini",
+            choices: [
+              {
+                index: 0,
+                message: {
+                  role: "assistant",
+                  content: JSON.stringify({
+                    hookScore: 45,
+                    improvedHook: "This app lost 40% of its users in one week.",
+                    reason: "The opening should use the strongest numeric result.",
+                    hookOptions: [],
+                  }),
+                },
+                finish_reason: "stop",
+              },
+            ],
+            usage: {
+              prompt_tokens: 1,
+              completion_tokens: 1,
+              total_tokens: 2,
+            },
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+
+      import("./app/api/improve/route.ts").then(async ({ POST }) => {
+        const request = new Request("http://localhost/api/improve", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: "The App That Recovered",
+            script:
+              "This app lost 40% of its users in one week. The team added three new features, but retention dropped again. Then they removed the most complicated feature and simplified onboarding. Within 30 days, weekly retention increased from 18% to 31%.",
+          }),
+        });
+
+        const response = await POST(request);
+        const payload = await response.json();
+
+        if (
+          response.status !== 200 ||
+          payload.improvedHook !==
+            "Within 30 days, weekly retention increased from 18% to 31%." ||
+          /you do not even feel it|most people never realise it/i.test(
+            payload.improvedHook
+          )
+        ) {
+          throw new Error(
+            "Expected numeric fallback to stay fully grounded in the script"
+          );
+        }
+
+        console.log("GROUNDED_NUMERIC_FALLBACK_PASS");
+      }).catch((error) => {
+        console.error(error instanceof Error ? error.message : error);
+        process.exit(1);
+      });`,
+    ],
+    {
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        OPENAI_API_KEY: "test-key",
+      },
+      encoding: "utf8",
+    }
+  );
+
+  if (
+    groundedNumericFallbackProbe.status === 0 &&
+    groundedNumericFallbackProbe.stdout.includes(
+      "GROUNDED_NUMERIC_FALLBACK_PASS"
+    )
+  ) {
+    console.log("✅ PASS — Numeric fallback does not invent unsupported claims");
+  } else {
+    console.error("❌ FAIL — Numeric fallback does not invent unsupported claims");
+    console.error(
+      groundedNumericFallbackProbe.stderr.trim() ||
+        groundedNumericFallbackProbe.stdout.trim()
+    );
+    process.exitCode = 1;
+    return;
+  }
+
   const oversizedProviderOutputProbe = spawnSync(
     "npx",
     [
