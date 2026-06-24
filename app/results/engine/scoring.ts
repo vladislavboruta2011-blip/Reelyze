@@ -1959,7 +1959,7 @@ function normalizeAutoCaptionScript(text: string): string {
 type Weakness =
   | "weak-hook" | "weak-payoff" | "weak-middle" | "weak-stakes"
   | "weak-specificity" | "weak-mystery" | "weak-consequence"
-  | "repetitive" | "excellent-hook" | "excellent-payoff" | "balanced-weak";
+  | "repetitive" | "excellent-hook" | "excellent-payoff" | "balanced-strong" | "balanced-weak";
 
 function hashPick<T>(seed: string, options: T[]): T {
   let h = 0;
@@ -2003,6 +2003,9 @@ const TAKEAWAY_TEMPLATES: Record<Weakness, string[]> = {
   "excellent-payoff": [
     "The ending lands a real consequence, which is what makes this feel worth the watch time.",
   ],
+  "balanced-strong": [
+    "The script has a clear opening, progression, and payoff. No major structural issue stands out.",
+  ],
   "balanced-weak": [
     "No single part is broken, but nothing is strong enough yet either — sharpen the hook, stakes, or payoff.",
   ],
@@ -2030,6 +2033,17 @@ function buildMainTakeaway(
   signals: UniversalSignals, structures: ScriptStructures, issueTitles: string[] = []
 ): string {
   const issueText = issueTitles.join(" ").toLowerCase();
+
+  if (issueTitles.length === 0) {
+    const strength: Weakness =
+      structures.hasConsequencePayoff && payoffStrength >= 60
+        ? "excellent-payoff"
+        : hookScore >= 75
+          ? "excellent-hook"
+          : "balanced-strong";
+
+    return hashPick(script + strength, TAKEAWAY_TEMPLATES[strength]);
+  }
 
   // Keep the headline aligned with the concrete feedback shown below it.
   // A detected genericness issue takes priority over a secondary weak hook.

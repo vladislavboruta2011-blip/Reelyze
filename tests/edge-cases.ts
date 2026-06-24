@@ -754,6 +754,33 @@ Jordan still reaches slightly higher, proving that height and vertical jump both
     ],
   },
   {
+    name: "Clean transformation analysis has aligned takeaway",
+    script: `This app lost 40% of its users in one week.
+The team added three new features, but retention dropped again.
+Then they removed the most complicated feature and simplified onboarding.
+Within 30 days, weekly retention increased from 18% to 31%.`,
+    checks: [
+      {
+        label: "clean analysis has no risky parts",
+        test: ({ riskyParts }) => riskyParts.length === 0,
+        expected: "no risky parts",
+      },
+      {
+        label: "clean analysis has no suggested fixes",
+        test: ({ fixes }) => fixes.length === 0,
+        expected: "no suggested fixes",
+      },
+      {
+        label: "takeaway does not invent a missing consequence",
+        test: ({ takeaway }) =>
+          !/nothing in this script is clearly at risk|add a consequence|what(?:'|’)s lost, threatened/i.test(
+            takeaway
+          ),
+        expected: "takeaway aligned with clean analysis",
+      },
+    ],
+  },
+  {
     name: "Concrete physical consequence is a payoff",
     script: `Imagine the Sun suddenly disappeared for 8 minutes.
 Earth would not notice immediately because sunlight takes about 8 minutes to reach us.
