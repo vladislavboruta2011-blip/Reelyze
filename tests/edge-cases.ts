@@ -1,5 +1,6 @@
 import {
   analyzeScript,
+  createHookRewrite,
   createScriptLines,
   detectScriptStructures,
   estimateDuration,
@@ -860,6 +861,26 @@ console.log(
 );
 if (!longSentenceRetentionPasses) {
   failures += 1;
+}
+
+const unreliableDiagnosticScripts = [
+  "Want to become successful. Work hard every day. Stay focused and never give up.",
+  "Most people want success. They need to work hard. They should stay focused every day.",
+];
+
+console.log("\n— Client diagnostic topic fallback");
+
+for (const script of unreliableDiagnosticScripts) {
+  const rewrite = createHookRewrite(script);
+  const passed =
+    rewrite ===
+    "This script needs one specific example, result, or consequence before the hook can feel strong.";
+
+  console.log(
+    `${passed ? "✅" : "❌"} unreliable first word uses neutral diagnostic guidance`,
+  );
+
+  if (!passed) failures += 1;
 }
 
 if (failures > 0) {

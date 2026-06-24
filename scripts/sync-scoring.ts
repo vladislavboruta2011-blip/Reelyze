@@ -18,7 +18,7 @@ const targetPaths = [
  * These declarations become named exports in generated mirrors.
  *
  * ScoreData is exported for type safety.
- * The other five functions are used by the regression harness.
+ * The other six functions are used by the regression harness.
  */
 const publicRoots = [
   "ScoreData",
@@ -27,6 +27,7 @@ const publicRoots = [
   "detectNarrativeArc",
   "createScriptLines",
   "estimateDuration",
+  "createHookRewrite",
 ] as const;
 
 if (!fs.existsSync(sourcePath)) {

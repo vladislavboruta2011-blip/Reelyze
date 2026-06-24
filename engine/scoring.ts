@@ -3245,7 +3245,7 @@ function dedupeRiskyParts(parts: RiskyPart[]): RiskyPart[] {
   });
 }
 
-function createHookRewrite(script: string): string {
+export function createHookRewrite(script: string): string {
   const allLines = script
     .split(/[\n.!?]/)
     .map(l => l.trim())
@@ -3325,14 +3325,7 @@ function createHookRewrite(script: string): string {
   }
   const allConcrete = allLines.filter(line => clientLineHasHardAnchor(line));
   if (allConcrete.length === 0 && allLines.length >= 3) {
-    // Extract topic word for grounded diagnostic
-    const firstWords = firstLine.toLowerCase().replace(/[^a-z\s]/g, "").split(/\s+/).filter(Boolean);
-    const stopWords = new Set(["is","are","was","the","a","an","in","on","at","of","to","and","but","or","for","with","this","that","very","so","it","its","i","we","you","they"]);
-    const topicWord = firstWords.find(w => !stopWords.has(w) && w.length >= 4) ?? "";
-    const capitalizedTopic = topicWord ? topicWord.charAt(0).toUpperCase() + topicWord.slice(1) : "";
-    return capitalizedTopic.length > 0
-      ? `The script about ${capitalizedTopic} needs one specific example, result, or consequence before the hook can feel strong.`
-      : "This script needs one specific example, result, or consequence before the hook can feel strong.";
+    return "This script needs one specific example, result, or consequence before the hook can feel strong.";
   }
 
   // ── Step 0: scenario opener + final payoff combination ───────────────────

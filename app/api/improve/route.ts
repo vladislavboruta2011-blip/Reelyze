@@ -127,31 +127,14 @@ function hasAnyConcreteAnchor(script: string): boolean {
   return false;
 }
 
-// Extracts a topic word from the script's first line for use in the
-// universal diagnostic hook/response. Purely structural — no hardcoded topics.
-function extractTopicWordForDiagnostic(script: string): string {
-  const firstLine = script.split(/[\n.!?]/)[0]?.trim() ?? "";
-  const firstWords = firstLine.toLowerCase().replace(/[^a-z\s]/g, "").split(/\s+/).filter(Boolean);
-  const stopWords = new Set([
-    "is", "are", "was", "the", "a", "an", "in", "on", "at", "of", "to",
-    "and", "but", "or", "for", "with", "this", "that", "very", "so",
-    "it", "its", "i", "we", "you", "they", "why", "how", "what", "when",
-  ]);
-  return firstWords.find(w => !stopWords.has(w) && w.length >= 4) ?? "";
-}
+const GENERIC_DIAGNOSTIC_HOOK =
+  "This script needs one specific example, result, or consequence before the hook can feel strong.";
 
 // Builds the universal diagnostic response when no concrete anchor exists.
-function buildEarlyDiagnosticResponse(script: string): ImproveHookResult {
-  const topicWord = extractTopicWordForDiagnostic(script);
-  const capitalizedTopic = topicWord.length > 0
-    ? topicWord.charAt(0).toUpperCase() + topicWord.slice(1)
-    : "";
-
+function buildEarlyDiagnosticResponse(_script: string): ImproveHookResult {
   return {
     status: "improved",
-    improvedHook: capitalizedTopic.length > 0
-      ? `The script about ${capitalizedTopic} needs one specific example, result, or consequence before the hook can feel strong.`
-      : "This script needs one specific example, result, or consequence before the hook can feel strong.",
+    improvedHook: GENERIC_DIAGNOSTIC_HOOK,
     reason: "The script is too abstract to rewrite into a stronger hook without inventing unsupported ideas. Add one concrete example, result, consequence, number, or real situation first.",
     mode: "diagnostic",
   };
@@ -1220,11 +1203,9 @@ function lineHasHardAnchor(line: string): boolean {
     "designed", "intended", "allowed", "believed", "understood",
   ]);
   const edMatches = ll.match(/\b(\w+)ed\b/g) ?? [];
-  for (const m of edMatches) {
-    // The regex captures the stem (e.g. "motivat" from "motivated").
-    // Check the full -ed word (stem + "ed") against the stative set.
-    const fullWord = m + "ed";
-    if (!STATIVE_OR_ABSTRACT_ED.has(fullWord) && m.length >= 4) {
+  for (const word of edMatches) {
+    const stem = word.replace(/ed$/, "");
+    if (!STATIVE_OR_ABSTRACT_ED.has(word) && stem.length >= 4) {
       return true;
     }
   }
@@ -1285,19 +1266,10 @@ function isVeryGenericScript(script: string): {
   return { isGeneric: true, mainTopicWord };
 }
 
-function buildGenericScriptResponse(_script: string, mainTopicWord: string): ImproveHookResult {
-  const capitalizedTopic =
-    mainTopicWord.length > 0
-      ? mainTopicWord.charAt(0).toUpperCase() + mainTopicWord.slice(1)
-      : "";
-
+function buildGenericScriptResponse(_script: string, _mainTopicWord: string): ImproveHookResult {
   // Return an honest structural diagnosis only.
-  // Do NOT invent any claim about the topic — no "takes real effort",
-  // no "requires discipline", no framing not supported by the script.
-  const improvedHook =
-    capitalizedTopic.length > 0
-      ? `The script about ${capitalizedTopic} needs one specific example, result, or consequence before the hook can feel strong.`
-      : "This script needs one specific example, result, or consequence before the hook can feel strong.";
+  // Do NOT guess a topic from an unreliable first word.
+  const improvedHook = GENERIC_DIAGNOSTIC_HOOK;
 
   const reason =
     "The script is too broad to create a strong grounded hook. Every line states a general idea — there is no specific number, named reference, concrete result, or story moment to anchor the opening. Add one specific detail first: a result someone achieved, a named example, a measurable outcome, or a story beat. Once the script has that, the hook can be rewritten around it.";
@@ -1423,13 +1395,7 @@ function buildFallbackHookFromScript(script: string): string {
   const hasAnyConcrete = lines.some(line => lineHasHardAnchor(line));
 
   if (!hasAnyConcrete && lines.length >= 3) {
-    const firstWords = firstLine.toLowerCase().replace(/[^a-z\s]/g, "").split(/\s+/).filter(Boolean);
-    const stopWords = new Set(["is","are","was","the","a","an","in","on","at","of","to","and","but","or","for","with","this","that","very","so","it","its","i","we","you","they"]);
-    const topicWord = firstWords.find(w => !stopWords.has(w) && w.length >= 4) ?? "";
-    const capitalizedTopic = topicWord ? capitalizeFirstChar(topicWord) : "";
-    return capitalizedTopic.length > 0
-      ? `The script about ${capitalizedTopic} needs one specific example, result, or consequence before the hook can feel strong.`
-      : "This script needs one specific example, result, or consequence before the hook can feel strong.";
+    return GENERIC_DIAGNOSTIC_HOOK;
   }
 
   // ── Scenario opener + final payoff combination ──────────────────────────
@@ -1735,13 +1701,7 @@ function parseHookResponse(raw: string, script: string): ImproveHookResult {
 
     if (!scriptHasConcrete || (!hookHasConcrete && !scriptHasConcrete)) {
       if (allScriptLines.length >= 3) {
-        const firstWords = (allScriptLines[0] ?? "").toLowerCase().replace(/[^a-z\s]/g, "").split(/\s+/).filter(Boolean);
-        const stopWordsSet = new Set(["is","are","was","the","a","an","in","on","at","of","to","and","but","or","for","with","this","that","very","so","it","its","i","we","you","they"]);
-        const topicWord = firstWords.find(w => !stopWordsSet.has(w) && w.length >= 4) ?? "";
-        const cap = topicWord ? topicWord.charAt(0).toUpperCase() + topicWord.slice(1) : "";
-        const diagnosticHook = cap.length > 0
-          ? `The script about ${cap} needs one specific example, result, or consequence before the hook can feel strong.`
-          : "This script needs one specific example, result, or consequence before the hook can feel strong.";
+        const diagnosticHook = GENERIC_DIAGNOSTIC_HOOK;
         const diagnosticReason = "The script is too abstract to rewrite into a stronger hook without inventing unsupported ideas. Add one concrete example, result, consequence, number, or real situation first.";
         return { status: "improved", improvedHook: diagnosticHook, reason: diagnosticReason, mode: "diagnostic" };
       }
@@ -1752,15 +1712,9 @@ function parseHookResponse(raw: string, script: string): ImproveHookResult {
     // was produced (AI, hookOptions, or anchor-builder fallback).
     const finalScriptHasConcrete = allScriptLines.some(line => lineHasHardAnchor(line));
     if (!finalScriptHasConcrete) {
-      const firstWordsFinal = (allScriptLines[0] ?? "").toLowerCase().replace(/[^a-z\s]/g, "").split(/\s+/).filter(Boolean);
-      const stopWordsFinal = new Set(["is","are","was","the","a","an","in","on","at","of","to","and","but","or","for","with","this","that","very","so","it","its","i","we","you","they"]);
-      const topicWordFinal = firstWordsFinal.find(w => !stopWordsFinal.has(w) && w.length >= 4) ?? "";
-      const capFinal = topicWordFinal ? topicWordFinal.charAt(0).toUpperCase() + topicWordFinal.slice(1) : "";
       return {
         status: "improved",
-        improvedHook: capFinal.length > 0
-          ? `The script about ${capFinal} needs one specific example, result, or consequence before the hook can feel strong.`
-          : "This script needs one specific example, result, or consequence before the hook can feel strong.",
+        improvedHook: GENERIC_DIAGNOSTIC_HOOK,
         reason: "The script is too abstract to rewrite into a stronger hook without inventing unsupported ideas. Add one concrete example, result, consequence, number, or real situation first.",
         mode: "diagnostic",
       };

@@ -487,6 +487,185 @@ async function main() {
     return;
   }
 
+  const diagnosticTopicFallbackProbe = spawnSync(
+    "npx",
+    [
+      "tsx",
+      "-e",
+      `import("./app/api/improve/route.ts").then(async ({ POST }) => {
+        globalThis.fetch = async () => {
+          throw new Error("Unexpected external API call during diagnostic test");
+        };
+
+        const scripts = [
+          "Want to become successful. Work hard every day. Stay focused and never give up.",
+          "Most people want success. They need to work hard. They should stay focused every day.",
+        ];
+
+        for (const script of scripts) {
+          const response = await POST(
+            new Request("http://localhost/api/improve", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                title: "Diagnostic test",
+                script,
+              }),
+            })
+          );
+
+          const payload = await response.json();
+
+          if (
+            response.status !== 200 ||
+            payload.mode !== "diagnostic" ||
+            typeof payload.improvedHook !== "string" ||
+            /the script about (want|most)\\b/i.test(payload.improvedHook)
+          ) {
+            throw new Error(
+              "Expected unreliable topic words to use neutral diagnostic guidance"
+            );
+          }
+        }
+
+        console.log("DIAGNOSTIC_TOPIC_FALLBACK_PASS");
+      }).catch((error) => {
+        console.error(error instanceof Error ? error.message : error);
+        process.exit(1);
+      });`,
+    ],
+    {
+      cwd: process.cwd(),
+      env: envWithoutOpenAIKey,
+      encoding: "utf8",
+    }
+  );
+
+  if (
+    diagnosticTopicFallbackProbe.status === 0 &&
+    diagnosticTopicFallbackProbe.stdout.includes(
+      "DIAGNOSTIC_TOPIC_FALLBACK_PASS"
+    )
+  ) {
+    console.log(
+      "✅ PASS — Unreliable topic words use neutral diagnostic guidance"
+    );
+  } else {
+    console.error(
+      "❌ FAIL — Unreliable topic words use neutral diagnostic guidance"
+    );
+    console.error(
+      diagnosticTopicFallbackProbe.stderr.trim() ||
+        diagnosticTopicFallbackProbe.stdout.trim()
+    );
+    process.exitCode = 1;
+    return;
+  }
+
+  const stativeFirstLinePraiseProbe = spawnSync(
+    "npx",
+    [
+      "tsx",
+      "-e",
+      `globalThis.fetch = async () =>
+        new Response(
+          JSON.stringify({
+            id: "chatcmpl-test",
+            object: "chat.completion",
+            created: 0,
+            model: "gpt-4o-mini",
+            choices: [
+              {
+                index: 0,
+                message: {
+                  role: "assistant",
+                  content: JSON.stringify({
+                    hookScore: 65,
+                    improvedHook:
+                      "After 30 days, the athlete cut 0.4 seconds from his sprint time.",
+                    reason:
+                      "The original hook is already strong and compelling.",
+                    hookOptions: [],
+                  }),
+                },
+                finish_reason: "stop",
+              },
+            ],
+            usage: {
+              prompt_tokens: 1,
+              completion_tokens: 1,
+              total_tokens: 2,
+            },
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+
+      import("./app/api/improve/route.ts").then(async ({ POST }) => {
+        const request = new Request("http://localhost/api/improve", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-forwarded-for": "203.0.113.77",
+          },
+          body: JSON.stringify({
+            title: "Motivation test",
+            script:
+              "You stay motivated and focused. After 30 days, the athlete cut his sprint time by 0.4 seconds. The new training plan produced the result.",
+          }),
+        });
+
+        const response = await POST(request);
+        const payload = await response.json();
+
+        if (
+          response.status !== 200 ||
+          /already strong|already compelling/i.test(payload.reason ?? "")
+        ) {
+          throw new Error(
+            "Expected stative words in the first line not to preserve contradictory AI praise"
+          );
+        }
+
+        console.log("STATIVE_FIRST_LINE_PRAISE_PASS");
+      }).catch((error) => {
+        console.error(error instanceof Error ? error.message : error);
+        process.exit(1);
+      });`,
+    ],
+    {
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        OPENAI_API_KEY: "test-key",
+      },
+      encoding: "utf8",
+    }
+  );
+
+  if (
+    stativeFirstLinePraiseProbe.status === 0 &&
+    stativeFirstLinePraiseProbe.stdout.includes(
+      "STATIVE_FIRST_LINE_PRAISE_PASS"
+    )
+  ) {
+    console.log(
+      "✅ PASS — Stative first-line words do not preserve contradictory AI praise"
+    );
+  } else {
+    console.error(
+      "❌ FAIL — Stative first-line words do not preserve contradictory AI praise"
+    );
+    console.error(
+      stativeFirstLinePraiseProbe.stderr.trim() ||
+        stativeFirstLinePraiseProbe.stdout.trim()
+    );
+    process.exitCode = 1;
+    return;
+  }
+
   const oversizedProviderOutputProbe = spawnSync(
     "npx",
     [
