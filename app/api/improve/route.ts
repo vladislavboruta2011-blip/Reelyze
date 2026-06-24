@@ -131,7 +131,7 @@ const GENERIC_DIAGNOSTIC_HOOK =
   "This script needs one specific example, result, or consequence before the hook can feel strong.";
 
 // Builds the universal diagnostic response when no concrete anchor exists.
-function buildEarlyDiagnosticResponse(_script: string): ImproveHookResult {
+function buildEarlyDiagnosticResponse(): ImproveHookResult {
   return {
     status: "improved",
     improvedHook: GENERIC_DIAGNOSTIC_HOOK,
@@ -413,7 +413,7 @@ export async function POST(req: Request): Promise<Response> {
     // ── ABSOLUTE EARLY GUARD — must run before any AI call ──────────────────
     const earlyNoAnchorGuard = !hasAnyConcreteAnchor(script);
     if (earlyNoAnchorGuard) {
-      return Response.json(buildEarlyDiagnosticResponse(script));
+      return Response.json(buildEarlyDiagnosticResponse());
     }
 
     const systemPrompt = `You are a YouTube Shorts hook strategist and retention editor.
@@ -547,9 +547,9 @@ Step 5 — Write the reason. It must name the anchor material and explain why th
 Return only valid JSON matching the exact schema.`;
 
     // ── Generic script guard ───────────────────────────────────────────────
-    const { isGeneric, mainTopicWord } = isVeryGenericScript(script);
+    const { isGeneric } = isVeryGenericScript(script);
     if (isGeneric) {
-      return Response.json(buildGenericScriptResponse(script, mainTopicWord));
+      return Response.json(buildGenericScriptResponse());
     }
 
     const apiKey = process.env.OPENAI_API_KEY?.trim();
@@ -1266,7 +1266,7 @@ function isVeryGenericScript(script: string): {
   return { isGeneric: true, mainTopicWord };
 }
 
-function buildGenericScriptResponse(_script: string, _mainTopicWord: string): ImproveHookResult {
+function buildGenericScriptResponse(): ImproveHookResult {
   // Return an honest structural diagnosis only.
   // Do NOT guess a topic from an unreliable first word.
   const improvedHook = GENERIC_DIAGNOSTIC_HOOK;

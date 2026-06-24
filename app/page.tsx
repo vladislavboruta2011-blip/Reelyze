@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { Inter } from "next/font/google";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -15,8 +16,6 @@ import {
   Play,
   ShieldCheck,
   Sparkles,
-  SquarePen,
-  PencilLine,
   Target,
   TrendingUp,
 } from "lucide-react";
@@ -73,7 +72,7 @@ function Navbar() {
   return (
     <header className="relative z-10 mx-auto flex h-[96px] w-full max-w-[1280px] items-center justify-between px-8">
       <Link href="/" className="flex items-center gap-3">
-        <img src="/logo.png" alt="Reelyze" className="h-10 w-10 object-contain" />
+        <Image src="/logo.png" alt="Reelyze" width={40} height={40} className="h-10 w-10 object-contain" priority />
         <span className="text-[18px] font-bold tracking-[0.16em] text-white">REELYZE</span>
       </Link>
 
@@ -521,38 +520,6 @@ function AnalyzerSection({
   );
 }
 
-// ─── Desktop landing: bottom CTA ─────────────────────────────────────────────
-// NOTE: BottomCTA is intentionally kept here but no longer rendered in the
-// desktop layout. The analyzer section is now the terminal section on desktop.
-
-function BottomCTA() {
-  return (
-    <section className="relative z-10 mx-auto w-full max-w-[1280px] px-8 pb-24">
-      <div className="overflow-hidden rounded-[24px] border border-[#24242A] bg-[#0B0B0F] px-8 py-12 text-center shadow-[0_16px_60px_rgba(0,0,0,0.40)] md:px-12 md:py-14">
-        <h2 className="mx-auto max-w-[700px] text-[38px] font-extrabold leading-[1.06] tracking-[-0.05em] text-white md:text-[54px]">
-          Improve your next Short before it goes live.
-        </h2>
-
-        <p className="mx-auto mt-5 max-w-[560px] text-[17px] leading-[1.7] text-[#B3B3B3]">
-          Paste your script, get a retention breakdown, and fix weak moments in minutes.
-        </p>
-
-        
-                    <a
-            href="#how-it-works"
-            onClick={(e) => {
-              e.preventDefault();
-              document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" });
-            }}
-            className="inline-flex h-[60px] items-center justify-center gap-3 rounded-[14px] border border-[#252830] bg-[#111114] px-7 text-[18px] font-semibold text-white transition hover:border-white/20 hover:bg-[#17171C]"
-          >
-            <Play className="h-5 w-5" style={{ fill: "white" }} />
-            See How It Works
-          </a>
-      </div>
-    </section>
-  );
-}
 
 // ─── Root page component ──────────────────────────────────────────────────────
 
@@ -568,8 +535,11 @@ export default function HomePage() {
   function handleScriptChange(event: React.ChangeEvent<HTMLTextAreaElement>) {
     const val = event.target.value;
     setScript(val);
+
     if (val.length > maxCharacters) {
-      setAnalyzeError("Script is too long. Please shorten it to 1,000 characters or less.");
+      setAnalyzeError(
+        "Script is too long. Please shorten it to 1,000 characters or less."
+      );
     } else if (analyzeError) {
       setAnalyzeError("");
     }
@@ -583,12 +553,18 @@ export default function HomePage() {
       setAnalyzeError("Please paste your script before analyzing.");
       return;
     }
+
     if (script.length > maxCharacters) {
-      setAnalyzeError("Script is too long. Please shorten it to 1,000 characters or less.");
+      setAnalyzeError(
+        "Script is too long. Please shorten it to 1,000 characters or less."
+      );
       return;
     }
+
     if (cleanedTitle.length > MAX_TITLE_CHARACTERS) {
-      setAnalyzeError("Title is too long. Please shorten it to 200 characters or less.");
+      setAnalyzeError(
+        "Title is too long. Please shorten it to 200 characters or less."
+      );
       return;
     }
 
@@ -633,14 +609,16 @@ export default function HomePage() {
         restoreSessionValue("reelyze-script", previousScript);
         restoreSessionValue("reelyze-title", previousTitle);
       }
+
       setIsAnalyzing(false);
       setAnalyzeError("Something went wrong. Please try again.");
     }
   }
 
   return (
-    <main className={`${inter.className} min-h-screen bg-[#050505] text-white antialiased`}>
-
+    <main
+      className={`${inter.className} min-h-screen bg-[#050505] text-white antialiased`}
+    >
       {/* ══════════════════════════════════
           DESKTOP LAYOUT
       ══════════════════════════════════ */}
@@ -660,7 +638,6 @@ export default function HomePage() {
             isAnalyzing={isAnalyzing}
             analyzeError={analyzeError}
           />
-          {/* BottomCTA removed — analyzer is now the final desktop section */}
         </div>
       </div>
 
@@ -676,10 +653,13 @@ export default function HomePage() {
           {/* Header */}
           <div className="flex items-center justify-between pt-7">
                         <Link href="/" className="flex items-center gap-2.5">
-              <img
+              <Image
                 src="/logo.png"
                 alt="Reelyze"
+                width={32}
+                height={32}
                 className="h-[32px] w-[32px] object-contain"
+                priority
               />
               <span className="text-[14px] font-bold tracking-[0.16em] text-white">
   REELYZE

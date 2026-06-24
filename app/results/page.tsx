@@ -1,8 +1,8 @@
 "use client";
 
+import Image from "next/image";
 import { Inter } from "next/font/google";
 import Link from "next/link";
-import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import {
   SquarePen,
@@ -16,7 +16,6 @@ import {
   Share2,
   ChevronDown,
   ChevronRight,
-  Zap,
   Target,
   ShieldCheck,
 } from "lucide-react";
@@ -117,14 +116,12 @@ export default function ResultsPage() {
   const [savedTitle, setSavedTitle] = useState("");
   const [isStorageLoaded, setIsStorageLoaded] = useState(false);
   const [storageError, setStorageError] = useState("");
-  const [feedbackMessage, setFeedbackMessage] = useState("");
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
   const [feedbackText, setFeedbackText] = useState("");
   const [isHookModalOpen, setIsHookModalOpen] = useState(false);
   const [copiedHook, setCopiedHook] = useState(false);
   const [aiHook, setAiHook] = useState("");
   const [aiHookReason, setAiHookReason] = useState("");
-  const [aiHookStatus, setAiHookStatus] = useState("");
   const [aiHookMode, setAiHookMode] = useState<"diagnostic" | "rewrite" | "">("");
   const [isImprovingHook, setIsImprovingHook] = useState(false);
   const [improveError, setImproveError] = useState("");
@@ -226,13 +223,9 @@ const [mobileScriptOpen, setMobileScriptOpen] = useState(false);
 
 const improvedHook = aiHook || fallbackImprovedHook;
 const modalHookText = improveError ? "No improved hook was generated." : improvedHook;
-const hookWasActuallyChanged =
-  improvedHook.trim().toLowerCase() !== scriptLines[0]?.trim().toLowerCase();
-
 // A hook should only be presented as "already good" when its score is
-// genuinely strong. "hookWasActuallyChanged" alone is not a valid signal —
-// a failed/identical AI rewrite would otherwise be mislabeled as "Hook
-// Analysis" even when the hook score is weak (e.g. Test 4's score of 46).
+// genuinely strong. A failed or identical AI rewrite must not be mislabeled
+// as "Hook Analysis" when the hook score is weak.
 const shouldShowHookAnalysis = analysis.hook.score >= 80;
 
 // Replace any rule-based hook rewrite in fixes with the AI hook once loaded,
@@ -278,7 +271,6 @@ const hookCopyButtonLabel =
     setImproveError("");
     setAiHook("");
     setAiHookReason("");
-    setAiHookStatus("");
     setAiHookMode("");
     setIsImprovingHook(true);
     setIsHookModalOpen(true);
@@ -330,9 +322,6 @@ const hookCopyButtonLabel =
 
       setAiHook(hookText);
       setAiHookReason(hookReason);
-      setAiHookStatus(
-        typeof data.status === "string" ? data.status : "improved"
-      );
       setAiHookMode(data.mode === "diagnostic" ? "diagnostic" : "rewrite");
     } catch {
       setImproveError("Could not improve hook. Please try again.");
@@ -384,7 +373,7 @@ const hookCopyButtonLabel =
         {/* Sidebar */}
         <aside className="fixed left-0 top-0 z-30 flex h-screen w-[230px] flex-col border-r border-[#24242A]/60 bg-[#050505]">
           <div className="flex items-center gap-3 px-6 py-7">
-            <img src="/logo.png" alt="Reelyze" className="h-9 w-9 object-contain" />
+            <Image src="/logo.png" alt="Reelyze" width={36} height={36} className="h-9 w-9 object-contain" priority />
             <span className="text-[15px] font-bold tracking-[0.16em] text-white">REELYZE</span>
           </div>
           <nav className="flex flex-col gap-1.5 px-4">
@@ -732,7 +721,7 @@ const hookCopyButtonLabel =
               <ArrowLeft size={17} className="text-[#EF4444]" />
             </Link>
             <div className="flex items-center gap-2.5">
-              <img src="/logo.png" alt="Reelyze" className="h-7 w-7 object-contain" />
+              <Image src="/logo.png" alt="Reelyze" width={28} height={28} className="h-7 w-7 object-contain" priority />
               <span className="text-[14px] font-bold tracking-[0.16em] text-white">REELYZE</span>
             </div>
             <button
@@ -1084,11 +1073,6 @@ const hookCopyButtonLabel =
                   setFeedbackText("");
                   setMobileSelectedReason("Other");
 setMobileFeedbackSubmitted(true);
-setFeedbackMessage(
-  mobileFeedback === "helpful"
-    ? "Thanks — feedback noted."
-    : "Thanks — we will improve Reelyze."
-);
                 }}
                 className="h-[44px] rounded-[12px] bg-[#DC2626] text-[13px] font-semibold text-white transition hover:bg-[#EF4444]"
               >
@@ -1261,239 +1245,6 @@ setFeedbackMessage(
         </div>
       )}
     </main>
-  );
-}
-
-function ScoreBlock({
-  left,
-  title,
-  score,
-  label,
-  labelColor,
-  ringColor,
-  description,
-}: {
-  left: number;
-  title: string;
-  score: number;
-  label: string;
-  labelColor: string;
-  ringColor: string;
-  description: string;
-}) {
-  return (
-    <div
-      className="absolute top-0 h-[170px] w-[380px]"
-      style={{ left: `${left}px` }}
-    >
-      <p className="absolute left-[35px] top-[22px] h-[24px] text-[15px] font-medium leading-[24px] text-white">
-        {title}
-      </p>
-
-      <div className="absolute left-[35px] top-[60px]">
-        <ScoreRing score={score} color={ringColor} />
-      </div>
-
-      <div className="absolute left-[148px] top-[44px] w-[205px] text-center">
-        <p
-          className="text-[24px] font-semibold leading-[24px]"
-          style={{ color: labelColor }}
-        >
-          {label}
-        </p>
-
-        <p className="mt-[12px] text-[14px] font-normal leading-[22px] text-[#B3B3B3]">
-          {description}
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function ScoreRing({ score, color }: { score: number; color: string }) {
-  const safeScore = Math.max(0, Math.min(100, score));
-  const gapDegrees = (100 - safeScore) * 3.6;
-  const scoreDegrees = safeScore * 3.6;
-  const startAngle = 180 + gapDegrees / 2;
-
-  return (
-    <div className="relative h-[88px] w-[88px]">
-      <div
-        className="absolute inset-0 rounded-full"
-        style={{
-          background: `conic-gradient(from ${startAngle}deg, ${color} 0deg ${scoreDegrees}deg, #252832 ${scoreDegrees}deg 360deg)`,
-        }}
-      />
-
-      <div className="absolute left-[8px] top-[8px] h-[72px] w-[72px] rounded-full bg-[#0B0C10]" />
-
-      <div className="absolute inset-0 flex flex-col items-center justify-center pt-[4px]">
-        <p className="text-[28px] font-semibold leading-[24px] text-white">
-          {safeScore}
-        </p>
-
-        <p className="mt-[4px] text-[14px] font-normal leading-[24px] text-[#B3B3B3]">
-          /100
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function MiniRing({ score, color }: { score: number; color: string }) {
-  const safeScore = Math.max(0, Math.min(100, score));
-  const gapDegrees = (100 - safeScore) * 3.6;
-  const scoreDegrees = safeScore * 3.6;
-  const startAngle = 180 + gapDegrees / 2;
-
-  return (
-    <div className="relative h-[54px] w-[54px] shrink-0">
-      <div
-        className="absolute inset-0 rounded-full"
-        style={{
-          background: `conic-gradient(from ${startAngle}deg, ${color} 0deg ${scoreDegrees}deg, #252832 ${scoreDegrees}deg 360deg)`,
-        }}
-      />
-
-      <div className="absolute left-[5px] top-[5px] h-[44px] w-[44px] rounded-full bg-[#0B0C10]" />
-
-      <div className="absolute inset-0 flex flex-col items-center justify-center gap-0">
-        <p className="text-[18px] font-semibold leading-[20px] text-white">
-          {safeScore}
-        </p>
-        <p className="text-[9px] font-normal leading-[11px] text-[#B3B3B3]">
-          /100
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function ScriptLine({
-  time,
-  text,
-  status,
-}: {
-  time: string;
-  text: string;
-  status: LineStatus;
-}) {
-  const isRisky = status === "risky";
-  const isWarning = status === "warning";
-
-  return (
-    <div
-      className={
-        isRisky
-          ? "grid grid-cols-[46px_1fr] gap-[12px] rounded-[9px] border border-[#EF4444]/20 bg-[#1A0608] px-[8px] py-[6px]"
-          : isWarning
-          ? "grid grid-cols-[46px_1fr] gap-[12px] rounded-[9px] border border-[#F59E0B]/20 bg-[#1A1305] px-[8px] py-[6px]"
-          : "grid grid-cols-[46px_1fr] gap-[12px] px-[8px] py-[2px]"
-      }
-    >
-      <p
-        className={
-          isRisky
-            ? "text-[13px] font-normal leading-[20px] text-[#EF4444]"
-            : isWarning
-            ? "text-[13px] font-normal leading-[20px] text-[#F59E0B]"
-            : "text-[13px] font-normal leading-[20px] text-[#B3B3B3]"
-        }
-      >
-        {time}
-      </p>
-
-      <p
-        className={
-          isRisky
-            ? "text-[13px] font-normal leading-[20px] text-[#EF4444]"
-            : isWarning
-            ? "text-[13px] font-normal leading-[20px] text-[#F59E0B]"
-            : "text-[13px] font-normal leading-[20px] text-[#B3B3B3]"
-        }
-      >
-        {text}
-      </p>
-    </div>
-  );
-}
-
-function RiskyItem({
-  time,
-  title,
-  description,
-}: {
-  time: string;
-  title: string;
-  description: string;
-}) {
-  return (
-    <div className="w-full">
-      <p className="text-[14px] font-medium leading-[18px] text-[#EF4444]">
-        {time}
-      </p>
-
-      <p
-        className="mt-[6px] text-[14px] font-normal leading-[19px] text-white"
-        style={{
-          display: "-webkit-box",
-          WebkitLineClamp: 2,
-          WebkitBoxOrient: "vertical",
-          overflow: "hidden",
-        }}
-      >
-        {title}
-      </p>
-
-      <p
-        className="mt-[3px] text-[13px] font-normal leading-[18px] text-[#B3B3B3]"
-        style={{
-          display: "-webkit-box",
-          WebkitLineClamp: 2,
-          WebkitBoxOrient: "vertical",
-          overflow: "hidden",
-        }}
-      >
-        {description}
-      </p>
-    </div>
-  );
-}
-
-function FixItem({ icon, text }: { icon: ReactNode; text: string }) {
-  return (
-    <div className="flex w-full">
-      <div className="flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-[10px] border border-[#EF4444]/30 bg-[#1A0608] text-[#EF4444]">
-        {icon}
-      </div>
-
-      <p
-        className="ml-[16px] w-[350px] text-[14px] font-normal leading-[19px] text-white"
-        style={{
-          display: "-webkit-box",
-          WebkitLineClamp: 3,
-          WebkitBoxOrient: "vertical",
-          overflow: "hidden",
-        }}
-      >
-        {text}
-      </p>
-    </div>
-  );
-}
-
-function Legend({ color, label }: { color: string; label: string }) {
-  return (
-    <div className="flex items-center">
-      <div
-        className="h-[5px] w-[5px] rounded-full"
-        style={{ backgroundColor: color }}
-      />
-
-      <p className="ml-[10px] text-[14px] font-normal leading-[24px] text-[#B3B3B3]">
-        {label}
-      </p>
-    </div>
   );
 }
 
@@ -3724,7 +3475,6 @@ const hasStructuredEscalation =
     );
 
   const hookIsAcceptable = !hookNeedsWork;
-  const hookIsStrong = effectiveHookScore >= 70 && hookIsAcceptable;
 
   const displayHookScore = effectiveHookScore;
 
@@ -3830,7 +3580,6 @@ const hasStructuredEscalation =
     retentionRisk = Math.min(90, retentionRisk);
   }
 
-  const hookRewriteSuggestion = createHookRewrite(text);
 
   // ── Hook status flags — drive risky parts, fixes, button label, scene breakdown ─
   // hookNeedsWork: the hook is weak enough that it should be the primary feedback.
@@ -4786,7 +4535,6 @@ function createHookRewrite(script: string): string {
 
   const firstLine = allLines[0] ?? "";
   const bodyLines = allLines.slice(1);
-  const fullText = allLines.join(" ").toLowerCase();
   const firstLower = firstLine.toLowerCase();
 
   // ── Detect filler intro ────────────────────────────────────────────────────
@@ -4870,7 +4618,6 @@ function createHookRewrite(script: string): string {
     /^(imagine|what if|picture this)\b/i.test(firstLower);
   if (isScenarioOpener && bodyLines.length >= 3) {
     const finalPayoffLine = bodyLines[bodyLines.length - 1] ?? "";
-    const secondToLastLine = bodyLines[bodyLines.length - 2] ?? "";
     // Pick the last line as payoff candidate — prefer it if it's a realization/paradox/twist
     const candidatePayoff = finalPayoffLine.trim();
     const candidateWc = candidatePayoff.split(/\s+/).length;
@@ -5187,61 +4934,6 @@ function getRiskColor(score: number): string {
   if (score >= 65) return "#EF4444";
   if (score >= 45) return "#F59E0B";
   return "#22C55E";
-}
-
-function getOverallDescription(score: number, issues: string[], structures?: ScriptStructures, hookIsAcceptable?: boolean, scriptType?: ScriptType): string {
-  if (scriptType === "viral_challenge" || scriptType === "giveaway_or_prize") {
-    if (score >= 75) return "Strong viral premise with clear stakes. The challenge and payoff work well together.";
-    if (score >= 60) return "Clear challenge premise. Tightening the payoff or moving the prize detail earlier could push it higher.";
-    if (score >= 45) return "The premise is recognizable, but the structure could be tighter — lead with the strongest stake or challenge.";
-    return "The challenge premise needs a clearer stake or more concrete outcome to hook viewers fast.";
-  }
-  if (scriptType === "emotional_story") {
-    if (score >= 75) return "Strong emotional arc. The setup, story, and payoff connect well.";
-    if (score >= 55) return "Clear emotional story. A sharper opening moment or more specific payoff detail would push it further.";
-    return "The story has emotional potential but needs a clearer arc — set up the stakes earlier and make the payoff more specific.";
-  }
-  if (scriptType === "auto_caption_transcript") {
-    if (score >= 65) return "Strong underlying structure despite transcript formatting. The hook and payoff work well.";
-    if (score >= 50) return "Clear Shorts structure in the transcript. A tighter hook or cleaner payoff would improve retention.";
-    return "The transcript has a workable structure, but the opening and payoff could be stronger.";
-  }
-  if (score < 60 && issues.some(i => i.includes("strong payoff appears too late"))) {
-    return "The strongest consequence is buried at the end. Move it to the opening and the whole script improves.";
-  }
-  if (score < 60 && !hookIsAcceptable && issues.some(i => i.includes("weak opening") || i.includes("hook needs"))) {
-    return "The main weakness is the opening. A stronger first line would improve the whole script.";
-  }
-  if (issues.some(i => i.includes("too short"))) {
-    return "The hook works, but the script needs more development before the payoff feels complete.";
-  }
-  if (score >= 85) return "Very strong structure. The hook, pacing, and payoff work well together.";
-  if (score >= 75) return "Strong foundation with good pacing. A sharper payoff or more specific detail could push it further.";
-  if (score >= 60) {
-    if (hookIsAcceptable) {
-      if (structures?.hasExplanationChain || structures?.hasNumericPremise) {
-        return "Has a solid hook, but the explanation or payoff could be sharper to push the score higher.";
-      }
-      if (structures?.hasListBuildup || structures?.hasMysteryClueBuildup) {
-        return "Has a solid hook with clear escalation, but the middle or payoff could be tightened further.";
-      }
-      return "Has a solid hook, but needs a clearer payoff, stronger middle tension, or more specific stakes.";
-    }
-    if (structures?.hasExplanationChain || structures?.hasNumericPremise) {
-      return "The explanation and consequence are solid, but leading with the strongest detail or number would improve the overall score.";
-    }
-    if (structures?.hasListBuildup || structures?.hasMysteryClueBuildup) {
-      return "The structure has a clear escalation, but the opening could lead with the strongest detail to pull viewers in faster.";
-    }
-    return "The script has a clear direction, but the hook, middle, or payoff may still need some work.";
-  }
-  if (score >= 40) {
-    if (hookIsAcceptable) {
-      return "Has a solid hook, but needs a clearer payoff, stronger middle tension, or more specific stakes.";
-    }
-    return "Has some useful parts, but needs a stronger hook, clearer stakes, or better payoff.";
-  }
-  return "The script may lose viewers early. Strengthen the opening and remove slow setup.";
 }
 
 function getHookDescription(score: number, issues: string[], structures?: ScriptStructures): string {

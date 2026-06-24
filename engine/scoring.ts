@@ -2197,7 +2197,6 @@ const hasStructuredEscalation =
     );
 
   const hookIsAcceptable = !hookNeedsWork;
-  const hookIsStrong = effectiveHookScore >= 70 && hookIsAcceptable;
 
   const displayHookScore = effectiveHookScore;
 
@@ -2303,7 +2302,6 @@ const hasStructuredEscalation =
     retentionRisk = Math.min(90, retentionRisk);
   }
 
-  const hookRewriteSuggestion = createHookRewrite(text);
 
   // ── Hook status flags — drive risky parts, fixes, button label, scene breakdown ─
   // hookNeedsWork: the hook is weak enough that it should be the primary feedback.
@@ -3253,7 +3251,6 @@ export function createHookRewrite(script: string): string {
 
   const firstLine = allLines[0] ?? "";
   const bodyLines = allLines.slice(1);
-  const fullText = allLines.join(" ").toLowerCase();
   const firstLower = firstLine.toLowerCase();
 
   // ── Detect filler intro ────────────────────────────────────────────────────
@@ -3337,7 +3334,6 @@ export function createHookRewrite(script: string): string {
     /^(imagine|what if|picture this)\b/i.test(firstLower);
   if (isScenarioOpener && bodyLines.length >= 3) {
     const finalPayoffLine = bodyLines[bodyLines.length - 1] ?? "";
-    const secondToLastLine = bodyLines[bodyLines.length - 2] ?? "";
     // Pick the last line as payoff candidate — prefer it if it's a realization/paradox/twist
     const candidatePayoff = finalPayoffLine.trim();
     const candidateWc = candidatePayoff.split(/\s+/).length;
