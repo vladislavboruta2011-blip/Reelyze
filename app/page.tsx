@@ -405,19 +405,40 @@ function AnalyzerSection({
         <div className="flex flex-col gap-5">
           {/* Title input */}
           <div className="rounded-[20px] border border-[#24242A] bg-[#0B0B0F] p-6">
-            <label className="mb-3 block text-[15px] font-semibold text-white">
-              Video title <span className="text-[#777A85] font-normal">(optional)</span>
-            </label>
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <label className="text-[15px] font-semibold text-white">
+                Video title <span className="text-[#777A85] font-normal">(optional)</span>
+              </label>
+              <span
+                className={`shrink-0 text-[13px] font-medium ${
+                  title.length > MAX_TITLE_CHARACTERS
+                    ? "text-[#EF4444]"
+                    : "text-[#777A85]"
+                }`}
+              >
+                {title.length} / {MAX_TITLE_CHARACTERS}
+              </span>
+            </div>
             <p className="mb-4 text-[13px] text-[#777A85]">Helps Reelyze understand context.</p>
-            <div className="flex h-[44px] items-center rounded-[12px] border border-[#24242A] bg-[#101014] px-4">
+            <div
+              className={`flex h-[44px] items-center rounded-[12px] border bg-[#101014] px-4 ${
+                title.length > MAX_TITLE_CHARACTERS
+                  ? "border-[#EF4444]"
+                  : "border-[#24242A]"
+              }`}
+            >
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                maxLength={MAX_TITLE_CHARACTERS}
                 placeholder="Add your video title or topic"
                 className="h-full w-full bg-transparent text-[14px] text-[#B3B3B3] outline-none placeholder:text-[#777A85]"
               />
             </div>
+            {title.length > MAX_TITLE_CHARACTERS && (
+              <p className="mt-3 text-[13px] font-medium text-[#EF4444]">
+                Title is too long. Please shorten it to 200 characters or less.
+              </p>
+            )}
           </div>
 
           {/* Script textarea */}
@@ -450,7 +471,12 @@ function AnalyzerSection({
           <div className="flex flex-col gap-3">
             <button
               onClick={handleAnalyze}
-              disabled={isAnalyzing || script.trim().length === 0 || script.length > maxCharacters}
+              disabled={
+                isAnalyzing ||
+                script.trim().length === 0 ||
+                script.length > maxCharacters ||
+                title.length > MAX_TITLE_CHARACTERS
+              }
               className="inline-flex h-[60px] w-full items-center justify-center gap-3 rounded-[14px] text-[18px] font-semibold text-white transition disabled:cursor-not-allowed disabled:bg-[#3A1010] disabled:text-[#6B3030] disabled:opacity-70 disabled:shadow-none enabled:bg-[#DC2626] enabled:shadow-[0_0_54px_rgba(220,38,38,0.28)] enabled:hover:bg-[#EF4444]"
             >
               {isAnalyzing ? "Analyzing..." : (
@@ -774,20 +800,42 @@ export default function HomePage() {
 
             {/* Title input */}
             <div className="rounded-[18px] border border-[#24242A] bg-[#101014] p-4">
-              <div className="mb-2 flex items-baseline gap-2">
-                <p className="text-[14px] font-semibold text-white">Video title</p>
-                <p className="text-[11px] font-medium text-[#777A85]">Optional</p>
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <div className="flex items-baseline gap-2">
+                  <p className="text-[14px] font-semibold text-white">Video title</p>
+                  <p className="text-[11px] font-medium text-[#777A85]">Optional</p>
+                </div>
+                <p
+                  className={`shrink-0 text-[11px] font-medium ${
+                    title.length > MAX_TITLE_CHARACTERS
+                      ? "text-[#EF4444]"
+                      : "text-[#777A85]"
+                  }`}
+                >
+                  {title.length} / {MAX_TITLE_CHARACTERS}
+                </p>
               </div>
 
-              <div className="flex h-[43px] w-full items-center rounded-[13px] border border-[#24242A] bg-[#050505] px-3.5">
+              <div
+                className={`flex h-[43px] w-full items-center rounded-[13px] border bg-[#050505] px-3.5 ${
+                  title.length > MAX_TITLE_CHARACTERS
+                    ? "border-[#EF4444]"
+                    : "border-[#24242A]"
+                }`}
+              >
                 <input
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  maxLength={MAX_TITLE_CHARACTERS}
                   placeholder="Add your video title or topic"
                   className="h-full w-full bg-transparent text-[13px] text-[#B3B3B3] outline-none placeholder:text-[#555560]"
                 />
               </div>
+
+              {title.length > MAX_TITLE_CHARACTERS && (
+                <p className="mt-3 text-[11px] font-medium leading-[18px] text-[#EF4444]">
+                  Title is too long. Please shorten it to 200 characters or less.
+                </p>
+              )}
             </div>
 
             {/* Script input */}
@@ -829,7 +877,12 @@ export default function HomePage() {
 
             <button
               onClick={handleAnalyze}
-              disabled={isAnalyzing || script.trim().length === 0 || script.length > maxCharacters}
+              disabled={
+                isAnalyzing ||
+                script.trim().length === 0 ||
+                script.length > maxCharacters ||
+                title.length > MAX_TITLE_CHARACTERS
+              }
               className="mt-4 inline-flex h-[54px] w-full items-center justify-center gap-2 rounded-[15px] text-[15px] font-semibold transition disabled:cursor-not-allowed disabled:bg-[#3A1010] disabled:text-[#6B3030] disabled:opacity-70 disabled:shadow-none enabled:bg-[#DC2626] enabled:text-white enabled:shadow-[0_0_34px_rgba(220,38,38,0.30)] enabled:hover:bg-[#EF4444] active:scale-[0.99]"
             >
               {isAnalyzing ? (

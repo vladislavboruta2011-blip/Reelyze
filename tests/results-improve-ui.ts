@@ -246,6 +246,31 @@ if (isolatesLegacyStorageCleanup) {
   failures += 1;
 }
 
+const silentTitleLimitCount =
+  homeSource.split("maxLength={MAX_TITLE_CHARACTERS}").length - 1;
+const titleCounterCount =
+  homeSource.split("{title.length} / {MAX_TITLE_CHARACTERS}").length - 1;
+const titleDisableGuardCount =
+  homeSource.split("title.length > MAX_TITLE_CHARACTERS").length - 1;
+const hasVisibleTitleError =
+  homeSource.includes(
+    "Title is too long. Please shorten it to 200 characters or less."
+  );
+
+if (
+  silentTitleLimitCount === 0 &&
+  titleCounterCount === 2 &&
+  titleDisableGuardCount >= 2 &&
+  hasVisibleTitleError
+) {
+  console.log("✅ PASS — Title length feedback is visible on desktop and mobile");
+} else {
+  console.error(
+    `❌ FAIL — Title must allow overflow feedback instead of silently truncating (maxLength: ${silentTitleLimitCount}, counters: ${titleCounterCount}, guards: ${titleDisableGuardCount}, error: ${hasVisibleTitleError})`
+  );
+  failures += 1;
+}
+
 if (failures > 0) {
   process.exitCode = 1;
 } else {
