@@ -271,6 +271,21 @@ if (
   failures += 1;
 }
 
+const desktopFeedbackRequiresResults =
+  source.includes(
+    `{isStorageLoaded && !storageError && hasAnalyzedScript && (
+            <div className="mt-auto px-4 pb-10 pt-8">`
+  );
+
+if (desktopFeedbackRequiresResults) {
+  console.log("✅ PASS — Desktop feedback is hidden when no analysis exists");
+} else {
+  console.error(
+    "❌ FAIL — Desktop feedback must not appear in loading, error, or empty states"
+  );
+  failures += 1;
+}
+
 if (failures > 0) {
   process.exitCode = 1;
 } else {

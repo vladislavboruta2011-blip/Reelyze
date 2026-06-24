@@ -397,8 +397,9 @@ const hookCopyButtonLabel =
               <span className="text-[14px] font-medium text-[#777A85]">New Analysis</span>
             </Link>
           </nav>
-          <div className="mt-auto px-4 pb-10 pt-8">
-            <div className="rounded-[18px] border border-[#24242A]/70 bg-[#0B0B0F] p-5">
+          {isStorageLoaded && !storageError && hasAnalyzedScript && (
+            <div className="mt-auto px-4 pb-10 pt-8">
+              <div className="rounded-[18px] border border-[#24242A]/70 bg-[#0B0B0F] p-5">
               <p className="text-[14px] font-semibold text-white">Rate this analysis</p>
               <p className="mt-1.5 text-[12px] text-[#777A85]">Was this review helpful?</p>
               <div className="mt-3.5 flex gap-2">
@@ -464,8 +465,9 @@ const hookCopyButtonLabel =
                   {desktopFeedback === "helpful" ? "Thanks — feedback noted." : "Thanks — we'll use this to improve."}
                 </p>
               )}
+              </div>
             </div>
-          </div>
+          )}
         </aside>
 
         {/* Main content */}
