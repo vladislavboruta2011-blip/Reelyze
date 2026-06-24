@@ -708,6 +708,73 @@ Within 90 days, revenue passed expenses by $40,000.`,
       },
     ],
   },
+  {
+    name: "Threshold crossing without repeated number is a payoff",
+    script: `This startup was losing $50,000 every month.
+The founders thought one more feature would save it.
+But every launch made the losses worse.
+Then they removed their biggest product and focused on one small problem.
+Within 90 days, revenue finally passed expenses.`,
+    checks: [
+      {
+        label: "resolved business threshold is a consequence payoff",
+        test: ({ structures }) => structures.hasConsequencePayoff,
+        expected: "hasConsequencePayoff = true",
+      },
+      {
+        label: "resolved business threshold receives no payoff warning",
+        test: ({ riskyParts }) =>
+          !riskyParts.some((part) =>
+            part.title.toLowerCase().includes("payoff")
+          ),
+        expected: "no payoff warning",
+      },
+    ],
+  },
+  {
+    name: "Direct comparison winner is a payoff",
+    script: `If Ronaldo and Michael Jordan jumped at the same time, who would reach higher?
+Ronaldo is 6 feet 2 inches tall, while Jordan is 6 feet 6 inches.
+Jordan has the height advantage, but Ronaldo can reach around 9 feet 7 inches with his head.
+Jordan still reaches slightly higher, proving that height and vertical jump both matter.`,
+    checks: [
+      {
+        label: "named comparison winner is a consequence payoff",
+        test: ({ structures }) => structures.hasConsequencePayoff,
+        expected: "hasConsequencePayoff = true",
+      },
+      {
+        label: "named comparison winner receives no payoff warning",
+        test: ({ riskyParts }) =>
+          !riskyParts.some((part) =>
+            part.title.toLowerCase().includes("payoff")
+          ),
+        expected: "no payoff warning",
+      },
+    ],
+  },
+  {
+    name: "Concrete physical consequence is a payoff",
+    script: `Imagine the Sun suddenly disappeared for 8 minutes.
+Earth would not notice immediately because sunlight takes about 8 minutes to reach us.
+The sky would remain bright for a short time, and the planet would continue moving as if nothing had happened.
+Then the light would vanish, and Earth would begin drifting away from its old orbit.`,
+    checks: [
+      {
+        label: "specific physical state change is a consequence payoff",
+        test: ({ structures }) => structures.hasConsequencePayoff,
+        expected: "hasConsequencePayoff = true",
+      },
+      {
+        label: "specific physical state change receives no payoff warning",
+        test: ({ riskyParts }) =>
+          !riskyParts.some((part) =>
+            part.title.toLowerCase().includes("payoff")
+          ),
+        expected: "no payoff warning",
+      },
+    ],
+  },
 ];
 
 const knownGapScript =

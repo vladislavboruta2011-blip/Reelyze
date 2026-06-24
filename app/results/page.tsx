@@ -2197,6 +2197,33 @@ function hasStrongOutcomePayoff(text: string): boolean {
       lower,
     );
 
+  // A resolved threshold may compare two concrete values without repeating
+  // either number in the final line: "revenue finally passed expenses".
+  const hasRelationalThresholdOutcome =
+    /\b(?:finally|eventually|ultimately)\s+(?:passed|exceeded|surpassed|overtook)\s+(?!away\b|through\b|by\b)(?:the\s+|its\s+|their\s+|his\s+|her\s+)?[a-z][a-z'-]*(?:\s+[a-z][a-z'-]*){0,3}(?=[.!?,;]|$)/.test(
+      lower,
+    ) ||
+    /\b(?:exceeded|surpassed|overtook)\s+(?!away\b|through\b|by\b)(?:the\s+|its\s+|their\s+|his\s+|her\s+)?[a-z][a-z'-]*(?:\s+[a-z][a-z'-]*){0,3}(?=[.!?,;]|$)/.test(
+      lower,
+    );
+
+  // A direct comparative result resolves which option wins even when the
+  // final line does not repeat the earlier measurements.
+  const hasExplicitRelativeOutcome =
+    /\b(?:reaches?|ranks?|scores?|finishes?|stands?|comes?|ends?|places?)\s+(?:still\s+)?(?:slightly\s+|much\s+|far\s+|clearly\s+|considerably\s+|noticeably\s+)?(?:higher|lower|faster|slower|farther|further|ahead|behind|first|last)\b/.test(
+      lower,
+    ) ||
+    /\bstill\s+(?:reaches?|ranks?|scores?|finishes?|stands?|comes?|ends?|places?)\s+(?:slightly\s+|much\s+|far\s+|clearly\s+|considerably\s+|noticeably\s+)?(?:higher|lower|faster|slower|farther|further|ahead|behind|first|last)\b/.test(
+      lower,
+    );
+
+  // A concrete directional state change is a resolved physical consequence,
+  // unlike a vague ending such as "things began changing".
+  const hasDirectionalStateChange =
+    /\b(?:(?:would|could|will|may|might)\s+)?(?:begin|begins|began|start|starts|started)\s+[a-z]+ing\s+(?:away|apart|out|off|toward|towards|into|from)\b/.test(
+      lower,
+    );
+
   // A final transformation into an extreme state forms a strong reversal:
   // something silent becomes one of the loudest things, for example.
   const hasSuperlativeTransformation =
@@ -2208,6 +2235,9 @@ function hasStrongOutcomePayoff(text: string): boolean {
     hasMultiplicativeOutcome ||
     hasMeasuredChange ||
     hasThresholdOutcome ||
+    hasRelationalThresholdOutcome ||
+    hasExplicitRelativeOutcome ||
+    hasDirectionalStateChange ||
     hasSuperlativeTransformation
   );
 }
