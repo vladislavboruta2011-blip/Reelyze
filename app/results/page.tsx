@@ -263,10 +263,63 @@ const [mobileScriptOpen, setMobileScriptOpen] = useState(false);
 
 const improvedHook = aiHook || fallbackImprovedHook;
 const modalHookText = improveError ? "No improved hook was generated." : improvedHook;
-// A hook should only be presented as "already good" when its score is
-// genuinely strong. A failed or identical AI rewrite must not be mislabeled
-// as "Hook Analysis" when the hook score is weak.
-const shouldShowHookAnalysis = analysis.hook.score >= 80;
+
+const hookDecision = savedAnalysisV2?.result.hookDecision ?? "keep";
+const shouldShowHookAction = savedAnalysisV2
+  ? hookDecision !== "keep"
+  : analysis.fixes.length > 0 && analysis.hook.score < 75;
+const hookActionLabel = savedAnalysisV2
+  ? hookDecision === "diagnostic"
+    ? "Improve Script"
+    : hookDecision === "refine"
+      ? "Refine Hook"
+      : "Improve Hook"
+  : analysis.hook.score >= 70
+    ? "Refine Script"
+    : "Improve Hook";
+
+// The score-based "already good" state is retained only for the unreachable
+// legacy fallback. Valid production results use Analysis V2 hookDecision.
+const shouldShowHookAnalysis = !savedAnalysisV2 && analysis.hook.score >= 80;
+
+const hookModalTitle =
+  aiHookMode === "diagnostic"
+    ? "Needs More Specific Material"
+    : savedAnalysisV2
+      ? hookDecision === "refine"
+        ? "Refined Hook"
+        : "Improved Hook"
+      : shouldShowHookAnalysis
+        ? "Hook Analysis"
+        : analysis.hook.score >= 70
+          ? "Refine Script"
+          : "Improved Hook";
+
+const hookModalDescription =
+  aiHookMode === "diagnostic"
+    ? "This script is too broad to rewrite into a stronger hook without inventing ideas."
+    : savedAnalysisV2
+      ? hookDecision === "refine"
+        ? "This version keeps the same promise while making the opening sharper and clearer."
+        : "Use this version to make the opening clearer, stronger, and more curiosity-driven."
+      : shouldShowHookAnalysis
+        ? "This opening already creates a clear reason to keep watching."
+        : analysis.hook.score >= 70
+          ? "The hook is working. This refinement focuses on making the opening or payoff land stronger."
+          : "Use this version to make the opening clearer, stronger, and more curiosity-driven.";
+
+const hookModalReasonLabel =
+  aiHookMode === "diagnostic"
+    ? "Why no hook was generated:"
+    : savedAnalysisV2
+      ? hookDecision === "refine"
+        ? "What this version improves:"
+        : "Why it is better:"
+      : shouldShowHookAnalysis
+        ? "Why this hook works:"
+        : analysis.hook.score >= 70
+          ? "What this version improves:"
+          : "Why it is better:";
 
 // Replace any rule-based hook rewrite in fixes with the AI hook once loaded,
 // so Suggested Fixes and the modal always show the same improved hook.
@@ -283,9 +336,13 @@ const displayFixes: string[] = analysis.fixes.map((fix) => {
 const hookCopyButtonLabel =
   aiHookMode === "diagnostic"
     ? "Copy Advice"
-    : analysis.hook.score >= 70
-    ? "Copy Version"
-    : "Copy Hook";
+    : savedAnalysisV2
+      ? hookDecision === "refine"
+        ? "Copy Version"
+        : "Copy Hook"
+      : analysis.hook.score >= 70
+        ? "Copy Version"
+        : "Copy Hook";
 
   async function handleCopyHook() {
     if (isImprovingHook || improveError) return;
@@ -312,8 +369,43 @@ const hookCopyButtonLabel =
     setAiHook("");
     setAiHookReason("");
     setAiHookMode("");
-    setIsImprovingHook(true);
     setIsHookModalOpen(true);
+
+    if (savedAnalysisV2) {
+      const hookDecision = savedAnalysisV2.result.hookDecision;
+      const suggestedHook =
+        savedAnalysisV2.result.suggestedHook?.trim() ?? "";
+      const hookAssessment =
+        savedAnalysisV2.result.hookAssessment.trim();
+
+      if (hookDecision === "keep") {
+        setIsHookModalOpen(false);
+        return;
+      }
+
+      if (hookDecision === "diagnostic") {
+        setAiHook(
+          "Add specific material to the script before generating a new hook."
+        );
+        setAiHookReason(hookAssessment);
+        setAiHookMode("diagnostic");
+        return;
+      }
+
+      if (!suggestedHook) {
+        setImproveError(
+          "No validated hook suggestion is available for this analysis."
+        );
+        return;
+      }
+
+      setAiHook(suggestedHook);
+      setAiHookReason(hookAssessment);
+      setAiHookMode("rewrite");
+      return;
+    }
+
+    setIsImprovingHook(true);
 
     try {
       const response = await fetch("/api/improve", {
@@ -665,14 +757,14 @@ const hookCopyButtonLabel =
                         <h2 className="text-[17px] font-semibold text-white">Suggested Fixes</h2>
                         <span className="text-[12px] font-medium text-[#777A85]">{pluralize(displayFixes.length, "suggestion", "suggestions")}</span>
                       </div>
-                      {analysis.fixes.length > 0 && analysis.hook.score < 75 && (
+                      {shouldShowHookAction && (
                         <button
                           onClick={handleImproveHook}
                           disabled={isImprovingHook}
                           className="mb-5 inline-flex h-[38px] items-center gap-2 rounded-[10px] bg-[#DC2626] px-4 text-[13px] font-semibold text-white shadow-[0_0_32px_rgba(220,38,38,0.30)] transition hover:bg-[#EF4444]"
                         >
                           <ShieldCheck size={15} />
-                          {analysis.hook.score >= 70 ? "Refine Script" : "Improve Hook"}
+                          {hookActionLabel}
                         </button>
                       )}
                       <div className="flex flex-col gap-3">
@@ -839,14 +931,14 @@ const hookCopyButtonLabel =
                     <p className="text-[13px] leading-[1.6] text-[#E8D5D8]">{analysis.overall.description}</p>
                   </div>
                 </div>
-                {analysis.fixes.length > 0 && analysis.hook.score < 75 && (
+                {shouldShowHookAction && (
                   <button
                     onClick={handleImproveHook}
                     disabled={isImprovingHook}
                     className="mt-4 w-full h-[44px] inline-flex items-center justify-center gap-2 rounded-[12px] bg-[#DC2626] text-[14px] font-semibold text-white shadow-[0_0_24px_rgba(220,38,38,0.25)] transition hover:bg-[#EF4444]"
                   >
                     <ShieldCheck size={15} />
-                    {analysis.hook.score >= 70 ? "Refine Script" : "Improve Hook"}
+                    {hookActionLabel}
                   </button>
                 )}
               </div>
@@ -1142,23 +1234,11 @@ setMobileFeedbackSubmitted(true);
             </button>
 
             <h2 className="absolute left-[30px] top-[30px] text-[22px] font-semibold leading-[24px] text-white">
-              {aiHookMode === "diagnostic"
-                ? "Needs More Specific Material"
-                : shouldShowHookAnalysis
-                ? "Hook Analysis"
-                : analysis.hook.score >= 70
-                ? "Refine Script"
-                : "Improved Hook"}
+              {hookModalTitle}
             </h2>
 
             <p className="absolute left-[30px] top-[65px] w-[430px] text-[14px] font-normal leading-[22px] text-[#B3B3B3]">
-              {aiHookMode === "diagnostic"
-                ? "This script is too broad to rewrite into a stronger hook without inventing ideas."
-                : shouldShowHookAnalysis
-                ? "This opening already creates a clear reason to keep watching."
-                : analysis.hook.score >= 70
-                ? "The hook is working. This refinement focuses on making the opening or payoff land stronger."
-                : "Use this version to make the opening clearer, stronger, and more curiosity-driven."}
+              {hookModalDescription}
             </p>
 
             <div className="absolute left-[30px] top-[115px] h-[86px] w-[460px] rounded-[14px] border border-[#24242A] bg-[#0B1018] px-[16px] py-[14px]">
@@ -1175,13 +1255,7 @@ setMobileFeedbackSubmitted(true);
               ) : (
                 <>
                   <p className="mt-[6px] text-[14px] font-normal leading-[21px] text-[#B3B3B3] break-words whitespace-normal">
-                    {aiHookMode === "diagnostic"
-                      ? "Why no hook was generated:"
-                      : shouldShowHookAnalysis
-                      ? "Why this hook works:"
-                      : analysis.hook.score >= 70
-                      ? "What this version improves:"
-                      : "Why it is better:"}
+                    {hookModalReasonLabel}
                   </p>
                   <p className="mt-[6px] text-[14px] font-normal leading-[21px] text-[#B3B3B3] break-words whitespace-normal">
                     {isImprovingHook
@@ -1218,23 +1292,11 @@ setMobileFeedbackSubmitted(true);
             </button>
 
             <h2 className="text-[18px] font-semibold leading-[24px] text-white mb-[8px] pr-[24px]">
-              {aiHookMode === "diagnostic"
-                ? "Needs More Specific Material"
-                : shouldShowHookAnalysis
-                ? "Hook Analysis"
-                : analysis.hook.score >= 70
-                ? "Refine Script"
-                : "Improved Hook"}
+              {hookModalTitle}
             </h2>
 
             <p className="text-[12px] font-normal leading-[20px] text-[#B3B3B3] mb-[14px]">
-              {aiHookMode === "diagnostic"
-                ? "This script is too broad to rewrite into a stronger hook without inventing ideas."
-                : shouldShowHookAnalysis
-                ? "This opening already creates a clear reason to keep watching."
-                : analysis.hook.score >= 70
-                ? "The hook is working. This refinement focuses on making the opening or payoff land stronger."
-                : "Use this version to make the opening clearer, stronger, and more curiosity-driven."}
+              {hookModalDescription}
             </p>
 
             <div className="w-full rounded-[12px] border border-[#24242A] bg-[#0B1018] px-[14px] py-[12px] mb-[14px]">
@@ -1250,13 +1312,7 @@ setMobileFeedbackSubmitted(true);
             ) : (
               <div className="mb-[16px]">
                 <p className="text-[12px] font-normal leading-[18px] text-[#B3B3B3]">
-                  {aiHookMode === "diagnostic"
-                    ? "Why no hook was generated:"
-                    : shouldShowHookAnalysis
-                    ? "Why this hook works:"
-                    : analysis.hook.score >= 70
-                    ? "What this version improves:"
-                    : "Why it is better:"}
+                  {hookModalReasonLabel}
                 </p>
                 <p className="text-[12px] font-normal leading-[18px] text-[#B3B3B3] mt-[4px] break-words">
                   {isImprovingHook
