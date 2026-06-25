@@ -16,7 +16,9 @@ import {
   validateAnalysisV2Result,
 } from "@/engine/analysis-v2-validation";
 
-const ANALYSIS_V2_MODEL = "gpt-4o-mini";
+const ANALYSIS_V2_MODEL =
+  process.env.ANALYSIS_V2_MODEL?.trim() ||
+  "gpt-4.1-mini";
 const ANALYSIS_V2_TIMEOUT_MS = 20_000;
 const ANALYSIS_V2_RATE_LIMIT_MAX_REQUESTS = 10;
 const ANALYSIS_V2_RATE_LIMIT_WINDOW_MS = 60_000;

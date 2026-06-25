@@ -727,6 +727,9 @@ export function validateAnalysisV2Result(
   const verdict = raw.verdict as AnalysisV2Verdict;
   const overall = raw.scores.overall;
   const retentionRisk = raw.scores.retentionRisk;
+  const requiredFixes = suggestedFixes.filter(
+    (fix) => !fix.optional
+  );
 
   if (verdict === "strong") {
     if (overall < 70 || retentionRisk > 45) {
@@ -774,6 +777,17 @@ export function validateAnalysisV2Result(
     }
 
     if (
+      overall < 85 &&
+      suggestedFixes.length === 0
+    ) {
+      return {
+        ok: false,
+        reason:
+          "A strong result below 85 must contain one optional refinement.",
+      };
+    }
+
+    if (
       hookDecision !== "keep" &&
       hookDecision !== "refine"
     ) {
@@ -781,6 +795,32 @@ export function validateAnalysisV2Result(
         ok: false,
         reason:
           "A strong result must use keep or refine.",
+      };
+    }
+  }
+
+  if (verdict === "mixed") {
+    if (overall < 46 || overall > 84) {
+      return {
+        ok: false,
+        reason:
+          "A mixed verdict is inconsistent with the supplied overall score.",
+      };
+    }
+
+    if (riskyParts.length === 0) {
+      return {
+        ok: false,
+        reason:
+          "A mixed result must contain a grounded risky part.",
+      };
+    }
+
+    if (requiredFixes.length === 0) {
+      return {
+        ok: false,
+        reason:
+          "A mixed result must contain a non-optional suggested fix.",
       };
     }
   }
@@ -799,6 +839,14 @@ export function validateAnalysisV2Result(
         ok: false,
         reason:
           "A weak result must contain a grounded risky part.",
+      };
+    }
+
+    if (requiredFixes.length === 0) {
+      return {
+        ok: false,
+        reason:
+          "A weak result must contain a non-optional suggested fix.",
       };
     }
   }

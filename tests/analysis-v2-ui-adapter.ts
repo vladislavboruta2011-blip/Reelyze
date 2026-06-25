@@ -17,7 +17,7 @@ const strongResult: AnalysisV2Result = {
   scriptType: "how_to",
   verdict: "strong",
   scores: {
-    overall: 84,
+    overall: 88,
     hook: 82,
     retentionRisk: 22,
   },
@@ -174,7 +174,7 @@ const tests: TestCase[] = [
         12
       );
 
-      assert.equal(adapted.overall.score, 84);
+      assert.equal(adapted.overall.score, 88);
       assert.equal(adapted.hook.score, 82);
       assert.equal(adapted.risk.score, 22);
       assert.equal(

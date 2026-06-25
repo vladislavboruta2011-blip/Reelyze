@@ -18,6 +18,7 @@ export type AnalysisV2BenchmarkExpectation = {
   hookDecisions?: AnalysisV2HookDecision[];
   maxRiskyParts?: number;
   minRiskyParts?: number;
+  minSuggestedFixes?: number;
   maxSuggestedFixes?: number;
   forbiddenFeedback?: string[];
 };
@@ -266,6 +267,7 @@ export const ANALYSIS_V2_BENCHMARK_CASES:
       hookDecisions: ["diagnostic", "rewrite"],
       minRiskyParts: 1,
       maxRiskyParts: 2,
+      minSuggestedFixes: 1,
       maxSuggestedFixes: 2,
     },
   },
@@ -291,6 +293,7 @@ export const ANALYSIS_V2_BENCHMARK_CASES:
       ],
       minRiskyParts: 1,
       maxRiskyParts: 2,
+      minSuggestedFixes: 1,
       maxSuggestedFixes: 2,
     },
   },
@@ -312,6 +315,7 @@ export const ANALYSIS_V2_BENCHMARK_CASES:
       ],
       minRiskyParts: 1,
       maxRiskyParts: 2,
+      minSuggestedFixes: 1,
       maxSuggestedFixes: 2,
     },
   },
@@ -335,6 +339,7 @@ export const ANALYSIS_V2_BENCHMARK_CASES:
       ],
       minRiskyParts: 1,
       maxRiskyParts: 2,
+      minSuggestedFixes: 1,
       maxSuggestedFixes: 2,
     },
   },
@@ -355,6 +360,7 @@ export const ANALYSIS_V2_BENCHMARK_CASES:
       hookDecisions: ["diagnostic"],
       minRiskyParts: 1,
       maxRiskyParts: 2,
+      minSuggestedFixes: 1,
       maxSuggestedFixes: 2,
     },
   },

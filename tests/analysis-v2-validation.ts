@@ -22,7 +22,14 @@ function createStrongResult(): Record<string, unknown> {
     hookAssessment:
       "The hook names the problem and gives an immediate warning.",
     riskyParts: [],
-    suggestedFixes: [],
+    suggestedFixes: [
+      {
+        target: "clarity",
+        suggestion:
+          "Optionally shorten the final resolution so the ending lands faster.",
+        optional: true,
+      },
+    ],
     scenes: [
       {
         excerpt:
@@ -87,6 +94,50 @@ function createWeakResult(): Record<string, unknown> {
     ],
     mainTakeaway:
       "The script is weak because one important instruction lacks enough context.",
+  };
+}
+
+function createMixedResult(): Record<string, unknown> {
+  return {
+    scriptType: "how_to",
+    verdict: "mixed",
+    scores: {
+      overall: 62,
+      hook: 58,
+      retentionRisk: 52,
+    },
+    hookDecision: "refine",
+    hookAssessment:
+      "The opening is clear, but the instruction sequence needs a better transition.",
+    suggestedHook:
+      "When super glue sticks to your skin, avoid pulling it apart.",
+    riskyParts: [
+      {
+        excerpt:
+          "Then gently roll the skin apart.",
+        reason:
+          "This instruction needs a clearer connection to the previous step.",
+        severity: "medium",
+      },
+    ],
+    suggestedFixes: [
+      {
+        target: "clarity",
+        suggestion:
+          "Connect this instruction directly to the soaking step so the sequence is easier to follow.",
+        optional: false,
+      },
+    ],
+    scenes: [
+      {
+        excerpt:
+          "Then gently roll the skin apart.",
+        label: "Unclear transition",
+        status: "risky",
+      },
+    ],
+    mainTakeaway:
+      "The script has a useful structure but needs one clearer transition.",
   };
 }
 
@@ -179,6 +230,99 @@ const tests: TestCase[] = [
     run: () => {
       const result = validateAnalysisV2Result(
         createWeakResult(),
+        script
+      );
+
+      assert.equal(result.ok, true);
+    },
+  },
+  {
+    name: "accepts a valid mixed result",
+    run: () => {
+      const result = validateAnalysisV2Result(
+        createMixedResult(),
+        script
+      );
+
+      assert.equal(result.ok, true);
+    },
+  },
+  {
+    name: "rejects a weak result without a suggested fix",
+    run: () => {
+      const value = createWeakResult();
+      value.suggestedFixes = [];
+
+      const result = validateAnalysisV2Result(
+        value,
+        script
+      );
+
+      assert.equal(result.ok, false);
+    },
+  },
+  {
+    name: "rejects a mixed result without a risky part",
+    run: () => {
+      const value = createMixedResult();
+      value.riskyParts = [];
+
+      const result = validateAnalysisV2Result(
+        value,
+        script
+      );
+
+      assert.equal(result.ok, false);
+    },
+  },
+  {
+    name: "rejects a mixed result without a required fix",
+    run: () => {
+      const value = createMixedResult();
+      value.suggestedFixes = [
+        {
+          target: "clarity",
+          suggestion:
+            "Optionally shorten the transition.",
+          optional: true,
+        },
+      ];
+
+      const result = validateAnalysisV2Result(
+        value,
+        script
+      );
+
+      assert.equal(result.ok, false);
+    },
+  },
+  {
+    name: "rejects a strong result below 85 without an optional refinement",
+    run: () => {
+      const value = createStrongResult();
+      value.suggestedFixes = [];
+
+      const result = validateAnalysisV2Result(
+        value,
+        script
+      );
+
+      assert.equal(result.ok, false);
+    },
+  },
+  {
+    name: "accepts a strong result at 85 or higher without a refinement",
+    run: () => {
+      const value = createStrongResult();
+      value.scores = {
+        overall: 88,
+        hook: 86,
+        retentionRisk: 18,
+      };
+      value.suggestedFixes = [];
+
+      const result = validateAnalysisV2Result(
+        value,
         script
       );
 

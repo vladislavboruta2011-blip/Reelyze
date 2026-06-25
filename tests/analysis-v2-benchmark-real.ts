@@ -124,6 +124,16 @@ function evaluateBenchmarkCase(
   }
 
   if (
+    expected.minSuggestedFixes !== undefined &&
+    result.suggestedFixes.length <
+      expected.minSuggestedFixes
+  ) {
+    failures.push(
+      `suggestedFixes count ${result.suggestedFixes.length} is below expected minimum ${expected.minSuggestedFixes}.`
+    );
+  }
+
+  if (
     expected.maxSuggestedFixes !== undefined &&
     result.suggestedFixes.length >
       expected.maxSuggestedFixes
@@ -219,6 +229,7 @@ async function main(): Promise<void> {
 
   let passed = 0;
   let failed = 0;
+  const scoreTripletCounts = new Map<string, number>();
 
   for (const benchmarkCase of ANALYSIS_V2_BENCHMARK_CASES) {
     const runResult = await runAnalysisV2(
@@ -242,6 +253,17 @@ async function main(): Promise<void> {
       runResult.response.result
     );
 
+    const scoreTriplet = [
+      runResult.response.result.scores.overall,
+      runResult.response.result.scores.hook,
+      runResult.response.result.scores.retentionRisk,
+    ].join("/");
+
+    scoreTripletCounts.set(
+      scoreTriplet,
+      (scoreTripletCounts.get(scoreTriplet) ?? 0) + 1
+    );
+
     printResult(
       benchmarkCase,
       runResult.response.result,
@@ -256,12 +278,49 @@ async function main(): Promise<void> {
     }
   }
 
+  const maximumRepeatedTripletCount = Math.max(
+    3,
+    Math.floor(
+      ANALYSIS_V2_BENCHMARK_CASES.length * 0.3
+    )
+  );
+  const repeatedScoreTriplets = [
+    ...scoreTripletCounts.entries(),
+  ].filter(
+    ([, count]) => count > maximumRepeatedTripletCount
+  );
+
+  const minimumUniqueTriplets = Math.ceil(
+    ANALYSIS_V2_BENCHMARK_CASES.length * 0.4
+  );
+  const hasLowScoreDiversity =
+    scoreTripletCounts.size < minimumUniqueTriplets;
+
   console.log("\n" + "=".repeat(80));
   console.log(
     `Analysis V2 real benchmark: ${passed}/${ANALYSIS_V2_BENCHMARK_CASES.length} passed, ${failed} failed.`
   );
+  console.log(
+    `Unique score triplets: ${scoreTripletCounts.size}/${ANALYSIS_V2_BENCHMARK_CASES.length}.`
+  );
 
-  if (failed > 0) {
+  for (const [triplet, count] of repeatedScoreTriplets) {
+    console.error(
+      `Score clustering failure: ${triplet} was returned ${count} times; maximum allowed is ${maximumRepeatedTripletCount}.`
+    );
+  }
+
+  if (hasLowScoreDiversity) {
+    console.error(
+      `Score diversity failure: expected at least ${minimumUniqueTriplets} unique triplets.`
+    );
+  }
+
+  if (
+    failed > 0 ||
+    repeatedScoreTriplets.length > 0 ||
+    hasLowScoreDiversity
+  ) {
     process.exitCode = 1;
   }
 }

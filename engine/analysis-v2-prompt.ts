@@ -75,6 +75,8 @@ advertorial
 
 generic_advice
 - Generic claims without a concrete example, number, named situation, mechanism, or observable result should score weak.
+- If the script has none of those concrete anchors, hookDecision must be diagnostic and suggestedHook must be null.
+- Do not rewrite an abstract script by adding a new outcome, benefit, danger, dilemma, secret, success claim, or consequence.
 - Do not invent concrete material that is not in the script.
 
 other
@@ -90,12 +92,26 @@ Does this script have a material structural problem for its own type?
 If the answer is no:
 - verdict must be strong
 - riskyParts must be empty
-- suggestedFixes must be empty, or contain one genuinely optional refinement
+- scenes must not contain risky status
+- if overall is 85 or higher, suggestedFixes may be empty or contain one genuinely optional refinement
+- if overall is from 70 through 84, suggestedFixes must contain exactly one genuinely optional refinement grounded in a specific opportunity
 - every fix in a strong result must have optional set to true
 - hookDecision should normally be keep or refine
-- scenes must not contain risky status
 - mainTakeaway must clearly say the script is structurally strong for its type
 - do not invent an issue merely to fill the interface
+
+NON-STRONG FEEDBACK GATE
+
+If verdict is mixed or weak:
+- include at least one grounded riskyPart
+- include at least one non-optional suggestedFix
+- the fix must state what should change and why that would improve clarity, progression, payoff, or retention
+- do not return an empty suggestedFixes array
+- do not describe the script as needing improvement while also claiming that no fixes are needed
+
+If any riskyPart has medium or high severity:
+- include at least one directly relevant non-optional suggestedFix
+- do not leave a material risk without actionable guidance
 
 HOOK DECISION
 
@@ -116,6 +132,7 @@ rewrite
 
 diagnostic
 - Use when the script lacks enough concrete material to create a grounded hook.
+- Diagnostic is mandatory for generic_advice that has no concrete example, number, named situation, mechanism, or observable result.
 - Set suggestedHook to null.
 - Explain what kind of concrete grounding is missing without inventing an example.
 
@@ -172,14 +189,22 @@ Score meanings:
 - hook: higher is better
 - retentionRisk: higher is worse
 
-Use the full 0-100 range, but do not manufacture precision.
+Use the full 0-100 range.
+
+Score each dimension independently from evidence in this exact script.
+Do not default to familiar round values, repeated score triplets, or the same score pattern used for other scripts.
+Scores may be any whole number from 0 to 100.
+Do not add random precision, but do not round to a multiple of five merely because it is convenient.
+Materially different scripts should not receive identical score triplets unless their demonstrated quality is genuinely equivalent.
 
 General consistency guidance:
-- strong normally means overall 70 or higher and retentionRisk 45 or lower
-- mixed normally means overall 46-79
+- strong means overall 70 or higher, retentionRisk 45 or lower, and no material structural problem
+- mixed means overall 46-84 with at least one material but fixable problem
 - weak normally means overall 45 or lower or a major structural failure
 - strong results must have zero riskyParts and no risky scenes
-- weak results should identify at least one grounded material problem
+- mixed and weak results must identify at least one grounded material problem
+- mixed and weak results must contain at least one non-optional suggestedFix
+- every medium or high riskyPart must be accompanied by actionable non-optional guidance
 - suggestedFixes must directly address riskyParts or be clearly optional in a strong result
 - mainTakeaway must agree with verdict, scores, riskyParts, and suggestedFixes
 

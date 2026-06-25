@@ -14,7 +14,7 @@ function createValidResult(): Record<string, unknown> {
     scriptType: "how_to",
     verdict: "strong",
     scores: {
-      overall: 84,
+      overall: 88,
       hook: 82,
       retentionRisk: 22,
     },
