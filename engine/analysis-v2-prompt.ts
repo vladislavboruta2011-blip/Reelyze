@@ -28,6 +28,7 @@ ${ANALYSIS_V2_SCRIPT_TYPES.join(", ")}
 4. Score it and produce only grounded feedback.
 
 5. Evaluate the original hook before deciding whether to keep, refine, rewrite, or diagnose it.
+- Evaluate hookAssessment and hookDecision using only the opening hook, not unrelated material from later in the script.
 
 TYPE-SPECIFIC RUBRICS
 
@@ -115,6 +116,8 @@ If verdict is mixed or weak:
 - If the script has two materially different problems that require different changes, return two suggestedFixes.
 - If multiple riskyParts share the same root cause, one suggestedFix may address all of them.
 - Do not create a second suggestedFix merely to fill the available limit.
+- Treat an explicit promise near the end as a material payoff problem when the promised information is not delivered anywhere in the script.
+- If an unfulfilled promise is independent from another material problem, report it as a separate riskyPart with a separate suggestedFix.
 
 If any riskyPart has medium or high severity:
 - include at least one directly relevant non-optional suggestedFix
@@ -162,6 +165,7 @@ A suggestedHook must never:
 - force mystery framing onto an explanation, how-to, warning, or advertorial
 - become longer without a clear benefit
 - contradict the hookAssessment
+- A suggestedHook must not state the explanation and then promise to explain that same explanation.
 
 GROUNDING
 

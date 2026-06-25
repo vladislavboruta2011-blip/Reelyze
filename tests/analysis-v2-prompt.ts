@@ -21,6 +21,22 @@ const requiredRules = [
     name: "the model must not invent a second fix",
     text: "Do not create a second suggestedFix merely to fill the available limit.",
   },
+  {
+    name: "hook evaluation must use only the opening hook",
+    text: "Evaluate hookAssessment and hookDecision using only the opening hook, not unrelated material from later in the script.",
+  },
+  {
+    name: "unfulfilled late promises must be treated as payoff problems",
+    text: "Treat an explicit promise near the end as a material payoff problem when the promised information is not delivered anywhere in the script.",
+  },
+  {
+    name: "independent unfulfilled promises need separate feedback",
+    text: "If an unfulfilled promise is independent from another material problem, report it as a separate riskyPart with a separate suggestedFix.",
+  },
+  {
+    name: "suggested hooks must not repeat and re-promise the same explanation",
+    text: "A suggestedHook must not state the explanation and then promise to explain that same explanation.",
+  },
 ];
 
 let failures = 0;
