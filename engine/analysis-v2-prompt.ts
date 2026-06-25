@@ -59,13 +59,16 @@ mystery
 - Mystery-specific curiosity-gap logic is appropriate for this type.
 
 list_escalation
-- Repeated examples or events that become more extreme can create retention.
+- Repeated examples or events that become progressively more extreme can create retention.
+- Use this type when the script presents an escalating sequence, not when several options are judged against one shared criterion.
 - The strongest final example or a contrasting culmination is a valid payoff.
 - Do not require an explicit turn phrase such as but then.
 
 comparison
+- Use this type when multiple subjects, products, people, or options are evaluated against the same measurement, quality, or question.
 - A valid structure can be: comparison premise → progression through subjects or measurements → winner or extreme result.
-- The winner, final ranking, or extreme measurement is the payoff.
+- A declared winner, longest result, highest result, lowest result, or final ranking is a comparison payoff.
+- Prefer comparison over list_escalation when the script explicitly tests options side by side or identifies which option performs best.
 - Do not require a narrative arc or emotional stakes.
 
 advertorial

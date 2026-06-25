@@ -645,7 +645,7 @@ const hookCopyButtonLabel =
                         {analysis.riskyParts.length === 0 ? (
                           <div>
                             <p className="text-[14px] font-medium text-white">{analysis.fixes.length > 0 ? "No major risky parts found." : "No risky parts found."}</p>
-                            <p className="mt-1 text-[13px] leading-[1.55] text-[#777A85]">{analysis.fixes.length > 0 ? "The script works overall, but a few areas could still be tightened." : "This script stays focused and does not contain any major drop-off points."}</p>
+                            <p className="mt-1 text-[13px] leading-[1.55] text-[#777A85]">{analysis.fixes.length > 0 ? "No material drop-off points were found; the suggestions below are optional refinements." : "This script stays focused and does not contain any major drop-off points."}</p>
                           </div>
                         ) : (
                           analysis.riskyParts.map((part) => (
@@ -861,7 +861,7 @@ const hookCopyButtonLabel =
                   {analysis.riskyParts.length === 0 ? (
                     <div className="rounded-[12px] border border-[#24242A] bg-[#101014] px-4 py-3">
                       <p className="text-[13px] font-medium text-white">{analysis.fixes.length > 0 ? "No major risky parts found." : "No risky parts found."}</p>
-                      <p className="mt-1 text-[12px] leading-[1.5] text-[#777A85]">{analysis.fixes.length > 0 ? "The script works overall, but a few areas could still be tightened." : "This script stays focused and does not contain any major drop-off points."}</p>
+                      <p className="mt-1 text-[12px] leading-[1.5] text-[#777A85]">{analysis.fixes.length > 0 ? "No material drop-off points were found; the suggestions below are optional refinements." : "This script stays focused and does not contain any major drop-off points."}</p>
                     </div>
                   ) : (
                     analysis.riskyParts.map((part) => (
