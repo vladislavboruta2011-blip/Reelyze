@@ -111,6 +111,10 @@ If verdict is mixed or weak:
 - the fix must state what should change and why that would improve clarity, progression, payoff, or retention
 - do not return an empty suggestedFixes array
 - do not describe the script as needing improvement while also claiming that no fixes are needed
+- If one actionable change resolves all material problems, return one suggestedFix.
+- If the script has two materially different problems that require different changes, return two suggestedFixes.
+- If multiple riskyParts share the same root cause, one suggestedFix may address all of them.
+- Do not create a second suggestedFix merely to fill the available limit.
 
 If any riskyPart has medium or high severity:
 - include at least one directly relevant non-optional suggestedFix
