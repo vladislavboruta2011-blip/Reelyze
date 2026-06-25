@@ -204,23 +204,38 @@ const analyzeHandler =
     ? homeSource.slice(analyzeHandlerStart, analyzeHandlerEnd)
     : "";
 
-const analyzeTryIndex = analyzeHandler.indexOf("try {");
 const previousScriptReadIndex = analyzeHandler.indexOf(
-  'previousScript = sessionStorage.getItem("reelyze-script")'
+  'previousScript =\n          sessionStorage.getItem("reelyze-script")'
 );
 const previousTitleReadIndex = analyzeHandler.indexOf(
-  'previousTitle = sessionStorage.getItem("reelyze-title")'
+  'previousTitle =\n          sessionStorage.getItem("reelyze-title")'
+);
+const previousAnalysisReadIndex = analyzeHandler.indexOf(
+  "previousAnalysis =\n          sessionStorage.getItem(\n            ANALYSIS_V2_STORAGE_KEY\n          )"
+);
+const storageSnapshotReadyIndex = analyzeHandler.indexOf(
+  "hasStorageSnapshot = true;"
+);
+const firstStoredScriptWriteIndex = analyzeHandler.indexOf(
+  'sessionStorage.setItem(\n          "reelyze-script",'
 );
 
 const preservesPreviousStoredAnalysis =
-  analyzeTryIndex >= 0 &&
-  previousScriptReadIndex > analyzeTryIndex &&
-  previousTitleReadIndex > analyzeTryIndex &&
+  previousScriptReadIndex >= 0 &&
+  previousTitleReadIndex >= 0 &&
+  previousAnalysisReadIndex >= 0 &&
+  storageSnapshotReadyIndex > previousScriptReadIndex &&
+  storageSnapshotReadyIndex > previousTitleReadIndex &&
+  storageSnapshotReadyIndex > previousAnalysisReadIndex &&
+  firstStoredScriptWriteIndex > storageSnapshotReadyIndex &&
   analyzeHandler.includes(
-    'restoreSessionValue("reelyze-script", previousScript)'
+    'restoreSessionValue(\n            "reelyze-script",\n            previousScript\n          )'
   ) &&
   analyzeHandler.includes(
-    'restoreSessionValue("reelyze-title", previousTitle)'
+    'restoreSessionValue(\n            "reelyze-title",\n            previousTitle\n          )'
+  ) &&
+  analyzeHandler.includes(
+    "restoreSessionValue(\n            ANALYSIS_V2_STORAGE_KEY,\n            previousAnalysis\n          )"
   );
 
 if (preservesPreviousStoredAnalysis) {

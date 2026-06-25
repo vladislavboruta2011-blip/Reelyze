@@ -4,6 +4,14 @@ import Image from "next/image";
 import { Inter } from "next/font/google";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import type {
+  AnalysisV2SuccessResponse,
+} from "../../engine/analysis-v2-schema";
+import {
+  ANALYSIS_V2_STORAGE_KEY,
+  adaptAnalysisV2ForResults,
+  parseStoredAnalysisV2,
+} from "../../engine/analysis-v2-ui-adapter";
 import {
   SquarePen,
   PencilLine,
@@ -114,6 +122,8 @@ function isValidImproveSuccessPayload(
 export default function ResultsPage() {
  const [savedScript, setSavedScript] = useState("");
   const [savedTitle, setSavedTitle] = useState("");
+  const [savedAnalysisV2, setSavedAnalysisV2] =
+    useState<AnalysisV2SuccessResponse | null>(null);
   const [isStorageLoaded, setIsStorageLoaded] = useState(false);
   const [storageError, setStorageError] = useState("");
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
@@ -143,8 +153,10 @@ const [mobileScriptOpen, setMobileScriptOpen] = useState(false);
       try {
         const storedScript = sessionStorage.getItem("reelyze-script");
         const storedTitle = sessionStorage.getItem("reelyze-title");
+        const storedAnalysis = sessionStorage.getItem(
+          ANALYSIS_V2_STORAGE_KEY
+        );
 
-        const hasStoredScript = storedScript !== null;
         const isValidStoredScript =
           storedScript !== null &&
           storedScript.trim().length > 0 &&
@@ -155,9 +167,18 @@ const [mobileScriptOpen, setMobileScriptOpen] = useState(false);
           (storedTitle.trim().length <= MAX_TITLE_CHARACTERS &&
             storedTitle.length <= MAX_TITLE_CHARACTERS);
 
+        const parsedAnalysis =
+          isValidStoredScript && storedAnalysis !== null
+            ? parseStoredAnalysisV2(
+                storedAnalysis,
+                storedScript.trim()
+              )
+            : null;
+
         if (
-          (hasStoredScript && !isValidStoredScript) ||
-          !isValidStoredTitle
+          !isValidStoredScript ||
+          !isValidStoredTitle ||
+          parsedAnalysis === null
         ) {
           setStorageError(
             "Your saved analysis is invalid. Please go back and analyze the script again."
@@ -167,6 +188,7 @@ const [mobileScriptOpen, setMobileScriptOpen] = useState(false);
 
         if (isValidStoredScript) {
           setSavedScript(storedScript.trim());
+          setSavedAnalysisV2(parsedAnalysis);
         }
 
         if (
@@ -214,8 +236,26 @@ const [mobileScriptOpen, setMobileScriptOpen] = useState(false);
   const characterCount = activeScript.length;
 
   const analysis = useMemo(() => {
-    return analyzeScript(activeScript, estimatedDuration, scriptLines);
-  }, [activeScript, estimatedDuration, scriptLines]);
+    if (savedAnalysisV2) {
+      return adaptAnalysisV2ForResults(
+        savedAnalysisV2,
+        activeScript,
+        scriptLines,
+        estimatedDuration
+      );
+    }
+
+    return analyzeScript(
+      activeScript,
+      estimatedDuration,
+      scriptLines
+    );
+  }, [
+    savedAnalysisV2,
+    activeScript,
+    estimatedDuration,
+    scriptLines,
+  ]);
   
   const fallbackImprovedHook = useMemo(() => {
   return createHookRewrite(activeScript);

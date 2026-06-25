@@ -20,8 +20,10 @@
     "test:ui:improve": "tsx tests/results-improve-ui.ts",
     "test:analysis-v2:validation": "tsx tests/analysis-v2-validation.ts",
     "test:analysis-v2:api": "tsx tests/analysis-v2-api.ts",
-    "test:analysis-v2": "npm run test:analysis-v2:validation && npm run test:analysis-v2:api",
-    "test:analysis-v2:benchmark:real": "tsx tests/analysis-v2-benchmark-real.ts"
+    "test:analysis-v2": "npm run test:analysis-v2:validation && npm run test:analysis-v2:api && npm run test:analysis-v2:ui && npm run test:analysis-v2:integration",
+    "test:analysis-v2:benchmark:real": "tsx tests/analysis-v2-benchmark-real.ts",
+    "test:analysis-v2:ui": "tsx tests/analysis-v2-ui-adapter.ts",
+    "test:analysis-v2:integration": "tsx tests/analysis-v2-integration.ts"
   },
   "dependencies": {
     "lucide-react": "^1.17.0",
