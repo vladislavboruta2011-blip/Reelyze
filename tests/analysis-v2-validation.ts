@@ -637,6 +637,193 @@ const tests: TestCase[] = [
       assert.equal(result.ok, false);
     },
   },
+
+  {
+    name: "rejects keep when a required hook fix proves a material opening issue",
+    run: () => {
+      const value = createMixedResult();
+
+      value.hookDecision = "keep";
+      value.hookAssessment =
+        "The opening is too generic and delays the concrete warning.";
+      value.suggestedHook = undefined;
+      value.riskyParts = [
+        {
+          excerpt:
+            "If super glue gets stuck to your skin, do not pull it apart.",
+          reason:
+            "The opening needs a more direct and specific warning.",
+          severity: "medium",
+        },
+      ];
+      value.suggestedFixes = [
+        {
+          target: "hook",
+          suggestion:
+            "Rewrite the opening as a direct, specific warning.",
+          optional: false,
+        },
+      ];
+
+      const result = validateAnalysisV2Result(
+        value,
+        script
+      );
+
+      assert.equal(result.ok, false);
+    },
+  },
+
+  {
+    name: "rejects an invented named entity in a suggested hook",
+    run: () => {
+      const value = createWeakResult();
+
+      value.hookDecision = "rewrite";
+      value.suggestedHook =
+        "NASA says this household method dissolves super glue.";
+
+      const result = validateAnalysisV2Result(
+        value,
+        script
+      );
+
+      assert.equal(result.ok, false);
+    },
+  },
+  {
+    name: "rejects unsupported claim strengthening in a suggested hook",
+    run: () => {
+      const value = createWeakResult();
+
+      value.hookDecision = "rewrite";
+      value.suggestedHook =
+        "This household method completely dissolves super glue.";
+
+      const result = validateAnalysisV2Result(
+        value,
+        script
+      );
+
+      assert.equal(result.ok, false);
+    },
+  },
+  {
+    name: "accepts grounded named entities and claim strength already present in the script",
+    run: () => {
+      const groundedScript =
+        "NASA tested this household method on dried super glue. The report says it completely loosens the glue after soaking.";
+
+      const value = createMixedResult();
+
+      value.hookDecision = "rewrite";
+      value.hookAssessment =
+        "The opening contains the evidence but delays the useful result.";
+      value.suggestedHook =
+        "NASA tested a method that completely loosens dried super glue.";
+      value.riskyParts = [
+        {
+          excerpt:
+            "NASA tested this household method on dried super glue.",
+          reason:
+            "The opening mentions the test but delays the concrete result.",
+          severity: "medium",
+        },
+      ];
+      value.suggestedFixes = [
+        {
+          target: "hook",
+          suggestion:
+            "Move the documented result into the opening.",
+          optional: false,
+        },
+      ];
+      value.scenes = [
+        {
+          excerpt:
+            "NASA tested this household method on dried super glue.",
+          label: "Delayed result",
+          status: "risky",
+        },
+      ];
+
+      const result = validateAnalysisV2Result(
+        value,
+        groundedScript
+      );
+
+      if (!result.ok) {
+        throw new Error(result.reason);
+      }
+
+      assert.equal(result.value.hookDecision, "rewrite");
+      assert.equal(
+        result.value.suggestedHook,
+        "NASA tested a method that completely loosens dried super glue."
+      );
+    },
+  },
+
+  {
+    name: "preserves refine when a risky excerpt partially overlaps the opening window",
+    run: () => {
+      const openingWords = Array.from(
+        { length: 45 },
+        (_, index) => `word${index + 1}`
+      );
+      const overlapScript =
+        `${openingWords.join(" ")}.`;
+      const overlapExcerpt = openingWords
+        .slice(29, 40)
+        .join(" ");
+
+      const value = createMixedResult();
+
+      value.hookDecision = "refine";
+      value.hookAssessment =
+        "The opening contains a long setup that should be tightened.";
+      value.suggestedHook =
+        "Lead with the concrete warning before the long setup.";
+      value.riskyParts = [
+        {
+          excerpt: overlapExcerpt,
+          reason:
+            "This part of the opening extends the setup before the main point.",
+          severity: "medium",
+        },
+      ];
+      value.suggestedFixes = [
+        {
+          target: "clarity",
+          suggestion:
+            "Shorten the overlapping setup so the main point arrives earlier.",
+          optional: false,
+        },
+      ];
+      value.scenes = [
+        {
+          excerpt: overlapExcerpt,
+          label: "Extended opening setup",
+          status: "risky",
+        },
+      ];
+
+      const result = validateAnalysisV2Result(
+        value,
+        overlapScript
+      );
+
+      if (!result.ok) {
+        throw new Error(result.reason);
+      }
+
+      assert.equal(result.value.hookDecision, "refine");
+      assert.equal(
+        result.value.suggestedHook,
+        "Lead with the concrete warning before the long setup."
+      );
+    },
+  },
 ];
 
 let passed = 0;

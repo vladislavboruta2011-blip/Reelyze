@@ -93,9 +93,32 @@ export function parseStoredAnalysisV2(
     return null;
   }
 
-  return isAnalysisV2SuccessResponse(parsed, script)
-    ? parsed
-    : null;
+  if (!isPlainObject(parsed)) {
+    return null;
+  }
+
+  if (
+    parsed.status !== "ok" ||
+    typeof parsed.modelUsed !== "string" ||
+    parsed.modelUsed.trim().length === 0
+  ) {
+    return null;
+  }
+
+  const validation = validateAnalysisV2Result(
+    parsed.result,
+    script
+  );
+
+  if (!validation.ok) {
+    return null;
+  }
+
+  return {
+    status: "ok",
+    modelUsed: parsed.modelUsed,
+    result: validation.value,
+  };
 }
 
 function clampScore(score: number): number {

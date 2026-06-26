@@ -294,6 +294,79 @@ const tests: TestCase[] = [
       );
     },
   },
+
+  {
+    name: "returns the normalized result when loading stored analysis",
+    run: () => {
+      const storedScript =
+        "Start with a clear result. Explain why viewers should care. This middle line is vague and repeats itself. End with a specific payoff.";
+
+      const staleResponse: AnalysisV2SuccessResponse = {
+        status: "ok",
+        modelUsed: "old-model",
+        result: {
+          scriptType: "explanation",
+          verdict: "mixed",
+          scores: {
+            overall: 61,
+            hook: 68,
+            retentionRisk: 52,
+          },
+          hookDecision: "refine",
+          hookAssessment:
+            "The opening is clear, but the middle needs more specificity.",
+          suggestedHook:
+            "Start with the specific result before explaining why it happens.",
+          riskyParts: [
+            {
+              excerpt:
+                "This middle line is vague and repeats itself.",
+              reason:
+                "The middle loses momentum because it repeats an abstract point.",
+              severity: "medium",
+            },
+          ],
+          suggestedFixes: [
+            {
+              target: "middle",
+              suggestion:
+                "Replace the vague middle line with one concrete mechanism.",
+              optional: false,
+            },
+          ],
+          scenes: [
+            {
+              excerpt: "Start with a clear result.",
+              label: "Opening",
+              status: "average",
+            },
+            {
+              excerpt:
+                "This middle line is vague and repeats itself.",
+              label: "Weak middle",
+              status: "risky",
+            },
+            {
+              excerpt: "End with a specific payoff.",
+              label: "Ending",
+              status: "average",
+            },
+          ],
+          mainTakeaway:
+            "The script has a workable structure, but the middle needs more specificity.",
+        },
+      };
+
+      const parsed = parseStoredAnalysisV2(
+        JSON.stringify(staleResponse),
+        storedScript
+      );
+
+      assert.ok(parsed);
+      assert.equal(parsed.result.hookDecision, "keep");
+      assert.equal(parsed.result.suggestedHook, undefined);
+    },
+  },
 ];
 
 console.log("\nAnalysis V2 UI Adapter Tests\n");

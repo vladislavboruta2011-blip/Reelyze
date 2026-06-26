@@ -112,6 +112,90 @@ function suggestedHookIntroducesNumber(
   );
 }
 
+function extractWordTokens(value: string): Set<string> {
+  return new Set(
+    (value.match(/\b[A-Za-z][A-Za-z0-9'-]*\b/g) ?? []).map(
+      (token) => token.toLowerCase()
+    )
+  );
+}
+
+function extractPotentialNamedEntityTokens(
+  value: string
+): string[] {
+  const matches = value.matchAll(
+    /\b[A-Za-z][A-Za-z0-9'-]*\b/g
+  );
+
+  const entities: string[] = [];
+
+  for (const match of matches) {
+    const token = match[0];
+    const index = match.index ?? 0;
+    const precedingText = value
+      .slice(0, index)
+      .trimEnd();
+
+    const isSentenceStart =
+      precedingText.length === 0 ||
+      /[.!?]["')\]]?$/.test(precedingText);
+
+    const isAcronym =
+      /^[A-Z]{2,}[A-Z0-9-]*$/.test(token);
+
+    const hasInternalCapital =
+      /[A-Z]/.test(token.slice(1)) &&
+      /[a-z]/.test(token);
+
+    const isMidSentenceCapitalized =
+      /^[A-Z][a-z]/.test(token) &&
+      !isSentenceStart;
+
+    if (
+      isAcronym ||
+      hasInternalCapital ||
+      isMidSentenceCapitalized
+    ) {
+      entities.push(token.toLowerCase());
+    }
+  }
+
+  return entities;
+}
+
+function suggestedHookIntroducesNamedEntity(
+  suggestedHook: string,
+  script: string
+): boolean {
+  const scriptWords = extractWordTokens(script);
+
+  return extractPotentialNamedEntityTokens(
+    suggestedHook
+  ).some((entity) => !scriptWords.has(entity));
+}
+
+const unsupportedClaimStrengthPatterns = [
+  /\bconfirm(?:ed|s|ing|ation)?\b/i,
+  /\bprov(?:e|es|ed|en|ing)\b/i,
+  /\bguarantee(?:d|s|ing)?\b/i,
+  /\bofficial(?:ly)?\b/i,
+  /\bcompletely\b/i,
+  /\bdefinitely\b/i,
+  /\bwithout a doubt\b/i,
+  /\b(?:scientists?|researchers?|experts?|doctors?|studies|research)\s+(?:say|says|show|shows|showed|confirm|confirms|confirmed|prove|proves|proved)\b/i,
+] as const;
+
+function suggestedHookIntroducesUnsupportedClaimStrength(
+  suggestedHook: string,
+  script: string
+): boolean {
+  return unsupportedClaimStrengthPatterns.some(
+    (pattern) =>
+      pattern.test(suggestedHook) &&
+      !pattern.test(script)
+  );
+}
+
 function normalizeWhitespace(value: string): string {
   return value.trim().replace(/\s+/g, " ");
 }
@@ -144,24 +228,54 @@ function extractAnalysisV2OpeningWindow(
 
 function riskyPartOverlapsOpening(
   excerpt: string,
-  openingWindow: string
+  openingWindow: string,
+  script: string
 ): boolean {
   const normalizedExcerpt =
     normalizeWhitespace(excerpt);
   const normalizedOpening =
     normalizeWhitespace(openingWindow);
+  const normalizedScript =
+    normalizeWhitespace(script);
 
   if (
     normalizedExcerpt.length === 0 ||
-    normalizedOpening.length === 0
+    normalizedOpening.length === 0 ||
+    normalizedScript.length === 0
   ) {
     return false;
   }
 
-  return (
-    normalizedOpening.includes(normalizedExcerpt) ||
-    normalizedExcerpt.includes(normalizedOpening)
-  );
+  const openingEnd = normalizedOpening.length;
+  let searchFrom = 0;
+
+  while (
+    searchFrom <=
+    normalizedScript.length - normalizedExcerpt.length
+  ) {
+    const excerptStart = normalizedScript.indexOf(
+      normalizedExcerpt,
+      searchFrom
+    );
+
+    if (excerptStart === -1) {
+      return false;
+    }
+
+    const excerptEnd =
+      excerptStart + normalizedExcerpt.length;
+
+    if (
+      excerptStart < openingEnd &&
+      excerptEnd > 0
+    ) {
+      return true;
+    }
+
+    searchFrom = excerptStart + 1;
+  }
+
+  return false;
 }
 
 export function validateAnalysisV2Input(
@@ -671,6 +785,34 @@ export function validateAnalysisV2Result(
     };
   }
 
+  if (
+    hasSuggestedHook &&
+    suggestedHookIntroducesNamedEntity(
+      raw.suggestedHook as string,
+      script
+    )
+  ) {
+    return {
+      ok: false,
+      reason:
+        "suggestedHook introduces a named entity that is not present in the script.",
+    };
+  }
+
+  if (
+    hasSuggestedHook &&
+    suggestedHookIntroducesUnsupportedClaimStrength(
+      raw.suggestedHook as string,
+      script
+    )
+  ) {
+    return {
+      ok: false,
+      reason:
+        "suggestedHook strengthens a factual claim beyond the submitted script.",
+    };
+  }
+
   if (!Array.isArray(raw.riskyParts)) {
     return {
       ok: false,
@@ -782,6 +924,10 @@ export function validateAnalysisV2Result(
   const requiredFixes = suggestedFixes.filter(
     (fix) => !fix.optional
   );
+  const requiredHookFixes = suggestedFixes.filter(
+    (fix) =>
+      fix.target === "hook" && !fix.optional
+  );
   const openingWindow =
     extractAnalysisV2OpeningWindow(script);
   const hasHookEvidence =
@@ -791,7 +937,8 @@ export function validateAnalysisV2Result(
     riskyParts.some((part) =>
       riskyPartOverlapsOpening(
         part.excerpt,
-        openingWindow
+        openingWindow,
+        script
       )
     );
   const shouldNormalizeHookDecision =
@@ -808,6 +955,17 @@ export function validateAnalysisV2Result(
     hasSuggestedHook
       ? (raw.suggestedHook as string).trim()
       : undefined;
+
+  if (
+    normalizedHookDecision === "keep" &&
+    requiredHookFixes.length > 0
+  ) {
+    return {
+      ok: false,
+      reason:
+        "A keep hook decision cannot contain a required hook fix.",
+    };
+  }
 
   if (verdict === "strong") {
     if (overall < 70 || retentionRisk > 45) {
