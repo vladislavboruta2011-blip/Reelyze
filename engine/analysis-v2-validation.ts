@@ -112,6 +112,58 @@ function suggestedHookIntroducesNumber(
   );
 }
 
+function normalizeWhitespace(value: string): string {
+  return value.trim().replace(/\s+/g, " ");
+}
+
+function extractAnalysisV2OpeningWindow(
+  script: string
+): string {
+  const cleaned = normalizeWhitespace(script);
+
+  if (cleaned.length === 0) {
+    return "";
+  }
+
+  const sentenceParts = cleaned
+    .split(/(?<=[.!?])\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  const openingText =
+    sentenceParts.length >= 2
+      ? sentenceParts.slice(0, 2).join(" ")
+      : cleaned;
+
+  return openingText
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 35)
+    .join(" ");
+}
+
+function riskyPartOverlapsOpening(
+  excerpt: string,
+  openingWindow: string
+): boolean {
+  const normalizedExcerpt =
+    normalizeWhitespace(excerpt);
+  const normalizedOpening =
+    normalizeWhitespace(openingWindow);
+
+  if (
+    normalizedExcerpt.length === 0 ||
+    normalizedOpening.length === 0
+  ) {
+    return false;
+  }
+
+  return (
+    normalizedOpening.includes(normalizedExcerpt) ||
+    normalizedExcerpt.includes(normalizedOpening)
+  );
+}
+
 export function validateAnalysisV2Input(
   script: unknown,
   title: unknown
@@ -730,6 +782,32 @@ export function validateAnalysisV2Result(
   const requiredFixes = suggestedFixes.filter(
     (fix) => !fix.optional
   );
+  const openingWindow =
+    extractAnalysisV2OpeningWindow(script);
+  const hasHookEvidence =
+    suggestedFixes.some(
+      (fix) => fix.target === "hook"
+    ) ||
+    riskyParts.some((part) =>
+      riskyPartOverlapsOpening(
+        part.excerpt,
+        openingWindow
+      )
+    );
+  const shouldNormalizeHookDecision =
+    (hookDecision === "refine" ||
+      hookDecision === "rewrite") &&
+    !hasHookEvidence;
+  const normalizedHookDecision:
+    AnalysisV2HookDecision =
+      shouldNormalizeHookDecision
+        ? "keep"
+        : hookDecision;
+  const normalizedSuggestedHook =
+    !shouldNormalizeHookDecision &&
+    hasSuggestedHook
+      ? (raw.suggestedHook as string).trim()
+      : undefined;
 
   if (verdict === "strong") {
     if (overall < 70 || retentionRisk > 45) {
@@ -864,12 +942,12 @@ export function validateAnalysisV2Result(
           raw.scores.retentionRisk
         ),
       },
-      hookDecision,
+      hookDecision: normalizedHookDecision,
       hookAssessment: raw.hookAssessment.trim(),
-      ...(hasSuggestedHook
+      ...(normalizedSuggestedHook
         ? {
             suggestedHook:
-              (raw.suggestedHook as string).trim(),
+              normalizedSuggestedHook,
           }
         : {}),
       riskyParts,

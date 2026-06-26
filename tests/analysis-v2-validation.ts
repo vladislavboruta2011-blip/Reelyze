@@ -106,11 +106,9 @@ function createMixedResult(): Record<string, unknown> {
       hook: 58,
       retentionRisk: 52,
     },
-    hookDecision: "refine",
+    hookDecision: "keep",
     hookAssessment:
-      "The opening is clear, but the instruction sequence needs a better transition.",
-    suggestedHook:
-      "When super glue sticks to your skin, avoid pulling it apart.",
+      "The opening clearly names the problem and gives an immediate warning.",
     riskyParts: [
       {
         excerpt:
@@ -507,6 +505,73 @@ const tests: TestCase[] = [
       );
 
       assert.equal(result.ok, false);
+    },
+  },
+  {
+    name: "normalizes refine to keep when all material issues are outside the opening",
+    run: () => {
+      const value = createMixedResult();
+      value.hookDecision = "refine";
+      value.hookAssessment =
+        "The opening is clear, but the instruction sequence needs a better transition.";
+      value.suggestedHook =
+        "When super glue sticks to your skin, avoid pulling it apart.";
+
+      const result = validateAnalysisV2Result(
+        value,
+        script
+      );
+
+      if (!result.ok) {
+        throw new Error(result.reason);
+      }
+
+      assert.equal(result.ok, true);
+
+      assert.equal(result.value.hookDecision, "keep");
+      assert.equal(result.value.suggestedHook, undefined);
+    },
+  },
+  {
+    name: "preserves refine when a hook-target fix provides opening evidence",
+    run: () => {
+      const value = createMixedResult();
+      value.hookDecision = "refine";
+      value.hookAssessment =
+        "The opening is useful but can state the warning more directly.";
+      value.suggestedHook =
+        "If super glue sticks to your skin, never pull it apart.";
+      value.suggestedFixes = [
+        {
+          target: "clarity",
+          suggestion:
+            "Connect the rolling instruction directly to the soaking step.",
+          optional: false,
+        },
+        {
+          target: "hook",
+          suggestion:
+            "State the warning more directly so the opening is immediately actionable.",
+          optional: false,
+        },
+      ];
+
+      const result = validateAnalysisV2Result(
+        value,
+        script
+      );
+
+      if (!result.ok) {
+        throw new Error(result.reason);
+      }
+
+      assert.equal(result.ok, true);
+
+      assert.equal(result.value.hookDecision, "refine");
+      assert.equal(
+        result.value.suggestedHook,
+        "If super glue sticks to your skin, never pull it apart."
+      );
     },
   },
   {
