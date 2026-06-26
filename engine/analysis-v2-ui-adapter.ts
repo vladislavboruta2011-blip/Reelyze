@@ -102,11 +102,18 @@ function clampScore(score: number): number {
   return Math.max(0, Math.min(100, Math.round(score)));
 }
 
-function getOverallLabel(score: number): string {
-  if (score >= 85) return "Very Strong";
-  if (score >= 75) return "Strong";
-  if (score >= 60) return "Average";
-  if (score >= 40) return "Needs Work";
+function getOverallLabel(
+  score: number,
+  verdict: AnalysisV2Verdict
+): string {
+  if (verdict === "strong") {
+    return score >= 85 ? "Very Strong" : "Strong";
+  }
+
+  if (verdict === "mixed") {
+    return "Mixed";
+  }
+
   return "Weak";
 }
 
@@ -127,6 +134,14 @@ function getRiskLabel(score: number): string {
 function getPositiveScoreColor(score: number): string {
   if (score >= 75) return "#22C55E";
   if (score >= 50) return "#F59E0B";
+  return "#EF4444";
+}
+
+function getOverallColor(
+  verdict: AnalysisV2Verdict
+): string {
+  if (verdict === "strong") return "#22C55E";
+  if (verdict === "mixed") return "#F59E0B";
   return "#EF4444";
 }
 
@@ -342,14 +357,17 @@ export function adaptAnalysisV2ForResults(
   ).filter((index) => !riskySet.has(index));
 
   const overallColor =
-    getPositiveScoreColor(overallScore);
+    getOverallColor(result.verdict);
   const hookColor = getPositiveScoreColor(hookScore);
   const riskColor = getRiskColor(retentionRisk);
 
   return {
     overall: {
       score: overallScore,
-      label: getOverallLabel(overallScore),
+      label: getOverallLabel(
+        overallScore,
+        result.verdict
+      ),
       color: overallColor,
       ringColor: overallColor,
       description: result.mainTakeaway,

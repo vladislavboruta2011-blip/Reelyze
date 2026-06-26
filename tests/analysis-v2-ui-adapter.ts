@@ -212,6 +212,62 @@ const tests: TestCase[] = [
     },
   },
   {
+    name: "mixed verdict overrides a strong score label",
+    run: () => {
+      const highMixedResponse: AnalysisV2SuccessResponse = {
+        ...mixedResponse,
+        result: {
+          ...mixedResponse.result,
+          scores: {
+            ...mixedResponse.result.scores,
+            overall: 75,
+          },
+        },
+      };
+
+      const adapted = adaptAnalysisV2ForResults(
+        highMixedResponse,
+        mixedScript,
+        [
+          "Start with a clear result.",
+          "This middle line is vague and repeats itself.",
+          "End with a specific payoff.",
+        ],
+        10
+      );
+
+      assert.equal(adapted.overall.label, "Mixed");
+    },
+  },
+  {
+    name: "mixed verdict overrides a green score color",
+    run: () => {
+      const highMixedResponse: AnalysisV2SuccessResponse = {
+        ...mixedResponse,
+        result: {
+          ...mixedResponse.result,
+          scores: {
+            ...mixedResponse.result.scores,
+            overall: 75,
+          },
+        },
+      };
+
+      const adapted = adaptAnalysisV2ForResults(
+        highMixedResponse,
+        mixedScript,
+        [
+          "Start with a clear result.",
+          "This middle line is vague and repeats itself.",
+          "End with a specific payoff.",
+        ],
+        10
+      );
+
+      assert.equal(adapted.overall.ringColor, "#F59E0B");
+    },
+  },
+  {
     name: "creates scene widths that exactly fill the bar",
     run: () => {
       const adapted = adaptAnalysisV2ForResults(
