@@ -29,6 +29,8 @@ ${ANALYSIS_V2_SCRIPT_TYPES.join(", ")}
 
 5. Evaluate the original hook before deciding whether to keep, refine, rewrite, or diagnose it.
 - Evaluate hookAssessment and hookDecision using only the opening hook, not unrelated material from later in the script.
+- Evaluate the first sentence independently. If it is generic filler that delays the concrete subject, premise, problem, or promise, treat it as a material hook weakness even when a later opening sentence is specific.
+- When generic filler appears before the concrete premise, quote the filler sentence as a riskyPart and include a non-optional suggestedFix with target hook.
 
 TYPE-SPECIFIC RUBRICS
 

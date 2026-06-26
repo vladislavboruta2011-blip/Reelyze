@@ -37,6 +37,14 @@ const requiredRules = [
     name: "suggested hooks must not repeat and re-promise the same explanation",
     text: "A suggestedHook must not state the explanation and then promise to explain that same explanation.",
   },
+  {
+    name: "later specificity must not hide generic first-sentence filler",
+    text: "Evaluate the first sentence independently. If it is generic filler that delays the concrete subject, premise, problem, or promise, treat it as a material hook weakness even when a later opening sentence is specific.",
+  },
+  {
+    name: "generic opening filler needs grounded hook feedback",
+    text: "When generic filler appears before the concrete premise, quote the filler sentence as a riskyPart and include a non-optional suggestedFix with target hook.",
+  },
 ];
 
 let failures = 0;
