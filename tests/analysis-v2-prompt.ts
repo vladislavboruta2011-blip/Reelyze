@@ -45,6 +45,14 @@ const requiredRules = [
     name: "generic opening filler needs grounded hook feedback",
     text: "When generic filler appears before the concrete premise, quote the filler sentence as a riskyPart and include a non-optional suggestedFix with target hook.",
   },
+  {
+    name: "generic opening filler cannot receive a strong result",
+    text: "If generic opening filler delays the concrete premise, verdict must not be strong, riskyParts must not be empty, and overall must not exceed 84.",
+  },
+  {
+    name: "generic opening filler requires a mandatory hook fix",
+    text: "For generic opening filler, hookDecision must be refine or rewrite and the suggestedFix with target hook must have optional set to false.",
+  },
 ];
 
 let failures = 0;

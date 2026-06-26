@@ -31,6 +31,8 @@ ${ANALYSIS_V2_SCRIPT_TYPES.join(", ")}
 - Evaluate hookAssessment and hookDecision using only the opening hook, not unrelated material from later in the script.
 - Evaluate the first sentence independently. If it is generic filler that delays the concrete subject, premise, problem, or promise, treat it as a material hook weakness even when a later opening sentence is specific.
 - When generic filler appears before the concrete premise, quote the filler sentence as a riskyPart and include a non-optional suggestedFix with target hook.
+- If generic opening filler delays the concrete premise, verdict must not be strong, riskyParts must not be empty, and overall must not exceed 84.
+- For generic opening filler, hookDecision must be refine or rewrite and the suggestedFix with target hook must have optional set to false.
 
 TYPE-SPECIFIC RUBRICS
 
