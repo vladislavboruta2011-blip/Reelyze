@@ -456,6 +456,28 @@ export const ANALYSIS_V2_BENCHMARK_CASES:
     },
   },
   {
+    id: "negative-unrevealed-specific-promise",
+    category: "negative",
+    title: "Hidden phone setting not revealed",
+    script:
+      "Your phone battery dies faster because of one hidden setting. Most people never turn it off. It runs quietly in the background. Once you understand it, your phone usage makes more sense.",
+    expected: {
+      scriptTypes: ["explanation"],
+      verdicts: ["weak", "mixed"],
+      overall: { max: 65 },
+      hook: { max: 80 },
+      retentionRisk: { min: 40 },
+      minRiskyParts: 1,
+      maxRiskyParts: 2,
+      minSuggestedFixes: 1,
+      maxSuggestedFixes: 2,
+      forbiddenFeedback: [
+        "strong hook",
+        "hook is clear and specific",
+      ],
+    },
+  },
+  {
     id: "adversarial-lowercase-how-to",
     category: "adversarial",
     title: "fish hook removal",
