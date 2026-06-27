@@ -147,6 +147,8 @@ const [mobileScriptOpen, setMobileScriptOpen] = useState(false);
   const [mobileFeedback, setMobileFeedback] = useState<"helpful" | "dislike" | null>(null);
   const [mobileSelectedReason, setMobileSelectedReason] = useState<string | null>(null);
   const [mobileFeedbackSubmitted, setMobileFeedbackSubmitted] = useState(false);
+  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
+  const [feedbackSubmitError, setFeedbackSubmitError] = useState("");
   
     useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -277,6 +279,55 @@ const hookActionLabel = savedAnalysisV2
   : analysis.hook.score >= 70
     ? "Refine Script"
     : "Improve Hook";
+
+async function submitFeedback(
+  rating: "helpful" | "unhelpful",
+  reason: string | null,
+  text: string | null = null
+): Promise<boolean> {
+  if (feedbackSubmitting) {
+    return false;
+  }
+
+  setFeedbackSubmitting(true);
+  setFeedbackSubmitError("");
+
+  try {
+    const response = await fetch("/api/feedback", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        rating,
+        reason,
+        text,
+        title: savedTitle || "YouTube Shorts Script",
+        script: activeScript,
+        overallScore: analysis.overall.score,
+        hookScore: analysis.hook.score,
+        retentionRisk: analysis.risk.score,
+        mainTakeaway: analysis.overall.description,
+        currentPath:
+          typeof window === "undefined"
+            ? null
+            : window.location.pathname,
+      }),
+    });
+
+    if (!response.ok) {
+      setFeedbackSubmitError("Feedback could not be sent. Please try again.");
+      return false;
+    }
+
+    return true;
+  } catch {
+    setFeedbackSubmitError("Feedback could not be sent. Please try again.");
+    return false;
+  } finally {
+    setFeedbackSubmitting(false);
+  }
+}
 
 // The score-based "already good" state is retained only for the unreachable
 // legacy fallback. Valid production results use Analysis V2 hookDecision.
@@ -549,7 +600,9 @@ const hookCopyButtonLabel =
                         onClick={() => {
                           if (reason === "Other") { setDesktopOtherFeedbackOpen(true); return; }
                           setDesktopSelectedReason(reason);
-                          setDesktopFeedbackSubmitted(true);
+                          void submitFeedback("helpful", reason).then((ok) => {
+                            if (ok) setDesktopFeedbackSubmitted(true);
+                          });
                         }}
                         className={["w-full rounded-[8px] border px-2.5 py-2 text-left text-[12px] font-medium transition", desktopSelectedReason === reason ? "border-[#22C55E]/50 bg-[#22C55E]/10 text-[#22C55E]" : "border-[#24242A] text-[#777A85] hover:border-[#22C55E]/30 hover:text-[#B3B3B3]"].join(" ")}
                       >
@@ -570,7 +623,9 @@ const hookCopyButtonLabel =
                         onClick={() => {
                           if (reason === "Other") { setDesktopOtherFeedbackOpen(true); return; }
                           setDesktopSelectedReason(reason);
-                          setDesktopFeedbackSubmitted(true);
+                          void submitFeedback("unhelpful", reason).then((ok) => {
+                            if (ok) setDesktopFeedbackSubmitted(true);
+                          });
                         }}
                         className={["w-full rounded-[8px] border px-2.5 py-2 text-left text-[12px] font-medium transition", desktopSelectedReason === reason ? "border-[#EF4444]/50 bg-[#EF4444]/10 text-[#EF4444]" : "border-[#24242A] text-[#777A85] hover:border-[#EF4444]/30 hover:text-[#B3B3B3]"].join(" ")}
                       >
@@ -836,7 +891,21 @@ const hookCopyButtonLabel =
               className="mt-5 w-full resize-none rounded-[12px] border border-[#24242A] bg-[#101014] px-4 py-3 text-[13px] leading-[1.65] text-[#B3B3B3] outline-none placeholder:text-[#555560]"
             />
             <div className="mt-4 flex gap-3">
-              <button onClick={() => { setDesktopOtherFeedbackOpen(false); setDesktopOtherFeedbackText(""); setDesktopFeedbackSubmitted(true); }} className="h-[40px] rounded-[10px] bg-[#DC2626] px-5 text-[13px] font-semibold text-white transition hover:bg-[#EF4444]">Submit</button>
+              <button
+                onClick={() => {
+                  const rating = desktopFeedback === "helpful" ? "helpful" : "unhelpful";
+                  void submitFeedback(rating, "Other", desktopOtherFeedbackText).then((ok) => {
+                    if (!ok) return;
+                    setDesktopOtherFeedbackOpen(false);
+                    setDesktopOtherFeedbackText("");
+                    setDesktopSelectedReason("Other");
+                    setDesktopFeedbackSubmitted(true);
+                  });
+                }}
+                className="h-[40px] rounded-[10px] bg-[#DC2626] px-5 text-[13px] font-semibold text-white transition hover:bg-[#EF4444]"
+              >
+                Submit
+              </button>
               <button onClick={() => setDesktopOtherFeedbackOpen(false)} className="h-[40px] rounded-[10px] border border-[#24242A] bg-[#101014] px-5 text-[13px] font-semibold text-white transition hover:bg-[#17171C]">Cancel</button>
             </div>
           </div>
@@ -1106,7 +1175,9 @@ const hookCopyButtonLabel =
                           onClick={() => {
                             if (reason === "Other") { setIsFeedbackOpen(true); return; }
                             setMobileSelectedReason(reason);
-                            setMobileFeedbackSubmitted(true);
+                            void submitFeedback("helpful", reason).then((ok) => {
+                              if (ok) setMobileFeedbackSubmitted(true);
+                            });
                           }}
                           className={["w-full rounded-[8px] border px-2.5 py-2 text-left text-[12px] font-medium transition", mobileSelectedReason === reason ? "border-[#22C55E]/50 bg-[#22C55E]/10 text-[#22C55E]" : "border-[#24242A] bg-[#101014] text-[#777A85] hover:border-[#22C55E]/30 hover:text-[#B3B3B3]"].join(" ")}
                         >
@@ -1127,7 +1198,9 @@ const hookCopyButtonLabel =
                           onClick={() => {
                             if (reason === "Other") { setIsFeedbackOpen(true); return; }
                             setMobileSelectedReason(reason);
-                            setMobileFeedbackSubmitted(true);
+                            void submitFeedback("unhelpful", reason).then((ok) => {
+                              if (ok) setMobileFeedbackSubmitted(true);
+                            });
                           }}
                           className={["w-full rounded-[8px] border px-2.5 py-2 text-left text-[12px] font-medium transition", mobileSelectedReason === reason ? "border-[#EF4444]/50 bg-[#EF4444]/10 text-[#EF4444]" : "border-[#24242A] bg-[#101014] text-[#777A85] hover:border-[#EF4444]/30 hover:text-[#B3B3B3]"].join(" ")}
                         >
@@ -1201,10 +1274,14 @@ const hookCopyButtonLabel =
             <div className="mt-4 grid grid-cols-2 gap-3">
               <button
                 onClick={() => {
-                  setIsFeedbackOpen(false);
-                  setFeedbackText("");
-                  setMobileSelectedReason("Other");
-setMobileFeedbackSubmitted(true);
+                  const rating = mobileFeedback === "helpful" ? "helpful" : "unhelpful";
+                  void submitFeedback(rating, "Other", feedbackText).then((ok) => {
+                    if (!ok) return;
+                    setIsFeedbackOpen(false);
+                    setFeedbackText("");
+                    setMobileSelectedReason("Other");
+                    setMobileFeedbackSubmitted(true);
+                  });
                 }}
                 className="h-[44px] rounded-[12px] bg-[#DC2626] text-[13px] font-semibold text-white transition hover:bg-[#EF4444]"
               >
