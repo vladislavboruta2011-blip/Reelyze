@@ -33,6 +33,8 @@ ${ANALYSIS_V2_SCRIPT_TYPES.join(", ")}
 - When generic filler appears before the concrete premise, quote the filler sentence as a riskyPart and include a non-optional suggestedFix with target hook.
 - If generic opening filler delays the concrete premise, verdict must not be strong, riskyParts must not be empty, and overall must not exceed 84.
 - For generic opening filler, hookDecision must be refine or rewrite and the suggestedFix with target hook must have optional set to false.
+- Treat unsupported absolute promises in the opening hook as a material hook weakness, even when later steps are concrete. Examples include guarantees success, cannot fail, will make you a millionaire, will change your life, and completely change your financial life.
+- If an opening hook makes an unsupported absolute promise, hookDecision must not be keep, riskyParts must not be empty, and the relevant suggestedFix must be non-optional with target hook.
 
 TYPE-SPECIFIC RUBRICS
 
