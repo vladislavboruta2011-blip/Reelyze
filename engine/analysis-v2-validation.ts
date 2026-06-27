@@ -200,6 +200,39 @@ function normalizeWhitespace(value: string): string {
   return value.trim().replace(/\s+/g, " ");
 }
 
+function extractFirstSentence(script: string): string {
+  const cleaned = normalizeWhitespace(script);
+
+  if (cleaned.length === 0) {
+    return "";
+  }
+
+  const sentenceEnd = cleaned.search(/[.!?](?:\s|$)/);
+
+  return sentenceEnd === -1
+    ? cleaned
+    : cleaned.slice(0, sentenceEnd + 1).trim();
+}
+
+const genericFirstSentenceFillerPatterns = [
+  /^(?:something|something interesting|something strange|something unusual|something surprising)\s+(?:happens|happened|is happening|will happen)\b/i,
+  /^(?:there is|there's)\s+(?:something|one thing)\s+(?:interesting|strange|unusual|surprising)\b/i,
+  /^(?:this|it)\s+is\s+something\s+(?:many|most)\s+people\b/i,
+  /^(?:many|most)\s+people\s+(?:(?:have|probably have|may have)\s+)?(?:noticed|seen|heard)\b/i,
+] as const;
+
+function hasGenericFirstSentenceFiller(
+  script: string
+): boolean {
+  const firstSentence = extractFirstSentence(script)
+    .replace(/[.!?]+$/, "")
+    .trim();
+
+  return genericFirstSentenceFillerPatterns.some(
+    (pattern) => pattern.test(firstSentence)
+  );
+}
+
 function extractAnalysisV2OpeningWindow(
   script: string
 ): string {
@@ -965,6 +998,55 @@ export function validateAnalysisV2Result(
       reason:
         "A keep hook decision cannot contain a required hook fix.",
     };
+  }
+
+  const hasGenericOpeningFiller =
+    hasGenericFirstSentenceFiller(script);
+  const firstSentence = extractFirstSentence(script);
+  const hasGroundedGenericOpeningRisk =
+    riskyParts.some((part) =>
+      riskyPartOverlapsOpening(
+        part.excerpt,
+        firstSentence,
+        script
+      )
+    );
+
+  if (hasGenericOpeningFiller) {
+    if (verdict === "strong") {
+      return {
+        ok: false,
+        reason:
+          "A script with generic first-sentence filler cannot receive a strong verdict.",
+      };
+    }
+
+    if (!hasGroundedGenericOpeningRisk) {
+      return {
+        ok: false,
+        reason:
+          "Generic first-sentence filler must be identified as a grounded risky part.",
+      };
+    }
+
+    if (requiredHookFixes.length === 0) {
+      return {
+        ok: false,
+        reason:
+          "Generic first-sentence filler requires a non-optional hook fix.",
+      };
+    }
+
+    if (
+      normalizedHookDecision !== "refine" &&
+      normalizedHookDecision !== "rewrite"
+    ) {
+      return {
+        ok: false,
+        reason:
+          "Generic first-sentence filler requires a refine or rewrite hook decision.",
+      };
+    }
   }
 
   if (verdict === "strong") {

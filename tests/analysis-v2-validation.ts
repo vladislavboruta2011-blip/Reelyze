@@ -824,6 +824,228 @@ const tests: TestCase[] = [
       );
     },
   },
+
+  {
+    name: "rejects a strong result with generic first-sentence filler",
+    run: () => {
+      const genericOpeningScript =
+        "Something interesting happens before a spacecraft returns to Earth. NASA heats pieces of its heat shield to extreme temperatures to test whether they can survive reentry. Engineers then inspect the material for cracks, erosion, and weak spots. Those tests help reveal problems before the spacecraft faces the real atmosphere.";
+
+      const value = createStrongResult();
+
+      value.scriptType = "explanation";
+      value.verdict = "strong";
+      value.scores = {
+        overall: 85,
+        hook: 80,
+        retentionRisk: 20,
+      };
+      value.hookDecision = "keep";
+      value.hookAssessment =
+        "The opening is clear and specific.";
+      value.riskyParts = [];
+      value.suggestedFixes = [];
+      value.scenes = [
+        {
+          excerpt:
+            "Something interesting happens before a spacecraft returns to Earth.",
+          label: "Opening",
+          status: "strong",
+        },
+        {
+          excerpt:
+            "NASA heats pieces of its heat shield to extreme temperatures to test whether they can survive reentry.",
+          label: "Testing process",
+          status: "strong",
+        },
+        {
+          excerpt:
+            "Those tests help reveal problems before the spacecraft faces the real atmosphere.",
+          label: "Payoff",
+          status: "strong",
+        },
+      ];
+      value.mainTakeaway =
+        "The script is structurally strong with a clear and specific opening.";
+
+      const result = validateAnalysisV2Result(
+        value,
+        genericOpeningScript
+      );
+
+      assert.equal(result.ok, false);
+    },
+  },
+
+  {
+    name: "rejects generic filler without required hook feedback",
+    run: () => {
+      const genericOpeningScript =
+        "Something interesting happens before a spacecraft returns to Earth. NASA heats pieces of its heat shield to extreme temperatures to test whether they can survive reentry. Engineers inspect the material for cracks.";
+
+      const value = createMixedResult();
+
+      value.scriptType = "explanation";
+      value.scores = {
+        overall: 75,
+        hook: 80,
+        retentionRisk: 35,
+      };
+      value.hookDecision = "keep";
+      value.hookAssessment =
+        "The opening is clear enough.";
+      value.riskyParts = [
+        {
+          excerpt:
+            "Something interesting happens before a spacecraft returns to Earth.",
+          reason:
+            "The opening delays the concrete NASA testing premise.",
+          severity: "medium",
+        },
+      ];
+      value.suggestedFixes = [
+        {
+          target: "clarity",
+          suggestion:
+            "Make the opening more specific.",
+          optional: false,
+        },
+      ];
+      value.scenes = [
+        {
+          excerpt:
+            "Something interesting happens before a spacecraft returns to Earth.",
+          label: "Generic opening",
+          status: "risky",
+        },
+      ];
+
+      const result = validateAnalysisV2Result(
+        value,
+        genericOpeningScript
+      );
+
+      assert.equal(result.ok, false);
+    },
+  },
+  {
+    name: "accepts generic filler with complete grounded hook feedback",
+    run: () => {
+      const genericOpeningScript =
+        "Something interesting happens before a spacecraft returns to Earth. NASA heats pieces of its heat shield to extreme temperatures to test whether they can survive reentry. Engineers inspect the material for cracks.";
+
+      const value = createMixedResult();
+
+      value.scriptType = "explanation";
+      value.scores = {
+        overall: 75,
+        hook: 65,
+        retentionRisk: 35,
+      };
+      value.hookDecision = "refine";
+      value.hookAssessment =
+        "The first sentence is generic and delays the concrete NASA testing premise.";
+      value.suggestedHook =
+        "Before reentry, NASA heats heat-shield pieces to test whether they can survive.";
+      value.riskyParts = [
+        {
+          excerpt:
+            "Something interesting happens before a spacecraft returns to Earth.",
+          reason:
+            "The opening delays the concrete NASA testing premise.",
+          severity: "medium",
+        },
+      ];
+      value.suggestedFixes = [
+        {
+          target: "hook",
+          suggestion:
+            "Replace the generic first sentence with the concrete NASA testing premise.",
+          optional: false,
+        },
+      ];
+      value.scenes = [
+        {
+          excerpt:
+            "Something interesting happens before a spacecraft returns to Earth.",
+          label: "Generic opening",
+          status: "risky",
+        },
+        {
+          excerpt:
+            "NASA heats pieces of its heat shield to extreme temperatures to test whether they can survive reentry.",
+          label: "Concrete premise",
+          status: "strong",
+        },
+      ];
+
+      const result = validateAnalysisV2Result(
+        value,
+        genericOpeningScript
+      );
+
+      if (!result.ok) {
+        throw new Error(result.reason);
+      }
+
+      assert.equal(result.value.hookDecision, "refine");
+    },
+  },
+  {
+    name: "accepts a concrete first sentence beginning with something",
+    run: () => {
+      const concreteScript =
+        "Something inside the heat shield expands when temperatures rise. Engineers measure that expansion before approving the material. The test reveals whether the shield can survive reentry.";
+
+      const value = createStrongResult();
+
+      value.scriptType = "explanation";
+      value.verdict = "strong";
+      value.scores = {
+        overall: 88,
+        hook: 82,
+        retentionRisk: 20,
+      };
+      value.hookDecision = "keep";
+      value.hookAssessment =
+        "The opening immediately identifies a concrete physical mechanism.";
+      value.riskyParts = [];
+      value.suggestedFixes = [];
+      value.scenes = [
+        {
+          excerpt:
+            "Something inside the heat shield expands when temperatures rise.",
+          label: "Physical mechanism",
+          status: "strong",
+        },
+        {
+          excerpt:
+            "Engineers measure that expansion before approving the material.",
+          label: "Testing step",
+          status: "strong",
+        },
+        {
+          excerpt:
+            "The test reveals whether the shield can survive reentry.",
+          label: "Payoff",
+          status: "strong",
+        },
+      ];
+      value.mainTakeaway =
+        "The explanation begins with a concrete mechanism and resolves it clearly.";
+
+      const result = validateAnalysisV2Result(
+        value,
+        concreteScript
+      );
+
+      if (!result.ok) {
+        throw new Error(result.reason);
+      }
+
+      assert.equal(result.value.verdict, "strong");
+    },
+  },
 ];
 
 let passed = 0;
