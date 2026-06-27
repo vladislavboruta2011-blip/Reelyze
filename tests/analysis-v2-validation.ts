@@ -692,6 +692,42 @@ const tests: TestCase[] = [
     },
   },
   {
+    name: "rejects unsupported ensuring claim in a suggested hook",
+    run: () => {
+      const value = createWeakResult();
+
+      value.hookDecision = "rewrite";
+      value.suggestedHook =
+        "This method works by ensuring the glue separates safely.";
+
+      const result = validateAnalysisV2Result(
+        value,
+        script
+      );
+
+      assert.equal(result.ok, false);
+    },
+  },
+
+  {
+    name: "rejects unsupported ensure claim in a suggested hook",
+    run: () => {
+      const value = createWeakResult();
+
+      value.hookDecision = "rewrite";
+      value.suggestedHook =
+        "This household method ensures the glue comes apart safely.";
+
+      const result = validateAnalysisV2Result(
+        value,
+        script
+      );
+
+      assert.equal(result.ok, false);
+    },
+  },
+
+  {
     name: "rejects unsupported claim strengthening in a suggested hook",
     run: () => {
       const value = createWeakResult();
@@ -712,7 +748,7 @@ const tests: TestCase[] = [
     name: "accepts grounded named entities and claim strength already present in the script",
     run: () => {
       const groundedScript =
-        "NASA tested this household method on dried super glue. The report says it completely loosens the glue after soaking.";
+        "NASA tested this household method on dried super glue. The report says it completely loosens the glue after soaking and ensures it separates safely.";
 
       const value = createMixedResult();
 
@@ -720,7 +756,7 @@ const tests: TestCase[] = [
       value.hookAssessment =
         "The opening contains the evidence but delays the useful result.";
       value.suggestedHook =
-        "NASA tested a method that completely loosens dried super glue.";
+        "NASA tested a method that completely loosens dried super glue and ensures it separates safely.";
       value.riskyParts = [
         {
           excerpt:
@@ -759,7 +795,7 @@ const tests: TestCase[] = [
       assert.equal(result.value.hookDecision, "rewrite");
       assert.equal(
         result.value.suggestedHook,
-        "NASA tested a method that completely loosens dried super glue."
+        "NASA tested a method that completely loosens dried super glue and ensures it separates safely."
       );
     },
   },

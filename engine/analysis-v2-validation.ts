@@ -178,6 +178,7 @@ const unsupportedClaimStrengthPatterns = [
   /\bconfirm(?:ed|s|ing|ation)?\b/i,
   /\bprov(?:e|es|ed|en|ing)\b/i,
   /\bguarantee(?:d|s|ing)?\b/i,
+  /\b(?:ensure|ensures|ensured|ensuring)\b/i,
   /\bofficial(?:ly)?\b/i,
   /\bcompletely\b/i,
   /\bdefinitely\b/i,
