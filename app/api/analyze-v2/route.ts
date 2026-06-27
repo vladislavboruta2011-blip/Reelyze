@@ -274,6 +274,21 @@ export async function defaultAnalysisV2ModelCaller(
   };
 }
 
+function buildAnalysisV2RetryUserPrompt(
+  originalUserPrompt: string,
+  validationReason: string
+): string {
+  return [
+    originalUserPrompt,
+    "",
+    "Correction required:",
+    `The previous response failed deterministic validation: ${validationReason}`,
+    "Generate a new complete analysis from the original script.",
+    "Correct the validation problem without inventing facts, excerpts, numbers, entities, or promises.",
+    "Return only JSON that follows the required schema.",
+  ].join("\n");
+}
+
 export async function runAnalysisV2(
   script: unknown,
   title: unknown,
@@ -301,106 +316,129 @@ export async function runAnalysisV2(
     inputValidation.title
   );
 
-  let modelOutput: AnalysisV2ModelOutput;
+  let currentUserPrompt = userPrompt;
 
-  try {
-    modelOutput = await modelCaller(
-      systemPrompt,
-      userPrompt
-    );
-  } catch (error) {
-    if (error instanceof MissingApiKeyError) {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    let modelOutput: AnalysisV2ModelOutput;
+
+    try {
+      modelOutput = await modelCaller(
+        systemPrompt,
+        currentUserPrompt
+      );
+    } catch (error) {
+      if (error instanceof MissingApiKeyError) {
+        return {
+          ok: false,
+          status: 503,
+          response: {
+            status: "error",
+            reason:
+              "Analysis V2 is temporarily unavailable.",
+          },
+        };
+      }
+
+      const upstreamStatus =
+        typeof error === "object" &&
+        error !== null &&
+        "status" in error &&
+        typeof (error as { status?: unknown }).status ===
+          "number"
+          ? (error as { status: number }).status
+          : undefined;
+
+      if (
+        upstreamStatus === 401 ||
+        upstreamStatus === 403 ||
+        upstreamStatus === 429 ||
+        (upstreamStatus !== undefined &&
+          upstreamStatus >= 500) ||
+        error instanceof OpenAI.APIConnectionError
+      ) {
+        return {
+          ok: false,
+          status: 503,
+          response: {
+            status: "error",
+            reason:
+              "Analysis V2 is temporarily unavailable.",
+          },
+        };
+      }
+
       return {
         ok: false,
         status: 503,
         response: {
           status: "error",
           reason:
-            "Analysis V2 is temporarily unavailable.",
+            "Analysis V2 could not complete this request.",
         },
       };
     }
 
-    const upstreamStatus =
-      typeof error === "object" &&
-      error !== null &&
-      "status" in error &&
-      typeof (error as { status?: unknown }).status ===
-        "number"
-        ? (error as { status: number }).status
-        : undefined;
+    const parsed = parseAnalysisV2Json(
+      modelOutput.raw
+    );
 
-    if (
-      upstreamStatus === 401 ||
-      upstreamStatus === 403 ||
-      upstreamStatus === 429 ||
-      (upstreamStatus !== undefined &&
-        upstreamStatus >= 500) ||
-      error instanceof OpenAI.APIConnectionError
-    ) {
+    if (parsed === null) {
       return {
         ok: false,
-        status: 503,
+        status: 502,
         response: {
           status: "error",
           reason:
-            "Analysis V2 is temporarily unavailable.",
+            "Analysis V2 returned an unusable response.",
+        },
+      };
+    }
+
+    const resultValidation =
+      validateAnalysisV2Result(
+        parsed,
+        inputValidation.script
+      );
+
+    if (!resultValidation.ok) {
+      if (attempt === 0) {
+        currentUserPrompt =
+          buildAnalysisV2RetryUserPrompt(
+            userPrompt,
+            resultValidation.reason
+          );
+        continue;
+      }
+
+      return {
+        ok: false,
+        status: 502,
+        response: {
+          status: "error",
+          reason:
+            "Analysis V2 returned an invalid analysis.",
         },
       };
     }
 
     return {
-      ok: false,
-      status: 503,
+      ok: true,
+      status: 200,
       response: {
-        status: "error",
-        reason:
-          "Analysis V2 could not complete this request.",
-      },
-    };
-  }
-
-  const parsed = parseAnalysisV2Json(
-    modelOutput.raw
-  );
-
-  if (parsed === null) {
-    return {
-      ok: false,
-      status: 502,
-      response: {
-        status: "error",
-        reason:
-          "Analysis V2 returned an unusable response.",
-      },
-    };
-  }
-
-  const resultValidation =
-    validateAnalysisV2Result(
-      parsed,
-      inputValidation.script
-    );
-
-  if (!resultValidation.ok) {
-    return {
-      ok: false,
-      status: 502,
-      response: {
-        status: "error",
-        reason:
-          "Analysis V2 returned an invalid analysis.",
+        status: "ok",
+        result: resultValidation.value,
+        modelUsed: modelOutput.modelUsed,
       },
     };
   }
 
   return {
-    ok: true,
-    status: 200,
+    ok: false,
+    status: 502,
     response: {
-      status: "ok",
-      result: resultValidation.value,
-      modelUsed: modelOutput.modelUsed,
+      status: "error",
+      reason:
+        "Analysis V2 returned an invalid analysis.",
     },
   };
 }
