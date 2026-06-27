@@ -692,6 +692,23 @@ const tests: TestCase[] = [
     },
   },
   {
+    name: "rejects an invented capitalized name at the start of a suggested hook",
+    run: () => {
+      const value = createWeakResult();
+
+      value.hookDecision = "rewrite";
+      value.suggestedHook =
+        "Ronaldo says this household method dissolves super glue.";
+
+      const result = validateAnalysisV2Result(
+        value,
+        script
+      );
+
+      assert.equal(result.ok, false);
+    },
+  },
+  {
     name: "rejects unsupported ensuring claim in a suggested hook",
     run: () => {
       const value = createWeakResult();

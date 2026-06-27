@@ -151,10 +151,28 @@ function extractPotentialNamedEntityTokens(
       /^[A-Z][a-z]/.test(token) &&
       !isSentenceStart;
 
+    const followingText = value.slice(
+      index + token.length
+    );
+
+    const isGenericAttributionSource =
+      /^(?:scientists?|researchers?|experts?|doctors?|engineers?|studies|research)$/i.test(
+        token
+      );
+
+    const isSentenceStartNamedAttribution =
+      isSentenceStart &&
+      /^[A-Z][a-z]/.test(token) &&
+      !isGenericAttributionSource &&
+      /^\s+(?:says?|said|claims?|claimed|reveals?|revealed|explains?|explained|warns?|warned|reports?|reported|confirms?|confirmed|proves?|proved)\b/i.test(
+        followingText
+      );
+
     if (
       isAcronym ||
       hasInternalCapital ||
-      isMidSentenceCapitalized
+      isMidSentenceCapitalized ||
+      isSentenceStartNamedAttribution
     ) {
       entities.push(token.toLowerCase());
     }
