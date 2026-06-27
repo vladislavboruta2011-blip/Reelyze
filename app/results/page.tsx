@@ -597,6 +597,7 @@ const hookCopyButtonLabel =
                     {["Accurate score", "Useful fixes", "Clear explanation", "Other"].map((reason) => (
                       <button
                         key={reason}
+                        disabled={feedbackSubmitting}
                         onClick={() => {
                           if (reason === "Other") { setDesktopOtherFeedbackOpen(true); return; }
                           setDesktopSelectedReason(reason);
@@ -620,6 +621,7 @@ const hookCopyButtonLabel =
                     {["Wrong score", "Bad suggestions", "Not specific enough", "Other"].map((reason) => (
                       <button
                         key={reason}
+                        disabled={feedbackSubmitting}
                         onClick={() => {
                           if (reason === "Other") { setDesktopOtherFeedbackOpen(true); return; }
                           setDesktopSelectedReason(reason);
@@ -639,6 +641,18 @@ const hookCopyButtonLabel =
               {desktopFeedbackSubmitted && (
                 <p className="mt-2.5 text-[12px]" style={{ color: desktopFeedback === "helpful" ? "#22C55E" : "#EF4444" }}>
                   {desktopFeedback === "helpful" ? "Thanks — feedback noted." : "Thanks — we'll use this to improve."}
+                </p>
+              )}
+
+              {feedbackSubmitting && (
+                <p className="mt-2 text-[12px] text-[#777A85]">
+                  Sending feedback...
+                </p>
+              )}
+
+              {feedbackSubmitError && (
+                <p className="mt-2 text-[12px] text-[#EF4444]">
+                  {feedbackSubmitError}
                 </p>
               )}
               </div>
@@ -902,9 +916,10 @@ const hookCopyButtonLabel =
                     setDesktopFeedbackSubmitted(true);
                   });
                 }}
-                className="h-[40px] rounded-[10px] bg-[#DC2626] px-5 text-[13px] font-semibold text-white transition hover:bg-[#EF4444]"
+                disabled={feedbackSubmitting}
+                className="h-[40px] rounded-[10px] bg-[#DC2626] px-5 text-[13px] font-semibold text-white transition hover:bg-[#EF4444] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Submit
+                {feedbackSubmitting ? "Submitting..." : "Submit"}
               </button>
               <button onClick={() => setDesktopOtherFeedbackOpen(false)} className="h-[40px] rounded-[10px] border border-[#24242A] bg-[#101014] px-5 text-[13px] font-semibold text-white transition hover:bg-[#17171C]">Cancel</button>
             </div>
@@ -1172,6 +1187,7 @@ const hookCopyButtonLabel =
                       {["Accurate score", "Useful fixes", "Clear explanation", "Other"].map((reason) => (
                         <button
                           key={reason}
+                          disabled={feedbackSubmitting}
                           onClick={() => {
                             if (reason === "Other") { setIsFeedbackOpen(true); return; }
                             setMobileSelectedReason(reason);
@@ -1195,6 +1211,7 @@ const hookCopyButtonLabel =
                       {["Wrong score", "Bad suggestions", "Not specific enough", "Other"].map((reason) => (
                         <button
                           key={reason}
+                          disabled={feedbackSubmitting}
                           onClick={() => {
                             if (reason === "Other") { setIsFeedbackOpen(true); return; }
                             setMobileSelectedReason(reason);
@@ -1214,6 +1231,18 @@ const hookCopyButtonLabel =
                 {mobileFeedbackSubmitted && (
                   <p className="mt-2 text-[12px]" style={{ color: mobileFeedback === "helpful" ? "#22C55E" : "#EF4444" }}>
                     {mobileFeedback === "helpful" ? "Thanks — feedback noted." : "Thanks — we'll use this to improve."}
+                  </p>
+                )}
+
+                {feedbackSubmitting && (
+                  <p className="mt-2 text-[12px] text-[#777A85]">
+                    Sending feedback...
+                  </p>
+                )}
+
+                {feedbackSubmitError && (
+                  <p className="mt-2 text-[12px] text-[#EF4444]">
+                    {feedbackSubmitError}
                   </p>
                 )}
               </div>
@@ -1283,9 +1312,10 @@ const hookCopyButtonLabel =
                     setMobileFeedbackSubmitted(true);
                   });
                 }}
-                className="h-[44px] rounded-[12px] bg-[#DC2626] text-[13px] font-semibold text-white transition hover:bg-[#EF4444]"
+                disabled={feedbackSubmitting}
+                className="h-[44px] rounded-[12px] bg-[#DC2626] text-[13px] font-semibold text-white transition hover:bg-[#EF4444] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Send feedback
+                {feedbackSubmitting ? "Sending..." : "Send feedback"}
               </button>
 
               <button
