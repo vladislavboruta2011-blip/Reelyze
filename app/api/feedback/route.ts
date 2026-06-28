@@ -1,3 +1,8 @@
+import { mkdir, appendFile } from "node:fs/promises";
+import path from "node:path";
+
+export const runtime = "nodejs";
+
 export type FeedbackRating = "helpful" | "unhelpful";
 
 type FeedbackPayload = {
@@ -190,6 +195,37 @@ function createScriptPreview(script: string): string {
     : script;
 }
 
+async function persistFeedback(
+  feedback: FeedbackPayload,
+  createdAt: string
+): Promise<void> {
+  const feedbackRecord = {
+    rating: feedback.rating,
+    reason: feedback.reason,
+    text: feedback.text,
+    title: feedback.title,
+    scores: {
+      overall: feedback.overallScore,
+      hook: feedback.hookScore,
+      retentionRisk: feedback.retentionRisk,
+    },
+    mainTakeaway: feedback.mainTakeaway,
+    scriptPreview: createScriptPreview(feedback.script),
+    currentPath: feedback.currentPath,
+    createdAt,
+  };
+
+  const feedbackDirectory = path.join(process.cwd(), "data");
+  const feedbackFile = path.join(feedbackDirectory, "feedback.jsonl");
+
+  await mkdir(feedbackDirectory, { recursive: true });
+  await appendFile(
+    feedbackFile,
+    `${JSON.stringify(feedbackRecord)}\n`,
+    "utf8"
+  );
+}
+
 export async function POST(request: Request): Promise<Response> {
   let rawPayload: unknown;
 
@@ -217,6 +253,22 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
+  const createdAt = new Date().toISOString();
+
+  try {
+    await persistFeedback(feedback, createdAt);
+  } catch (error) {
+    console.error("Failed to persist Reelyze feedback", error);
+
+    return createJsonResponse(
+      {
+        status: "error",
+        reason: "Feedback could not be saved.",
+      },
+      500
+    );
+  }
+
   console.info("Reelyze feedback received", {
     rating: feedback.rating,
     reason: feedback.reason,
@@ -230,7 +282,7 @@ export async function POST(request: Request): Promise<Response> {
     mainTakeaway: feedback.mainTakeaway,
     scriptPreview: createScriptPreview(feedback.script),
     currentPath: feedback.currentPath,
-    createdAt: new Date().toISOString(),
+    createdAt,
   });
 
   return createJsonResponse({ status: "ok" }, 200);
