@@ -278,11 +278,26 @@ function buildAnalysisV2RetryUserPrompt(
   originalUserPrompt: string,
   validationReason: string
 ): string {
+  const specificGuidance =
+    validationReason.includes(
+      "unrevealed specific opening promise"
+    )
+      ? [
+          "Specific correction:",
+          "If the opening promises one hidden setting, secret, cause, reason, or mechanism but the script never names it, treat this as a material hook/payoff problem.",
+          "Do not use hookDecision keep.",
+          "Do not call the hook clear and specific.",
+          "Keep overall at 65 or lower unless the script reveals the promised item.",
+          "Use a grounded riskyPart excerpt from the opening promise and a required fix that asks to reveal or remove the promise.",
+        ]
+      : [];
+
   return [
     originalUserPrompt,
     "",
     "Correction required:",
     `The previous response failed deterministic validation: ${validationReason}`,
+    ...specificGuidance,
     "Generate a new complete analysis from the original script.",
     "Correct the validation problem without inventing facts, excerpts, numbers, entities, or promises.",
     "Return only JSON that follows the required schema.",
