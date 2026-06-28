@@ -1,5 +1,4 @@
-import { mkdir, appendFile } from "node:fs/promises";
-import path from "node:path";
+import { supabase } from "@/lib/supabase";
 
 export const runtime = "nodejs";
 
@@ -199,31 +198,23 @@ async function persistFeedback(
   feedback: FeedbackPayload,
   createdAt: string
 ): Promise<void> {
-  const feedbackRecord = {
+  const { error } = await supabase.from("feedback").insert({
     rating: feedback.rating,
     reason: feedback.reason,
     text: feedback.text,
     title: feedback.title,
-    scores: {
-      overall: feedback.overallScore,
-      hook: feedback.hookScore,
-      retentionRisk: feedback.retentionRisk,
-    },
-    mainTakeaway: feedback.mainTakeaway,
-    scriptPreview: createScriptPreview(feedback.script),
-    currentPath: feedback.currentPath,
-    createdAt,
-  };
+    script_preview: createScriptPreview(feedback.script),
+    overall_score: feedback.overallScore,
+    hook_score: feedback.hookScore,
+    retention_risk: feedback.retentionRisk,
+    main_takeaway: feedback.mainTakeaway,
+    current_path: feedback.currentPath,
+    created_at: createdAt,
+  });
 
-  const feedbackDirectory = path.join(process.cwd(), "data");
-  const feedbackFile = path.join(feedbackDirectory, "feedback.jsonl");
-
-  await mkdir(feedbackDirectory, { recursive: true });
-  await appendFile(
-    feedbackFile,
-    `${JSON.stringify(feedbackRecord)}\n`,
-    "utf8"
-  );
+  if (error) {
+    throw error;
+  }
 }
 
 export async function POST(request: Request): Promise<Response> {

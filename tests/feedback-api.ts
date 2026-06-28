@@ -1,4 +1,6 @@
-import { POST } from "../app/api/feedback/route";
+import { config } from "dotenv";
+
+config({ path: ".env.local" });
 
 function createRequest(
   body: unknown,
@@ -52,6 +54,8 @@ function createValidFeedback(
 }
 
 async function main(): Promise<void> {
+  const { POST } = await import("../app/api/feedback/route");
+
   {
     const response = await POST(
       createRequest(createValidFeedback())
