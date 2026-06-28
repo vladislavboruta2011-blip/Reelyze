@@ -267,8 +267,13 @@ const improvedHook = aiHook || fallbackImprovedHook;
 const modalHookText = improveError ? "No improved hook was generated." : improvedHook;
 
 const hookDecision = savedAnalysisV2?.result.hookDecision ?? "keep";
+const hasOpeningRisk = analysis.riskyLineIndexes.some(
+  (index) => index <= 1
+);
 const shouldShowHookAction = savedAnalysisV2
-  ? hookDecision !== "keep"
+  ? hookDecision === "diagnostic" ||
+    hookDecision === "rewrite" ||
+    (hookDecision === "refine" && hasOpeningRisk)
   : analysis.fixes.length > 0 && analysis.hook.score < 75;
 const hookActionLabel = savedAnalysisV2
   ? hookDecision === "diagnostic"
@@ -4535,6 +4540,48 @@ if (middleFlat && !isGoodScript && retentionRisk >= 35) {
 
   uniqueFixes = dedupeFixes(uniqueFixes).slice(0, 5);
 
+  function limitDisplayedLineIndexes(
+    indexes: number[],
+    maxCount: number
+  ): number[] {
+    const uniqueIndexes = [...new Set(indexes)]
+      .filter(i => i >= 0 && i < totalLines)
+      .sort((a, b) => a - b);
+
+    if (uniqueIndexes.length <= maxCount) {
+      return uniqueIndexes;
+    }
+
+    const selected = new Set<number>();
+
+    selected.add(uniqueIndexes[0] ?? 0);
+
+    if (maxCount >= 2) {
+      selected.add(uniqueIndexes[uniqueIndexes.length - 1] ?? uniqueIndexes[0] ?? 0);
+    }
+
+    if (maxCount >= 3) {
+      const midpoint = Math.floor(totalLines / 2);
+      const middleIndex = uniqueIndexes.reduce((best, current) =>
+        Math.abs(current - midpoint) < Math.abs(best - midpoint)
+          ? current
+          : best
+      );
+      selected.add(middleIndex);
+    }
+
+    return [...selected].sort((a, b) => a - b).slice(0, maxCount);
+  }
+
+  const displayRiskyLineIndexes = limitDisplayedLineIndexes(
+    uniqueRiskyIndexes,
+    2
+  );
+  const displayWarningLineIndexes = limitDisplayedLineIndexes(
+    uniqueWarningIndexes.filter(index => !displayRiskyLineIndexes.includes(index)),
+    2
+  );
+
   const hasEndingFlagged = uniqueRiskyParts.some(p =>
     p.title.toLowerCase().includes("payoff") ||
     p.title.toLowerCase().includes("too long") ||
@@ -4587,8 +4634,8 @@ if (middleFlat && !isGoodScript && retentionRisk >= 35) {
     },
     riskyParts: uniqueRiskyParts.slice(0, 4),
     fixes: uniqueFixes.slice(0, 5),
-    riskyLineIndexes: uniqueRiskyIndexes,
-    warningLineIndexes: uniqueWarningIndexes,
+    riskyLineIndexes: displayRiskyLineIndexes,
+    warningLineIndexes: displayWarningLineIndexes,
     sceneSegments,
   };
 }
