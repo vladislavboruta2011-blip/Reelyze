@@ -204,23 +204,38 @@ const analyzeHandler =
     ? homeSource.slice(analyzeHandlerStart, analyzeHandlerEnd)
     : "";
 
-const analyzeTryIndex = analyzeHandler.indexOf("try {");
 const previousScriptReadIndex = analyzeHandler.indexOf(
-  'previousScript = sessionStorage.getItem("reelyze-script")'
+  'previousScript =\n          sessionStorage.getItem("reelyze-script")'
 );
 const previousTitleReadIndex = analyzeHandler.indexOf(
-  'previousTitle = sessionStorage.getItem("reelyze-title")'
+  'previousTitle =\n          sessionStorage.getItem("reelyze-title")'
+);
+const previousAnalysisReadIndex = analyzeHandler.indexOf(
+  "previousAnalysis =\n          sessionStorage.getItem(\n            ANALYSIS_V2_STORAGE_KEY\n          )"
+);
+const storageSnapshotReadyIndex = analyzeHandler.indexOf(
+  "hasStorageSnapshot = true;"
+);
+const firstStoredScriptWriteIndex = analyzeHandler.indexOf(
+  'sessionStorage.setItem(\n          "reelyze-script",'
 );
 
 const preservesPreviousStoredAnalysis =
-  analyzeTryIndex >= 0 &&
-  previousScriptReadIndex > analyzeTryIndex &&
-  previousTitleReadIndex > analyzeTryIndex &&
+  previousScriptReadIndex >= 0 &&
+  previousTitleReadIndex >= 0 &&
+  previousAnalysisReadIndex >= 0 &&
+  storageSnapshotReadyIndex > previousScriptReadIndex &&
+  storageSnapshotReadyIndex > previousTitleReadIndex &&
+  storageSnapshotReadyIndex > previousAnalysisReadIndex &&
+  firstStoredScriptWriteIndex > storageSnapshotReadyIndex &&
   analyzeHandler.includes(
-    'restoreSessionValue("reelyze-script", previousScript)'
+    'restoreSessionValue(\n            "reelyze-script",\n            previousScript\n          )'
   ) &&
   analyzeHandler.includes(
-    'restoreSessionValue("reelyze-title", previousTitle)'
+    'restoreSessionValue(\n            "reelyze-title",\n            previousTitle\n          )'
+  ) &&
+  analyzeHandler.includes(
+    "restoreSessionValue(\n            ANALYSIS_V2_STORAGE_KEY,\n            previousAnalysis\n          )"
   );
 
 if (preservesPreviousStoredAnalysis) {
@@ -282,6 +297,149 @@ if (desktopFeedbackRequiresResults) {
 } else {
   console.error(
     "❌ FAIL — Desktop feedback must not appear in loading, error, or empty states"
+  );
+  failures += 1;
+}
+
+
+// ── Analysis V2 Improve Hook integration ─────────────────────────────────────
+
+const usesAnalysisV2HookDecision =
+  source.includes(
+    'const hookDecision = savedAnalysisV2?.result.hookDecision ?? "keep";'
+  ) &&
+  source.includes(
+    "const shouldShowHookAction = savedAnalysisV2"
+  ) &&
+  source.includes(
+    '? hookDecision !== "keep"'
+  ) &&
+  source.includes(
+    ": analysis.fixes.length > 0 && analysis.hook.score < 75;"
+  );
+
+if (usesAnalysisV2HookDecision) {
+  console.log(
+    "✅ PASS — Analysis V2 hookDecision controls the production hook action"
+  );
+} else {
+  console.error(
+    "❌ FAIL — Analysis V2 hookDecision must control whether the hook action is shown"
+  );
+  failures += 1;
+}
+
+const hasDecisionSpecificActionLabels =
+  source.includes(
+    'hookDecision === "diagnostic"'
+  ) &&
+  source.includes('"Improve Script"') &&
+  source.includes(
+    'hookDecision === "refine"'
+  ) &&
+  source.includes('"Refine Hook"') &&
+  source.includes('"Improve Hook"');
+
+if (hasDecisionSpecificActionLabels) {
+  console.log(
+    "✅ PASS — keep, refine, rewrite, and diagnostic use decision-specific UI labels"
+  );
+} else {
+  console.error(
+    "❌ FAIL — Hook action labels must come from the Analysis V2 hook decision"
+  );
+  failures += 1;
+}
+
+const v2FastPathIndex = handler.indexOf("if (savedAnalysisV2) {");
+const legacyImproveFetchIndex = handler.indexOf('fetch("/api/improve"');
+
+const usesValidatedV2ResultBeforeLegacyAPI =
+  v2FastPathIndex >= 0 &&
+  legacyImproveFetchIndex >= 0 &&
+  v2FastPathIndex < legacyImproveFetchIndex &&
+  handler.includes("savedAnalysisV2.result.suggestedHook") &&
+  handler.includes("savedAnalysisV2.result.hookAssessment");
+
+if (usesValidatedV2ResultBeforeLegacyAPI) {
+  console.log(
+    "✅ PASS — Validated Analysis V2 hook data is used before the legacy Improve API"
+  );
+} else {
+  console.error(
+    "❌ FAIL — Production V2 results must use suggestedHook and hookAssessment without a second AI analysis"
+  );
+  failures += 1;
+}
+
+const avoidsScoreBasedGoodHookOverride =
+  source.includes(
+    "const shouldShowHookAnalysis = !savedAnalysisV2 && analysis.hook.score >= 80;"
+  );
+
+if (avoidsScoreBasedGoodHookOverride) {
+  console.log(
+    "✅ PASS — Analysis V2 hook decisions are not overridden by the old score threshold"
+  );
+} else {
+  console.error(
+    "❌ FAIL — The old score threshold must only remain available for the legacy fallback"
+  );
+  failures += 1;
+}
+
+
+const preservesLegacyHookActionFallback =
+  source.includes(
+    'const shouldShowHookAction = savedAnalysisV2\n  ? hookDecision !== "keep"\n  : analysis.fixes.length > 0 && analysis.hook.score < 75;'
+  );
+
+if (preservesLegacyHookActionFallback) {
+  console.log(
+    "✅ PASS — Legacy fallback keeps its original hook action condition"
+  );
+} else {
+  console.error(
+    "❌ FAIL — Legacy fallback must keep the previous fixes-and-score hook action condition"
+  );
+  failures += 1;
+}
+
+const hasDecisionSpecificModalCopy =
+  source.includes("const hookModalTitle =") &&
+  source.includes("const hookModalDescription =") &&
+  source.includes("const hookModalReasonLabel =") &&
+  source.split("{hookModalTitle}").length - 1 === 2 &&
+  source.split("{hookModalDescription}").length - 1 === 2 &&
+  source.split("{hookModalReasonLabel}").length - 1 === 2;
+
+if (hasDecisionSpecificModalCopy) {
+  console.log(
+    "✅ PASS — Desktop and mobile hook modals share decision-specific copy"
+  );
+} else {
+  console.error(
+    "❌ FAIL — Hook modal title, description, and reason label must come from shared Analysis V2 decision state"
+  );
+  failures += 1;
+}
+
+
+const preservesLegacyHookActionLabel =
+  source.includes(
+    "const hookActionLabel = savedAnalysisV2"
+  ) &&
+  source.includes(
+    ': analysis.hook.score >= 70\n    ? "Refine Script"\n    : "Improve Hook";'
+  );
+
+if (preservesLegacyHookActionLabel) {
+  console.log(
+    "✅ PASS — Legacy fallback keeps its score-based action label"
+  );
+} else {
+  console.error(
+    "❌ FAIL — Legacy fallback must still show Refine Script for hook scores from 70 to 74"
   );
   failures += 1;
 }

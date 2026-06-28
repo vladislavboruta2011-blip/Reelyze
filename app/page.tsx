@@ -6,6 +6,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
+  ANALYSIS_V2_STORAGE_KEY,
+  isAnalysisV2SuccessResponse,
+} from "../engine/analysis-v2-ui-adapter";
+import {
   ArrowRight,
   BarChart3,
   CheckCircle2,
@@ -570,9 +574,13 @@ export default function HomePage() {
 
     let previousScript: string | null = null;
     let previousTitle: string | null = null;
+    let previousAnalysis: string | null = null;
     let hasStorageSnapshot = false;
 
-    const restoreSessionValue = (key: string, value: string | null) => {
+    const restoreSessionValue = (
+      key: string,
+      value: string | null
+    ) => {
       try {
         if (value === null) {
           sessionStorage.removeItem(key);
@@ -595,24 +603,101 @@ export default function HomePage() {
     setAnalyzeError("");
     setIsAnalyzing(true);
 
-    try {
-      previousScript = sessionStorage.getItem("reelyze-script");
-      previousTitle = sessionStorage.getItem("reelyze-title");
-      hasStorageSnapshot = true;
+    void (async () => {
+      try {
+        const response = await fetch("/api/analyze-v2", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            script: cleanedScript,
+            title: cleanedTitle,
+          }),
+        });
 
-      sessionStorage.setItem("reelyze-script", cleanedScript);
-      sessionStorage.setItem("reelyze-title", cleanedTitle);
-      clearLegacyStoredScript();
-      router.push("/results");
-    } catch {
-      if (hasStorageSnapshot) {
-        restoreSessionValue("reelyze-script", previousScript);
-        restoreSessionValue("reelyze-title", previousTitle);
+        let payload: unknown;
+
+        try {
+          payload = await response.json();
+        } catch {
+          throw new Error(
+            "The analysis returned an invalid response. Please try again."
+          );
+        }
+
+        if (!response.ok) {
+          const reason =
+            typeof payload === "object" &&
+            payload !== null &&
+            "reason" in payload &&
+            typeof payload.reason === "string"
+              ? payload.reason
+              : "Analysis failed. Please try again.";
+
+          throw new Error(reason);
+        }
+
+        if (
+          !isAnalysisV2SuccessResponse(
+            payload,
+            cleanedScript
+          )
+        ) {
+          throw new Error(
+            "The analysis returned an unexpected response. Please try again."
+          );
+        }
+
+        previousScript =
+          sessionStorage.getItem("reelyze-script");
+        previousTitle =
+          sessionStorage.getItem("reelyze-title");
+        previousAnalysis =
+          sessionStorage.getItem(
+            ANALYSIS_V2_STORAGE_KEY
+          );
+        hasStorageSnapshot = true;
+
+        sessionStorage.setItem(
+          "reelyze-script",
+          cleanedScript
+        );
+        sessionStorage.setItem(
+          "reelyze-title",
+          cleanedTitle
+        );
+        sessionStorage.setItem(
+          ANALYSIS_V2_STORAGE_KEY,
+          JSON.stringify(payload)
+        );
+
+        clearLegacyStoredScript();
+        router.push("/results");
+      } catch (caughtError) {
+        if (hasStorageSnapshot) {
+          restoreSessionValue(
+            "reelyze-script",
+            previousScript
+          );
+          restoreSessionValue(
+            "reelyze-title",
+            previousTitle
+          );
+          restoreSessionValue(
+            ANALYSIS_V2_STORAGE_KEY,
+            previousAnalysis
+          );
+        }
+
+        setIsAnalyzing(false);
+        setAnalyzeError(
+          caughtError instanceof Error
+            ? caughtError.message
+            : "Something went wrong. Please try again."
+        );
       }
-
-      setIsAnalyzing(false);
-      setAnalyzeError("Something went wrong. Please try again.");
-    }
+    })();
   }
 
   return (

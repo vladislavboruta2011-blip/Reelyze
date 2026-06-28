@@ -4,6 +4,14 @@ import Image from "next/image";
 import { Inter } from "next/font/google";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import type {
+  AnalysisV2SuccessResponse,
+} from "../../engine/analysis-v2-schema";
+import {
+  ANALYSIS_V2_STORAGE_KEY,
+  adaptAnalysisV2ForResults,
+  parseStoredAnalysisV2,
+} from "../../engine/analysis-v2-ui-adapter";
 import {
   SquarePen,
   PencilLine,
@@ -114,6 +122,8 @@ function isValidImproveSuccessPayload(
 export default function ResultsPage() {
  const [savedScript, setSavedScript] = useState("");
   const [savedTitle, setSavedTitle] = useState("");
+  const [savedAnalysisV2, setSavedAnalysisV2] =
+    useState<AnalysisV2SuccessResponse | null>(null);
   const [isStorageLoaded, setIsStorageLoaded] = useState(false);
   const [storageError, setStorageError] = useState("");
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
@@ -137,14 +147,18 @@ const [mobileScriptOpen, setMobileScriptOpen] = useState(false);
   const [mobileFeedback, setMobileFeedback] = useState<"helpful" | "dislike" | null>(null);
   const [mobileSelectedReason, setMobileSelectedReason] = useState<string | null>(null);
   const [mobileFeedbackSubmitted, setMobileFeedbackSubmitted] = useState(false);
+  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
+  const [feedbackSubmitError, setFeedbackSubmitError] = useState("");
   
     useEffect(() => {
     const timer = window.setTimeout(() => {
       try {
         const storedScript = sessionStorage.getItem("reelyze-script");
         const storedTitle = sessionStorage.getItem("reelyze-title");
+        const storedAnalysis = sessionStorage.getItem(
+          ANALYSIS_V2_STORAGE_KEY
+        );
 
-        const hasStoredScript = storedScript !== null;
         const isValidStoredScript =
           storedScript !== null &&
           storedScript.trim().length > 0 &&
@@ -155,9 +169,18 @@ const [mobileScriptOpen, setMobileScriptOpen] = useState(false);
           (storedTitle.trim().length <= MAX_TITLE_CHARACTERS &&
             storedTitle.length <= MAX_TITLE_CHARACTERS);
 
+        const parsedAnalysis =
+          isValidStoredScript && storedAnalysis !== null
+            ? parseStoredAnalysisV2(
+                storedAnalysis,
+                storedScript.trim()
+              )
+            : null;
+
         if (
-          (hasStoredScript && !isValidStoredScript) ||
-          !isValidStoredTitle
+          !isValidStoredScript ||
+          !isValidStoredTitle ||
+          parsedAnalysis === null
         ) {
           setStorageError(
             "Your saved analysis is invalid. Please go back and analyze the script again."
@@ -167,6 +190,7 @@ const [mobileScriptOpen, setMobileScriptOpen] = useState(false);
 
         if (isValidStoredScript) {
           setSavedScript(storedScript.trim());
+          setSavedAnalysisV2(parsedAnalysis);
         }
 
         if (
@@ -214,8 +238,26 @@ const [mobileScriptOpen, setMobileScriptOpen] = useState(false);
   const characterCount = activeScript.length;
 
   const analysis = useMemo(() => {
-    return analyzeScript(activeScript, estimatedDuration, scriptLines);
-  }, [activeScript, estimatedDuration, scriptLines]);
+    if (savedAnalysisV2) {
+      return adaptAnalysisV2ForResults(
+        savedAnalysisV2,
+        activeScript,
+        scriptLines,
+        estimatedDuration
+      );
+    }
+
+    return analyzeScript(
+      activeScript,
+      estimatedDuration,
+      scriptLines
+    );
+  }, [
+    savedAnalysisV2,
+    activeScript,
+    estimatedDuration,
+    scriptLines,
+  ]);
   
   const fallbackImprovedHook = useMemo(() => {
   return createHookRewrite(activeScript);
@@ -223,10 +265,112 @@ const [mobileScriptOpen, setMobileScriptOpen] = useState(false);
 
 const improvedHook = aiHook || fallbackImprovedHook;
 const modalHookText = improveError ? "No improved hook was generated." : improvedHook;
-// A hook should only be presented as "already good" when its score is
-// genuinely strong. A failed or identical AI rewrite must not be mislabeled
-// as "Hook Analysis" when the hook score is weak.
-const shouldShowHookAnalysis = analysis.hook.score >= 80;
+
+const hookDecision = savedAnalysisV2?.result.hookDecision ?? "keep";
+const shouldShowHookAction = savedAnalysisV2
+  ? hookDecision !== "keep"
+  : analysis.fixes.length > 0 && analysis.hook.score < 75;
+const hookActionLabel = savedAnalysisV2
+  ? hookDecision === "diagnostic"
+    ? "Improve Script"
+    : hookDecision === "refine"
+      ? "Refine Hook"
+      : "Improve Hook"
+  : analysis.hook.score >= 70
+    ? "Refine Script"
+    : "Improve Hook";
+
+async function submitFeedback(
+  rating: "helpful" | "unhelpful",
+  reason: string | null,
+  text: string | null = null
+): Promise<boolean> {
+  if (feedbackSubmitting) {
+    return false;
+  }
+
+  setFeedbackSubmitting(true);
+  setFeedbackSubmitError("");
+
+  try {
+    const response = await fetch("/api/feedback", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        rating,
+        reason,
+        text,
+        title: savedTitle || "YouTube Shorts Script",
+        script: activeScript,
+        overallScore: analysis.overall.score,
+        hookScore: analysis.hook.score,
+        retentionRisk: analysis.risk.score,
+        mainTakeaway: analysis.overall.description,
+        currentPath:
+          typeof window === "undefined"
+            ? null
+            : window.location.pathname,
+      }),
+    });
+
+    if (!response.ok) {
+      setFeedbackSubmitError("Feedback could not be sent. Please try again.");
+      return false;
+    }
+
+    return true;
+  } catch {
+    setFeedbackSubmitError("Feedback could not be sent. Please try again.");
+    return false;
+  } finally {
+    setFeedbackSubmitting(false);
+  }
+}
+
+// The score-based "already good" state is retained only for the unreachable
+// legacy fallback. Valid production results use Analysis V2 hookDecision.
+const shouldShowHookAnalysis = !savedAnalysisV2 && analysis.hook.score >= 80;
+
+const hookModalTitle =
+  aiHookMode === "diagnostic"
+    ? "Needs More Specific Material"
+    : savedAnalysisV2
+      ? hookDecision === "refine"
+        ? "Refined Hook"
+        : "Improved Hook"
+      : shouldShowHookAnalysis
+        ? "Hook Analysis"
+        : analysis.hook.score >= 70
+          ? "Refine Script"
+          : "Improved Hook";
+
+const hookModalDescription =
+  aiHookMode === "diagnostic"
+    ? "This script is too broad to rewrite into a stronger hook without inventing ideas."
+    : savedAnalysisV2
+      ? hookDecision === "refine"
+        ? "This version keeps the same promise while making the opening sharper and clearer."
+        : "Use this version to make the opening clearer, stronger, and more curiosity-driven."
+      : shouldShowHookAnalysis
+        ? "This opening already creates a clear reason to keep watching."
+        : analysis.hook.score >= 70
+          ? "The hook is working. This refinement focuses on making the opening or payoff land stronger."
+          : "Use this version to make the opening clearer, stronger, and more curiosity-driven.";
+
+const hookModalReasonLabel =
+  aiHookMode === "diagnostic"
+    ? "Why no hook was generated:"
+    : savedAnalysisV2
+      ? hookDecision === "refine"
+        ? "What this version improves:"
+        : "Why it is better:"
+      : shouldShowHookAnalysis
+        ? "Why this hook works:"
+        : analysis.hook.score >= 70
+          ? "What this version improves:"
+          : "Why it is better:";
 
 // Replace any rule-based hook rewrite in fixes with the AI hook once loaded,
 // so Suggested Fixes and the modal always show the same improved hook.
@@ -243,9 +387,13 @@ const displayFixes: string[] = analysis.fixes.map((fix) => {
 const hookCopyButtonLabel =
   aiHookMode === "diagnostic"
     ? "Copy Advice"
-    : analysis.hook.score >= 70
-    ? "Copy Version"
-    : "Copy Hook";
+    : savedAnalysisV2
+      ? hookDecision === "refine"
+        ? "Copy Version"
+        : "Copy Hook"
+      : analysis.hook.score >= 70
+        ? "Copy Version"
+        : "Copy Hook";
 
   async function handleCopyHook() {
     if (isImprovingHook || improveError) return;
@@ -272,8 +420,43 @@ const hookCopyButtonLabel =
     setAiHook("");
     setAiHookReason("");
     setAiHookMode("");
-    setIsImprovingHook(true);
     setIsHookModalOpen(true);
+
+    if (savedAnalysisV2) {
+      const hookDecision = savedAnalysisV2.result.hookDecision;
+      const suggestedHook =
+        savedAnalysisV2.result.suggestedHook?.trim() ?? "";
+      const hookAssessment =
+        savedAnalysisV2.result.hookAssessment.trim();
+
+      if (hookDecision === "keep") {
+        setIsHookModalOpen(false);
+        return;
+      }
+
+      if (hookDecision === "diagnostic") {
+        setAiHook(
+          "Add specific material to the script before generating a new hook."
+        );
+        setAiHookReason(hookAssessment);
+        setAiHookMode("diagnostic");
+        return;
+      }
+
+      if (!suggestedHook) {
+        setImproveError(
+          "No validated hook suggestion is available for this analysis."
+        );
+        return;
+      }
+
+      setAiHook(suggestedHook);
+      setAiHookReason(hookAssessment);
+      setAiHookMode("rewrite");
+      return;
+    }
+
+    setIsImprovingHook(true);
 
     try {
       const response = await fetch("/api/improve", {
@@ -414,10 +597,13 @@ const hookCopyButtonLabel =
                     {["Accurate score", "Useful fixes", "Clear explanation", "Other"].map((reason) => (
                       <button
                         key={reason}
+                        disabled={feedbackSubmitting}
                         onClick={() => {
                           if (reason === "Other") { setDesktopOtherFeedbackOpen(true); return; }
                           setDesktopSelectedReason(reason);
-                          setDesktopFeedbackSubmitted(true);
+                          void submitFeedback("helpful", reason).then((ok) => {
+                            if (ok) setDesktopFeedbackSubmitted(true);
+                          });
                         }}
                         className={["w-full rounded-[8px] border px-2.5 py-2 text-left text-[12px] font-medium transition", desktopSelectedReason === reason ? "border-[#22C55E]/50 bg-[#22C55E]/10 text-[#22C55E]" : "border-[#24242A] text-[#777A85] hover:border-[#22C55E]/30 hover:text-[#B3B3B3]"].join(" ")}
                       >
@@ -435,10 +621,13 @@ const hookCopyButtonLabel =
                     {["Wrong score", "Bad suggestions", "Not specific enough", "Other"].map((reason) => (
                       <button
                         key={reason}
+                        disabled={feedbackSubmitting}
                         onClick={() => {
                           if (reason === "Other") { setDesktopOtherFeedbackOpen(true); return; }
                           setDesktopSelectedReason(reason);
-                          setDesktopFeedbackSubmitted(true);
+                          void submitFeedback("unhelpful", reason).then((ok) => {
+                            if (ok) setDesktopFeedbackSubmitted(true);
+                          });
                         }}
                         className={["w-full rounded-[8px] border px-2.5 py-2 text-left text-[12px] font-medium transition", desktopSelectedReason === reason ? "border-[#EF4444]/50 bg-[#EF4444]/10 text-[#EF4444]" : "border-[#24242A] text-[#777A85] hover:border-[#EF4444]/30 hover:text-[#B3B3B3]"].join(" ")}
                       >
@@ -452,6 +641,18 @@ const hookCopyButtonLabel =
               {desktopFeedbackSubmitted && (
                 <p className="mt-2.5 text-[12px]" style={{ color: desktopFeedback === "helpful" ? "#22C55E" : "#EF4444" }}>
                   {desktopFeedback === "helpful" ? "Thanks — feedback noted." : "Thanks — we'll use this to improve."}
+                </p>
+              )}
+
+              {feedbackSubmitting && (
+                <p className="mt-2 text-[12px] text-[#777A85]">
+                  Sending feedback...
+                </p>
+              )}
+
+              {feedbackSubmitError && (
+                <p className="mt-2 text-[12px] text-[#EF4444]">
+                  {feedbackSubmitError}
                 </p>
               )}
               </div>
@@ -605,7 +806,7 @@ const hookCopyButtonLabel =
                         {analysis.riskyParts.length === 0 ? (
                           <div>
                             <p className="text-[14px] font-medium text-white">{analysis.fixes.length > 0 ? "No major risky parts found." : "No risky parts found."}</p>
-                            <p className="mt-1 text-[13px] leading-[1.55] text-[#777A85]">{analysis.fixes.length > 0 ? "The script works overall, but a few areas could still be tightened." : "This script stays focused and does not contain any major drop-off points."}</p>
+                            <p className="mt-1 text-[13px] leading-[1.55] text-[#777A85]">{analysis.fixes.length > 0 ? "No material drop-off points were found; the suggestions below are optional refinements." : "This script stays focused and does not contain any major drop-off points."}</p>
                           </div>
                         ) : (
                           analysis.riskyParts.map((part) => (
@@ -625,14 +826,14 @@ const hookCopyButtonLabel =
                         <h2 className="text-[17px] font-semibold text-white">Suggested Fixes</h2>
                         <span className="text-[12px] font-medium text-[#777A85]">{pluralize(displayFixes.length, "suggestion", "suggestions")}</span>
                       </div>
-                      {analysis.fixes.length > 0 && analysis.hook.score < 75 && (
+                      {shouldShowHookAction && (
                         <button
                           onClick={handleImproveHook}
                           disabled={isImprovingHook}
                           className="mb-5 inline-flex h-[38px] items-center gap-2 rounded-[10px] bg-[#DC2626] px-4 text-[13px] font-semibold text-white shadow-[0_0_32px_rgba(220,38,38,0.30)] transition hover:bg-[#EF4444]"
                         >
                           <ShieldCheck size={15} />
-                          {analysis.hook.score >= 70 ? "Refine Script" : "Improve Hook"}
+                          {hookActionLabel}
                         </button>
                       )}
                       <div className="flex flex-col gap-3">
@@ -704,7 +905,22 @@ const hookCopyButtonLabel =
               className="mt-5 w-full resize-none rounded-[12px] border border-[#24242A] bg-[#101014] px-4 py-3 text-[13px] leading-[1.65] text-[#B3B3B3] outline-none placeholder:text-[#555560]"
             />
             <div className="mt-4 flex gap-3">
-              <button onClick={() => { setDesktopOtherFeedbackOpen(false); setDesktopOtherFeedbackText(""); setDesktopFeedbackSubmitted(true); }} className="h-[40px] rounded-[10px] bg-[#DC2626] px-5 text-[13px] font-semibold text-white transition hover:bg-[#EF4444]">Submit</button>
+              <button
+                onClick={() => {
+                  const rating = desktopFeedback === "helpful" ? "helpful" : "unhelpful";
+                  void submitFeedback(rating, "Other", desktopOtherFeedbackText).then((ok) => {
+                    if (!ok) return;
+                    setDesktopOtherFeedbackOpen(false);
+                    setDesktopOtherFeedbackText("");
+                    setDesktopSelectedReason("Other");
+                    setDesktopFeedbackSubmitted(true);
+                  });
+                }}
+                disabled={feedbackSubmitting}
+                className="h-[40px] rounded-[10px] bg-[#DC2626] px-5 text-[13px] font-semibold text-white transition hover:bg-[#EF4444] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {feedbackSubmitting ? "Submitting..." : "Submit"}
+              </button>
               <button onClick={() => setDesktopOtherFeedbackOpen(false)} className="h-[40px] rounded-[10px] border border-[#24242A] bg-[#101014] px-5 text-[13px] font-semibold text-white transition hover:bg-[#17171C]">Cancel</button>
             </div>
           </div>
@@ -799,14 +1015,14 @@ const hookCopyButtonLabel =
                     <p className="text-[13px] leading-[1.6] text-[#E8D5D8]">{analysis.overall.description}</p>
                   </div>
                 </div>
-                {analysis.fixes.length > 0 && analysis.hook.score < 75 && (
+                {shouldShowHookAction && (
                   <button
                     onClick={handleImproveHook}
                     disabled={isImprovingHook}
                     className="mt-4 w-full h-[44px] inline-flex items-center justify-center gap-2 rounded-[12px] bg-[#DC2626] text-[14px] font-semibold text-white shadow-[0_0_24px_rgba(220,38,38,0.25)] transition hover:bg-[#EF4444]"
                   >
                     <ShieldCheck size={15} />
-                    {analysis.hook.score >= 70 ? "Refine Script" : "Improve Hook"}
+                    {hookActionLabel}
                   </button>
                 )}
               </div>
@@ -821,7 +1037,7 @@ const hookCopyButtonLabel =
                   {analysis.riskyParts.length === 0 ? (
                     <div className="rounded-[12px] border border-[#24242A] bg-[#101014] px-4 py-3">
                       <p className="text-[13px] font-medium text-white">{analysis.fixes.length > 0 ? "No major risky parts found." : "No risky parts found."}</p>
-                      <p className="mt-1 text-[12px] leading-[1.5] text-[#777A85]">{analysis.fixes.length > 0 ? "The script works overall, but a few areas could still be tightened." : "This script stays focused and does not contain any major drop-off points."}</p>
+                      <p className="mt-1 text-[12px] leading-[1.5] text-[#777A85]">{analysis.fixes.length > 0 ? "No material drop-off points were found; the suggestions below are optional refinements." : "This script stays focused and does not contain any major drop-off points."}</p>
                     </div>
                   ) : (
                     analysis.riskyParts.map((part) => (
@@ -971,10 +1187,13 @@ const hookCopyButtonLabel =
                       {["Accurate score", "Useful fixes", "Clear explanation", "Other"].map((reason) => (
                         <button
                           key={reason}
+                          disabled={feedbackSubmitting}
                           onClick={() => {
                             if (reason === "Other") { setIsFeedbackOpen(true); return; }
                             setMobileSelectedReason(reason);
-                            setMobileFeedbackSubmitted(true);
+                            void submitFeedback("helpful", reason).then((ok) => {
+                              if (ok) setMobileFeedbackSubmitted(true);
+                            });
                           }}
                           className={["w-full rounded-[8px] border px-2.5 py-2 text-left text-[12px] font-medium transition", mobileSelectedReason === reason ? "border-[#22C55E]/50 bg-[#22C55E]/10 text-[#22C55E]" : "border-[#24242A] bg-[#101014] text-[#777A85] hover:border-[#22C55E]/30 hover:text-[#B3B3B3]"].join(" ")}
                         >
@@ -992,10 +1211,13 @@ const hookCopyButtonLabel =
                       {["Wrong score", "Bad suggestions", "Not specific enough", "Other"].map((reason) => (
                         <button
                           key={reason}
+                          disabled={feedbackSubmitting}
                           onClick={() => {
                             if (reason === "Other") { setIsFeedbackOpen(true); return; }
                             setMobileSelectedReason(reason);
-                            setMobileFeedbackSubmitted(true);
+                            void submitFeedback("unhelpful", reason).then((ok) => {
+                              if (ok) setMobileFeedbackSubmitted(true);
+                            });
                           }}
                           className={["w-full rounded-[8px] border px-2.5 py-2 text-left text-[12px] font-medium transition", mobileSelectedReason === reason ? "border-[#EF4444]/50 bg-[#EF4444]/10 text-[#EF4444]" : "border-[#24242A] bg-[#101014] text-[#777A85] hover:border-[#EF4444]/30 hover:text-[#B3B3B3]"].join(" ")}
                         >
@@ -1009,6 +1231,18 @@ const hookCopyButtonLabel =
                 {mobileFeedbackSubmitted && (
                   <p className="mt-2 text-[12px]" style={{ color: mobileFeedback === "helpful" ? "#22C55E" : "#EF4444" }}>
                     {mobileFeedback === "helpful" ? "Thanks — feedback noted." : "Thanks — we'll use this to improve."}
+                  </p>
+                )}
+
+                {feedbackSubmitting && (
+                  <p className="mt-2 text-[12px] text-[#777A85]">
+                    Sending feedback...
+                  </p>
+                )}
+
+                {feedbackSubmitError && (
+                  <p className="mt-2 text-[12px] text-[#EF4444]">
+                    {feedbackSubmitError}
                   </p>
                 )}
               </div>
@@ -1069,14 +1303,19 @@ const hookCopyButtonLabel =
             <div className="mt-4 grid grid-cols-2 gap-3">
               <button
                 onClick={() => {
-                  setIsFeedbackOpen(false);
-                  setFeedbackText("");
-                  setMobileSelectedReason("Other");
-setMobileFeedbackSubmitted(true);
+                  const rating = mobileFeedback === "helpful" ? "helpful" : "unhelpful";
+                  void submitFeedback(rating, "Other", feedbackText).then((ok) => {
+                    if (!ok) return;
+                    setIsFeedbackOpen(false);
+                    setFeedbackText("");
+                    setMobileSelectedReason("Other");
+                    setMobileFeedbackSubmitted(true);
+                  });
                 }}
-                className="h-[44px] rounded-[12px] bg-[#DC2626] text-[13px] font-semibold text-white transition hover:bg-[#EF4444]"
+                disabled={feedbackSubmitting}
+                className="h-[44px] rounded-[12px] bg-[#DC2626] text-[13px] font-semibold text-white transition hover:bg-[#EF4444] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Send feedback
+                {feedbackSubmitting ? "Sending..." : "Send feedback"}
               </button>
 
               <button
@@ -1102,23 +1341,11 @@ setMobileFeedbackSubmitted(true);
             </button>
 
             <h2 className="absolute left-[30px] top-[30px] text-[22px] font-semibold leading-[24px] text-white">
-              {aiHookMode === "diagnostic"
-                ? "Needs More Specific Material"
-                : shouldShowHookAnalysis
-                ? "Hook Analysis"
-                : analysis.hook.score >= 70
-                ? "Refine Script"
-                : "Improved Hook"}
+              {hookModalTitle}
             </h2>
 
             <p className="absolute left-[30px] top-[65px] w-[430px] text-[14px] font-normal leading-[22px] text-[#B3B3B3]">
-              {aiHookMode === "diagnostic"
-                ? "This script is too broad to rewrite into a stronger hook without inventing ideas."
-                : shouldShowHookAnalysis
-                ? "This opening already creates a clear reason to keep watching."
-                : analysis.hook.score >= 70
-                ? "The hook is working. This refinement focuses on making the opening or payoff land stronger."
-                : "Use this version to make the opening clearer, stronger, and more curiosity-driven."}
+              {hookModalDescription}
             </p>
 
             <div className="absolute left-[30px] top-[115px] h-[86px] w-[460px] rounded-[14px] border border-[#24242A] bg-[#0B1018] px-[16px] py-[14px]">
@@ -1135,13 +1362,7 @@ setMobileFeedbackSubmitted(true);
               ) : (
                 <>
                   <p className="mt-[6px] text-[14px] font-normal leading-[21px] text-[#B3B3B3] break-words whitespace-normal">
-                    {aiHookMode === "diagnostic"
-                      ? "Why no hook was generated:"
-                      : shouldShowHookAnalysis
-                      ? "Why this hook works:"
-                      : analysis.hook.score >= 70
-                      ? "What this version improves:"
-                      : "Why it is better:"}
+                    {hookModalReasonLabel}
                   </p>
                   <p className="mt-[6px] text-[14px] font-normal leading-[21px] text-[#B3B3B3] break-words whitespace-normal">
                     {isImprovingHook
@@ -1178,23 +1399,11 @@ setMobileFeedbackSubmitted(true);
             </button>
 
             <h2 className="text-[18px] font-semibold leading-[24px] text-white mb-[8px] pr-[24px]">
-              {aiHookMode === "diagnostic"
-                ? "Needs More Specific Material"
-                : shouldShowHookAnalysis
-                ? "Hook Analysis"
-                : analysis.hook.score >= 70
-                ? "Refine Script"
-                : "Improved Hook"}
+              {hookModalTitle}
             </h2>
 
             <p className="text-[12px] font-normal leading-[20px] text-[#B3B3B3] mb-[14px]">
-              {aiHookMode === "diagnostic"
-                ? "This script is too broad to rewrite into a stronger hook without inventing ideas."
-                : shouldShowHookAnalysis
-                ? "This opening already creates a clear reason to keep watching."
-                : analysis.hook.score >= 70
-                ? "The hook is working. This refinement focuses on making the opening or payoff land stronger."
-                : "Use this version to make the opening clearer, stronger, and more curiosity-driven."}
+              {hookModalDescription}
             </p>
 
             <div className="w-full rounded-[12px] border border-[#24242A] bg-[#0B1018] px-[14px] py-[12px] mb-[14px]">
@@ -1210,13 +1419,7 @@ setMobileFeedbackSubmitted(true);
             ) : (
               <div className="mb-[16px]">
                 <p className="text-[12px] font-normal leading-[18px] text-[#B3B3B3]">
-                  {aiHookMode === "diagnostic"
-                    ? "Why no hook was generated:"
-                    : shouldShowHookAnalysis
-                    ? "Why this hook works:"
-                    : analysis.hook.score >= 70
-                    ? "What this version improves:"
-                    : "Why it is better:"}
+                  {hookModalReasonLabel}
                 </p>
                 <p className="text-[12px] font-normal leading-[18px] text-[#B3B3B3] mt-[4px] break-words">
                   {isImprovingHook

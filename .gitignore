@@ -7,3 +7,8 @@ backups/
 *.broken-*
 *.backup-*
 lint-output.txt
+
+# TypeScript incremental build cache
+*.tsbuildinfo
+# Local feedback storage
+data/
