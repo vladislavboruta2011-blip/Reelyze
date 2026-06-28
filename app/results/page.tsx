@@ -761,12 +761,12 @@ const hookCopyButtonLabel =
                 <div className="grid grid-cols-[1.35fr_0.9fr] items-start gap-5">
                   {/* Script card */}
                   <Card className="p-6">
-                    <div className="mb-4 flex flex-wrap items-center gap-3">
+                    <div className="mb-4">
                       <h2 className="text-[17px] font-semibold text-white">Your Script</h2>
                       {savedTitle && (
-                        <div className="flex items-center gap-2 rounded-[8px] border border-[#24242A] bg-[#101014] px-3 py-1">
-                          <span className="text-[12px] text-[#777A85]">Topic:</span>
-                          <span className="text-[12px] font-medium text-white">{savedTitle}</span>
+                        <div className="mt-3 rounded-[12px] border border-[#24242A] bg-[#101014] px-4 py-3">
+                          <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-[#777A85]">Title</p>
+                          <p className="mt-1 text-[14px] font-semibold leading-[1.45] text-white">{savedTitle}</p>
                         </div>
                       )}
                     </div>
@@ -1097,11 +1097,9 @@ const hookCopyButtonLabel =
                 {mobileScriptOpen && (
                   <div className="px-4 pb-4">
                     {savedTitle && (
-                      <div className="flex items-center gap-2 mb-3">
-                        <span className="text-[11px] text-[#777A85]">Topic:</span>
-                        <div className="rounded-[6px] border border-[#24242A] bg-[#101014] px-2.5 py-0.5">
-                          <span className="text-[11px] font-medium text-white">{savedTitle}</span>
-                        </div>
+                      <div className="mb-3 rounded-[10px] border border-[#24242A] bg-[#101014] px-3 py-2.5">
+                        <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-[#777A85]">Title</p>
+                        <p className="mt-1 text-[12px] font-semibold leading-[1.45] text-white">{savedTitle}</p>
                       </div>
                     )}
                     <div className="rounded-[12px] border border-[#24242A] bg-[#101014] p-3 max-h-[300px] overflow-y-auto">
