@@ -330,6 +330,42 @@ function riskyPartOverlapsOpening(
   return false;
 }
 
+function hasUnrevealedSpecificOpeningPromise(
+  script: string
+): boolean {
+  const cleaned = normalizeWhitespace(script);
+  const firstSentence =
+    extractFirstSentence(cleaned).toLowerCase();
+  const rest = cleaned
+    .slice(firstSentence.length)
+    .toLowerCase();
+
+  const promisesSpecificHiddenThing =
+    /\b(?:one|a)\s+(?:hidden|secret)\s+(?:setting|cause|reason|mechanism)\b/.test(
+      firstSentence
+    );
+
+  if (!promisesSpecificHiddenThing) {
+    return false;
+  }
+
+  const hasVagueNonReveal =
+    /\bonce you understand it\b/.test(rest) ||
+    /\bmakes more sense\b/.test(rest) ||
+    /\bruns quietly in the background\b/.test(rest) ||
+    /\bmost people never turn it off\b/.test(rest);
+
+  const namesConcreteSetting =
+    /\bbackground app refresh\b/.test(rest) ||
+    /\blocation services\b/.test(rest) ||
+    /\bpush notifications\b/.test(rest) ||
+    /\bauto brightness\b/.test(rest) ||
+    /\blow power mode\b/.test(rest) ||
+    /\bbattery saver\b/.test(rest);
+
+  return hasVagueNonReveal && !namesConcreteSetting;
+}
+
 export function validateAnalysisV2Input(
   script: unknown,
   title: unknown
@@ -1031,8 +1067,24 @@ export function validateAnalysisV2Result(
       )
     );
 
+  if (
+    hasUnrevealedSpecificOpeningPromise(script) &&
+    (
+      normalizedHookDecision === "keep" ||
+      overall > 65 ||
+      retentionRisk < 40 ||
+      riskyParts.length === 0
+    )
+  ) {
+    return {
+      ok: false,
+      reason:
+        "An unrevealed specific opening promise cannot be treated as clear, low-risk, or keep-worthy.",
+    };
+  }
+
   if (hasGenericOpeningFiller) {
-    if (verdict === "strong") {
+  if (verdict === "strong") {
       return {
         ok: false,
         reason:
