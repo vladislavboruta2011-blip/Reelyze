@@ -28,6 +28,17 @@ ${ANALYSIS_V2_SCRIPT_TYPES.join(", ")}
 4. Score it and produce only grounded feedback.
 
 5. Evaluate the original hook before deciding whether to keep, refine, rewrite, or diagnose it.
+- Evaluate hookAssessment and hookDecision using only the opening hook, not unrelated material from later in the script.
+- Evaluate the first sentence independently. If it is generic filler that delays the concrete subject, premise, problem, or promise, treat it as a material hook weakness even when a later opening sentence is specific.
+- When generic filler appears before the concrete premise, quote the filler sentence as a riskyPart and include a non-optional suggestedFix with target hook.
+- If generic opening filler delays the concrete premise, verdict must not be strong, riskyParts must not be empty, and overall must not exceed 84.
+- For generic opening filler, hookDecision must be refine or rewrite and the suggestedFix with target hook must have optional set to false.
+- If the opening is only a topic announcement or framing phrase such as today I want to talk about, in this video, or productivity is important, hookDecision must be rewrite or diagnostic, and overall should stay below 60.
+- Treat unsupported absolute promises in the opening hook as a material hook weakness, even when later steps are concrete. Examples include guarantees success, cannot fail, will make you a millionaire, will change your life, and completely change your financial life.
+- If an opening hook makes an unsupported absolute promise, hookDecision must not be keep, riskyParts must not be empty, and the relevant suggestedFix must be non-optional with target hook.
+- Treat an opening hook that promises a specific object, cause, setting, secret, list item, winner, or mechanism as materially incomplete if the script never names or explains that promised item.
+- If the opening hook's specific promise is not revealed anywhere in the script, hookDecision must not be keep, riskyParts must not be empty, and the relevant suggestedFix must be non-optional with target payoff or hook.
+- When the opening hook's specific promise is not revealed, do not describe the hook as strong, fairly strong, clear and specific, or already effective in hookAssessment.
 
 TYPE-SPECIFIC RUBRICS
 
@@ -59,13 +70,16 @@ mystery
 - Mystery-specific curiosity-gap logic is appropriate for this type.
 
 list_escalation
-- Repeated examples or events that become more extreme can create retention.
+- Repeated examples or events that become progressively more extreme can create retention.
+- Use this type when the script presents an escalating sequence, not when several options are judged against one shared criterion.
 - The strongest final example or a contrasting culmination is a valid payoff.
 - Do not require an explicit turn phrase such as but then.
 
 comparison
+- Use this type when multiple subjects, products, people, or options are evaluated against the same measurement, quality, or question.
 - A valid structure can be: comparison premise → progression through subjects or measurements → winner or extreme result.
-- The winner, final ranking, or extreme measurement is the payoff.
+- A declared winner, longest result, highest result, lowest result, or final ranking is a comparison payoff.
+- Prefer comparison over list_escalation when the script explicitly tests options side by side or identifies which option performs best.
 - Do not require a narrative arc or emotional stakes.
 
 advertorial
@@ -75,6 +89,8 @@ advertorial
 
 generic_advice
 - Generic claims without a concrete example, number, named situation, mechanism, or observable result should score weak.
+- If the script has none of those concrete anchors, hookDecision must be diagnostic and suggestedHook must be null.
+- Do not rewrite an abstract script by adding a new outcome, benefit, danger, dilemma, secret, success claim, or consequence.
 - Do not invent concrete material that is not in the script.
 
 other
@@ -90,12 +106,32 @@ Does this script have a material structural problem for its own type?
 If the answer is no:
 - verdict must be strong
 - riskyParts must be empty
-- suggestedFixes must be empty, or contain one genuinely optional refinement
+- scenes must not contain risky status
+- if overall is 85 or higher, suggestedFixes may be empty or contain one genuinely optional refinement
+- if overall is from 70 through 84, suggestedFixes must contain exactly one genuinely optional refinement grounded in a specific opportunity
 - every fix in a strong result must have optional set to true
 - hookDecision should normally be keep or refine
-- scenes must not contain risky status
 - mainTakeaway must clearly say the script is structurally strong for its type
 - do not invent an issue merely to fill the interface
+
+NON-STRONG FEEDBACK GATE
+
+If verdict is mixed or weak:
+- include at least one grounded riskyPart
+- include at least one non-optional suggestedFix
+- the fix must state what should change and why that would improve clarity, progression, payoff, or retention
+- do not return an empty suggestedFixes array
+- do not describe the script as needing improvement while also claiming that no fixes are needed
+- If one actionable change resolves all material problems, return one suggestedFix.
+- If the script has two materially different problems that require different changes, return two suggestedFixes.
+- If multiple riskyParts share the same root cause, one suggestedFix may address all of them.
+- Do not create a second suggestedFix merely to fill the available limit.
+- Treat an explicit promise near the end as a material payoff problem when the promised information is not delivered anywhere in the script.
+- If an unfulfilled promise is independent from another material problem, report it as a separate riskyPart with a separate suggestedFix.
+
+If any riskyPart has medium or high severity:
+- include at least one directly relevant non-optional suggestedFix
+- do not leave a material risk without actionable guidance
 
 HOOK DECISION
 
@@ -116,6 +152,7 @@ rewrite
 
 diagnostic
 - Use when the script lacks enough concrete material to create a grounded hook.
+- Diagnostic is mandatory for generic_advice that has no concrete example, number, named situation, mechanism, or observable result.
 - Set suggestedHook to null.
 - Explain what kind of concrete grounding is missing without inventing an example.
 
@@ -138,6 +175,7 @@ A suggestedHook must never:
 - force mystery framing onto an explanation, how-to, warning, or advertorial
 - become longer without a clear benefit
 - contradict the hookAssessment
+- A suggestedHook must not state the explanation and then promise to explain that same explanation.
 
 GROUNDING
 
@@ -172,14 +210,22 @@ Score meanings:
 - hook: higher is better
 - retentionRisk: higher is worse
 
-Use the full 0-100 range, but do not manufacture precision.
+Use the full 0-100 range.
+
+Score each dimension independently from evidence in this exact script.
+Do not default to familiar round values, repeated score triplets, or the same score pattern used for other scripts.
+Scores may be any whole number from 0 to 100.
+Do not add random precision, but do not round to a multiple of five merely because it is convenient.
+Materially different scripts should not receive identical score triplets unless their demonstrated quality is genuinely equivalent.
 
 General consistency guidance:
-- strong normally means overall 70 or higher and retentionRisk 45 or lower
-- mixed normally means overall 46-79
+- strong means overall 70 or higher, retentionRisk 45 or lower, and no material structural problem
+- mixed means overall 46-84 with at least one material but fixable problem
 - weak normally means overall 45 or lower or a major structural failure
 - strong results must have zero riskyParts and no risky scenes
-- weak results should identify at least one grounded material problem
+- mixed and weak results must identify at least one grounded material problem
+- mixed and weak results must contain at least one non-optional suggestedFix
+- every medium or high riskyPart must be accompanied by actionable non-optional guidance
 - suggestedFixes must directly address riskyParts or be clearly optional in a strong result
 - mainTakeaway must agree with verdict, scores, riskyParts, and suggestedFixes
 

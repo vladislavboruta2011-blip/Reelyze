@@ -14,7 +14,7 @@ function createValidResult(): Record<string, unknown> {
     scriptType: "how_to",
     verdict: "strong",
     scores: {
-      overall: 84,
+      overall: 88,
       hook: 82,
       retentionRisk: 22,
     },
@@ -89,27 +89,11 @@ const tests: TestCase[] = [
     },
   },
   {
-    name: "runAnalysisV2 rejects malformed model JSON",
+    name: "runAnalysisV2 retries once after invalid grounded analysis",
     run: async () => {
-      const modelCaller: AnalysisV2ModelCaller =
-        async () => ({
-          raw: "{invalid",
-          modelUsed: "mock-model",
-        });
+      let callCount = 0;
+      const userPrompts: string[] = [];
 
-      const result = await runAnalysisV2(
-        script,
-        "",
-        modelCaller
-      );
-
-      assert.equal(result.ok, false);
-      assert.equal(result.status, 502);
-    },
-  },
-  {
-    name: "runAnalysisV2 rejects invalid grounded analysis",
-    run: async () => {
       const invalidResult = createValidResult();
 
       invalidResult.scenes = [
@@ -122,10 +106,50 @@ const tests: TestCase[] = [
       ];
 
       const modelCaller: AnalysisV2ModelCaller =
-        async () => ({
-          raw: JSON.stringify(invalidResult),
-          modelUsed: "mock-model",
-        });
+        async (_systemPrompt, userPrompt) => {
+          callCount += 1;
+          userPrompts.push(userPrompt);
+
+          return {
+            raw: JSON.stringify(
+              callCount === 1
+                ? invalidResult
+                : createValidResult()
+            ),
+            modelUsed: "mock-model",
+          };
+        };
+
+      const result = await runAnalysisV2(
+        script,
+        "Super glue removal",
+        modelCaller
+      );
+
+      assert.equal(result.ok, true);
+      assert.equal(result.status, 200);
+      assert.equal(callCount, 2);
+      assert.match(
+        userPrompts[1] ?? "",
+        /previous response failed deterministic validation/i
+      );
+    },
+  },
+
+  {
+    name: "runAnalysisV2 rejects malformed model JSON",
+    run: async () => {
+      let callCount = 0;
+
+      const modelCaller: AnalysisV2ModelCaller =
+        async () => {
+          callCount += 1;
+
+          return {
+            raw: "{invalid",
+            modelUsed: "mock-model",
+          };
+        };
 
       const result = await runAnalysisV2(
         script,
@@ -135,6 +159,43 @@ const tests: TestCase[] = [
 
       assert.equal(result.ok, false);
       assert.equal(result.status, 502);
+      assert.equal(callCount, 1);
+    },
+  },
+  {
+    name: "runAnalysisV2 rejects invalid grounded analysis",
+    run: async () => {
+      let callCount = 0;
+      const invalidResult = createValidResult();
+
+      invalidResult.scenes = [
+        {
+          excerpt:
+            "This excerpt does not exist in the script.",
+          label: "Invented scene",
+          status: "strong",
+        },
+      ];
+
+      const modelCaller: AnalysisV2ModelCaller =
+        async () => {
+          callCount += 1;
+
+          return {
+            raw: JSON.stringify(invalidResult),
+            modelUsed: "mock-model",
+          };
+        };
+
+      const result = await runAnalysisV2(
+        script,
+        "",
+        modelCaller
+      );
+
+      assert.equal(result.ok, false);
+      assert.equal(result.status, 502);
+      assert.equal(callCount, 2);
     },
   },
   {

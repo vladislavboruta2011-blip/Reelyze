@@ -112,6 +112,224 @@ function suggestedHookIntroducesNumber(
   );
 }
 
+function extractWordTokens(value: string): Set<string> {
+  return new Set(
+    (value.match(/\b[A-Za-z][A-Za-z0-9'-]*\b/g) ?? []).map(
+      (token) => token.toLowerCase()
+    )
+  );
+}
+
+function extractPotentialNamedEntityTokens(
+  value: string
+): string[] {
+  const matches = value.matchAll(
+    /\b[A-Za-z][A-Za-z0-9'-]*\b/g
+  );
+
+  const entities: string[] = [];
+
+  for (const match of matches) {
+    const token = match[0];
+    const index = match.index ?? 0;
+    const precedingText = value
+      .slice(0, index)
+      .trimEnd();
+
+    const isSentenceStart =
+      precedingText.length === 0 ||
+      /[.!?]["')\]]?$/.test(precedingText);
+
+    const isAcronym =
+      /^[A-Z]{2,}[A-Z0-9-]*$/.test(token);
+
+    const hasInternalCapital =
+      /[A-Z]/.test(token.slice(1)) &&
+      /[a-z]/.test(token);
+
+    const isMidSentenceCapitalized =
+      /^[A-Z][a-z]/.test(token) &&
+      !isSentenceStart;
+
+    const followingText = value.slice(
+      index + token.length
+    );
+
+    const isGenericAttributionSource =
+      /^(?:scientists?|researchers?|experts?|doctors?|engineers?|studies|research)$/i.test(
+        token
+      );
+
+    const isSentenceStartNamedAttribution =
+      isSentenceStart &&
+      /^[A-Z][a-z]/.test(token) &&
+      !isGenericAttributionSource &&
+      /^\s+(?:says?|said|claims?|claimed|reveals?|revealed|explains?|explained|warns?|warned|reports?|reported|confirms?|confirmed|proves?|proved)\b/i.test(
+        followingText
+      );
+
+    if (
+      isAcronym ||
+      hasInternalCapital ||
+      isMidSentenceCapitalized ||
+      isSentenceStartNamedAttribution
+    ) {
+      entities.push(token.toLowerCase());
+    }
+  }
+
+  return entities;
+}
+
+function suggestedHookIntroducesNamedEntity(
+  suggestedHook: string,
+  script: string
+): boolean {
+  const scriptWords = extractWordTokens(script);
+
+  return extractPotentialNamedEntityTokens(
+    suggestedHook
+  ).some((entity) => !scriptWords.has(entity));
+}
+
+const unsupportedClaimStrengthPatterns = [
+  /\bconfirm(?:ed|s|ing|ation)?\b/i,
+  /\bprov(?:e|es|ed|en|ing)\b/i,
+  /\bguarantee(?:d|s|ing)?\b/i,
+  /\b(?:ensure|ensures|ensured|ensuring)\b/i,
+  /\bofficial(?:ly)?\b/i,
+  /\bcompletely\b/i,
+  /\bdefinitely\b/i,
+  /\bwithout a doubt\b/i,
+  /\b(?:scientists?|researchers?|experts?|doctors?|studies|research)\s+(?:say|says|show|shows|showed|confirm|confirms|confirmed|prove|proves|proved)\b/i,
+] as const;
+
+function suggestedHookIntroducesUnsupportedClaimStrength(
+  suggestedHook: string,
+  script: string
+): boolean {
+  return unsupportedClaimStrengthPatterns.some(
+    (pattern) =>
+      pattern.test(suggestedHook) &&
+      !pattern.test(script)
+  );
+}
+
+function normalizeWhitespace(value: string): string {
+  return value.trim().replace(/\s+/g, " ");
+}
+
+function extractFirstSentence(script: string): string {
+  const cleaned = normalizeWhitespace(script);
+
+  if (cleaned.length === 0) {
+    return "";
+  }
+
+  const sentenceEnd = cleaned.search(/[.!?](?:\s|$)/);
+
+  return sentenceEnd === -1
+    ? cleaned
+    : cleaned.slice(0, sentenceEnd + 1).trim();
+}
+
+const genericFirstSentenceFillerPatterns = [
+  /^(?:something|something interesting|something strange|something unusual|something surprising)\s+(?:happens|happened|is happening|will happen)\b/i,
+  /^(?:there is|there's)\s+(?:something|one thing)\s+(?:interesting|strange|unusual|surprising)\b/i,
+  /^(?:this|it)\s+is\s+something\s+(?:many|most)\s+people\b/i,
+  /^(?:many|most)\s+people\s+(?:(?:have|probably have|may have)\s+)?(?:noticed|seen|heard)\b/i,
+] as const;
+
+function hasGenericFirstSentenceFiller(
+  script: string
+): boolean {
+  const firstSentence = extractFirstSentence(script)
+    .replace(/[.!?]+$/, "")
+    .trim();
+
+  return genericFirstSentenceFillerPatterns.some(
+    (pattern) => pattern.test(firstSentence)
+  );
+}
+
+function extractAnalysisV2OpeningWindow(
+  script: string
+): string {
+  const cleaned = normalizeWhitespace(script);
+
+  if (cleaned.length === 0) {
+    return "";
+  }
+
+  const sentenceParts = cleaned
+    .split(/(?<=[.!?])\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  const openingText =
+    sentenceParts.length >= 2
+      ? sentenceParts.slice(0, 2).join(" ")
+      : cleaned;
+
+  return openingText
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 35)
+    .join(" ");
+}
+
+function riskyPartOverlapsOpening(
+  excerpt: string,
+  openingWindow: string,
+  script: string
+): boolean {
+  const normalizedExcerpt =
+    normalizeWhitespace(excerpt);
+  const normalizedOpening =
+    normalizeWhitespace(openingWindow);
+  const normalizedScript =
+    normalizeWhitespace(script);
+
+  if (
+    normalizedExcerpt.length === 0 ||
+    normalizedOpening.length === 0 ||
+    normalizedScript.length === 0
+  ) {
+    return false;
+  }
+
+  const openingEnd = normalizedOpening.length;
+  let searchFrom = 0;
+
+  while (
+    searchFrom <=
+    normalizedScript.length - normalizedExcerpt.length
+  ) {
+    const excerptStart = normalizedScript.indexOf(
+      normalizedExcerpt,
+      searchFrom
+    );
+
+    if (excerptStart === -1) {
+      return false;
+    }
+
+    const excerptEnd =
+      excerptStart + normalizedExcerpt.length;
+
+    if (
+      excerptStart < openingEnd &&
+      excerptEnd > 0
+    ) {
+      return true;
+    }
+
+    searchFrom = excerptStart + 1;
+  }
+
+  return false;
+}
+
 export function validateAnalysisV2Input(
   script: unknown,
   title: unknown
@@ -619,6 +837,34 @@ export function validateAnalysisV2Result(
     };
   }
 
+  if (
+    hasSuggestedHook &&
+    suggestedHookIntroducesNamedEntity(
+      raw.suggestedHook as string,
+      script
+    )
+  ) {
+    return {
+      ok: false,
+      reason:
+        "suggestedHook introduces a named entity that is not present in the script.",
+    };
+  }
+
+  if (
+    hasSuggestedHook &&
+    suggestedHookIntroducesUnsupportedClaimStrength(
+      raw.suggestedHook as string,
+      script
+    )
+  ) {
+    return {
+      ok: false,
+      reason:
+        "suggestedHook strengthens a factual claim beyond the submitted script.",
+    };
+  }
+
   if (!Array.isArray(raw.riskyParts)) {
     return {
       ok: false,
@@ -727,6 +973,100 @@ export function validateAnalysisV2Result(
   const verdict = raw.verdict as AnalysisV2Verdict;
   const overall = raw.scores.overall;
   const retentionRisk = raw.scores.retentionRisk;
+  const requiredFixes = suggestedFixes.filter(
+    (fix) => !fix.optional
+  );
+  const requiredHookFixes = suggestedFixes.filter(
+    (fix) =>
+      fix.target === "hook" && !fix.optional
+  );
+  const openingWindow =
+    extractAnalysisV2OpeningWindow(script);
+  const hasHookEvidence =
+    suggestedFixes.some(
+      (fix) => fix.target === "hook"
+    ) ||
+    riskyParts.some((part) =>
+      riskyPartOverlapsOpening(
+        part.excerpt,
+        openingWindow,
+        script
+      )
+    );
+  const shouldNormalizeHookDecision =
+    (hookDecision === "refine" ||
+      hookDecision === "rewrite") &&
+    !hasHookEvidence;
+  const normalizedHookDecision:
+    AnalysisV2HookDecision =
+      shouldNormalizeHookDecision
+        ? "keep"
+        : hookDecision;
+  const normalizedSuggestedHook =
+    !shouldNormalizeHookDecision &&
+    hasSuggestedHook
+      ? (raw.suggestedHook as string).trim()
+      : undefined;
+
+  if (
+    normalizedHookDecision === "keep" &&
+    requiredHookFixes.length > 0
+  ) {
+    return {
+      ok: false,
+      reason:
+        "A keep hook decision cannot contain a required hook fix.",
+    };
+  }
+
+  const hasGenericOpeningFiller =
+    hasGenericFirstSentenceFiller(script);
+  const firstSentence = extractFirstSentence(script);
+  const hasGroundedGenericOpeningRisk =
+    riskyParts.some((part) =>
+      riskyPartOverlapsOpening(
+        part.excerpt,
+        firstSentence,
+        script
+      )
+    );
+
+  if (hasGenericOpeningFiller) {
+    if (verdict === "strong") {
+      return {
+        ok: false,
+        reason:
+          "A script with generic first-sentence filler cannot receive a strong verdict.",
+      };
+    }
+
+    if (!hasGroundedGenericOpeningRisk) {
+      return {
+        ok: false,
+        reason:
+          "Generic first-sentence filler must be identified as a grounded risky part.",
+      };
+    }
+
+    if (requiredHookFixes.length === 0) {
+      return {
+        ok: false,
+        reason:
+          "Generic first-sentence filler requires a non-optional hook fix.",
+      };
+    }
+
+    if (
+      normalizedHookDecision !== "refine" &&
+      normalizedHookDecision !== "rewrite"
+    ) {
+      return {
+        ok: false,
+        reason:
+          "Generic first-sentence filler requires a refine or rewrite hook decision.",
+      };
+    }
+  }
 
   if (verdict === "strong") {
     if (overall < 70 || retentionRisk > 45) {
@@ -774,6 +1114,17 @@ export function validateAnalysisV2Result(
     }
 
     if (
+      overall < 85 &&
+      suggestedFixes.length === 0
+    ) {
+      return {
+        ok: false,
+        reason:
+          "A strong result below 85 must contain one optional refinement.",
+      };
+    }
+
+    if (
       hookDecision !== "keep" &&
       hookDecision !== "refine"
     ) {
@@ -781,6 +1132,32 @@ export function validateAnalysisV2Result(
         ok: false,
         reason:
           "A strong result must use keep or refine.",
+      };
+    }
+  }
+
+  if (verdict === "mixed") {
+    if (overall < 46 || overall > 84) {
+      return {
+        ok: false,
+        reason:
+          "A mixed verdict is inconsistent with the supplied overall score.",
+      };
+    }
+
+    if (riskyParts.length === 0) {
+      return {
+        ok: false,
+        reason:
+          "A mixed result must contain a grounded risky part.",
+      };
+    }
+
+    if (requiredFixes.length === 0) {
+      return {
+        ok: false,
+        reason:
+          "A mixed result must contain a non-optional suggested fix.",
       };
     }
   }
@@ -801,6 +1178,14 @@ export function validateAnalysisV2Result(
           "A weak result must contain a grounded risky part.",
       };
     }
+
+    if (requiredFixes.length === 0) {
+      return {
+        ok: false,
+        reason:
+          "A weak result must contain a non-optional suggested fix.",
+      };
+    }
   }
 
   return {
@@ -816,12 +1201,12 @@ export function validateAnalysisV2Result(
           raw.scores.retentionRisk
         ),
       },
-      hookDecision,
+      hookDecision: normalizedHookDecision,
       hookAssessment: raw.hookAssessment.trim(),
-      ...(hasSuggestedHook
+      ...(normalizedSuggestedHook
         ? {
             suggestedHook:
-              (raw.suggestedHook as string).trim(),
+              normalizedSuggestedHook,
           }
         : {}),
       riskyParts,

@@ -18,6 +18,7 @@ export type AnalysisV2BenchmarkExpectation = {
   hookDecisions?: AnalysisV2HookDecision[];
   maxRiskyParts?: number;
   minRiskyParts?: number;
+  minSuggestedFixes?: number;
   maxSuggestedFixes?: number;
   forbiddenFeedback?: string[];
 };
@@ -266,6 +267,7 @@ export const ANALYSIS_V2_BENCHMARK_CASES:
       hookDecisions: ["diagnostic", "rewrite"],
       minRiskyParts: 1,
       maxRiskyParts: 2,
+      minSuggestedFixes: 1,
       maxSuggestedFixes: 2,
     },
   },
@@ -291,6 +293,7 @@ export const ANALYSIS_V2_BENCHMARK_CASES:
       ],
       minRiskyParts: 1,
       maxRiskyParts: 2,
+      minSuggestedFixes: 1,
       maxSuggestedFixes: 2,
     },
   },
@@ -312,6 +315,7 @@ export const ANALYSIS_V2_BENCHMARK_CASES:
       ],
       minRiskyParts: 1,
       maxRiskyParts: 2,
+      minSuggestedFixes: 1,
       maxSuggestedFixes: 2,
     },
   },
@@ -335,6 +339,7 @@ export const ANALYSIS_V2_BENCHMARK_CASES:
       ],
       minRiskyParts: 1,
       maxRiskyParts: 2,
+      minSuggestedFixes: 1,
       maxSuggestedFixes: 2,
     },
   },
@@ -355,7 +360,121 @@ export const ANALYSIS_V2_BENCHMARK_CASES:
       hookDecisions: ["diagnostic"],
       minRiskyParts: 1,
       maxRiskyParts: 2,
+      minSuggestedFixes: 1,
       maxSuggestedFixes: 2,
+    },
+  },
+  {
+    id: "negative-specific-steps-overpromise",
+    category: "negative",
+    title: "Morning routine",
+    script:
+      "This morning routine will change your life. Wake up early, drink water, exercise, read, and stay consistent. If you do this every day, success becomes inevitable.",
+    expected: {
+      scriptTypes: [
+        "how_to",
+        "generic_advice",
+      ],
+      verdicts: ["weak", "mixed"],
+      overall: { max: 58 },
+      hook: { max: 62 },
+      retentionRisk: { min: 45 },
+      hookDecisions: [
+        "diagnostic",
+        "rewrite",
+        "refine",
+      ],
+      minRiskyParts: 1,
+      maxRiskyParts: 2,
+      minSuggestedFixes: 1,
+      maxSuggestedFixes: 2,
+      forbiddenFeedback: [
+        "hook is clear and specific",
+        "hook is strong",
+      ],
+    },
+  },
+  {
+    id: "negative-habit-guarantees-success",
+    category: "negative",
+    title: "Success habit",
+    script:
+      "This one habit guarantees success. Do it every morning before checking your phone. Write down your goal, read it out loud, and take one small action. If you stay consistent, you cannot fail.",
+    expected: {
+      scriptTypes: [
+        "how_to",
+        "generic_advice",
+      ],
+      verdicts: ["weak", "mixed"],
+      overall: { max: 65 },
+      hook: { max: 70 },
+      retentionRisk: { min: 40 },
+      hookDecisions: [
+        "diagnostic",
+        "rewrite",
+        "refine",
+      ],
+      minRiskyParts: 1,
+      maxRiskyParts: 2,
+      minSuggestedFixes: 1,
+      maxSuggestedFixes: 2,
+      forbiddenFeedback: [
+        "hook is clear and specific",
+        "hook is strong",
+      ],
+    },
+  },
+  {
+    id: "negative-book-millionaire-overpromise",
+    category: "negative",
+    title: "Millionaire book",
+    script:
+      "This book will make you a millionaire. It teaches discipline, focus, money habits, and how to think bigger. Read ten pages every day and your financial life will completely change.",
+    expected: {
+      scriptTypes: [
+        "how_to",
+        "generic_advice",
+        "advertorial",
+      ],
+      verdicts: ["weak", "mixed"],
+      overall: { max: 60 },
+      hook: { max: 62 },
+      retentionRisk: { min: 45 },
+      hookDecisions: [
+        "diagnostic",
+        "rewrite",
+        "refine",
+      ],
+      minRiskyParts: 1,
+      maxRiskyParts: 2,
+      minSuggestedFixes: 1,
+      maxSuggestedFixes: 2,
+      forbiddenFeedback: [
+        "hook is clear and specific",
+        "hook is strong",
+      ],
+    },
+  },
+  {
+    id: "negative-unrevealed-specific-promise",
+    category: "negative",
+    title: "Hidden phone setting not revealed",
+    script:
+      "Your phone battery dies faster because of one hidden setting. Most people never turn it off. It runs quietly in the background. Once you understand it, your phone usage makes more sense.",
+    expected: {
+      scriptTypes: ["explanation"],
+      verdicts: ["weak", "mixed"],
+      overall: { max: 65 },
+      hook: { max: 80 },
+      retentionRisk: { min: 40 },
+      minRiskyParts: 1,
+      maxRiskyParts: 2,
+      minSuggestedFixes: 1,
+      maxSuggestedFixes: 2,
+      forbiddenFeedback: [
+        "strong hook",
+        "hook is clear and specific",
+      ],
     },
   },
   {
