@@ -1045,6 +1045,66 @@ const tests: TestCase[] = [
     },
   },
   {
+    name: "rejects keep when a specific hidden setting promise is not revealed",
+    run: () => {
+      const promiseScript =
+        "Your phone battery dies faster because of one hidden setting. Most people never turn it off. It runs quietly in the background. Once you understand it, your phone usage makes more sense.";
+
+      const value = createMixedResult();
+
+      value.scriptType = "explanation";
+      value.verdict = "mixed";
+      value.scores = {
+        overall: 70,
+        hook: 80,
+        retentionRisk: 40,
+      };
+      value.hookDecision = "keep";
+      value.hookAssessment =
+        "The hook is clear and specific, promising a hidden phone setting that affects battery life.";
+      value.riskyParts = [
+        {
+          excerpt:
+            "Once you understand it, your phone usage makes more sense.",
+          reason:
+            "The payoff is vague because it never names the promised hidden setting.",
+          severity: "medium",
+        },
+      ];
+      value.suggestedFixes = [
+        {
+          target: "payoff",
+          suggestion:
+            "Name the hidden setting and explain how turning it off changes battery usage.",
+          optional: false,
+        },
+      ];
+      value.scenes = [
+        {
+          excerpt:
+            "Your phone battery dies faster because of one hidden setting.",
+          label: "Specific promise",
+          status: "risky",
+        },
+        {
+          excerpt:
+            "Once you understand it, your phone usage makes more sense.",
+          label: "Unrevealed payoff",
+          status: "risky",
+        },
+      ];
+      value.mainTakeaway =
+        "The script makes a specific promise but does not reveal the hidden setting.";
+
+      const result = validateAnalysisV2Result(
+        value,
+        promiseScript
+      );
+
+      assert.equal(result.ok, false);
+    },
+  },
+  {
     name: "accepts a concrete first sentence beginning with something",
     run: () => {
       const concreteScript =
