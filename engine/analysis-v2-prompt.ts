@@ -51,6 +51,8 @@ explanation
 how_to
 - A valid structure can be: problem → warning → ordered steps → resolution.
 - Useful upcoming steps are a valid reason to keep watching.
+- Named steps, mnemonic labels, or a polished framework are not automatically useful or concrete.
+- If each step's explanation merely restates its label without adding a mechanism, example, decision rule, specific action, or observable result, treat that as a material content and payoff weakness; verdict must not be strong, riskyParts must not be empty, and include a non-optional suggestedFix.
 - Completing the promised task is a real payoff.
 - Do not require mystery, emotional escalation, a twist, or an unanswered dramatic question.
 
@@ -89,6 +91,7 @@ advertorial
 
 generic_advice
 - Generic claims without a concrete example, number, named situation, mechanism, or observable result should score weak.
+- A named framework or list of steps is not a concrete anchor when its explanations are tautological and only paraphrase the step labels.
 - If the script has none of those concrete anchors, hookDecision must be diagnostic and suggestedHook must be null.
 - Do not rewrite an abstract script by adding a new outcome, benefit, danger, dilemma, secret, success claim, or consequence.
 - Do not invent concrete material that is not in the script.
