@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Reelyze — YouTube Shorts Script Analyzer",
-    template: "%s | Reelyze",
+    default: "Climpy — YouTube Shorts Script Analyzer",
+    template: "%s | Climpy",
   },
   description:
     "Analyze YouTube Shorts scripts before publishing. Get hook scoring, retention risk, risky timestamps, and specific fixes.",
@@ -28,10 +28,10 @@ export const metadata: Metadata = {
     apple: "/logo.png",
   },
   openGraph: {
-    title: "Reelyze — YouTube Shorts Script Analyzer",
+    title: "Climpy — YouTube Shorts Script Analyzer",
     description:
       "Get hook scoring, retention risk, risky timestamps, and specific fixes before your Short goes live.",
-    siteName: "Reelyze",
+    siteName: "Climpy",
     type: "website",
   },
 };
