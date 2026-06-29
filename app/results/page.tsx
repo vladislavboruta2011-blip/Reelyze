@@ -3631,6 +3631,18 @@ const hasStructuredEscalation =
     retentionRisk = Math.min(retentionRisk, 62);
   }
 
+  // Viral/giveaway scripts can have one local CTA interruption but still keep
+  // a clear challenge structure. Do not let that single issue make the whole
+  // script look high-risk.
+  if (
+    (scriptType === "viral_challenge" || scriptType === "giveaway_or_prize") &&
+    hasStructuredEscalation &&
+    hookScore >= 55 &&
+    retentionRisk > 55
+  ) {
+    retentionRisk = 55;
+  }
+
   const charCount = text.length;
   const hasNumericSpecificity = signals.specificityScore >= 30;
   const isShortSimple = charCount < 350 && totalLines <= 5;
