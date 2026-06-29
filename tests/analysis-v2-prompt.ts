@@ -53,6 +53,14 @@ const requiredRules = [
     name: "generic opening filler requires a mandatory hook fix",
     text: "For generic opening filler, hookDecision must be refine or rewrite and the suggestedFix with target hook must have optional set to false.",
   },
+  {
+    name: "named frameworks are not automatically concrete",
+    text: "Named steps, mnemonic labels, or a polished framework are not automatically useful or concrete.",
+  },
+  {
+    name: "tautological framework explanations are material weaknesses",
+    text: "If each step's explanation merely restates its label without adding a mechanism, example, decision rule, specific action, or observable result, treat that as a material content and payoff weakness; verdict must not be strong, riskyParts must not be empty, and include a non-optional suggestedFix.",
+  },
 ];
 
 let failures = 0;

@@ -879,6 +879,191 @@ const tests: TestCase[] = [
   },
 
   {
+    name: "rejects a rewrite for generic advice with no concrete anchor",
+    run: () => {
+      const abstractScript =
+        "Life is full of choices. Some choices are good, and some choices are bad. It is up to you to decide which path to take.";
+
+      const value = createWeakResult();
+
+      value.scriptType = "generic_advice";
+      value.verdict = "weak";
+      value.scores = {
+        overall: 35,
+        hook: 30,
+        retentionRisk: 70,
+      };
+      value.hookDecision = "rewrite";
+      value.hookAssessment =
+        "The opening is generic and the script lacks concrete examples, mechanisms, or observable results.";
+      value.suggestedHook =
+        "Every choice you make shapes your future. Here is why your decisions matter more than you think.";
+      value.riskyParts = [
+        {
+          excerpt: "Life is full of choices.",
+          reason:
+            "The opening is generic and does not provide a concrete premise or observable result.",
+          severity: "high",
+        },
+        {
+          excerpt:
+            "Some choices are good, and some choices are bad.",
+          reason:
+            "This advice remains abstract without a concrete example, mechanism, or specific situation.",
+          severity: "high",
+        },
+      ];
+      value.suggestedFixes = [
+        {
+          target: "hook",
+          suggestion:
+            "Add concrete source material before attempting to rewrite the hook.",
+          optional: false,
+        },
+      ];
+      value.scenes = [
+        {
+          excerpt: "Life is full of choices.",
+          label: "Generic opening",
+          status: "risky",
+        },
+      ];
+      value.mainTakeaway =
+        "The script is too abstract to support a grounded hook rewrite.";
+
+      const result = validateAnalysisV2Result(
+        value,
+        abstractScript
+      );
+
+      assert.equal(result.ok, false);
+    },
+  },
+  {
+    name: "accepts diagnostic for generic advice with no concrete anchor",
+    run: () => {
+      const abstractScript =
+        "Life is full of choices. Some choices are good, and some choices are bad. It is up to you to decide which path to take.";
+
+      const value = createWeakResult();
+
+      value.scriptType = "generic_advice";
+      value.verdict = "weak";
+      value.scores = {
+        overall: 35,
+        hook: 30,
+        retentionRisk: 70,
+      };
+      value.hookDecision = "diagnostic";
+      value.hookAssessment =
+        "The script lacks enough concrete material for a grounded hook rewrite.";
+      value.suggestedHook = undefined;
+      value.riskyParts = [
+        {
+          excerpt: "Life is full of choices.",
+          reason:
+            "The opening is generic and does not provide a concrete premise or observable result.",
+          severity: "high",
+        },
+      ];
+      value.suggestedFixes = [
+        {
+          target: "hook",
+          suggestion:
+            "Add a concrete example, mechanism, named situation, number, or observable result before rewriting the hook.",
+          optional: false,
+        },
+      ];
+      value.scenes = [
+        {
+          excerpt: "Life is full of choices.",
+          label: "Generic opening",
+          status: "risky",
+        },
+      ];
+      value.mainTakeaway =
+        "The script needs concrete source material before a grounded hook can be written.";
+
+      const result = validateAnalysisV2Result(
+        value,
+        abstractScript
+      );
+
+      if (!result.ok) {
+        throw new Error(result.reason);
+      }
+
+      assert.equal(result.value.hookDecision, "diagnostic");
+      assert.equal(result.value.suggestedHook, undefined);
+    },
+  },
+  {
+    name: "allows rewrite for generic advice with a concrete numeric anchor",
+    run: () => {
+      const concreteAdviceScript =
+        "Track every purchase for 7 days, then compare the total with your weekly budget. The gap shows where your spending is leaking.";
+
+      const value = createMixedResult();
+
+      value.scriptType = "generic_advice";
+      value.verdict = "mixed";
+      value.scores = {
+        overall: 65,
+        hook: 55,
+        retentionRisk: 40,
+      };
+      value.hookDecision = "rewrite";
+      value.hookAssessment =
+        "The script contains a concrete seven-day tracking exercise, but the opening can lead with that specific action.";
+      value.suggestedHook =
+        "Track every purchase for 7 days to see exactly where your budget is leaking.";
+      value.riskyParts = [
+        {
+          excerpt:
+            "Track every purchase for 7 days, then compare the total with your weekly budget.",
+          reason:
+            "The concrete exercise is useful, but the outcome can be stated more directly in the opening.",
+          severity: "medium",
+        },
+      ];
+      value.suggestedFixes = [
+        {
+          target: "hook",
+          suggestion:
+            "Lead with the seven-day tracking exercise and its observable budgeting result.",
+          optional: false,
+        },
+      ];
+      value.scenes = [
+        {
+          excerpt:
+            "Track every purchase for 7 days, then compare the total with your weekly budget.",
+          label: "Concrete exercise",
+          status: "risky",
+        },
+        {
+          excerpt:
+            "The gap shows where your spending is leaking.",
+          label: "Observable result",
+          status: "strong",
+        },
+      ];
+      value.mainTakeaway =
+        "The script has concrete material but needs a more direct opening.";
+
+      const result = validateAnalysisV2Result(
+        value,
+        concreteAdviceScript
+      );
+
+      if (!result.ok) {
+        throw new Error(result.reason);
+      }
+
+      assert.equal(result.value.hookDecision, "rewrite");
+    },
+  },
+  {
     name: "rejects a strong result with generic first-sentence filler",
     run: () => {
       const genericOpeningScript =

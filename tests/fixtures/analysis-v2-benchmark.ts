@@ -478,6 +478,78 @@ export const ANALYSIS_V2_BENCHMARK_CASES:
     },
   },
   {
+    id: "negative-polished-tautological-feedback",
+    category: "negative",
+    title: "The three-step feedback loop",
+    script:
+      "Top performers use a three-step feedback loop: review, reflect, and refine. Reviewing shows you what happened. Reflecting helps you understand it. Refining helps you improve the next attempt. Repeat this loop consistently, and your results will continue getting better.",
+    expected: {
+      scriptTypes: [
+        "generic_advice",
+        "explanation",
+        "how_to",
+      ],
+      verdicts: ["weak", "mixed"],
+      overall: { max: 70 },
+      retentionRisk: { min: 35 },
+      minRiskyParts: 1,
+      maxRiskyParts: 2,
+      minSuggestedFixes: 1,
+      maxSuggestedFixes: 2,
+      forbiddenFeedback: [
+        "structurally strong",
+      ],
+    },
+  },
+  {
+    id: "negative-polished-focus-framework",
+    category: "negative",
+    title: "The FOCUS productivity method",
+    script:
+      "The FOCUS method can help you get more done. Find your priority, organize your time, cut distractions, use your energy wisely, and stay consistent. Each step keeps you focused and makes productivity easier. Follow the method every day to improve your results.",
+    expected: {
+      scriptTypes: [
+        "generic_advice",
+        "how_to",
+        "explanation",
+      ],
+      verdicts: ["weak", "mixed"],
+      overall: { max: 70 },
+      retentionRisk: { min: 35 },
+      minRiskyParts: 1,
+      maxRiskyParts: 2,
+      minSuggestedFixes: 1,
+      maxSuggestedFixes: 2,
+      forbiddenFeedback: [
+        "structurally strong",
+      ],
+    },
+  },
+  {
+    id: "negative-polished-wealth-habits",
+    category: "negative",
+    title: "Habits that build wealth",
+    script:
+      "Building wealth is less about one big decision and more about consistent habits. Track your spending, save a fixed amount, avoid unnecessary debt, and invest regularly. Each habit seems small on its own, but together they create a stronger financial foundation over time.",
+    expected: {
+      scriptTypes: [
+        "generic_advice",
+        "how_to",
+        "explanation",
+      ],
+      verdicts: ["weak", "mixed"],
+      overall: { max: 72 },
+      retentionRisk: { min: 35 },
+      minRiskyParts: 1,
+      maxRiskyParts: 2,
+      minSuggestedFixes: 1,
+      maxSuggestedFixes: 2,
+      forbiddenFeedback: [
+        "structurally strong",
+      ],
+    },
+  },
+  {
     id: "adversarial-lowercase-how-to",
     category: "adversarial",
     title: "fish hook removal",

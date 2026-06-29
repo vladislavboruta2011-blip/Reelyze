@@ -252,6 +252,46 @@ function hasGenericFirstSentenceFiller(
   );
 }
 
+function hasConcreteAnchorForGenericAdvice(
+  script: string
+): boolean {
+  const cleaned = normalizeWhitespace(script);
+
+  if (/\d/.test(cleaned)) {
+    return true;
+  }
+
+  const hasMechanismOrCausalRelationship =
+    /\b(?:because|causes?|caused by|leads? to|results? in|works? by|happens? when|which means|so that)\b/i.test(
+      cleaned
+    );
+
+  if (hasMechanismOrCausalRelationship) {
+    return true;
+  }
+
+  const hasObservableResult =
+    /\b(?:increases?|decreases?|reduces?|improves?|worsens?|doubles?|halves?|saves?|costs?|earns?|loses?|gains?)\b/i.test(
+      cleaned
+    );
+
+  if (hasObservableResult) {
+    return true;
+  }
+
+  const sentences = cleaned
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) =>
+      sentence
+        .replace(/^[\"'“”‘’(]*[A-Z][a-z]+\b/, "")
+        .trim()
+    );
+
+  return sentences.some((sentence) =>
+    /\b[A-Z][a-z]{2,}\b/.test(sentence)
+  );
+}
+
 function extractAnalysisV2OpeningWindow(
   script: string
 ): string {
@@ -1055,6 +1095,21 @@ export function validateAnalysisV2Result(
     };
   }
 
+  const requiresGenericAdviceDiagnostic =
+    raw.scriptType === "generic_advice" &&
+    !hasConcreteAnchorForGenericAdvice(script);
+
+  if (
+    requiresGenericAdviceDiagnostic &&
+    normalizedHookDecision !== "diagnostic"
+  ) {
+    return {
+      ok: false,
+      reason:
+        "Generic advice without a concrete example, number, named situation, mechanism, or observable result requires a diagnostic hook decision.",
+    };
+  }
+
   const hasGenericOpeningFiller =
     hasGenericFirstSentenceFiller(script);
   const firstSentence = extractFirstSentence(script);
@@ -1084,7 +1139,7 @@ export function validateAnalysisV2Result(
   }
 
   if (hasGenericOpeningFiller) {
-  if (verdict === "strong") {
+    if (verdict === "strong") {
       return {
         ok: false,
         reason:
