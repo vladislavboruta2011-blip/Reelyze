@@ -73,7 +73,7 @@ const fallbackScript =
 
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`rounded-[22px] border border-[#24242A] bg-[#0B0B0F] ${className}`}>
+    <div className={`rounded-[22px] border border-[#E5E7EB] bg-white ${className}`}>
       {children}
     </div>
   );
@@ -81,7 +81,7 @@ function Card({ children, className = "" }: { children: React.ReactNode; classNa
 
 function IconBox({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-[10px] border border-[#3A1B22] bg-[#1A0D11] text-[#EF4444]">
+    <div className="flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-[10px] border border-[#DDD6FE] bg-[#F3E8FF] text-[#7C3AED]">
       {children}
     </div>
   );
@@ -522,7 +522,7 @@ const hookCopyButtonLabel =
     if (!isStorageLoaded || storageError || !hasAnalyzedScript) return;
 
     const reviewText = [
-      savedTitle || "Reelyze Script Review",
+      savedTitle || "Climpy Script Review",
       `Overall Score: ${analysis.overall.score}/100`,
       `Hook Score: ${analysis.hook.score}/100`,
       `Retention Risk: ${analysis.risk.score}/100`,
@@ -531,7 +531,7 @@ const hookCopyButtonLabel =
     ].join("\n");
 
     const shareData = {
-      title: savedTitle || "Reelyze Script Review",
+      title: savedTitle || "Climpy Script Review",
       text: reviewText,
     };
 
@@ -554,42 +554,42 @@ const hookCopyButtonLabel =
 
   return (
     <main
-      className={`${inter.className} min-h-screen bg-[#050505] text-white antialiased`}
+      className={`${inter.className} min-h-screen bg-[#FAFAFA] text-[#111827] antialiased`}
     >
       {/* DESKTOP */}
       <div className="hidden lg:flex">
         {/* Sidebar */}
-        <aside className="fixed left-0 top-0 z-30 flex h-screen w-[230px] flex-col border-r border-[#24242A]/60 bg-[#050505]">
+        <aside className="fixed left-0 top-0 z-30 flex h-screen w-[230px] flex-col border-r border-[#E5E7EB]/60 bg-[#FAFAFA]">
           <div className="flex items-center gap-3 px-6 py-7">
-            <Image src="/logo.png" alt="Reelyze" width={36} height={36} className="h-9 w-9 object-contain" priority />
-            <span className="text-[15px] font-bold tracking-[0.16em] text-white">REELYZE</span>
+            <Image src="/logo.png" alt="Climpy" width={36} height={36} className="h-9 w-9 object-contain" priority />
+            <span className="text-[15px] font-bold tracking-[0.16em] text-[#111827]">CLIMPY</span>
           </div>
           <nav className="flex flex-col gap-1.5 px-4">
-            <Link href="/results" className="flex h-[46px] items-center gap-3 rounded-[12px] border border-[#3A1B22] bg-[#1A0D11] px-4">
-              <SquarePen size={16} className="text-[#EF4444]" />
-              <span className="text-[14px] font-semibold text-[#EF4444]">Results</span>
+            <Link href="/results" className="flex h-[46px] items-center gap-3 rounded-[12px] border border-[#DDD6FE] bg-[#F3E8FF] px-4">
+              <SquarePen size={16} className="text-[#7C3AED]" />
+              <span className="text-[14px] font-semibold text-[#7C3AED]">Results</span>
             </Link>
             <Link href="/" className="flex h-[46px] items-center gap-3 rounded-[12px] px-4 transition hover:bg-white/[0.03]">
-              <PencilLine size={16} className="text-[#777A85]" />
-              <span className="text-[14px] font-medium text-[#777A85]">New Analysis</span>
+              <PencilLine size={16} className="text-[#6B7280]" />
+              <span className="text-[14px] font-medium text-[#6B7280]">New Analysis</span>
             </Link>
           </nav>
           {isStorageLoaded && !storageError && hasAnalyzedScript && (
             <div className="mt-auto px-4 pb-10 pt-8">
-              <div className="rounded-[18px] border border-[#24242A]/70 bg-[#0B0B0F] p-5">
-              <p className="text-[14px] font-semibold text-white">Rate this analysis</p>
-              <p className="mt-1.5 text-[12px] text-[#777A85]">Was this review helpful?</p>
+              <div className="rounded-[18px] border border-[#E5E7EB]/70 bg-white p-5">
+              <p className="text-[14px] font-semibold text-[#111827]">Rate this analysis</p>
+              <p className="mt-1.5 text-[12px] text-[#6B7280]">Was this review helpful?</p>
               <div className="mt-3.5 flex gap-2">
                 <button
                   onClick={() => { setDesktopFeedback("helpful"); setDesktopSelectedReason(null); setDesktopFeedbackSubmitted(false); }}
-                  className={["flex h-[38px] flex-1 items-center justify-center gap-1.5 rounded-[10px] border text-[13px] font-medium transition", desktopFeedback === "helpful" ? "border-[#22C55E]/60 bg-[#22C55E]/10 text-[#22C55E]" : "border-[#24242A] text-[#B3B3B3] hover:border-[#22C55E]/40 hover:text-white"].join(" ")}
+                  className={["flex h-[38px] flex-1 items-center justify-center gap-1.5 rounded-[10px] border text-[13px] font-medium transition", desktopFeedback === "helpful" ? "border-[#22C55E]/60 bg-[#22C55E]/10 text-[#22C55E]" : "border-[#E5E7EB] text-[#6B7280] hover:border-[#22C55E]/40 hover:text-[#111827]"].join(" ")}
                 >
                   <ThumbsUp size={14} />
                   Helpful
                 </button>
                 <button
                   onClick={() => { setDesktopFeedback(desktopFeedback === "dislike" ? null : "dislike"); setDesktopSelectedReason(null); setDesktopFeedbackSubmitted(false); }}
-                  className={["flex h-[38px] w-[42px] items-center justify-center rounded-[10px] border transition", desktopFeedback === "dislike" ? "border-[#EF4444]/60 bg-[#EF4444]/10 text-[#EF4444]" : "border-[#24242A] text-[#B3B3B3] hover:border-white/20 hover:text-white"].join(" ")}
+                  className={["flex h-[38px] w-[42px] items-center justify-center rounded-[10px] border transition", desktopFeedback === "dislike" ? "border-[#7C3AED]/60 bg-[#7C3AED]/10 text-[#7C3AED]" : "border-[#E5E7EB] text-[#6B7280] hover:border-white/20 hover:text-[#111827]"].join(" ")}
                 >
                   <ThumbsDown size={14} />
                 </button>
@@ -597,7 +597,7 @@ const hookCopyButtonLabel =
 
               {desktopFeedback === "helpful" && !desktopFeedbackSubmitted && (
                 <div className="mt-3">
-                  <p className="text-[11px] text-[#777A85] mb-1.5">What was helpful?</p>
+                  <p className="text-[11px] text-[#6B7280] mb-1.5">What was helpful?</p>
                   <div className="flex flex-col gap-1.5">
                     {["Accurate score", "Useful fixes", "Clear explanation", "Other"].map((reason) => (
                       <button
@@ -610,7 +610,7 @@ const hookCopyButtonLabel =
                             if (ok) setDesktopFeedbackSubmitted(true);
                           });
                         }}
-                        className={["w-full rounded-[8px] border px-2.5 py-2 text-left text-[12px] font-medium transition", desktopSelectedReason === reason ? "border-[#22C55E]/50 bg-[#22C55E]/10 text-[#22C55E]" : "border-[#24242A] text-[#777A85] hover:border-[#22C55E]/30 hover:text-[#B3B3B3]"].join(" ")}
+                        className={["w-full rounded-[8px] border px-2.5 py-2 text-left text-[12px] font-medium transition", desktopSelectedReason === reason ? "border-[#22C55E]/50 bg-[#22C55E]/10 text-[#22C55E]" : "border-[#E5E7EB] text-[#6B7280] hover:border-[#22C55E]/30 hover:text-[#6B7280]"].join(" ")}
                       >
                         {reason}
                       </button>
@@ -621,7 +621,7 @@ const hookCopyButtonLabel =
 
               {desktopFeedback === "dislike" && !desktopFeedbackSubmitted && (
                 <div className="mt-3">
-                  <p className="text-[11px] text-[#777A85] mb-1.5">What was wrong?</p>
+                  <p className="text-[11px] text-[#6B7280] mb-1.5">What was wrong?</p>
                   <div className="flex flex-col gap-1.5">
                     {["Wrong score", "Bad suggestions", "Not specific enough", "Other"].map((reason) => (
                       <button
@@ -634,7 +634,7 @@ const hookCopyButtonLabel =
                             if (ok) setDesktopFeedbackSubmitted(true);
                           });
                         }}
-                        className={["w-full rounded-[8px] border px-2.5 py-2 text-left text-[12px] font-medium transition", desktopSelectedReason === reason ? "border-[#EF4444]/50 bg-[#EF4444]/10 text-[#EF4444]" : "border-[#24242A] text-[#777A85] hover:border-[#EF4444]/30 hover:text-[#B3B3B3]"].join(" ")}
+                        className={["w-full rounded-[8px] border px-2.5 py-2 text-left text-[12px] font-medium transition", desktopSelectedReason === reason ? "border-[#7C3AED]/50 bg-[#7C3AED]/10 text-[#7C3AED]" : "border-[#E5E7EB] text-[#6B7280] hover:border-[#7C3AED]/30 hover:text-[#6B7280]"].join(" ")}
                       >
                         {reason}
                       </button>
@@ -650,13 +650,13 @@ const hookCopyButtonLabel =
               )}
 
               {feedbackSubmitting && (
-                <p className="mt-2 text-[12px] text-[#777A85]">
+                <p className="mt-2 text-[12px] text-[#6B7280]">
                   Sending feedback...
                 </p>
               )}
 
               {feedbackSubmitError && (
-                <p className="mt-2 text-[12px] text-[#EF4444]">
+                <p className="mt-2 text-[12px] text-[#7C3AED]">
                   {feedbackSubmitError}
                 </p>
               )}
@@ -672,13 +672,13 @@ const hookCopyButtonLabel =
             {/* Header */}
             <div className="mb-7 flex items-start justify-between gap-6">
               <div>
-                <h1 className="text-[36px] font-semibold tracking-[-0.02em] text-white">Script Review</h1>
-                <p className="mt-1.5 text-[14px] text-[#777A85]">
+                <h1 className="text-[36px] font-semibold tracking-[-0.02em] text-[#111827]">Script Review</h1>
+                <p className="mt-1.5 text-[14px] text-[#6B7280]">
                   Analyzed just now —{" "}
-                  <span className="text-[#B3B3B3]">{savedTitle || "YouTube Shorts Script"}</span>
+                  <span className="text-[#6B7280]">{savedTitle || "YouTube Shorts Script"}</span>
                 </p>
               </div>
-              <Link href="/" className="inline-flex h-[42px] shrink-0 items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-5 text-[14px] font-semibold text-white transition hover:border-[#EF4444]/50 hover:bg-[#EF4444]/10">
+              <Link href="/" className="inline-flex h-[42px] shrink-0 items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-5 text-[14px] font-semibold text-[#111827] transition hover:border-[#7C3AED]/50 hover:bg-[#7C3AED]/10">
                 <PencilLine size={15} />
                 New Analysis
               </Link>
@@ -687,24 +687,24 @@ const hookCopyButtonLabel =
             {/* Loading state */}
             {!isStorageLoaded && (
               <Card className="p-8 mb-6">
-                <p className="text-[20px] font-semibold text-white">Loading results...</p>
-                <p className="mt-3 text-[14px] text-[#777A85]">Please wait while Reelyze checks your latest analysis.</p>
+                <p className="text-[20px] font-semibold text-[#111827]">Loading results...</p>
+                <p className="mt-3 text-[14px] text-[#6B7280]">Please wait while Climpy checks your latest analysis.</p>
               </Card>
             )}
 
             {/* Error state */}
             {storageError && (
-              <div className="mb-6 rounded-[22px] border border-[#EF4444]/30 bg-[#1A0D11] p-8">
-                <p className="text-[15px] text-[#EF4444]">{storageError}</p>
+              <div className="mb-6 rounded-[22px] border border-[#7C3AED]/30 bg-[#F3E8FF] p-8">
+                <p className="text-[15px] text-[#7C3AED]">{storageError}</p>
               </div>
             )}
 
             {/* Empty state */}
             {isStorageLoaded && !storageError && !hasAnalyzedScript && (
               <Card className="p-8 mb-6">
-                <h2 className="text-[26px] font-semibold text-white">No script analyzed yet.</h2>
-                <p className="mt-4 text-[15px] text-[#777A85]">Go to New Analysis and paste your YouTube Shorts script first. After you click Analyze Script, your results will appear here.</p>
-                <Link href="/" className="mt-6 inline-flex h-[48px] items-center justify-center rounded-[12px] bg-[#EF4444] px-6 text-[15px] font-semibold text-white transition hover:bg-[#dc2626]">New Analysis</Link>
+                <h2 className="text-[26px] font-semibold text-[#111827]">No script analyzed yet.</h2>
+                <p className="mt-4 text-[15px] text-[#6B7280]">Go to New Analysis and paste your YouTube Shorts script first. After you click Analyze Script, your results will appear here.</p>
+                <Link href="/" className="mt-6 inline-flex h-[48px] items-center justify-center rounded-[12px] bg-[#7C3AED] px-6 text-[15px] font-semibold text-[#111827] transition hover:bg-[#6D28D9]">New Analysis</Link>
               </Card>
             )}
 
@@ -714,50 +714,50 @@ const hookCopyButtonLabel =
                 {/* Score cards */}
                 <div className="mb-6 grid grid-cols-3 gap-5">
                   <Card className="p-6">
-                    <p className="text-[13px] font-medium text-[#777A85]">Overall Score</p>
+                    <p className="text-[13px] font-medium text-[#6B7280]">Overall Score</p>
                     <div className="mt-3 flex items-baseline gap-1.5">
-                      <span className="text-[40px] font-bold leading-none tracking-[-0.03em] text-white">{analysis.overall.score}</span>
-                      <span className="text-[14px] text-[#777A85]">/100</span>
+                      <span className="text-[40px] font-bold leading-none tracking-[-0.03em] text-[#111827]">{analysis.overall.score}</span>
+                      <span className="text-[14px] text-[#6B7280]">/100</span>
                     </div>
-                    <div className="mt-4 h-[5px] overflow-hidden rounded-full bg-[#1C1C22]">
+                    <div className="mt-4 h-[5px] overflow-hidden rounded-full bg-[#E5E7EB]">
                       <div className="h-full rounded-full" style={{ width: `${analysis.overall.score}%`, backgroundColor: analysis.overall.ringColor, boxShadow: `0 0 8px ${analysis.overall.ringColor}55` }} />
                     </div>
                     <p className="mt-3.5 text-[14px] font-semibold" style={{ color: analysis.overall.ringColor }}>{analysis.overall.label}</p>
-                    <p className="mt-1 text-[13px] leading-[1.55] text-[#777A85] line-clamp-2">{analysis.overall.description}</p>
+                    <p className="mt-1 text-[13px] leading-[1.55] text-[#6B7280] line-clamp-2">{analysis.overall.description}</p>
                   </Card>
                   <Card className="p-6">
-                    <p className="text-[13px] font-medium text-[#777A85]">Hook Score</p>
+                    <p className="text-[13px] font-medium text-[#6B7280]">Hook Score</p>
                     <div className="mt-3 flex items-baseline gap-1.5">
-                      <span className="text-[40px] font-bold leading-none tracking-[-0.03em] text-white">{analysis.hook.score}</span>
-                      <span className="text-[14px] text-[#777A85]">/100</span>
+                      <span className="text-[40px] font-bold leading-none tracking-[-0.03em] text-[#111827]">{analysis.hook.score}</span>
+                      <span className="text-[14px] text-[#6B7280]">/100</span>
                     </div>
-                    <div className="mt-4 h-[5px] overflow-hidden rounded-full bg-[#1C1C22]">
+                    <div className="mt-4 h-[5px] overflow-hidden rounded-full bg-[#E5E7EB]">
                       <div className="h-full rounded-full" style={{ width: `${analysis.hook.score}%`, backgroundColor: analysis.hook.color, boxShadow: `0 0 8px ${analysis.hook.color}55` }} />
                     </div>
                     <p className="mt-3.5 text-[14px] font-semibold" style={{ color: analysis.hook.color }}>{analysis.hook.label}</p>
-                    <p className="mt-1 text-[13px] leading-[1.55] text-[#777A85] line-clamp-2">{analysis.hook.description}</p>
+                    <p className="mt-1 text-[13px] leading-[1.55] text-[#6B7280] line-clamp-2">{analysis.hook.description}</p>
                   </Card>
                   <Card className="p-6">
-                    <p className="text-[13px] font-medium text-[#777A85]">Retention Risk</p>
+                    <p className="text-[13px] font-medium text-[#6B7280]">Retention Risk</p>
                     <div className="mt-3 flex items-baseline gap-1.5">
-                      <span className="text-[40px] font-bold leading-none tracking-[-0.03em] text-white">{analysis.risk.score}</span>
-                      <span className="text-[14px] text-[#777A85]">/100</span>
+                      <span className="text-[40px] font-bold leading-none tracking-[-0.03em] text-[#111827]">{analysis.risk.score}</span>
+                      <span className="text-[14px] text-[#6B7280]">/100</span>
                     </div>
-                    <div className="mt-4 h-[5px] overflow-hidden rounded-full bg-[#1C1C22]">
+                    <div className="mt-4 h-[5px] overflow-hidden rounded-full bg-[#E5E7EB]">
                       <div className="h-full rounded-full" style={{ width: `${analysis.risk.score}%`, backgroundColor: analysis.risk.color, boxShadow: `0 0 8px ${analysis.risk.color}55` }} />
                     </div>
                     <p className="mt-3.5 text-[14px] font-semibold" style={{ color: analysis.risk.color }}>{analysis.risk.label}</p>
-                    <p className="mt-1 text-[13px] leading-[1.55] text-[#777A85] line-clamp-2">{analysis.risk.description}</p>
+                    <p className="mt-1 text-[13px] leading-[1.55] text-[#6B7280] line-clamp-2">{analysis.risk.description}</p>
                   </Card>
                 </div>
 
                 {/* Main Takeaway */}
-                <div className="mb-6 rounded-[16px] border border-[#3A1B22] bg-[#1A0D11] px-5 py-4 shadow-[0_0_28px_rgba(239,68,68,0.07)]">
+                <div className="mb-6 rounded-[16px] border border-[#DDD6FE] bg-[#F3E8FF] px-5 py-4 shadow-[0_0_28px_rgba(124,58,237,0.07)]">
                   <div className="flex items-start gap-3">
-                    <Target size={16} className="mt-0.5 shrink-0 text-[#EF4444]" />
+                    <Target size={16} className="mt-0.5 shrink-0 text-[#7C3AED]" />
                     <div>
-                      <p className="text-[12.5px] font-semibold text-[#EF4444]">Main Takeaway</p>
-                      <p className="mt-1 text-[13px] leading-[1.6] text-[#E8D5D8]">{analysis.overall.description}</p>
+                      <p className="text-[12.5px] font-semibold text-[#7C3AED]">Main Takeaway</p>
+                      <p className="mt-1 text-[13px] leading-[1.6] text-[#5B21B6]">{analysis.overall.description}</p>
                     </div>
                   </div>
                 </div>
@@ -767,15 +767,15 @@ const hookCopyButtonLabel =
                   {/* Script card */}
                   <Card className="p-6">
                     <div className="mb-4">
-                      <h2 className="text-[17px] font-semibold text-white">Your Script</h2>
+                      <h2 className="text-[17px] font-semibold text-[#111827]">Your Script</h2>
                       {savedTitle && (
-                        <div className="mt-3 rounded-[12px] border border-[#24242A] bg-[#101014] px-4 py-3">
-                          <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-[#777A85]">Title</p>
-                          <p className="mt-1 text-[14px] font-semibold leading-[1.45] text-white">{savedTitle}</p>
+                        <div className="mt-3 rounded-[12px] border border-[#E5E7EB] bg-[#F8F8FC] px-4 py-3">
+                          <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-[#6B7280]">Title</p>
+                          <p className="mt-1 text-[14px] font-semibold leading-[1.45] text-[#111827]">{savedTitle}</p>
                         </div>
                       )}
                     </div>
-                    <div className="max-h-[480px] min-w-0 overflow-y-auto overflow-x-hidden rounded-[16px] border border-[#24242A] bg-[#101014] p-4">
+                    <div className="max-h-[480px] min-w-0 overflow-y-auto overflow-x-hidden rounded-[16px] border border-[#E5E7EB] bg-[#F8F8FC] p-4">
                       <div className="flex flex-col gap-2">
                         {scriptLines.map((line, index) => {
                           const status: LineStatus = analysis.riskyLineIndexes.includes(index) ? "risky" : analysis.warningLineIndexes.includes(index) ? "warning" : "normal";
@@ -783,10 +783,10 @@ const hookCopyButtonLabel =
                           const isWarning = status === "warning";
                           return (
                             <div key={`${lineTimestamps[index] ?? index}-${line}`}
-                              className={["grid min-w-0 grid-cols-[48px_minmax(0,1fr)] gap-3 rounded-[10px] px-3 py-2.5 text-[13px] leading-[1.6]", isRisky ? "border border-[#3A1B22] bg-[#1A0D11]" : isWarning ? "border border-[#FF9A1F]/25 bg-[#FF9A1F]/[0.06]" : "border border-transparent"].join(" ")}
+                              className={["grid min-w-0 grid-cols-[48px_minmax(0,1fr)] gap-3 rounded-[10px] px-3 py-2.5 text-[13px] leading-[1.6]", isRisky ? "border border-[#DDD6FE] bg-[#F3E8FF]" : isWarning ? "border border-[#FF9A1F]/25 bg-[#FF9A1F]/[0.06]" : "border border-transparent"].join(" ")}
                             >
-                              <span className={isRisky ? "text-[#EF4444]" : isWarning ? "text-[#FF9A1F]" : "text-[#777A85]"}>{lineTimestamps[index] ?? formatTime(estimatedDuration)}</span>
-                              <span className={`${isRisky ? "text-[#EF4444]" : isWarning ? "text-[#FF9A1F]" : "text-[#B3B3B3]"} min-w-0 break-words [overflow-wrap:anywhere]`}>
+                              <span className={isRisky ? "text-[#7C3AED]" : isWarning ? "text-[#FF9A1F]" : "text-[#6B7280]"}>{lineTimestamps[index] ?? formatTime(estimatedDuration)}</span>
+                              <span className={`${isRisky ? "text-[#7C3AED]" : isWarning ? "text-[#FF9A1F]" : "text-[#6B7280]"} min-w-0 break-words [overflow-wrap:anywhere]`}>
   {line}
 </span>
                             </div>
@@ -794,7 +794,7 @@ const hookCopyButtonLabel =
                         })}
                       </div>
                     </div>
-                    <p className="mt-4 text-[12px] text-[#777A85]">
+                    <p className="mt-4 text-[12px] text-[#6B7280]">
   {characterCount} / 1000 Characters — ~{formatTime(estimatedDuration)} estimated
 </p>
                   </Card>
@@ -804,21 +804,21 @@ const hookCopyButtonLabel =
                     {/* Risky Parts */}
                     <Card className="p-6">
                       <div className="mb-5 flex items-center justify-between">
-                        <h2 className="text-[17px] font-semibold text-white">Risky Parts</h2>
-                        <span className="text-[12px] font-medium text-[#777A85]">{pluralize(analysis.riskyParts.length, "found", "found")}</span>
+                        <h2 className="text-[17px] font-semibold text-[#111827]">Risky Parts</h2>
+                        <span className="text-[12px] font-medium text-[#6B7280]">{pluralize(analysis.riskyParts.length, "found", "found")}</span>
                       </div>
                       <div className="flex flex-col gap-3">
                         {analysis.riskyParts.length === 0 ? (
                           <div>
-                            <p className="text-[14px] font-medium text-white">{analysis.fixes.length > 0 ? "No major risky parts found." : "No risky parts found."}</p>
-                            <p className="mt-1 text-[13px] leading-[1.55] text-[#777A85]">{analysis.fixes.length > 0 ? "No material drop-off points were found; the suggestions below are optional refinements." : "This script stays focused and does not contain any major drop-off points."}</p>
+                            <p className="text-[14px] font-medium text-[#111827]">{analysis.fixes.length > 0 ? "No major risky parts found." : "No risky parts found."}</p>
+                            <p className="mt-1 text-[13px] leading-[1.55] text-[#6B7280]">{analysis.fixes.length > 0 ? "No material drop-off points were found; the suggestions below are optional refinements." : "This script stays focused and does not contain any major drop-off points."}</p>
                           </div>
                         ) : (
                           analysis.riskyParts.map((part) => (
-                            <div key={`${part.time}-${part.title}`} className="rounded-[14px] border border-[#24242A] bg-[#101014] p-4">
-                              <p className="text-[12px] font-semibold text-[#EF4444]">{part.time}</p>
-                              <p className="mt-1.5 text-[14px] font-medium text-white">{part.title}</p>
-                              <p className="mt-1 text-[13px] leading-[1.55] text-[#777A85]">{part.description}</p>
+                            <div key={`${part.time}-${part.title}`} className="rounded-[14px] border border-[#E5E7EB] bg-[#F8F8FC] p-4">
+                              <p className="text-[12px] font-semibold text-[#7C3AED]">{part.time}</p>
+                              <p className="mt-1.5 text-[14px] font-medium text-[#111827]">{part.title}</p>
+                              <p className="mt-1 text-[13px] leading-[1.55] text-[#6B7280]">{part.description}</p>
                             </div>
                           ))
                         )}
@@ -828,14 +828,14 @@ const hookCopyButtonLabel =
                     {/* Suggested Fixes */}
                     <Card className="p-6">
                       <div className="mb-5 flex items-center justify-between">
-                        <h2 className="text-[17px] font-semibold text-white">Suggested Fixes</h2>
-                        <span className="text-[12px] font-medium text-[#777A85]">{pluralize(displayFixes.length, "suggestion", "suggestions")}</span>
+                        <h2 className="text-[17px] font-semibold text-[#111827]">Suggested Fixes</h2>
+                        <span className="text-[12px] font-medium text-[#6B7280]">{pluralize(displayFixes.length, "suggestion", "suggestions")}</span>
                       </div>
                       {shouldShowHookAction && (
                         <button
                           onClick={handleImproveHook}
                           disabled={isImprovingHook}
-                          className="mb-5 inline-flex h-[38px] items-center gap-2 rounded-[10px] bg-[#DC2626] px-4 text-[13px] font-semibold text-white shadow-[0_0_32px_rgba(220,38,38,0.30)] transition hover:bg-[#EF4444]"
+                          className="mb-5 inline-flex h-[38px] items-center gap-2 rounded-[10px] bg-[#6D28D9] px-4 text-[13px] font-semibold text-[#111827] shadow-[0_0_32px_rgba(109,40,217,0.30)] transition hover:bg-[#7C3AED]"
                         >
                           <ShieldCheck size={15} />
                           {hookActionLabel}
@@ -844,16 +844,16 @@ const hookCopyButtonLabel =
                       <div className="flex flex-col gap-3">
                         {displayFixes.length === 0 ? (
                           <div>
-                            <p className="text-[14px] font-medium text-white">No fixes needed.</p>
-                            <p className="mt-1 text-[13px] leading-[1.55] text-[#777A85]">The script already performs well based on the current analysis.</p>
+                            <p className="text-[14px] font-medium text-[#111827]">No fixes needed.</p>
+                            <p className="mt-1 text-[13px] leading-[1.55] text-[#6B7280]">The script already performs well based on the current analysis.</p>
                           </div>
                         ) : (
                           displayFixes.map((fix, index) => (
-                            <div key={`${fix}-${index}`} className="flex items-start gap-3 rounded-[12px] border border-[#24242A] bg-[#101014] px-3 py-3">
+                            <div key={`${fix}-${index}`} className="flex items-start gap-3 rounded-[12px] border border-[#E5E7EB] bg-[#F8F8FC] px-3 py-3">
                               <IconBox>
                                 {index % 3 === 0 ? <AudioLines size={18} /> : index % 3 === 1 ? <Scissors size={18} /> : <FastForward size={18} />}
                               </IconBox>
-                              <p className="text-[13px] leading-[1.65] text-[#B3B3B3]">{fix}</p>
+                              <p className="text-[13px] leading-[1.65] text-[#6B7280]">{fix}</p>
                             </div>
                           ))
                         )}
@@ -864,8 +864,8 @@ const hookCopyButtonLabel =
 
                 {/* Scene Breakdown */}
                 <Card className="mt-5 p-6">
-                  <h2 className="mb-4 text-[17px] font-semibold text-white">Scene Breakdown</h2>
-                  <div className="flex h-[7px] w-full overflow-hidden rounded-full bg-[#1C1C22]">
+                  <h2 className="mb-4 text-[17px] font-semibold text-[#111827]">Scene Breakdown</h2>
+                  <div className="flex h-[7px] w-full overflow-hidden rounded-full bg-[#E5E7EB]">
                     {analysis.sceneSegments.map((segment, index) => {
                       const totalDesktopWidth = 1110;
                       const pct = segment.width / totalDesktopWidth;
@@ -874,7 +874,7 @@ const hookCopyButtonLabel =
                       );
                     })}
                   </div>
-                  <div className="mt-3 grid grid-cols-5 text-[11.5px] text-[#555560]">
+                  <div className="mt-3 grid grid-cols-5 text-[11.5px] text-[#9CA3AF]">
                     {scaleLabels.map((label, i) => (
                       <p key={label} className={i === 4 ? "text-right" : ""}>{label}</p>
                     ))}
@@ -883,7 +883,7 @@ const hookCopyButtonLabel =
                     {analysis.sceneSegments.map((segment, index) => (
                       <div key={`${segment.label}-${index}`} className="flex items-center gap-2">
                         <span className="h-[4px] w-[16px] rounded-full" style={{ backgroundColor: segment.color }} />
-                        <span className="text-[12px] text-[#777A85]">{segment.label}</span>
+                        <span className="text-[12px] text-[#6B7280]">{segment.label}</span>
                       </div>
                     ))}
                   </div>
@@ -898,16 +898,16 @@ const hookCopyButtonLabel =
       {/* Desktop other feedback modal */}
       {desktopOtherFeedbackOpen && (
         <div className="fixed inset-0 z-50 hidden lg:flex items-center justify-center bg-black/60 backdrop-blur-[3px]">
-          <div className="relative w-full max-w-[460px] rounded-[24px] border border-[#24242A] bg-[#0B0B0F] p-8 shadow-[0_24px_80px_rgba(0,0,0,0.7)]">
-            <button onClick={() => setDesktopOtherFeedbackOpen(false)} className="absolute right-5 top-5 text-[20px] text-[#777A85] transition hover:text-white">×</button>
-            <h2 className="text-[20px] font-semibold text-white">{desktopFeedback === "helpful" ? "What did you like?" : "What did not work?"}</h2>
-            <p className="mt-1.5 text-[13px] text-[#777A85]">Your feedback helps improve Reelyze.</p>
+          <div className="relative w-full max-w-[460px] rounded-[24px] border border-[#E5E7EB] bg-white p-8 shadow-[0_24px_80px_rgba(0,0,0,0.7)]">
+            <button onClick={() => setDesktopOtherFeedbackOpen(false)} className="absolute right-5 top-5 text-[20px] text-[#6B7280] transition hover:text-[#111827]">×</button>
+            <h2 className="text-[20px] font-semibold text-[#111827]">{desktopFeedback === "helpful" ? "What did you like?" : "What did not work?"}</h2>
+            <p className="mt-1.5 text-[13px] text-[#6B7280]">Your feedback helps improve Climpy.</p>
             <textarea
               value={desktopOtherFeedbackText}
               onChange={(e) => setDesktopOtherFeedbackText(e.target.value)}
               placeholder={desktopFeedback === "helpful" ? "Tell us what you liked about this analysis..." : "Tell us what was wrong or missing..."}
               rows={5}
-              className="mt-5 w-full resize-none rounded-[12px] border border-[#24242A] bg-[#101014] px-4 py-3 text-[13px] leading-[1.65] text-[#B3B3B3] outline-none placeholder:text-[#555560]"
+              className="mt-5 w-full resize-none rounded-[12px] border border-[#E5E7EB] bg-[#F8F8FC] px-4 py-3 text-[13px] leading-[1.65] text-[#6B7280] outline-none placeholder:text-[#9CA3AF]"
             />
             <div className="mt-4 flex gap-3">
               <button
@@ -922,71 +922,71 @@ const hookCopyButtonLabel =
                   });
                 }}
                 disabled={feedbackSubmitting}
-                className="h-[40px] rounded-[10px] bg-[#DC2626] px-5 text-[13px] font-semibold text-white transition hover:bg-[#EF4444] disabled:cursor-not-allowed disabled:opacity-60"
+                className="h-[40px] rounded-[10px] bg-[#6D28D9] px-5 text-[13px] font-semibold text-[#111827] transition hover:bg-[#7C3AED] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {feedbackSubmitting ? "Submitting..." : "Submit"}
               </button>
-              <button onClick={() => setDesktopOtherFeedbackOpen(false)} className="h-[40px] rounded-[10px] border border-[#24242A] bg-[#101014] px-5 text-[13px] font-semibold text-white transition hover:bg-[#17171C]">Cancel</button>
+              <button onClick={() => setDesktopOtherFeedbackOpen(false)} className="h-[40px] rounded-[10px] border border-[#E5E7EB] bg-[#F8F8FC] px-5 text-[13px] font-semibold text-[#111827] transition hover:bg-[#F3F4F6]">Cancel</button>
             </div>
           </div>
         </div>
       )}
 
       {/* MOBILE */}
-      <div className="block lg:hidden bg-[#050505] min-h-screen">
+      <div className="block lg:hidden bg-[#FAFAFA] min-h-screen">
         <div className="mx-auto w-full max-w-[430px] flex flex-col pb-[100px]">
 
           {/* Header */}
           <div className="flex items-center justify-between px-5 pt-11 pb-4">
-            <Link href="/" className="flex h-[42px] w-[42px] items-center justify-center rounded-[12px] border border-[#24242A] bg-[#0B0B0F]">
-              <ArrowLeft size={17} className="text-[#EF4444]" />
+            <Link href="/" className="flex h-[42px] w-[42px] items-center justify-center rounded-[12px] border border-[#E5E7EB] bg-white">
+              <ArrowLeft size={17} className="text-[#7C3AED]" />
             </Link>
             <div className="flex items-center gap-2.5">
-              <Image src="/logo.png" alt="Reelyze" width={28} height={28} className="h-7 w-7 object-contain" priority />
-              <span className="text-[14px] font-bold tracking-[0.16em] text-white">REELYZE</span>
+              <Image src="/logo.png" alt="Climpy" width={28} height={28} className="h-7 w-7 object-contain" priority />
+              <span className="text-[14px] font-bold tracking-[0.16em] text-[#111827]">CLIMPY</span>
             </div>
             <button
               onClick={handleShare}
               disabled={!isStorageLoaded || Boolean(storageError) || !hasAnalyzedScript}
-              className="flex h-[42px] w-[42px] items-center justify-center rounded-[12px] border border-[#24242A] bg-[#0B0B0F] disabled:cursor-not-allowed disabled:opacity-40"
+              className="flex h-[42px] w-[42px] items-center justify-center rounded-[12px] border border-[#E5E7EB] bg-white disabled:cursor-not-allowed disabled:opacity-40"
             >
-              <Share2 size={17} className="text-[#777A85]" />
+              <Share2 size={17} className="text-[#6B7280]" />
             </button>
           </div>
 
           {shareMessage && (
-            <p className="px-5 -mt-1 mb-2 text-[11px] text-[#777A85]">{shareMessage}</p>
+            <p className="px-5 -mt-1 mb-2 text-[11px] text-[#6B7280]">{shareMessage}</p>
           )}
 
           {/* Title */}
           <div className="px-5 mb-5">
-            <h1 className="text-[28px] font-semibold tracking-[-0.02em] text-white">Script Review</h1>
-            <p className="mt-1 text-[12px] text-[#777A85]">
-              Analyzed just now — <span className="text-[#B3B3B3]">{savedTitle || "YouTube Shorts Script"}</span>
+            <h1 className="text-[28px] font-semibold tracking-[-0.02em] text-[#111827]">Script Review</h1>
+            <p className="mt-1 text-[12px] text-[#6B7280]">
+              Analyzed just now — <span className="text-[#6B7280]">{savedTitle || "YouTube Shorts Script"}</span>
             </p>
           </div>
 
           {/* Loading */}
           {!isStorageLoaded && (
-            <div className="mx-5 mb-4 rounded-[18px] border border-[#24242A] bg-[#0B0B0F] p-5">
-              <p className="text-[15px] font-semibold text-white">Loading results...</p>
-              <p className="mt-1.5 text-[13px] text-[#777A85]">Please wait a moment.</p>
+            <div className="mx-5 mb-4 rounded-[18px] border border-[#E5E7EB] bg-white p-5">
+              <p className="text-[15px] font-semibold text-[#111827]">Loading results...</p>
+              <p className="mt-1.5 text-[13px] text-[#6B7280]">Please wait a moment.</p>
             </div>
           )}
 
           {/* Error */}
           {storageError && (
-            <div className="mx-5 mb-4 rounded-[18px] border border-[#EF4444]/30 bg-[#1A0D11] p-5">
-              <p className="text-[13px] text-[#EF4444]">{storageError}</p>
+            <div className="mx-5 mb-4 rounded-[18px] border border-[#7C3AED]/30 bg-[#F3E8FF] p-5">
+              <p className="text-[13px] text-[#7C3AED]">{storageError}</p>
             </div>
           )}
 
           {/* Empty state */}
           {isStorageLoaded && !storageError && !hasAnalyzedScript && (
-            <div className="mx-5 mb-4 rounded-[18px] border border-[#24242A] bg-[#0B0B0F] p-6">
-              <p className="text-[18px] font-semibold text-white mb-2">No script analyzed yet.</p>
-              <p className="text-[13px] leading-[1.6] text-[#777A85] mb-5">Go to New Analysis and paste your script first.</p>
-              <Link href="/" className="flex h-[44px] w-full items-center justify-center rounded-[12px] bg-[#DC2626] text-[14px] font-semibold text-white">New Analysis</Link>
+            <div className="mx-5 mb-4 rounded-[18px] border border-[#E5E7EB] bg-white p-6">
+              <p className="text-[18px] font-semibold text-[#111827] mb-2">No script analyzed yet.</p>
+              <p className="text-[13px] leading-[1.6] text-[#6B7280] mb-5">Go to New Analysis and paste your script first.</p>
+              <Link href="/" className="flex h-[44px] w-full items-center justify-center rounded-[12px] bg-[#6D28D9] text-[14px] font-semibold text-[#111827]">New Analysis</Link>
             </div>
           )}
 
@@ -1000,10 +1000,10 @@ const hookCopyButtonLabel =
                   { label: "Hook", score: analysis.hook.score, color: analysis.hook.color, status: analysis.hook.label },
                   { label: "Risk", score: analysis.risk.score, color: analysis.risk.color, status: analysis.risk.label },
                 ].map((item) => (
-                  <div key={item.label} className="flex flex-col items-center justify-center gap-1 rounded-[16px] border border-[#24242A] bg-[#0B0B0F] py-4 px-2">
-                    <p className="text-[10px] font-medium text-[#777A85] text-center">{item.label}</p>
-                    <span className="text-[32px] font-bold leading-none tracking-[-0.03em] text-white">{item.score}</span>
-                    <div className="w-full h-[3px] rounded-full bg-[#1C1C22] overflow-hidden">
+                  <div key={item.label} className="flex flex-col items-center justify-center gap-1 rounded-[16px] border border-[#E5E7EB] bg-white py-4 px-2">
+                    <p className="text-[10px] font-medium text-[#6B7280] text-center">{item.label}</p>
+                    <span className="text-[32px] font-bold leading-none tracking-[-0.03em] text-[#111827]">{item.score}</span>
+                    <div className="w-full h-[3px] rounded-full bg-[#E5E7EB] overflow-hidden">
                       <div className="h-full rounded-full" style={{ width: `${item.score}%`, backgroundColor: item.color }} />
                     </div>
                     <p className="text-[10px] font-semibold" style={{ color: item.color }}>{item.status}</p>
@@ -1012,19 +1012,19 @@ const hookCopyButtonLabel =
               </div>
 
               {/* Main Takeaway */}
-              <div className="rounded-[18px] border border-[#3A1B22] bg-[#1A0D11] px-4 py-4 shadow-[0_0_24px_rgba(239,68,68,0.07)]">
+              <div className="rounded-[18px] border border-[#DDD6FE] bg-[#F3E8FF] px-4 py-4 shadow-[0_0_24px_rgba(124,58,237,0.07)]">
                 <div className="flex items-start gap-3">
-                  <Target size={15} className="mt-0.5 shrink-0 text-[#EF4444]" />
+                  <Target size={15} className="mt-0.5 shrink-0 text-[#7C3AED]" />
                   <div>
-                    <p className="text-[11px] font-semibold text-[#EF4444] mb-1">Main Takeaway</p>
-                    <p className="text-[13px] leading-[1.6] text-[#E8D5D8]">{analysis.overall.description}</p>
+                    <p className="text-[11px] font-semibold text-[#7C3AED] mb-1">Main Takeaway</p>
+                    <p className="text-[13px] leading-[1.6] text-[#5B21B6]">{analysis.overall.description}</p>
                   </div>
                 </div>
                 {shouldShowHookAction && (
                   <button
                     onClick={handleImproveHook}
                     disabled={isImprovingHook}
-                    className="mt-4 w-full h-[44px] inline-flex items-center justify-center gap-2 rounded-[12px] bg-[#DC2626] text-[14px] font-semibold text-white shadow-[0_0_24px_rgba(220,38,38,0.25)] transition hover:bg-[#EF4444]"
+                    className="mt-4 w-full h-[44px] inline-flex items-center justify-center gap-2 rounded-[12px] bg-[#6D28D9] text-[14px] font-semibold text-[#111827] shadow-[0_0_24px_rgba(109,40,217,0.25)] transition hover:bg-[#7C3AED]"
                   >
                     <ShieldCheck size={15} />
                     {hookActionLabel}
@@ -1033,23 +1033,23 @@ const hookCopyButtonLabel =
               </div>
 
               {/* Risky Parts */}
-              <div className="rounded-[18px] border border-[#24242A] bg-[#0B0B0F] overflow-hidden">
+              <div className="rounded-[18px] border border-[#E5E7EB] bg-white overflow-hidden">
                 <div className="flex items-center justify-between px-5 pt-4 pb-3">
-                  <h2 className="text-[15px] font-semibold text-white">Risky Parts</h2>
-                  <span className="text-[11px] font-medium text-[#777A85]">{pluralize(analysis.riskyParts.length, "found", "found")}</span>
+                  <h2 className="text-[15px] font-semibold text-[#111827]">Risky Parts</h2>
+                  <span className="text-[11px] font-medium text-[#6B7280]">{pluralize(analysis.riskyParts.length, "found", "found")}</span>
                 </div>
                 <div className="px-4 pb-4 flex flex-col gap-2.5">
                   {analysis.riskyParts.length === 0 ? (
-                    <div className="rounded-[12px] border border-[#24242A] bg-[#101014] px-4 py-3">
-                      <p className="text-[13px] font-medium text-white">{analysis.fixes.length > 0 ? "No major risky parts found." : "No risky parts found."}</p>
-                      <p className="mt-1 text-[12px] leading-[1.5] text-[#777A85]">{analysis.fixes.length > 0 ? "No material drop-off points were found; the suggestions below are optional refinements." : "This script stays focused and does not contain any major drop-off points."}</p>
+                    <div className="rounded-[12px] border border-[#E5E7EB] bg-[#F8F8FC] px-4 py-3">
+                      <p className="text-[13px] font-medium text-[#111827]">{analysis.fixes.length > 0 ? "No major risky parts found." : "No risky parts found."}</p>
+                      <p className="mt-1 text-[12px] leading-[1.5] text-[#6B7280]">{analysis.fixes.length > 0 ? "No material drop-off points were found; the suggestions below are optional refinements." : "This script stays focused and does not contain any major drop-off points."}</p>
                     </div>
                   ) : (
                     analysis.riskyParts.map((part) => (
-                      <div key={`${part.time}-${part.title}`} className="rounded-[12px] border border-[#24242A] bg-[#101014] p-4">
-                        <p className="text-[11px] font-semibold text-[#EF4444]">{part.time}</p>
-                        <p className="mt-1 text-[13px] font-medium text-white">{part.title}</p>
-                        <p className="mt-0.5 text-[12px] leading-[1.5] text-[#777A85]">{part.description}</p>
+                      <div key={`${part.time}-${part.title}`} className="rounded-[12px] border border-[#E5E7EB] bg-[#F8F8FC] p-4">
+                        <p className="text-[11px] font-semibold text-[#7C3AED]">{part.time}</p>
+                        <p className="mt-1 text-[13px] font-medium text-[#111827]">{part.title}</p>
+                        <p className="mt-0.5 text-[12px] leading-[1.5] text-[#6B7280]">{part.description}</p>
                       </div>
                     ))
                   )}
@@ -1057,57 +1057,57 @@ const hookCopyButtonLabel =
               </div>
 
               {/* Suggested Fixes */}
-              <div className="rounded-[18px] border border-[#24242A] bg-[#0B0B0F] overflow-hidden">
+              <div className="rounded-[18px] border border-[#E5E7EB] bg-white overflow-hidden">
                 <div className="flex items-center justify-between px-5 pt-4 pb-3">
-                  <h2 className="text-[15px] font-semibold text-white">Suggested Fixes</h2>
-                  <span className="text-[11px] font-medium text-[#777A85]">{pluralize(displayFixes.length, "suggestion", "suggestions")}</span>
+                  <h2 className="text-[15px] font-semibold text-[#111827]">Suggested Fixes</h2>
+                  <span className="text-[11px] font-medium text-[#6B7280]">{pluralize(displayFixes.length, "suggestion", "suggestions")}</span>
                 </div>
                 <div className="px-4 pb-4 flex flex-col gap-2.5">
                   {displayFixes.length === 0 ? (
-                    <div className="rounded-[12px] border border-[#24242A] bg-[#101014] px-4 py-3">
-                      <p className="text-[13px] font-medium text-white">No fixes needed.</p>
-                      <p className="mt-1 text-[12px] text-[#777A85]">The script already performs well.</p>
+                    <div className="rounded-[12px] border border-[#E5E7EB] bg-[#F8F8FC] px-4 py-3">
+                      <p className="text-[13px] font-medium text-[#111827]">No fixes needed.</p>
+                      <p className="mt-1 text-[12px] text-[#6B7280]">The script already performs well.</p>
                     </div>
                   ) : (
                     (mobileFixesOpen ? displayFixes : displayFixes.slice(0, 3)).map((fix, index) => (
-                      <div key={`${fix}-${index}`} className="flex items-start gap-3 rounded-[12px] border border-[#24242A] bg-[#101014] px-3 py-3">
+                      <div key={`${fix}-${index}`} className="flex items-start gap-3 rounded-[12px] border border-[#E5E7EB] bg-[#F8F8FC] px-3 py-3">
                         <IconBox>
                           {index % 3 === 0 ? <AudioLines size={16} /> : index % 3 === 1 ? <Scissors size={16} /> : <FastForward size={16} />}
                         </IconBox>
-                        <p className="flex-1 text-[12px] leading-[1.6] text-[#B3B3B3]">{fix}</p>
+                        <p className="flex-1 text-[12px] leading-[1.6] text-[#6B7280]">{fix}</p>
                       </div>
                     ))
                   )}
                   {displayFixes.length > 3 && (
                     <button onClick={() => setMobileFixesOpen(!mobileFixesOpen)} className="flex w-full items-center justify-center gap-1.5 pt-1">
-                      <span className="text-[12px] font-semibold text-[#777A85]">{mobileFixesOpen ? "Show fewer" : "View all suggestions"}</span>
-                      <ChevronRight size={12} className={`text-[#777A85] transition-transform ${mobileFixesOpen ? "rotate-90" : ""}`} />
+                      <span className="text-[12px] font-semibold text-[#6B7280]">{mobileFixesOpen ? "Show fewer" : "View all suggestions"}</span>
+                      <ChevronRight size={12} className={`text-[#6B7280] transition-transform ${mobileFixesOpen ? "rotate-90" : ""}`} />
                     </button>
                   )}
                 </div>
               </div>
 
               {/* Your Script — accordion */}
-              <div className="rounded-[18px] border border-[#24242A] bg-[#0B0B0F] overflow-hidden">
+              <div className="rounded-[18px] border border-[#E5E7EB] bg-white overflow-hidden">
                 <button
                   onClick={() => setMobileScriptOpen(!mobileScriptOpen)}
                   className="flex w-full items-center justify-between px-5 py-4"
                 >
-                  <h2 className="text-[15px] font-semibold text-white">Your Script</h2>
+                  <h2 className="text-[15px] font-semibold text-[#111827]">Your Script</h2>
                   <div className="flex items-center gap-2">
-                    <span className="text-[11px] text-[#777A85]">{characterCount} / 1000 Characters</span>
-                    <ChevronDown size={15} className={`text-[#777A85] transition-transform ${mobileScriptOpen ? "rotate-180" : ""}`} />
+                    <span className="text-[11px] text-[#6B7280]">{characterCount} / 1000 Characters</span>
+                    <ChevronDown size={15} className={`text-[#6B7280] transition-transform ${mobileScriptOpen ? "rotate-180" : ""}`} />
                   </div>
                 </button>
                 {mobileScriptOpen && (
                   <div className="px-4 pb-4">
                     {savedTitle && (
-                      <div className="mb-3 rounded-[10px] border border-[#24242A] bg-[#101014] px-3 py-2.5">
-                        <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-[#777A85]">Title</p>
-                        <p className="mt-1 text-[12px] font-semibold leading-[1.45] text-white">{savedTitle}</p>
+                      <div className="mb-3 rounded-[10px] border border-[#E5E7EB] bg-[#F8F8FC] px-3 py-2.5">
+                        <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-[#6B7280]">Title</p>
+                        <p className="mt-1 text-[12px] font-semibold leading-[1.45] text-[#111827]">{savedTitle}</p>
                       </div>
                     )}
-                    <div className="rounded-[12px] border border-[#24242A] bg-[#101014] p-3 max-h-[300px] overflow-y-auto">
+                    <div className="rounded-[12px] border border-[#E5E7EB] bg-[#F8F8FC] p-3 max-h-[300px] overflow-y-auto">
                       <div className="flex flex-col gap-1.5">
                         {scriptLines.map((line, index) => {
                           const status: LineStatus = analysis.riskyLineIndexes.includes(index) ? "risky" : analysis.warningLineIndexes.includes(index) ? "warning" : "normal";
@@ -1115,38 +1115,38 @@ const hookCopyButtonLabel =
                           const isWarning = status === "warning";
                           return (
                             <div key={`${lineTimestamps[index] ?? index}-${line}`}
-                              className={["grid grid-cols-[44px_1fr] gap-2.5 rounded-[8px] px-2.5 py-2 text-[12px] leading-[1.55]", isRisky ? "border border-[#3A1B22] bg-[#1A0D11]" : isWarning ? "border border-[#FF9A1F]/20 bg-[#FF9A1F]/[0.05]" : "border border-transparent"].join(" ")}
+                              className={["grid grid-cols-[44px_1fr] gap-2.5 rounded-[8px] px-2.5 py-2 text-[12px] leading-[1.55]", isRisky ? "border border-[#DDD6FE] bg-[#F3E8FF]" : isWarning ? "border border-[#FF9A1F]/20 bg-[#FF9A1F]/[0.05]" : "border border-transparent"].join(" ")}
                             >
-                              <span className={isRisky ? "text-[#EF4444]" : isWarning ? "text-[#FF9A1F]" : "text-[#555560]"}>{lineTimestamps[index] ?? formatTime(estimatedDuration)}</span>
-                              <span className={isRisky ? "text-[#EF4444]" : isWarning ? "text-[#FF9A1F]" : "text-[#B3B3B3]"}>{line}</span>
+                              <span className={isRisky ? "text-[#7C3AED]" : isWarning ? "text-[#FF9A1F]" : "text-[#9CA3AF]"}>{lineTimestamps[index] ?? formatTime(estimatedDuration)}</span>
+                              <span className={isRisky ? "text-[#7C3AED]" : isWarning ? "text-[#FF9A1F]" : "text-[#6B7280]"}>{line}</span>
                             </div>
                           );
                         })}
                       </div>
                     </div>
-                    <p className="mt-2 text-[11px] text-[#555560]">~{formatTime(estimatedDuration)} estimated</p>
+                    <p className="mt-2 text-[11px] text-[#9CA3AF]">~{formatTime(estimatedDuration)} estimated</p>
                   </div>
                 )}
               </div>
 
               {/* Scene Breakdown — accordion */}
-              <div className="rounded-[18px] border border-[#24242A] bg-[#0B0B0F] overflow-hidden">
+              <div className="rounded-[18px] border border-[#E5E7EB] bg-white overflow-hidden">
                 <button
                   onClick={() => setMobileSceneOpen(!mobileSceneOpen)}
                   className="flex w-full items-center justify-between px-5 py-4"
                 >
-                  <h2 className="text-[15px] font-semibold text-white">Scene Breakdown</h2>
-                  <ChevronDown size={15} className={`text-[#777A85] transition-transform ${mobileSceneOpen ? "rotate-180" : ""}`} />
+                  <h2 className="text-[15px] font-semibold text-[#111827]">Scene Breakdown</h2>
+                  <ChevronDown size={15} className={`text-[#6B7280] transition-transform ${mobileSceneOpen ? "rotate-180" : ""}`} />
                 </button>
                 {mobileSceneOpen && (
                   <div className="px-4 pb-4">
-                    <div className="flex h-[6px] w-full overflow-hidden rounded-full bg-[#1C1C22] mb-3">
+                    <div className="flex h-[6px] w-full overflow-hidden rounded-full bg-[#E5E7EB] mb-3">
                       {analysis.sceneSegments.map((segment, index) => {
                         const pct = segment.width / 1110;
                         return <div key={`${segment.label}-${index}`} className="h-full" style={{ width: `${pct * 100}%`, backgroundColor: segment.color, opacity: 0.9 }} />;
                       })}
                     </div>
-                    <div className="grid grid-cols-5 text-[10px] text-[#555560] mb-3">
+                    <div className="grid grid-cols-5 text-[10px] text-[#9CA3AF] mb-3">
                       {scaleLabels.map((label, i) => (
                         <p key={label} className={i === 4 ? "text-right" : ""}>{label}</p>
                       ))}
@@ -1155,7 +1155,7 @@ const hookCopyButtonLabel =
                       {analysis.sceneSegments.map((segment, index) => (
                         <div key={`${segment.label}-${index}`} className="flex items-center gap-1.5">
                           <span className="h-[3px] w-[14px] rounded-full" style={{ backgroundColor: segment.color }} />
-                          <span className="text-[11px] text-[#777A85]">{segment.label}</span>
+                          <span className="text-[11px] text-[#6B7280]">{segment.label}</span>
                         </div>
                       ))}
                     </div>
@@ -1164,20 +1164,20 @@ const hookCopyButtonLabel =
               </div>
 
               {/* Rate This Analysis */}
-              <div className="rounded-[18px] border border-[#24242A] bg-[#0B0B0F] px-5 py-4">
-                <p className="text-[14px] font-semibold text-white">Rate this analysis</p>
-                <p className="mt-1 text-[12px] text-[#777A85]">Was this review helpful?</p>
+              <div className="rounded-[18px] border border-[#E5E7EB] bg-white px-5 py-4">
+                <p className="text-[14px] font-semibold text-[#111827]">Rate this analysis</p>
+                <p className="mt-1 text-[12px] text-[#6B7280]">Was this review helpful?</p>
                 <div className="mt-3 flex gap-2.5">
                   <button
                     onClick={() => { setMobileFeedback("helpful"); setMobileSelectedReason(null); setMobileFeedbackSubmitted(false); }}
-                    className={["flex h-[40px] flex-1 items-center justify-center gap-1.5 rounded-[10px] border text-[13px] font-semibold transition", mobileFeedback === "helpful" ? "border-[#22C55E]/50 bg-[#22C55E]/10 text-[#22C55E]" : "border-[#24242A] bg-[#101014] text-[#B3B3B3]"].join(" ")}
+                    className={["flex h-[40px] flex-1 items-center justify-center gap-1.5 rounded-[10px] border text-[13px] font-semibold transition", mobileFeedback === "helpful" ? "border-[#22C55E]/50 bg-[#22C55E]/10 text-[#22C55E]" : "border-[#E5E7EB] bg-[#F8F8FC] text-[#6B7280]"].join(" ")}
                   >
                     <ThumbsUp size={13} />
                     Helpful
                   </button>
                   <button
                     onClick={() => { setMobileFeedback(mobileFeedback === "dislike" ? null : "dislike"); setMobileSelectedReason(null); setMobileFeedbackSubmitted(false); }}
-                    className={["flex h-[40px] w-[48px] items-center justify-center rounded-[10px] border transition", mobileFeedback === "dislike" ? "border-[#EF4444]/50 bg-[#EF4444]/10 text-[#EF4444]" : "border-[#24242A] bg-[#101014] text-[#777A85]"].join(" ")}
+                    className={["flex h-[40px] w-[48px] items-center justify-center rounded-[10px] border transition", mobileFeedback === "dislike" ? "border-[#7C3AED]/50 bg-[#7C3AED]/10 text-[#7C3AED]" : "border-[#E5E7EB] bg-[#F8F8FC] text-[#6B7280]"].join(" ")}
                   >
                     <ThumbsDown size={14} />
                   </button>
@@ -1185,7 +1185,7 @@ const hookCopyButtonLabel =
 
                 {mobileFeedback === "helpful" && !mobileFeedbackSubmitted && (
                   <div className="mt-3">
-                    <p className="text-[11px] text-[#777A85] mb-1.5">What was helpful?</p>
+                    <p className="text-[11px] text-[#6B7280] mb-1.5">What was helpful?</p>
                     <div className="flex flex-col gap-1.5">
                       {["Accurate score", "Useful fixes", "Clear explanation", "Other"].map((reason) => (
                         <button
@@ -1198,7 +1198,7 @@ const hookCopyButtonLabel =
                               if (ok) setMobileFeedbackSubmitted(true);
                             });
                           }}
-                          className={["w-full rounded-[8px] border px-2.5 py-2 text-left text-[12px] font-medium transition", mobileSelectedReason === reason ? "border-[#22C55E]/50 bg-[#22C55E]/10 text-[#22C55E]" : "border-[#24242A] bg-[#101014] text-[#777A85] hover:border-[#22C55E]/30 hover:text-[#B3B3B3]"].join(" ")}
+                          className={["w-full rounded-[8px] border px-2.5 py-2 text-left text-[12px] font-medium transition", mobileSelectedReason === reason ? "border-[#22C55E]/50 bg-[#22C55E]/10 text-[#22C55E]" : "border-[#E5E7EB] bg-[#F8F8FC] text-[#6B7280] hover:border-[#22C55E]/30 hover:text-[#6B7280]"].join(" ")}
                         >
                           {reason}
                         </button>
@@ -1209,7 +1209,7 @@ const hookCopyButtonLabel =
 
                 {mobileFeedback === "dislike" && !mobileFeedbackSubmitted && (
                   <div className="mt-3">
-                    <p className="text-[11px] text-[#777A85] mb-1.5">What was wrong?</p>
+                    <p className="text-[11px] text-[#6B7280] mb-1.5">What was wrong?</p>
                     <div className="flex flex-col gap-1.5">
                       {["Wrong score", "Bad suggestions", "Not specific enough", "Other"].map((reason) => (
                         <button
@@ -1222,7 +1222,7 @@ const hookCopyButtonLabel =
                               if (ok) setMobileFeedbackSubmitted(true);
                             });
                           }}
-                          className={["w-full rounded-[8px] border px-2.5 py-2 text-left text-[12px] font-medium transition", mobileSelectedReason === reason ? "border-[#EF4444]/50 bg-[#EF4444]/10 text-[#EF4444]" : "border-[#24242A] bg-[#101014] text-[#777A85] hover:border-[#EF4444]/30 hover:text-[#B3B3B3]"].join(" ")}
+                          className={["w-full rounded-[8px] border px-2.5 py-2 text-left text-[12px] font-medium transition", mobileSelectedReason === reason ? "border-[#7C3AED]/50 bg-[#7C3AED]/10 text-[#7C3AED]" : "border-[#E5E7EB] bg-[#F8F8FC] text-[#6B7280] hover:border-[#7C3AED]/30 hover:text-[#6B7280]"].join(" ")}
                         >
                           {reason}
                         </button>
@@ -1238,13 +1238,13 @@ const hookCopyButtonLabel =
                 )}
 
                 {feedbackSubmitting && (
-                  <p className="mt-2 text-[12px] text-[#777A85]">
+                  <p className="mt-2 text-[12px] text-[#6B7280]">
                     Sending feedback...
                   </p>
                 )}
 
                 {feedbackSubmitError && (
-                  <p className="mt-2 text-[12px] text-[#EF4444]">
+                  <p className="mt-2 text-[12px] text-[#7C3AED]">
                     {feedbackSubmitError}
                   </p>
                 )}
@@ -1256,13 +1256,13 @@ const hookCopyButtonLabel =
         </div>
 
         {/* Bottom nav */}
-        <div className="fixed bottom-0 left-0 right-0 z-50 h-[76px] border-t border-[#24242A] bg-[#050505]/95 backdrop-blur-[8px]">
+        <div className="fixed bottom-0 left-0 right-0 z-50 h-[76px] border-t border-[#E5E7EB] bg-[#FAFAFA]/95 backdrop-blur-[8px]">
           <div className="mx-auto flex h-full w-full max-w-[430px] items-center justify-between px-5">
-            <Link href="/" className="flex h-[40px] items-center justify-center gap-2 rounded-[12px] border border-[#24242A] bg-[#0B0B0F] px-5 text-[13px] font-semibold text-white">
-              <PencilLine size={14} className="text-[#777A85]" />
+            <Link href="/" className="flex h-[40px] items-center justify-center gap-2 rounded-[12px] border border-[#E5E7EB] bg-white px-5 text-[13px] font-semibold text-[#111827]">
+              <PencilLine size={14} className="text-[#6B7280]" />
               New analysis
             </Link>
-            <Link href="/results" className="flex h-[40px] items-center justify-center gap-2 rounded-[12px] border border-[#3A1B22] bg-[#1A0D11] px-5 text-[13px] font-semibold text-[#EF4444]">
+            <Link href="/results" className="flex h-[40px] items-center justify-center gap-2 rounded-[12px] border border-[#DDD6FE] bg-[#F3E8FF] px-5 text-[13px] font-semibold text-[#7C3AED]">
               <SquarePen size={13} />
               Results
             </Link>
@@ -1273,19 +1273,19 @@ const hookCopyButtonLabel =
 
             {isFeedbackOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-5 backdrop-blur-[2px]">
-          <div className="relative w-full max-w-[360px] rounded-[22px] border border-[#24242A] bg-[#0B0B0F] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.70)]">
+          <div className="relative w-full max-w-[360px] rounded-[22px] border border-[#E5E7EB] bg-white p-5 shadow-[0_24px_80px_rgba(0,0,0,0.70)]">
             <button
               onClick={() => setIsFeedbackOpen(false)}
-              className="absolute right-4 top-4 text-[22px] font-normal leading-none text-[#B3B3B3] transition hover:text-white"
+              className="absolute right-4 top-4 text-[22px] font-normal leading-none text-[#6B7280] transition hover:text-[#111827]"
             >
               ×
             </button>
 
-            <h2 className="pr-8 text-[22px] font-semibold leading-[28px] tracking-[-0.03em] text-white">
+            <h2 className="pr-8 text-[22px] font-semibold leading-[28px] tracking-[-0.03em] text-[#111827]">
   {mobileFeedback === "helpful" ? "What did you like?" : "What was wrong?"}
 </h2>
 
-            <p className="mt-2 text-[13px] font-normal leading-[21px] text-[#B3B3B3]">
+            <p className="mt-2 text-[13px] font-normal leading-[21px] text-[#6B7280]">
   {mobileFeedback === "helpful"
     ? "Tell us what felt useful, accurate, or helpful in this analysis."
     : "Tell us what felt inaccurate, confusing, or not useful in this analysis."}
@@ -1300,7 +1300,7 @@ const hookCopyButtonLabel =
     : "Write your feedback here..."
 }
               rows={4}
-              className="mt-4 w-full resize-none rounded-[14px] border border-[#24242A] bg-[#101014] px-3.5 py-3 text-[13px] font-normal leading-[20px] text-white outline-none placeholder:text-[#777A85] focus:border-[#3A1B22]"
+              className="mt-4 w-full resize-none rounded-[14px] border border-[#E5E7EB] bg-[#F8F8FC] px-3.5 py-3 text-[13px] font-normal leading-[20px] text-[#111827] outline-none placeholder:text-[#6B7280] focus:border-[#DDD6FE]"
             />
 
             <div className="mt-4 grid grid-cols-2 gap-3">
@@ -1316,14 +1316,14 @@ const hookCopyButtonLabel =
                   });
                 }}
                 disabled={feedbackSubmitting}
-                className="h-[44px] rounded-[12px] bg-[#DC2626] text-[13px] font-semibold text-white transition hover:bg-[#EF4444] disabled:cursor-not-allowed disabled:opacity-60"
+                className="h-[44px] rounded-[12px] bg-[#6D28D9] text-[13px] font-semibold text-[#111827] transition hover:bg-[#7C3AED] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {feedbackSubmitting ? "Sending..." : "Send feedback"}
               </button>
 
               <button
                 onClick={() => setIsFeedbackOpen(false)}
-                className="h-[44px] rounded-[12px] border border-[#24242A] bg-[#101014] text-[13px] font-semibold text-white transition hover:bg-[#17171C]"
+                className="h-[44px] rounded-[12px] border border-[#E5E7EB] bg-[#F8F8FC] text-[13px] font-semibold text-[#111827] transition hover:bg-[#F3F4F6]"
               >
                 Cancel
               </button>
@@ -1335,41 +1335,41 @@ const hookCopyButtonLabel =
       {isHookModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-[2px] px-[16px]">
           {/* Desktop modal */}
-          <div className="relative hidden lg:block h-[410px] w-[560px] rounded-[20px] border border-[#24242A] bg-[#0B0C10]">
+          <div className="relative hidden lg:block h-[410px] w-[560px] rounded-[20px] border border-[#E5E7EB] bg-white">
             <button
               onClick={() => setIsHookModalOpen(false)}
-              className="absolute right-[20px] top-[18px] text-[22px] font-normal leading-[24px] text-[#B3B3B3] transition hover:text-white"
+              className="absolute right-[20px] top-[18px] text-[22px] font-normal leading-[24px] text-[#6B7280] transition hover:text-[#111827]"
             >
               x
             </button>
 
-            <h2 className="absolute left-[30px] top-[30px] text-[22px] font-semibold leading-[24px] text-white">
+            <h2 className="absolute left-[30px] top-[30px] text-[22px] font-semibold leading-[24px] text-[#111827]">
               {hookModalTitle}
             </h2>
 
-            <p className="absolute left-[30px] top-[65px] w-[430px] text-[14px] font-normal leading-[22px] text-[#B3B3B3]">
+            <p className="absolute left-[30px] top-[65px] w-[430px] text-[14px] font-normal leading-[22px] text-[#6B7280]">
               {hookModalDescription}
             </p>
 
-            <div className="absolute left-[30px] top-[115px] h-[86px] w-[460px] rounded-[14px] border border-[#24242A] bg-[#0B1018] px-[16px] py-[14px]">
-              <p className="text-[15px] font-normal leading-[22px] text-white">
+            <div className="absolute left-[30px] top-[115px] h-[86px] w-[460px] rounded-[14px] border border-[#E5E7EB] bg-[#F8F8FC] px-[16px] py-[14px]">
+              <p className="text-[15px] font-normal leading-[22px] text-[#111827]">
                 &ldquo;{isImprovingHook ? "Improving hook..." : modalHookText}&rdquo;
               </p>
             </div>
 
             <div className="absolute left-[30px] top-[220px] w-[500px] max-h-[115px] overflow-hidden">
               {improveError ? (
-                <p className="mt-[6px] text-[13px] font-normal leading-[20px] text-[#EF4444]">
+                <p className="mt-[6px] text-[13px] font-normal leading-[20px] text-[#7C3AED]">
                   {improveError}
                 </p>
               ) : (
                 <>
-                  <p className="mt-[6px] text-[14px] font-normal leading-[21px] text-[#B3B3B3] break-words whitespace-normal">
+                  <p className="mt-[6px] text-[14px] font-normal leading-[21px] text-[#6B7280] break-words whitespace-normal">
                     {hookModalReasonLabel}
                   </p>
-                  <p className="mt-[6px] text-[14px] font-normal leading-[21px] text-[#B3B3B3] break-words whitespace-normal">
+                  <p className="mt-[6px] text-[14px] font-normal leading-[21px] text-[#6B7280] break-words whitespace-normal">
                     {isImprovingHook
-                      ? "Reelyze is rewriting the opening based on your script."
+                      ? "Climpy is rewriting the opening based on your script."
                       : improvedHookReason}
                   </p>
                 </>
@@ -1379,54 +1379,54 @@ const hookCopyButtonLabel =
             <button
               onClick={handleCopyHook}
               disabled={isImprovingHook || Boolean(improveError)}
-              className="absolute left-[30px] top-[360px] h-[40px] w-[130px] rounded-[12px] border border-[#24242A] bg-[#EF4444] text-[14px] font-semibold leading-[24px] text-white transition hover:bg-[#dc2626]"
+              className="absolute left-[30px] top-[360px] h-[40px] w-[130px] rounded-[12px] border border-[#E5E7EB] bg-[#7C3AED] text-[14px] font-semibold leading-[24px] text-[#111827] transition hover:bg-[#6D28D9]"
             >
               {copiedHook ? "Copied!" : hookCopyButtonLabel}
             </button>
 
             <button
               onClick={() => setIsHookModalOpen(false)}
-              className="absolute left-[175px] top-[360px] h-[40px] w-[100px] rounded-[12px] border border-[#24242A] bg-[#111217] text-[14px] font-semibold leading-[24px] text-white transition hover:bg-[#1A0608]"
+              className="absolute left-[175px] top-[360px] h-[40px] w-[100px] rounded-[12px] border border-[#E5E7EB] bg-[#F8F8FC] text-[14px] font-semibold leading-[24px] text-[#111827] transition hover:bg-[#F3E8FF]"
             >
               Close
             </button>
           </div>
 
           {/* Mobile modal */}
-          <div className="relative flex flex-col lg:hidden w-full max-w-[360px] rounded-[18px] border border-[#24242A] bg-[#0B0C10] p-[22px]">
+          <div className="relative flex flex-col lg:hidden w-full max-w-[360px] rounded-[18px] border border-[#E5E7EB] bg-white p-[22px]">
             <button
               onClick={() => setIsHookModalOpen(false)}
-              className="absolute right-[16px] top-[14px] text-[20px] font-normal text-[#B3B3B3] focus:outline-none focus:ring-0"
+              className="absolute right-[16px] top-[14px] text-[20px] font-normal text-[#6B7280] focus:outline-none focus:ring-0"
             >
               x
             </button>
 
-            <h2 className="text-[18px] font-semibold leading-[24px] text-white mb-[8px] pr-[24px]">
+            <h2 className="text-[18px] font-semibold leading-[24px] text-[#111827] mb-[8px] pr-[24px]">
               {hookModalTitle}
             </h2>
 
-            <p className="text-[12px] font-normal leading-[20px] text-[#B3B3B3] mb-[14px]">
+            <p className="text-[12px] font-normal leading-[20px] text-[#6B7280] mb-[14px]">
               {hookModalDescription}
             </p>
 
-            <div className="w-full rounded-[12px] border border-[#24242A] bg-[#0B1018] px-[14px] py-[12px] mb-[14px]">
-              <p className="text-[13px] font-normal leading-[21px] text-white break-words">
+            <div className="w-full rounded-[12px] border border-[#E5E7EB] bg-[#F8F8FC] px-[14px] py-[12px] mb-[14px]">
+              <p className="text-[13px] font-normal leading-[21px] text-[#111827] break-words">
                 &ldquo;{isImprovingHook ? "Improving hook..." : modalHookText}&rdquo;
               </p>
             </div>
 
             {improveError ? (
-              <p className="text-[12px] font-normal leading-[18px] text-[#EF4444] mb-[16px]">
+              <p className="text-[12px] font-normal leading-[18px] text-[#7C3AED] mb-[16px]">
                 {improveError}
               </p>
             ) : (
               <div className="mb-[16px]">
-                <p className="text-[12px] font-normal leading-[18px] text-[#B3B3B3]">
+                <p className="text-[12px] font-normal leading-[18px] text-[#6B7280]">
                   {hookModalReasonLabel}
                 </p>
-                <p className="text-[12px] font-normal leading-[18px] text-[#B3B3B3] mt-[4px] break-words">
+                <p className="text-[12px] font-normal leading-[18px] text-[#6B7280] mt-[4px] break-words">
                   {isImprovingHook
-                    ? "Reelyze is rewriting the opening based on your script."
+                    ? "Climpy is rewriting the opening based on your script."
                     : improvedHookReason}
                 </p>
               </div>
@@ -1436,13 +1436,13 @@ const hookCopyButtonLabel =
               <button
                 onClick={handleCopyHook}
                 disabled={isImprovingHook || Boolean(improveError)}
-                className="flex-1 h-[40px] rounded-[12px] border border-[#24242A] bg-[#EF4444] text-[13px] font-semibold text-white focus:outline-none focus:ring-0"
+                className="flex-1 h-[40px] rounded-[12px] border border-[#E5E7EB] bg-[#7C3AED] text-[13px] font-semibold text-[#111827] focus:outline-none focus:ring-0"
               >
                 {copiedHook ? "Copied!" : hookCopyButtonLabel}
               </button>
               <button
                 onClick={() => setIsHookModalOpen(false)}
-                className="flex-1 h-[40px] rounded-[12px] border border-[#24242A] bg-[#111217] text-[13px] font-semibold text-white focus:outline-none focus:ring-0"
+                className="flex-1 h-[40px] rounded-[12px] border border-[#E5E7EB] bg-[#F8F8FC] text-[13px] font-semibold text-[#111827] focus:outline-none focus:ring-0"
               >
                 Close
               </button>
