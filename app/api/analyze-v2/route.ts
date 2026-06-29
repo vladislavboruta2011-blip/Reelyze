@@ -425,6 +425,11 @@ export async function runAnalysisV2(
         continue;
       }
 
+      console.error(
+        "[analyze-v2] validation failed after retry:",
+        resultValidation.reason
+      );
+
       return {
         ok: false,
         status: 502,

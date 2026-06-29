@@ -138,6 +138,13 @@ HOOK DECISION
 Choose exactly one:
 ${ANALYSIS_V2_HOOK_DECISIONS.join(", ")}
 
+Hook rewrite style:
+- Avoid talking-head dependent phrases such as "Let's find out", "Let's see", "Watch until the end", or "I will show you" unless the submitted script clearly uses a creator-on-camera talking-head style.
+- For neutral voiceover or faceless Shorts, avoid presenter language. When improving a hook, use a context-appropriate curiosity-driving continuation that naturally fits the script.
+- Good examples include: "Here's why.", "Here's what actually happens.", "The answer is surprising.", "The answer isn't what you'd expect.", "The real reason is unexpected.", "The explanation comes down to one thing.", "Most people get this wrong.", and "The truth is more interesting."
+- Choose the continuation that best matches the topic and tone instead of repeating the same phrase every time.
+- Do not add direct presenter language when the original script is written as narration, documentary, explanation, comparison, or faceless voiceover.
+
 keep
 - Use when the original hook is already clear, natural, specific enough, grounded, and appropriate for its type.
 - Set suggestedHook to null.
