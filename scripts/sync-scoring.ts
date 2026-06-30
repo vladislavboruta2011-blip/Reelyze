@@ -23,6 +23,11 @@ const scoringEvaluationPath = path.join(
   "engine/scoring-evaluation.ts",
 );
 
+const scoringScriptFeedbackPath = path.join(
+  projectRoot,
+  "engine/scoring-script-feedback.ts",
+);
+
 const duplicatePath = path.join(
   projectRoot,
   "app/results/engine/scoring.ts",
@@ -45,6 +50,11 @@ const scoringRewriteSource = fs.readFileSync(
 
 const scoringEvaluationSource = fs.readFileSync(
   scoringEvaluationPath,
+  "utf8",
+);
+
+const scoringScriptFeedbackSource = fs.readFileSync(
+  scoringScriptFeedbackPath,
   "utf8",
 );
 
@@ -145,6 +155,29 @@ if (missingEvaluationExports.length > 0) {
     [
       "Scoring evaluation module is missing required exports:",
       ...missingEvaluationExports.map(
+        (declaration) => `  - ${declaration}`,
+      ),
+    ].join("\n"),
+  );
+}
+
+const requiredScriptFeedbackExports = [
+  "export function detectScriptType(",
+  "export function normalizeAutoCaptionScript(",
+  "export function buildMainTakeaway(",
+];
+
+const missingScriptFeedbackExports =
+  requiredScriptFeedbackExports.filter(
+    (declaration) =>
+      !scoringScriptFeedbackSource.includes(declaration),
+  );
+
+if (missingScriptFeedbackExports.length > 0) {
+  throw new Error(
+    [
+      "Scoring script-feedback module is missing required exports:",
+      ...missingScriptFeedbackExports.map(
         (declaration) => `  - ${declaration}`,
       ),
     ].join("\n"),
