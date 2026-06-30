@@ -21,6 +21,7 @@ export type AnalysisV2BenchmarkExpectation = {
   minSuggestedFixes?: number;
   maxSuggestedFixes?: number;
   forbiddenFeedback?: string[];
+  forbiddenHookFeedback?: string[];
 };
 
 export type AnalysisV2BenchmarkCase = {
@@ -471,7 +472,7 @@ export const ANALYSIS_V2_BENCHMARK_CASES:
       maxRiskyParts: 2,
       minSuggestedFixes: 1,
       maxSuggestedFixes: 2,
-      forbiddenFeedback: [
+      forbiddenHookFeedback: [
         "strong hook",
         "hook is clear and specific",
       ],
@@ -546,6 +547,108 @@ export const ANALYSIS_V2_BENCHMARK_CASES:
       maxSuggestedFixes: 2,
       forbiddenFeedback: [
         "structurally strong",
+      ],
+    },
+  },
+  {
+    id: "negative-concrete-but-predictable-productivity",
+    category: "negative",
+    title: "Three simple productivity habits",
+    script:
+      "To be more productive, put your phone away, write down your most important task, and work on it for 25 minutes without stopping. These three habits reduce distractions and help you get more done. Repeat them every day to improve your focus.",
+    expected: {
+      scriptTypes: [
+        "generic_advice",
+        "how_to",
+      ],
+      verdicts: ["weak", "mixed"],
+      overall: { max: 74 },
+      retentionRisk: { min: 32 },
+      minRiskyParts: 1,
+      maxRiskyParts: 2,
+      minSuggestedFixes: 1,
+      maxSuggestedFixes: 2,
+      forbiddenFeedback: [
+        "structurally strong",
+        "fresh angle",
+        "original angle",
+      ],
+    },
+  },
+  {
+    id: "negative-unfulfilled-originality-promise",
+    category: "negative",
+    title: "Three overlooked productivity habits",
+    script:
+      "These are three overlooked productivity habits that almost nobody talks about. Put your phone in another room because notifications pull your attention away. Write down one priority because a long task list splits your focus. Then work for 25 minutes because a short timer makes starting feel easier.",
+    expected: {
+      scriptTypes: [
+        "how_to",
+        "generic_advice",
+      ],
+      verdicts: ["weak", "mixed"],
+      overall: { max: 74 },
+      retentionRisk: { min: 32 },
+      minRiskyParts: 1,
+      maxRiskyParts: 2,
+      minSuggestedFixes: 1,
+      maxSuggestedFixes: 2,
+      forbiddenFeedback: [
+        "structurally strong",
+        "fresh angle",
+        "original insight",
+        "unique habits",
+      ],
+    },
+  },
+  {
+    id: "positive-familiar-topic-fresh-mechanism",
+    category: "positive",
+    title: "Why moving money first makes saving easier",
+    script:
+      "Saving often fails because money left in your main account still looks available to spend. Moving a fixed amount into a separate account on payday removes that visual permission before you make daily choices. The habit works by changing what your brain sees as spendable, not by relying on willpower later.",
+    expected: {
+      scriptTypes: [
+        "explanation",
+        "how_to",
+        "generic_advice",
+      ],
+      verdicts: ["strong", "mixed"],
+      overall: { min: 60 },
+      hook: { min: 55 },
+      retentionRisk: { max: 48 },
+      hookDecisions: ["keep", "refine"],
+      maxRiskyParts: 1,
+      maxSuggestedFixes: 1,
+      forbiddenFeedback: [
+        "too common",
+        "unoriginal because saving is a common topic",
+        "needs a completely new topic",
+      ],
+    },
+  },
+  {
+    id: "positive-familiar-how-to-practical-value",
+    category: "positive",
+    title: "How to stop checking your phone while working",
+    script:
+      "If you keep checking your phone while working, place it in another room before you begin. Turning it face down is often not enough because the phone is still within reach. Adding physical distance creates a pause between the urge and the action, which makes the distraction easier to resist.",
+    expected: {
+      scriptTypes: [
+        "how_to",
+        "explanation",
+      ],
+      verdicts: ["strong", "mixed"],
+      overall: { min: 60 },
+      hook: { min: 55 },
+      retentionRisk: { max: 48 },
+      hookDecisions: ["keep", "refine"],
+      maxRiskyParts: 1,
+      maxSuggestedFixes: 1,
+      forbiddenFeedback: [
+        "too common",
+        "unoriginal topic",
+        "needs more novelty",
       ],
     },
   },

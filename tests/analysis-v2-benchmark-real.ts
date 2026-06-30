@@ -52,6 +52,17 @@ function collectFeedback(result: AnalysisV2Result): string {
     .toLowerCase();
 }
 
+function collectHookFeedback(
+  result: AnalysisV2Result
+): string {
+  return [
+    result.hookAssessment,
+    result.suggestedHook ?? "",
+  ]
+    .join("\n")
+    .toLowerCase();
+}
+
 function evaluateBenchmarkCase(
   benchmarkCase: AnalysisV2BenchmarkCase,
   result: AnalysisV2Result
@@ -150,6 +161,25 @@ function evaluateBenchmarkCase(
       if (feedback.includes(forbiddenPhrase.toLowerCase())) {
         failures.push(
           `feedback contains forbidden phrase: "${forbiddenPhrase}".`
+        );
+      }
+    }
+  }
+
+  if (expected.forbiddenHookFeedback) {
+    const hookFeedback = collectHookFeedback(result);
+
+    for (
+      const forbiddenPhrase of
+      expected.forbiddenHookFeedback
+    ) {
+      if (
+        hookFeedback.includes(
+          forbiddenPhrase.toLowerCase()
+        )
+      ) {
+        failures.push(
+          `hook feedback contains forbidden phrase: "${forbiddenPhrase}".`
         );
       }
     }

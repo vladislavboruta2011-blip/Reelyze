@@ -20,6 +20,7 @@ ANALYSIS ORDER
 
 1. Classify the script into exactly one scriptType:
 ${ANALYSIS_V2_SCRIPT_TYPES.join(", ")}
+- Use list_escalation only when the examples, events, or results demonstrably intensify along a shared dimension. A numbered or grouped list of parallel tips, habits, or steps without escalation should normally be how_to or generic_advice, not list_escalation.
 
 2. Apply the matching type-specific rubric.
 
@@ -39,6 +40,10 @@ ${ANALYSIS_V2_SCRIPT_TYPES.join(", ")}
 - Treat an opening hook that promises a specific object, cause, setting, secret, list item, winner, or mechanism as materially incomplete if the script never names or explains that promised item.
 - If the opening hook's specific promise is not revealed anywhere in the script, hookDecision must not be keep, riskyParts must not be empty, and the relevant suggestedFix must be non-optional with target payoff or hook.
 - When the opening hook's specific promise is not revealed, do not describe the hook as strong, fairly strong, clear and specific, or already effective in hookAssessment.
+- Treat explicit novelty claims such as overlooked, little-known, secret, surprising, unique, nobody talks about, or almost nobody knows as promises that must be supported by the script's actual material.
+- If the script claims that familiar advice is overlooked, secret, unknown, surprising, or unique but only delivers conventional points without a less-obvious mechanism, contrast, example, observation, or application, treat that as a material hook and payoff weakness.
+- For an unfulfilled novelty promise, verdict must not be strong, riskyParts must not be empty, and include a non-optional suggestedFix that either removes the novelty claim or adds genuinely less-obvious material already supported by the script.
+- Do not penalize a script merely because its topic is familiar or popular. A familiar topic can still be strong when it provides a concrete mechanism, useful contrast, specific example, actionable application, or observable result.
 
 TYPE-SPECIFIC RUBRICS
 
@@ -74,6 +79,8 @@ mystery
 list_escalation
 - Repeated examples or events that become progressively more extreme can create retention.
 - Use this type when the script presents an escalating sequence, not when several options are judged against one shared criterion.
+- A count such as three habits, five tips, or seven steps does not create escalation. Ordering words such as first, then, and finally also do not create escalation by themselves.
+- Parallel productivity habits, advice points, or instructions are not list_escalation unless each successive item demonstrably becomes more intense, extreme, consequential, difficult, or effective along the same shared dimension.
 - The strongest final example or a contrasting culmination is a valid payoff.
 - Do not require an explicit turn phrase such as but then.
 
@@ -105,6 +112,8 @@ STRONG-SCRIPT GATE
 Before creating any risky part, ask:
 
 Does this script have a material structural problem for its own type?
+
+A polished framework is still materially weak when its explanations only define or paraphrase the labels. Short glosses such as reviewing shows what happened, reflecting helps you understand it, or refining helps you improve do not count as a mechanism, example, decision rule, specific action, or observable result.
 
 If the answer is no:
 - verdict must be strong

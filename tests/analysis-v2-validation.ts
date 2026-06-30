@@ -1290,6 +1290,133 @@ const tests: TestCase[] = [
     },
   },
   {
+    name: "rejects comparison content classified as list escalation",
+    run: () => {
+      const comparisonScript =
+        "We tested four budget laptops side by side. The first lasted four hours. The second lasted six. The third reached eight. The final laptop lasted thirteen hours and became the clear winner.";
+
+      const value = createStrongResult();
+
+      value.scriptType = "list_escalation";
+      value.hookAssessment =
+        "The opening establishes a side-by-side laptop comparison.";
+      value.scenes = [
+        {
+          excerpt:
+            "We tested four budget laptops side by side.",
+          label: "Comparison setup",
+          status: "strong",
+        },
+        {
+          excerpt:
+            "The final laptop lasted thirteen hours and became the clear winner.",
+          label: "Winner",
+          status: "strong",
+        },
+      ];
+      value.mainTakeaway =
+        "The script compares laptops using one shared battery-life measurement.";
+
+      const result = validateAnalysisV2Result(
+        value,
+        comparisonScript
+      );
+
+      assert.equal(result.ok, false);
+    },
+  },
+  {
+    name: "rejects parallel advice classified as list escalation",
+    run: () => {
+      const adviceScript =
+        "These are three overlooked productivity habits. Put your phone in another room. Write down one priority. Then work for 25 minutes without stopping.";
+
+      const value = createStrongResult();
+
+      value.scriptType = "list_escalation";
+      value.hookAssessment =
+        "The opening introduces three productivity habits.";
+      value.scenes = [
+        {
+          excerpt:
+            "These are three overlooked productivity habits.",
+          label: "Advice-list setup",
+          status: "strong",
+        },
+        {
+          excerpt:
+            "Put your phone in another room.",
+          label: "First habit",
+          status: "strong",
+        },
+        {
+          excerpt:
+            "Then work for 25 minutes without stopping.",
+          label: "Third habit",
+          status: "strong",
+        },
+      ];
+      value.mainTakeaway =
+        "The script presents three parallel productivity habits.";
+
+      const result = validateAnalysisV2Result(
+        value,
+        adviceScript
+      );
+
+      assert.equal(result.ok, false);
+    },
+  },
+  {
+    name: "allows a genuine escalating sequence",
+    run: () => {
+      const escalationScript =
+        "He first survived a car crash. Then he survived a plane crash in the mountains. Finally, he survived a shipwreck alone for seven days, the most extreme event of all.";
+
+      const value = createStrongResult();
+
+      value.scriptType = "list_escalation";
+      value.hookAssessment =
+        "The opening begins a sequence of increasingly extreme survival events.";
+      value.scenes = [
+        {
+          excerpt:
+            "He first survived a car crash.",
+          label: "Initial event",
+          status: "strong",
+        },
+        {
+          excerpt:
+            "Then he survived a plane crash in the mountains.",
+          label: "Higher-stakes event",
+          status: "strong",
+        },
+        {
+          excerpt:
+            "Finally, he survived a shipwreck alone for seven days, the most extreme event of all.",
+          label: "Most extreme event",
+          status: "strong",
+        },
+      ];
+      value.mainTakeaway =
+        "The events demonstrably escalate in danger and severity.";
+
+      const result = validateAnalysisV2Result(
+        value,
+        escalationScript
+      );
+
+      if (!result.ok) {
+        throw new Error(result.reason);
+      }
+
+      assert.equal(
+        result.value.scriptType,
+        "list_escalation"
+      );
+    },
+  },
+  {
     name: "accepts a concrete first sentence beginning with something",
     run: () => {
       const concreteScript =
