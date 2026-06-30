@@ -38,6 +38,11 @@ const scoringFixesPath = path.join(
   "engine/scoring-fixes.ts",
 );
 
+const scoringRiskFinalizationPath = path.join(
+  projectRoot,
+  "engine/scoring-risk-finalization.ts",
+);
+
 const duplicatePath = path.join(
   projectRoot,
   "app/results/engine/scoring.ts",
@@ -75,6 +80,11 @@ const scoringResultHelpersSource = fs.readFileSync(
 
 const scoringFixesSource = fs.readFileSync(
   scoringFixesPath,
+  "utf8",
+);
+
+const scoringRiskFinalizationSource = fs.readFileSync(
+  scoringRiskFinalizationPath,
   "utf8",
 );
 
@@ -257,6 +267,31 @@ if (missingScoringFixExports.length > 0) {
     [
       "Scoring fixes module is missing required exports:",
       ...missingScoringFixExports.map(
+        (declaration) => `  - ${declaration}`,
+      ),
+    ].join("\n"),
+  );
+}
+
+const requiredRiskFinalizationExports = [
+  "export type FinalizedScoringFeedback",
+  "export function collectWarningLineIndexes(",
+  "export function finalizeScoringFeedback(",
+];
+
+const missingRiskFinalizationExports =
+  requiredRiskFinalizationExports.filter(
+    (declaration) =>
+      !scoringRiskFinalizationSource.includes(
+        declaration,
+      ),
+  );
+
+if (missingRiskFinalizationExports.length > 0) {
+  throw new Error(
+    [
+      "Scoring risk-finalization module is missing required exports:",
+      ...missingRiskFinalizationExports.map(
         (declaration) => `  - ${declaration}`,
       ),
     ].join("\n"),
