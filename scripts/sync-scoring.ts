@@ -33,6 +33,11 @@ const scoringResultHelpersPath = path.join(
   "engine/scoring-result-helpers.ts",
 );
 
+const scoringFixesPath = path.join(
+  projectRoot,
+  "engine/scoring-fixes.ts",
+);
+
 const duplicatePath = path.join(
   projectRoot,
   "app/results/engine/scoring.ts",
@@ -65,6 +70,11 @@ const scoringScriptFeedbackSource = fs.readFileSync(
 
 const scoringResultHelpersSource = fs.readFileSync(
   scoringResultHelpersPath,
+  "utf8",
+);
+
+const scoringFixesSource = fs.readFileSync(
+  scoringFixesPath,
   "utf8",
 );
 
@@ -225,6 +235,28 @@ if (missingResultHelperExports.length > 0) {
     [
       "Scoring result-helper module is missing required exports:",
       ...missingResultHelperExports.map(
+        (declaration) => `  - ${declaration}`,
+      ),
+    ].join("\n"),
+  );
+}
+
+const requiredScoringFixExports = [
+  "export function getFixSemanticKey(",
+  "export function dedupeFixes(",
+];
+
+const missingScoringFixExports =
+  requiredScoringFixExports.filter(
+    (declaration) =>
+      !scoringFixesSource.includes(declaration),
+  );
+
+if (missingScoringFixExports.length > 0) {
+  throw new Error(
+    [
+      "Scoring fixes module is missing required exports:",
+      ...missingScoringFixExports.map(
         (declaration) => `  - ${declaration}`,
       ),
     ].join("\n"),
