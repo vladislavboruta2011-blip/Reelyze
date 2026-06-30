@@ -26,6 +26,11 @@ import {
 } from "./scoring-fixes";
 
 import {
+  collectWarningLineIndexes,
+  finalizeScoringFeedback,
+} from "./scoring-risk-finalization";
+
+import {
   clampScore,
   createSceneSegments,
   dedupeRiskyParts,
@@ -862,66 +867,31 @@ if (middleFlat && !isGoodScript && retentionRisk >= 35) {
     }
   }
 
-  // ── Warning line indexes ───────────────────────────────────────────────────
-  lines.forEach((line, index) => {
-    if (riskyLineIndexes.includes(index)) return;
-    const ll = line.toLowerCase();
-    const isMediumLength = line.length > 110 && line.length <= 200;
-    const isVague =
-      (ll.includes("viewers") || ll.includes("creators") || ll.includes("retention")) &&
-      !ll.includes("?") && !ll.includes("but") && !ll.includes("real problem");
-    const hasWarningPhrase = [
-      "most people think", "most creators think", "the problem is",
-      "step by step", "every line should", "add one line", "start with",
-    ].some(p => ll.includes(p));
-    const isGenericLine = signals.genericPenalty >= 12 && [
-      "you should", "you need to", "this will help", "make sure",
-      "try to", "get better", "improve your",
-    ].some(p => ll.includes(p));
-    if (isMediumLength || isVague || hasWarningPhrase || isGenericLine) {
-      warningLineIndexes.push(index);
-    }
+  warningLineIndexes.push(
+    ...collectWarningLineIndexes(
+      lines,
+      riskyLineIndexes,
+      signals.genericPenalty,
+    ),
+  );
+
+  const finalizedFeedback = finalizeScoringFeedback({
+    riskyParts,
+    fixes,
+    riskyLineIndexes,
+    warningLineIndexes,
+    totalLines,
   });
 
-  // ── Deduplicate + sort ─────────────────────────────────────────────────────
-  riskyParts.sort((a, b) => {
-    const getStart = (timeStr: string) => {
-      const match = timeStr.match(/(\d+):(\d+)/);
-      return match ? parseInt(match[1]) * 60 + parseInt(match[2]) : 0;
-    };
-    return getStart(a.time) - getStart(b.time);
-  });
+  let {
+    uniqueRiskyParts,
+    uniqueFixes,
+  } = finalizedFeedback;
 
-  function getStartSeconds(timeStr: string): number {
-    const match = timeStr.match(/(\d+):(\d+)/);
-    return match ? parseInt(match[1]) * 60 + parseInt(match[2]) : 0;
-  }
-
-  const mergedRiskyParts: RiskyPart[] = [];
-  for (const part of riskyParts) {
-    const partStart = getStartSeconds(part.time);
-    const overlapping = mergedRiskyParts.findIndex(existing => {
-      const existingStart = getStartSeconds(existing.time);
-      return Math.abs(partStart - existingStart) <= 3;
-    });
-    if (overlapping === -1) {
-      mergedRiskyParts.push(part);
-    } else {
-      const existing = mergedRiskyParts[overlapping];
-      if (part.title.length > (existing?.title.length ?? 0)) {
-        mergedRiskyParts[overlapping] = part;
-      }
-    }
-  }
-
-  let uniqueRiskyParts = dedupeRiskyParts(mergedRiskyParts);
-  let uniqueFixes = dedupeFixes(fixes).slice(0, 5);
-  const uniqueRiskyIndexes = [...new Set(riskyLineIndexes)]
-    .filter(i => i >= 0 && i < totalLines)
-    .sort((a, b) => a - b);
-  const uniqueWarningIndexes = [...new Set(warningLineIndexes)]
-    .filter(i => i >= 0 && i < totalLines && !uniqueRiskyIndexes.includes(i))
-    .sort((a, b) => a - b);
+  const {
+    uniqueRiskyIndexes,
+    uniqueWarningIndexes,
+  } = finalizedFeedback;
 
   // ── Enforce minimums for weak scripts ─────────────────────────────────────
   if (overallScore < 58) {
