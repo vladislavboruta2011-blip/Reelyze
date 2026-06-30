@@ -28,6 +28,11 @@ const scoringScriptFeedbackPath = path.join(
   "engine/scoring-script-feedback.ts",
 );
 
+const scoringResultHelpersPath = path.join(
+  projectRoot,
+  "engine/scoring-result-helpers.ts",
+);
+
 const duplicatePath = path.join(
   projectRoot,
   "app/results/engine/scoring.ts",
@@ -55,6 +60,11 @@ const scoringEvaluationSource = fs.readFileSync(
 
 const scoringScriptFeedbackSource = fs.readFileSync(
   scoringScriptFeedbackPath,
+  "utf8",
+);
+
+const scoringResultHelpersSource = fs.readFileSync(
+  scoringResultHelpersPath,
   "utf8",
 );
 
@@ -88,9 +98,12 @@ const requiredScoringExports = [
   "export function createScriptLines(",
   "export function estimateDuration(",
   "export function formatTime(",
-  "export type AnalysisResult",
-  "export type RiskyPart",
-  "export type SceneSegment",
+  `export type {
+  AnalysisResult,
+  RiskyPart,
+  SceneSegment,
+  ScoreData,
+} from "./scoring-result-helpers";`,
   'export { createHookRewrite, getHookRewriteReason } from "./scoring-rewrite";',
 ];
 
@@ -178,6 +191,40 @@ if (missingScriptFeedbackExports.length > 0) {
     [
       "Scoring script-feedback module is missing required exports:",
       ...missingScriptFeedbackExports.map(
+        (declaration) => `  - ${declaration}`,
+      ),
+    ].join("\n"),
+  );
+}
+
+const requiredResultHelperExports = [
+  "export type ScoreData",
+  "export type RiskyPart",
+  "export type SceneSegment",
+  "export type AnalysisResult",
+  "export function createSceneSegments(",
+  "export function dedupeRiskyParts(",
+  "export function clampScore(",
+  "export function getOverallLabel(",
+  "export function getHookLabel(",
+  "export function getRiskLabel(",
+  "export function getHookColor(",
+  "export function getRiskColor(",
+  "export function getHookDescription(",
+  "export function getRiskDescription(",
+];
+
+const missingResultHelperExports =
+  requiredResultHelperExports.filter(
+    (declaration) =>
+      !scoringResultHelpersSource.includes(declaration),
+  );
+
+if (missingResultHelperExports.length > 0) {
+  throw new Error(
+    [
+      "Scoring result-helper module is missing required exports:",
+      ...missingResultHelperExports.map(
         (declaration) => `  - ${declaration}`,
       ),
     ].join("\n"),
