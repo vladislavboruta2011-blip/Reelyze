@@ -18,6 +18,11 @@ const scoringRewritePath = path.join(
   "engine/scoring-rewrite.ts",
 );
 
+const scoringEvaluationPath = path.join(
+  projectRoot,
+  "engine/scoring-evaluation.ts",
+);
+
 const duplicatePath = path.join(
   projectRoot,
   "app/results/engine/scoring.ts",
@@ -35,6 +40,11 @@ const scoringSource = fs.readFileSync(
 
 const scoringRewriteSource = fs.readFileSync(
   scoringRewritePath,
+  "utf8",
+);
+
+const scoringEvaluationSource = fs.readFileSync(
+  scoringEvaluationPath,
   "utf8",
 );
 
@@ -107,6 +117,34 @@ if (missingRewriteExports.length > 0) {
     [
       "Scoring rewrite module is missing required exports:",
       ...missingRewriteExports.map(
+        (declaration) => `  - ${declaration}`,
+      ),
+    ].join("\n"),
+  );
+}
+
+const requiredEvaluationExports = [
+  "export interface OpeningWindowSignals",
+  "export interface UniversalSignals",
+  "export function extractOpeningWindow(",
+  "export function scoreOpeningWindow(",
+  "export function extractUniversalSignals(",
+  "export function calculateHookStrength(",
+  "export function calculateRetentionStructure(",
+  "export function calculatePayoffStrength(",
+];
+
+const missingEvaluationExports =
+  requiredEvaluationExports.filter(
+    (declaration) =>
+      !scoringEvaluationSource.includes(declaration),
+  );
+
+if (missingEvaluationExports.length > 0) {
+  throw new Error(
+    [
+      "Scoring evaluation module is missing required exports:",
+      ...missingEvaluationExports.map(
         (declaration) => `  - ${declaration}`,
       ),
     ].join("\n"),
