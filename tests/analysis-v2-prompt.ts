@@ -61,6 +61,26 @@ const requiredRules = [
     name: "tautological framework explanations are material weaknesses",
     text: "If each step's explanation merely restates its label without adding a mechanism, example, decision rule, specific action, or observable result, treat that as a material content and payoff weakness; verdict must not be strong, riskyParts must not be empty, and include a non-optional suggestedFix.",
   },
+  {
+    name: "unfulfilled novelty promises are material weaknesses",
+    text: "If the script claims that familiar advice is overlooked, secret, unknown, surprising, or unique but only delivers conventional points without a less-obvious mechanism, contrast, example, observation, or application, treat that as a material hook and payoff weakness.",
+  },
+  {
+    name: "familiar topics are not automatically unoriginal",
+    text: "Do not penalize a script merely because its topic is familiar or popular. A familiar topic can still be strong when it provides a concrete mechanism, useful contrast, specific example, actionable application, or observable result.",
+  },
+  {
+    name: "parallel advice lists are not list escalation",
+    text: "Use list_escalation only when the examples, events, or results demonstrably intensify along a shared dimension. A numbered or grouped list of parallel tips, habits, or steps without escalation should normally be how_to or generic_advice, not list_escalation.",
+  },
+  {
+    name: "short paraphrases do not make frameworks concrete",
+    text: "A polished framework is still materially weak when its explanations only define or paraphrase the labels. Short glosses such as reviewing shows what happened, reflecting helps you understand it, or refining helps you improve do not count as a mechanism, example, decision rule, specific action, or observable result.",
+  },
+  {
+    name: "a numbered advice list does not create escalation",
+    text: "A count such as three habits, five tips, or seven steps does not create escalation. Ordering words such as first, then, and finally also do not create escalation by themselves.",
+  },
 ];
 
 let failures = 0;

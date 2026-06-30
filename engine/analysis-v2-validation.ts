@@ -370,6 +370,54 @@ function riskyPartOverlapsOpening(
   return false;
 }
 
+function looksLikeComparisonInsteadOfEscalation(
+  script: string
+): boolean {
+  const cleaned = normalizeWhitespace(script);
+
+  const hasComparisonSetup =
+    /\b(?:tested|compared|ranked|measured)\b/i.test(
+      cleaned
+    ) &&
+    /\b(?:side by side|against each other|which .*?(?:wins?|lasts? longest|is fastest|is highest|is lowest))\b/i.test(
+      cleaned
+    );
+
+  const hasComparisonPayoff =
+    /\b(?:clear winner|the winner|won|ranked first|lasted longest|fastest|highest|lowest|best|worst)\b/i.test(
+      cleaned
+    );
+
+  return hasComparisonSetup && hasComparisonPayoff;
+}
+
+function looksLikeParallelAdviceInsteadOfEscalation(
+  script: string
+): boolean {
+  const cleaned = normalizeWhitespace(script);
+
+  const introducesAdviceList =
+    /\b(?:habits?|tips?|steps?|ways?|methods?|rules?|practices?)\b/i.test(
+      cleaned
+    );
+
+  const containsInstructionalActions =
+    /\b(?:put|place|write|work|start|stop|use|avoid|keep|try|track|save|move|remove|focus|exercise|read|invest)\b/i.test(
+      cleaned
+    );
+
+  const hasExplicitEscalation =
+    /\b(?:progressively|increasingly|more extreme|even worse|even better|more dangerous|more difficult|more intense|higher stakes|largest|smallest|deadliest|most extreme)\b/i.test(
+      cleaned
+    );
+
+  return (
+    introducesAdviceList &&
+    containsInstructionalActions &&
+    !hasExplicitEscalation
+  );
+}
+
 function hasUnrevealedSpecificOpeningPromise(
   script: string
 ): boolean {
@@ -1092,6 +1140,28 @@ export function validateAnalysisV2Result(
       ok: false,
       reason:
         "A keep hook decision cannot contain a required hook fix.",
+    };
+  }
+
+  if (
+    raw.scriptType === "list_escalation" &&
+    looksLikeComparisonInsteadOfEscalation(script)
+  ) {
+    return {
+      ok: false,
+      reason:
+        "A side-by-side evaluation with a shared measurement and declared winner must be classified as comparison, not list_escalation.",
+    };
+  }
+
+  if (
+    raw.scriptType === "list_escalation" &&
+    looksLikeParallelAdviceInsteadOfEscalation(script)
+  ) {
+    return {
+      ok: false,
+      reason:
+        "A parallel list of habits, tips, steps, or instructions without demonstrated escalation must be classified as how_to or generic_advice, not list_escalation.",
     };
   }
 
