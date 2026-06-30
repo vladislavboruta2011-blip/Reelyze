@@ -13,6 +13,11 @@ const scoringPath = path.join(
   "engine/scoring.ts",
 );
 
+const scoringRewritePath = path.join(
+  projectRoot,
+  "engine/scoring-rewrite.ts",
+);
+
 const duplicatePath = path.join(
   projectRoot,
   "app/results/engine/scoring.ts",
@@ -25,6 +30,11 @@ const resultsSource = fs.readFileSync(
 
 const scoringSource = fs.readFileSync(
   scoringPath,
+  "utf8",
+);
+
+const scoringRewriteSource = fs.readFileSync(
+  scoringRewritePath,
   "utf8",
 );
 
@@ -53,28 +63,50 @@ if (duplicatedDeclarations.length > 0) {
   );
 }
 
-const requiredExports = [
+const requiredScoringExports = [
   "export function analyzeScript(",
   "export function createScriptLines(",
   "export function estimateDuration(",
-  "export function createHookRewrite(",
-  "export function getHookRewriteReason(",
   "export function formatTime(",
   "export type AnalysisResult",
   "export type RiskyPart",
   "export type SceneSegment",
+  'export { createHookRewrite, getHookRewriteReason } from "./scoring-rewrite";',
 ];
 
-const missingExports = requiredExports.filter(
-  (declaration) =>
-    !scoringSource.includes(declaration),
-);
+const missingScoringExports =
+  requiredScoringExports.filter(
+    (declaration) =>
+      !scoringSource.includes(declaration),
+  );
 
-if (missingExports.length > 0) {
+if (missingScoringExports.length > 0) {
   throw new Error(
     [
-      "Canonical scoring engine is missing required exports:",
-      ...missingExports.map(
+      "Canonical scoring entry point is missing required exports:",
+      ...missingScoringExports.map(
+        (declaration) => `  - ${declaration}`,
+      ),
+    ].join("\n"),
+  );
+}
+
+const requiredRewriteExports = [
+  "export function createHookRewrite(",
+  "export function getHookRewriteReason(",
+];
+
+const missingRewriteExports =
+  requiredRewriteExports.filter(
+    (declaration) =>
+      !scoringRewriteSource.includes(declaration),
+  );
+
+if (missingRewriteExports.length > 0) {
+  throw new Error(
+    [
+      "Scoring rewrite module is missing required exports:",
+      ...missingRewriteExports.map(
         (declaration) => `  - ${declaration}`,
       ),
     ].join("\n"),
@@ -88,5 +120,5 @@ if (fs.existsSync(duplicatePath)) {
 }
 
 console.log(
-  "PASS — engine/scoring.ts is the single scoring source of truth",
+  "PASS — scoring entry point and extracted scoring modules are valid",
 );
