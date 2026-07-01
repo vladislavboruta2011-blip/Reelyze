@@ -31,6 +31,7 @@ import {
   buildPayoffFixes,
   buildPrimaryWeaknessFixes,
   buildScriptTypeFixes,
+  buildStrongEndingOpeningFixes,
   buildSupportingSignalFixes,
   getFixSemanticKey,
 } from "./scoring-fixes";
@@ -590,9 +591,16 @@ const hasStructuredEscalation =
     addFix(fix);
   }
 
-  // If the last line IS strong but hook is weak — suggest moving it
-  if (lastLineIsStrong && effectiveHookScore < 55 && !fixes.some(f => f.toLowerCase().includes("lead with"))) {
-    addFix("Lead with your strongest consequence: the final line of your script would make a more powerful opening.");
+  for (
+    const fix of buildStrongEndingOpeningFixes({
+      lastLineIsStrong,
+      effectiveHookScore,
+      hasLeadWithFix: fixes.some((fix) =>
+        fix.toLowerCase().includes("lead with"),
+      ),
+    })
+  ) {
+    addFix(fix);
   }
 
   for (
