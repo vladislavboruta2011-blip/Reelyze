@@ -29,6 +29,7 @@ import { analyzeScoringEnding } from "./scoring-ending";
 import {
   buildBodyAndLengthFixes,
   buildMediumScoreFixes,
+  buildOptionalImprovementFixes,
   buildPayoffFixes,
   buildPrimaryWeaknessFixes,
   buildScriptTypeFixes,
@@ -644,19 +645,17 @@ const hasStructuredEscalation =
     addFix(fix);
   }
 
-  // Optional improvements for good-but-not-great scripts
-  if (isGoodScript && !isStrongScript) {
-    if (fixes.length === 0) {
-      if (hookScore >= 65 && retentionRisk <= 35) {
-        addFix("Add one more specific example, number, or concrete detail to make the payoff feel more earned.");
-        addFix("Make the payoff more specific so the viewer feels clearly rewarded.");
-        addFix("Tighten any line that does not add new information or tension.");
-      } else {
-        if (hookScore < 75) addFix("Sharpen the first line with a stronger curiosity gap or clearer contrast.");
-        if (signals.specificityScore < 30) addFix("Add one more specific detail to make the payoff feel even more concrete.");
-        if (fixes.length === 0) addFix("Tighten any line that does not add new information or tension.");
-      }
-    }
+  for (
+    const fix of buildOptionalImprovementFixes({
+      isGoodScript,
+      isStrongScript,
+      hasExistingFixes: fixes.length > 0,
+      hookScore,
+      retentionRisk,
+      specificityScore: signals.specificityScore,
+    })
+  ) {
+    addFix(fix);
   }
 
   warningLineIndexes.push(
