@@ -28,6 +28,7 @@ import {
   createLineTimestamps,
   createScaleLabels,
 } from "./timing-helpers";
+import { createDisplayFixes } from "./fixes-helpers";
 import { Card, IconBox } from "./ui-components";
 import {
   SquarePen,
@@ -342,14 +343,7 @@ const hookModalReasonLabel =
           ? "What this version improves:"
           : "Why it is better:";
 
-// Replace any rule-based hook rewrite in fixes with the AI hook once loaded,
-// so Suggested Fixes and the modal always show the same improved hook.
-const displayFixes: string[] = analysis.fixes.map((fix) => {
-  if (aiHook && fix.toLowerCase().startsWith("rewrite your hook:")) {
-    return `Rewrite your hook: "${aiHook}"`;
-  }
-  return fix;
-});
+const displayFixes = createDisplayFixes(analysis.fixes, aiHook);
   
  const improvedHookReason =
   aiHookReason || getHookRewriteReason(activeScript);
