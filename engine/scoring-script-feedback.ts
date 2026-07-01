@@ -389,6 +389,88 @@ export function analyzeGenericFeedback({
   };
 }
 
+type OpenLoopFeedback = {
+  middleHasConcreteContent: boolean;
+  riskyPart: RiskyPart | null;
+};
+
+export function analyzeOpenLoopFeedback({
+  lines,
+  openLoopScore,
+  curiosityScore,
+  contrastScore,
+  wordCount,
+  overallScore,
+  hasStructuredEscalation,
+  isViralOrGiveaway,
+  isEmotionalStory,
+  duration,
+}: {
+  lines: string[];
+  openLoopScore: number;
+  curiosityScore: number;
+  contrastScore: number;
+  wordCount: number;
+  overallScore: number;
+  hasStructuredEscalation: boolean;
+  isViralOrGiveaway: boolean;
+  isEmotionalStory: boolean;
+  duration: number;
+}): OpenLoopFeedback {
+  const totalLines = lines.length;
+
+  const middleSectionText = lines
+    .slice(
+      Math.floor(totalLines * 0.25),
+      Math.floor(totalLines * 0.75),
+    )
+    .join(" ");
+
+  const middleHasConcreteContent =
+    /\d/.test(middleSectionText) ||
+    /[a-z,]\s+[A-Z][a-z]{2,}/.test(
+      middleSectionText,
+    ) ||
+    /\b(feet|miles|mph|kph|percent|%|seconds|minutes|hours|days|years|meters|billion|million|thousand|degrees)\b/i.test(
+      middleSectionText,
+    ) ||
+    /\b(would|could) (disappear|fit|vanish|be hidden|be buried|be submerged|still have)\b/i.test(
+      middleSectionText,
+    ) ||
+    /\bmore than (a mile|a kilometer|a foot|a meter|a year)\b/i.test(
+      middleSectionText,
+    ) ||
+    hasStructuredEscalation;
+
+  const shouldCreateRiskyPart =
+    openLoopScore === 0 &&
+    curiosityScore < 12 &&
+    contrastScore < 15 &&
+    wordCount >= 35 &&
+    overallScore < 58 &&
+    !hasStructuredEscalation &&
+    !middleHasConcreteContent &&
+    !isViralOrGiveaway &&
+    !isEmotionalStory;
+
+  return {
+    middleHasConcreteContent,
+    riskyPart: shouldCreateRiskyPart
+      ? {
+          time: createTimeRange(
+            0.3,
+            0.6,
+            duration,
+          ),
+          title:
+            "No reason to keep watching.",
+          description:
+            "The script may not give viewers enough curiosity or unresolved tension before the payoff.",
+        }
+      : null,
+  };
+}
+
 type FillerFeedback = {
   hasFillerPhrases: boolean;
   riskyPart: RiskyPart | null;
