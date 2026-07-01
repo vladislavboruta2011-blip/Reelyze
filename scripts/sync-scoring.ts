@@ -309,6 +309,7 @@ const requiredRiskFinalizationExports = [
   "export type FinalizedScoringFeedback",
   "export function collectWarningLineIndexes(",
   "export function finalizeScoringFeedback(",
+  "export function enforceScoringFeedbackMinimums(",
 ];
 
 const missingRiskFinalizationExports =

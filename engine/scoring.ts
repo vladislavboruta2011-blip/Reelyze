@@ -24,13 +24,11 @@ import { calibrateScoringScores } from "./scoring-calibration";
 
 import { analyzeScoringEnding } from "./scoring-ending";
 
-import {
-  dedupeFixes,
-  getFixSemanticKey,
-} from "./scoring-fixes";
+import { getFixSemanticKey } from "./scoring-fixes";
 
 import {
   collectWarningLineIndexes,
+  enforceScoringFeedbackMinimums,
   finalizeScoringFeedback,
 } from "./scoring-risk-finalization";
 
@@ -48,7 +46,6 @@ export {
 import {
   clampScore,
   createSceneSegments,
-  dedupeRiskyParts,
   getHookColor,
   getHookDescription,
   getHookLabel,
@@ -750,166 +747,31 @@ if (middleFlat && !isGoodScript && retentionRisk >= 35) {
     totalLines,
   });
 
-  let {
+  const {
     uniqueRiskyParts,
     uniqueFixes,
-  } = finalizedFeedback;
-
-  const {
     uniqueRiskyIndexes,
     uniqueWarningIndexes,
-  } = finalizedFeedback;
-
-  // ── Enforce minimums for weak scripts ─────────────────────────────────────
-  if (overallScore < 58) {
-    const alreadyHasOpeningPart = uniqueRiskyParts.some(p =>
-      p.title.toLowerCase().includes("weak opening") ||
-      p.title.toLowerCase().includes("hook needs") ||
-      p.title.toLowerCase().includes("curiosity gap") ||
-      p.title.toLowerCase().includes("too short") ||
-      p.title.toLowerCase().includes("strong payoff appears")
-    );
-    if (uniqueRiskyParts.length < 2 && effectiveHookScore < 65 && !alreadyHasOpeningPart) {
-      uniqueRiskyParts.push({
-        time: createTimeRange(0, 0.25, duration),
-        title: "Hook needs more work.",
-        description: "The opening does not clearly create curiosity, contrast, or a reason to stay.",
-      });
-      if (!uniqueRiskyIndexes.includes(0)) uniqueRiskyIndexes.push(0);
-    }
-    if (uniqueRiskyParts.length < 2 && !hasStructuredEscalation) {
-      uniqueRiskyParts.push({
-        time: createTimeRange(0.35, 0.65, duration),
-        title: "Middle may lose momentum.",
-        description: "The script may need a stronger turn, contrast, or new piece of information.",
-      });
-      uniqueRiskyIndexes.push(Math.max(1, Math.floor(totalLines / 2)));
-    }
-    if (uniqueFixes.length < 4 && !isStructurallyCompleteShort) {
-      if (hookNeedsWork && effectiveHookScore < 65 && !uniqueFixes.some(f => f.toLowerCase().includes("rewrite") || f.toLowerCase().includes("sharpen") || f.toLowerCase().includes("opening line") || f.toLowerCase().includes("lead with"))) {
-        uniqueFixes.push("Rewrite the opening line — lead with the strongest consequence, contrast, or specific detail from your script.");
-      } else if (
-        !structures.hasConsequencePayoff &&
-        !uniqueFixes.some(f =>
-          f.toLowerCase().includes("sharpen") ||
-          f.toLowerCase().includes("tighten") ||
-          f.toLowerCase().includes("payoff")
-        )
-      ) {
-        uniqueFixes.push("Make the payoff more specific so the viewer feels rewarded.");
-      }
-      if (
-        signals.contrastScore < 20 &&
-        !hasStructuredEscalation &&
-        !uniqueFixes.some(f => f.toLowerCase().includes("contrast"))
-      ) {
-        uniqueFixes.push("Add a contrast or pattern interrupt in the middle section.");
-      }
-      if (
-        signals.payoffScore < 20 &&
-        signals.consequenceScore < 15 &&
-        !structures.hasConsequencePayoff &&
-        !uniqueFixes.some(f => f.toLowerCase().includes("payoff"))
-      ) {
-        uniqueFixes.push("Make the payoff more specific so the viewer feels rewarded.");
-      }
-      if (uniqueFixes.length < 4) {
-        uniqueFixes.push("Make each line earn its place — cut any sentence that does not add new information or tension.");
-      }
-    }
-    uniqueRiskyParts = dedupeRiskyParts(uniqueRiskyParts);
-    uniqueFixes = dedupeFixes(uniqueFixes).slice(0, 5);
-  } else if (overallScore < 75) {
-    const alreadyHasOpeningPartMid = uniqueRiskyParts.some(p =>
-      p.title.toLowerCase().includes("weak opening") ||
-      p.title.toLowerCase().includes("hook needs") ||
-      p.title.toLowerCase().includes("curiosity gap") ||
-      p.title.toLowerCase().includes("strong payoff appears")
-    );
-    if (uniqueRiskyParts.length < 1 && uniqueFixes.length > 0) {
-      if (effectiveHookScore < 65 && !alreadyHasOpeningPartMid) {
-        uniqueRiskyParts.push({
-          time: createTimeRange(0, 0.25, duration),
-          title: "Hook needs more work.",
-          description: "The opening does not clearly create curiosity, contrast, or a reason to stay.",
-        });
-        if (!uniqueRiskyIndexes.includes(0)) uniqueRiskyIndexes.push(0);
-      } else if (signals.genericPenalty >= 12) {
-        uniqueRiskyParts.push({
-          time: createTimeRange(0.2, 0.7, duration),
-          title: "Script feels too generic.",
-          description: "The lines repeat obvious ideas without a concrete example, number, or consequence.",
-        });
-      } else if (payoffStrength < 35 && !lastLineIsStrong) {
-        uniqueRiskyParts.push({
-          time: createTimeRange(0.75, 1.0, duration),
-          title: "Payoff could be stronger.",
-          description: "The ending may not feel rewarding. A clearer result or consequence would help.",
-        });
-        uniqueRiskyIndexes.push(Math.max(0, totalLines - 1));
-      }
-    }
-    if (uniqueFixes.length < 2) {
-      if (hookNeedsWork && effectiveHookScore < 68 && !uniqueFixes.some(f => f.toLowerCase().includes("sharpen") || f.toLowerCase().includes("rewrite") || f.toLowerCase().includes("lead with"))) {
-        uniqueFixes.push("Sharpen the first line with a stronger curiosity gap or clearer contrast.");
-      }
-      if (
-        signals.contrastScore < 15 &&
-        signals.openLoopScore < 15 &&
-        !hasStructuredEscalation &&
-        !uniqueFixes.some(f => f.toLowerCase().includes("contrast") || f.toLowerCase().includes("turn"))
-      ) {
-        uniqueFixes.push("Add a contrast or unexpected turn in the middle section.");
-      }
-      if (signals.payoffScore < 20 && signals.consequenceScore < 15 && !lastLineIsStrong && !uniqueFixes.some(f => f.toLowerCase().includes("payoff") || f.toLowerCase().includes("result"))) {
-        uniqueFixes.push("End with a specific result, consequence, or unresolved detail the viewer will remember.");
-      }
-      if (uniqueFixes.length < 2) {
-        uniqueFixes.push("Make each line earn its place — cut any sentence that does not add new information or tension.");
-      }
-    }
-    uniqueRiskyParts = dedupeRiskyParts(uniqueRiskyParts);
-    uniqueFixes = dedupeFixes(uniqueFixes).slice(0, 5);
-  }
-
- if (uniqueRiskyParts.length === 0 && overallScore >= 80) {
-    uniqueFixes.length = 0;
-    uniqueRiskyIndexes.length = 0;
-    uniqueWarningIndexes.length = 0;
-  }
-
-  // If risky parts exist but fixes are empty, add at least one specific fix.
-  // This prevents "No fixes needed" from appearing alongside risky parts.
-  if (uniqueRiskyParts.length > 0 && uniqueFixes.length === 0) {
-    const hasPayoffIssue = uniqueRiskyParts.some(p =>
-      p.title.toLowerCase().includes("payoff") ||
-      p.title.toLowerCase().includes("generic payoff") ||
-      p.title.toLowerCase().includes("weak or generic")
-    );
-    const hasHookIssue = uniqueRiskyParts.some(p =>
-      p.title.toLowerCase().includes("hook") ||
-      p.title.toLowerCase().includes("opening") ||
-      p.title.toLowerCase().includes("curiosity gap")
-    );
-    const hasMiddleIssue = uniqueRiskyParts.some(p =>
-      p.title.toLowerCase().includes("middle") ||
-      p.title.toLowerCase().includes("momentum")
-    );
-    if (hasPayoffIssue) {
-      uniqueFixes.push("Replace the final line with a specific consequence, result, or unresolved detail that rewards viewers for watching.");
-    }
-    if (hasHookIssue && !uniqueFixes.some(f => f.toLowerCase().includes("opening") || f.toLowerCase().includes("hook"))) {
-      uniqueFixes.push("Sharpen the opening line with a stronger curiosity gap, contrast, or concrete detail.");
-    }
-    if (hasMiddleIssue && !uniqueFixes.some(f => f.toLowerCase().includes("middle") || f.toLowerCase().includes("tension"))) {
-      uniqueFixes.push("Tighten the middle section — each line should add new information or tension.");
-    }
-    if (uniqueFixes.length === 0) {
-      uniqueFixes.push("Make each line earn its place — cut any sentence that does not add new information or tension.");
-    }
-  }
-
-  uniqueFixes = dedupeFixes(uniqueFixes).slice(0, 5);
+  } = enforceScoringFeedbackMinimums({
+    ...finalizedFeedback,
+    overallScore,
+    effectiveHookScore,
+    hasStructuredEscalation,
+    isStructurallyCompleteShort,
+    hookNeedsWork,
+    hasConsequencePayoff:
+      structures.hasConsequencePayoff,
+    contrastScore: signals.contrastScore,
+    payoffScore: signals.payoffScore,
+    consequenceScore:
+      signals.consequenceScore,
+    openLoopScore: signals.openLoopScore,
+    genericPenalty: signals.genericPenalty,
+    payoffStrength,
+    lastLineIsStrong,
+    totalLines,
+    duration,
+  });
 
   const hasEndingFlagged = uniqueRiskyParts.some(p =>
     p.title.toLowerCase().includes("payoff") ||
