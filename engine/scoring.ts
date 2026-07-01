@@ -19,6 +19,7 @@ import {
   analyzeFlatMiddleFeedback,
   analyzeGenericFeedback,
   analyzeLengthFeedback,
+  analyzeOpenLoopFeedback,
   analyzeOpeningFeedback,
   analyzeShortScriptFeedback,
   buildMainTakeaway,
@@ -494,36 +495,34 @@ const hasStructuredEscalation =
 // ── 6. No open loop (very weak scripts only, and only when no valid structure) ──
   // Also suppress when the middle contains concrete scale, named references,
   // or explanatory content — these are not "no reason to keep watching".
-  const middleSectionText = lines.slice(
-    Math.floor(totalLines * 0.25),
-    Math.floor(totalLines * 0.75)
-  ).join(" ");
-  const middleHasConcreteContent =
-    /\d/.test(middleSectionText) ||
-    /[a-z,]\s+[A-Z][a-z]{2,}/.test(middleSectionText) ||
-    /\b(feet|miles|mph|kph|percent|%|seconds|minutes|hours|days|years|meters|billion|million|thousand|degrees)\b/i.test(middleSectionText) ||
-    /\b(would|could) (disappear|fit|vanish|be hidden|be buried|be submerged|still have)\b/i.test(middleSectionText) ||
-    /\bmore than (a mile|a kilometer|a foot|a meter|a year)\b/i.test(middleSectionText) ||
-    hasStructuredEscalation;
+  const openLoopFeedback =
+    analyzeOpenLoopFeedback({
+      lines,
+      openLoopScore:
+        signals.openLoopScore,
+      curiosityScore:
+        signals.curiosityScore,
+      contrastScore:
+        signals.contrastScore,
+      wordCount,
+      overallScore,
+      hasStructuredEscalation,
+      isViralOrGiveaway,
+      isEmotionalStory,
+      duration,
+    });
 
   if (
-    signals.openLoopScore === 0 &&
-    signals.curiosityScore < 12 &&
-    signals.contrastScore < 15 &&
-    wordCount >= 35 &&
-    overallScore < 58 &&
-    !hasStructuredEscalation &&
-    !middleHasConcreteContent &&
-    !isViralOrGiveaway &&
-    !isEmotionalStory
+    openLoopFeedback.riskyPart &&
+    !riskyParts.some(
+      (part) =>
+        part.title ===
+        "No reason to keep watching.",
+    )
   ) {
-    if (!riskyParts.some(p => p.title === "No reason to keep watching.")) {
-      riskyParts.push({
-        time: createTimeRange(0.3, 0.6, duration),
-        title: "No reason to keep watching.",
-        description: "The script may not give viewers enough curiosity or unresolved tension before the payoff.",
-      });
-    }
+    riskyParts.push(
+      openLoopFeedback.riskyPart,
+    );
   }
 
   // ── 7. Filler phrases ────────────────────────────────────────────────────────
@@ -646,7 +645,8 @@ const hasStructuredEscalation =
       curiosityScore: signals.curiosityScore,
       contrastScore: signals.contrastScore,
       hasStructuredEscalation,
-      middleHasConcreteContent,
+      middleHasConcreteContent:
+        openLoopFeedback.middleHasConcreteContent,
       wordCount,
       overallScore,
       hasFluffPhrases:
