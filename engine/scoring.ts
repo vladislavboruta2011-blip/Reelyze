@@ -29,6 +29,7 @@ import { analyzeScoringEnding } from "./scoring-ending";
 import {
   buildPrimaryWeaknessFixes,
   buildScriptTypeFixes,
+  buildSupportingSignalFixes,
   getFixSemanticKey,
 } from "./scoring-fixes";
 
@@ -555,34 +556,23 @@ const hasStructuredEscalation =
   }
 
   // Supporting fixes — only add hook-focused fixes when hook needs work
-  if (hookNeedsWork && signals.curiosityScore < 12 && effectiveHookScore < 55) {
-    addFix("Open with an unanswered question, a missing detail, or a surprising consequence.");
-  }
-
-  // Only suggest "add contrast" if the script truly lacks contrast AND escalation
-  if (
-    signals.contrastScore < 12 &&
-    signals.openLoopScore < 12 &&
-    !hasStructuredEscalation &&
-    wordCount > 20 &&
-    overallScore < 58
+  for (
+    const fix of buildSupportingSignalFixes({
+      hookNeedsWork,
+      curiosityScore: signals.curiosityScore,
+      effectiveHookScore,
+      contrastScore: signals.contrastScore,
+      openLoopScore: signals.openLoopScore,
+      hasStructuredEscalation,
+      wordCount,
+      overallScore,
+      genericPenalty: signals.genericPenalty,
+      stakesScore: signals.stakesScore,
+      consequenceScore: signals.consequenceScore,
+      specificityScore: signals.specificityScore,
+    })
   ) {
-    addFix('Add a contrast line mid-script — something like: "But that is not the real problem."');
-  }
-
-  if (signals.genericPenalty >= 12 && overallScore < 72) {
-    addFix("Add one specific detail, number, named reference, or real-world example to make the script feel grounded.");
-  }
-  if (
-    signals.stakesScore < 12 &&
-    signals.consequenceScore < 10 &&
-    wordCount >= 25 &&
-    overallScore < 62
-  ) {
-    addFix("Raise the stakes: what is at risk, what was lost, or what changes if this is ignored?");
-  }
-  if (signals.specificityScore < 10 && wordCount >= 20 && overallScore < 70) {
-    addFix("Add a more concrete detail, example, consequence, or measurable result to make the script feel grounded.");
+    addFix(fix);
   }
 
   // Payoff fix — only if last line is NOT already a strong consequence
