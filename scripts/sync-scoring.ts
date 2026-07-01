@@ -233,6 +233,7 @@ const requiredScriptFeedbackExports = [
   "export function analyzeShortScriptFeedback(",
   "export function buildMainTakeaway(",
   "export function analyzeFlatMiddleFeedback(",
+  "export function analyzeGenericFeedback(",
 ];
 
 const missingScriptFeedbackExports =
