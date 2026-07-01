@@ -229,6 +229,7 @@ if (missingEvaluationExports.length > 0) {
 const requiredScriptFeedbackExports = [
   "export function detectScriptType(",
   "export function normalizeAutoCaptionScript(",
+  "export function analyzeOpeningFeedback(",
   "export function buildMainTakeaway(",
   "export function analyzeFlatMiddleFeedback(",
 ];

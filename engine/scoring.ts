@@ -16,6 +16,7 @@ import {
 
 import {
   analyzeFlatMiddleFeedback,
+  analyzeOpeningFeedback,
   buildMainTakeaway,
   detectScriptType,
   normalizeAutoCaptionScript,
@@ -330,54 +331,35 @@ const hasStructuredEscalation =
     lastLineIsStrong,
   } = endingAnalysis;
 
- // For viral/giveaway scripts with a clear premise, don't mark opening as weak
-  const viralHasClearPremise =
-    isViralOrGiveaway && (
-      /\$[\d,]+|\b\d[\d,]* (dollars?|bucks|usd)\b/i.test(normalizedText) ||
-      /\b(iphone|ipad|ps5|xbox|car|giveaway|wherever|whatever|whichever).{0,40}(lands?|wins?|gets?|keep)\b/i.test(normalizedText.toLowerCase()) ||
-      /\b(bet|challenge|impossible|can you)\b/i.test(firstSentence.toLowerCase())
-    );
+  const openingFeedback =
+    analyzeOpeningFeedback({
+      normalizedText,
+      firstSentence,
+      isViralOrGiveaway,
+      hookNeedsWork,
+      effectiveHookScore,
+      isGenericMotivationalEnding,
+      structures,
+      hasScenarioOpener:
+        openingWindowSignals.hasScenarioOpener,
+      scenarioHasStakes:
+        openingWindowSignals.scenarioHasStakes,
+      curiosityScore:
+        signals.curiosityScore,
+      duration,
+    });
 
- if (hookNeedsWork && effectiveHookScore < 45 && !viralHasClearPremise) {
-    // Check if the script has a strong payoff/consequence that should be the hook
-    // Do NOT label as "strong payoff" if the ending is generic/motivational — it is not a payoff worth moving
-    if (
-      !isGenericMotivationalEnding &&
-      !structures.hasListBuildup &&
-      (structures.hasStrongPayoffLate || structures.hasConsequencePayoff)
-    ) {
-      riskyParts.push({
-        time: createTimeRange(0, 0.25, duration),
-        title: "Strong payoff appears too late.",
-        description: "The opening announces the topic instead of leading with the strongest consequence or detail from the script.",
-      });
-    } else {
-      const isLowStakesScenario = openingWindowSignals.hasScenarioOpener && !openingWindowSignals.scenarioHasStakes;
-      riskyParts.push({
-        time: createTimeRange(0, 0.25, duration),
-        title: isLowStakesScenario ? "Opening lacks stakes or consequence." : "Weak opening.",
-        description: isLowStakesScenario
-          ? "The scenario creates an image but does not give viewers a strong reason to care. Add a consequence, mystery, or specific strange result."
-          : "The first line may not stop viewers from swiping. It needs more curiosity, contrast, or a clear result.",
-      });
-    }
-    riskyLineIndexes.push(0);
-  } else if (hookNeedsWork && effectiveHookScore < 65) {
-    warningLineIndexes.push(0);
-  }
-  // If hookIsAcceptable: never mark line 0 as risky or warning
+  riskyParts.push(
+    ...openingFeedback.riskyParts,
+  );
 
-  // No curiosity gap — only when hook is clearly weak (not just acceptable)
-  if (hookNeedsWork && signals.curiosityScore < 12 && effectiveHookScore < 55) {
-    if (!riskyParts.some(p => p.title === "Weak opening." || p.title === "Strong payoff appears too late.")) {
-      riskyParts.push({
-        time: createTimeRange(0, 0.3, duration),
-        title: "No clear curiosity gap.",
-        description: "The opening explains the topic but does not create enough tension or an unanswered question.",
-      });
-      if (!riskyLineIndexes.includes(0)) riskyLineIndexes.push(0);
-    }
-  }
+  riskyLineIndexes.push(
+    ...openingFeedback.riskyLineIndexes,
+  );
+
+  warningLineIndexes.push(
+    ...openingFeedback.warningLineIndexes,
+  );
 
   // ── 3. Generic/filler script ────────────────────────────────────────────────
   // Do not call a scenario-building script "generic" — use a more precise label.
