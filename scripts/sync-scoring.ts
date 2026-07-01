@@ -230,6 +230,7 @@ const requiredScriptFeedbackExports = [
   "export function detectScriptType(",
   "export function normalizeAutoCaptionScript(",
   "export function buildMainTakeaway(",
+  "export function analyzeFlatMiddleFeedback(",
 ];
 
 const missingScriptFeedbackExports =
