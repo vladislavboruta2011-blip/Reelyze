@@ -28,6 +28,7 @@ import {
   createLineTimestamps,
   createScaleLabels,
 } from "./timing-helpers";
+import { Card, IconBox } from "./ui-components";
 import {
   SquarePen,
   PencilLine,
@@ -55,22 +56,6 @@ const MAX_TITLE_CHARACTERS = 200;
 
 const fallbackScript =
   "What if one small change could make viewers watch until the end? But the real problem is not editing speed. It is that the first line gives viewers no reason to stay.";
-
-function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return (
-    <div className={`rounded-[22px] border border-[#E5E7EB] bg-white ${className}`}>
-      {children}
-    </div>
-  );
-}
-
-function IconBox({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-[10px] border border-[#DDD6FE] bg-[#F3E8FF] text-[#7C3AED]">
-      {children}
-    </div>
-  );
-}
 
 function pluralize(count: number, singular: string, plural: string) {
   return count === 1
