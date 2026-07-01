@@ -138,6 +138,57 @@ export function normalizeAutoCaptionScript(text: string): string {
     .trim();
 }
 
+type ShortScriptFeedback = {
+  riskyPart: RiskyPart | null;
+  fixes: string[];
+};
+
+export function analyzeShortScriptFeedback({
+  charCount,
+  isStructurallyCompleteShort,
+  isPrimaryWeakShort,
+  duration,
+}: {
+  charCount: number;
+  isStructurallyCompleteShort: boolean;
+  isPrimaryWeakShort: boolean;
+  duration: number;
+}): ShortScriptFeedback {
+  if (
+    charCount >= 180 ||
+    isStructurallyCompleteShort
+  ) {
+    return {
+      riskyPart: null,
+      fixes: [],
+    };
+  }
+
+  const riskyPart: RiskyPart = {
+    time: createTimeRange(
+      0.1,
+      0.8,
+      duration,
+    ),
+    title: "Script may be too short.",
+    description:
+      "The idea may not feel developed enough before the ending.",
+  };
+
+  const fixes = isPrimaryWeakShort
+    ? [
+        "Add one stronger example, specific detail, or consequence before the final payoff.",
+        "Include a number, result, or named reference to make the script feel grounded.",
+        "Expand the payoff — state clearly what changes, what was lost, or what the viewer should take away.",
+      ]
+    : [];
+
+  return {
+    riskyPart,
+    fixes,
+  };
+}
+
 type OpeningFeedbackAnalysis = {
   riskyParts: RiskyPart[];
   riskyLineIndexes: number[];
