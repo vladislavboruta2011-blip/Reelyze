@@ -28,6 +28,7 @@ import { analyzeScoringEnding } from "./scoring-ending";
 
 import {
   buildBodyAndLengthFixes,
+  buildMediumScoreFixes,
   buildPayoffFixes,
   buildPrimaryWeaknessFixes,
   buildScriptTypeFixes,
@@ -624,11 +625,23 @@ const hasStructuredEscalation =
     addFix(fix);
   }
 
- // Hook fix for medium-score scripts — only when hook actually needs work
-  if (hookNeedsWork && effectiveHookScore < 65 && primaryWeak !== "hook" && !fixes.some(f => f.toLowerCase().includes("rewrite") || f.toLowerCase().includes("opening line") || f.toLowerCase().includes("lead with"))) {
-    addFix("Rewrite the opening line — lead with the strongest consequence, number, or contradiction from the script.");
-  } else if (hookIsAcceptable && effectiveHookScore < 75 && !isGoodScript && retentionRisk > 35) {
-    addFix("Tighten the middle section — each line should add new information or tension.");
+  for (
+    const fix of buildMediumScoreFixes({
+      hookNeedsWork,
+      effectiveHookScore,
+      primaryWeak,
+      hasOpeningFix: fixes.some(
+        (fix) =>
+          fix.toLowerCase().includes("rewrite") ||
+          fix.toLowerCase().includes("opening line") ||
+          fix.toLowerCase().includes("lead with"),
+      ),
+      hookIsAcceptable,
+      isGoodScript,
+      retentionRisk,
+    })
+  ) {
+    addFix(fix);
   }
 
   // Optional improvements for good-but-not-great scripts
