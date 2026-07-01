@@ -26,7 +26,10 @@ import { calibrateScoringScores } from "./scoring-calibration";
 
 import { analyzeScoringEnding } from "./scoring-ending";
 
-import { getFixSemanticKey } from "./scoring-fixes";
+import {
+  buildScriptTypeFixes,
+  getFixSemanticKey,
+} from "./scoring-fixes";
 
 import {
   collectWarningLineIndexes,
@@ -519,36 +522,23 @@ const hasStructuredEscalation =
 
   // ── Build fixes — context-aware, not generic ────────────────────────────────
 
-  // Script-type-specific fixes (prepended before generic logic)
-  if (isViralOrGiveaway) {
-    const lowerNorm = normalizedText.toLowerCase();
-    const hasCTAInterrupt =
-      /\b(subscribe|follow|hit subscribe|smash subscribe)\b/i.test(lowerNorm) &&
-      normalizedLines.length >= 4 &&
-      normalizedLines.slice(0, Math.floor(normalizedLines.length * 0.8)).some(l =>
-        /\b(subscribe|follow)\b/i.test(l.toLowerCase())
-      );
-    if (hasCTAInterrupt) {
-      addFix("Move the subscribe CTA to after the payoff — placing it before the challenge resolves may cause viewers to drop.");
-    }
-    if (payoffStrength < 40) {
-      addFix("Add one clear consequence: what happens if the challenge fails or succeeds?");
-    }
-    if (!structures.hasConsequencePayoff && wordCount > 30) {
-      addFix("Make the challenge outcome clearer before any CTA — viewers need to know if it worked.");
-    }
-  }
-
-  if (isEmotionalStory) {
-    if (payoffStrength < 35) {
-      addFix("Make the emotional payoff more specific — what exactly changed, and how does the viewer feel the impact?");
-    }
-    if (hookNeedsWork && effectiveHookScore < 65) {
-      addFix("Open with the most emotional or unexpected moment from the story — not just the setup.");
-    }
-    if (signals.specificityScore < 20) {
-      addFix("Add one specific named detail, place, or action to make the story feel real rather than general.");
-    }
+  for (
+    const fix of buildScriptTypeFixes({
+      isViralOrGiveaway,
+      isEmotionalStory,
+      normalizedText,
+      normalizedLines,
+      payoffStrength,
+      hasConsequencePayoff:
+        structures.hasConsequencePayoff,
+      wordCount,
+      hookNeedsWork,
+      effectiveHookScore,
+      specificityScore:
+        signals.specificityScore,
+    })
+  ) {
+    addFix(fix);
   }
 
   // Primary weakness fix — only add hook rewrites when hook actually needs work

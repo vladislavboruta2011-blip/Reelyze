@@ -288,6 +288,7 @@ if (missingResultHelperExports.length > 0) {
 const requiredScoringFixExports = [
   "export function getFixSemanticKey(",
   "export function dedupeFixes(",
+  "export function buildScriptTypeFixes(",
 ];
 
 const missingScoringFixExports =
