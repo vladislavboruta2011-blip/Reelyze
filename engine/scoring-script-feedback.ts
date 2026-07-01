@@ -138,6 +138,144 @@ export function normalizeAutoCaptionScript(text: string): string {
     .trim();
 }
 
+type OpeningFeedbackAnalysis = {
+  riskyParts: RiskyPart[];
+  riskyLineIndexes: number[];
+  warningLineIndexes: number[];
+};
+
+export function analyzeOpeningFeedback({
+  normalizedText,
+  firstSentence,
+  isViralOrGiveaway,
+  hookNeedsWork,
+  effectiveHookScore,
+  isGenericMotivationalEnding,
+  structures,
+  hasScenarioOpener,
+  scenarioHasStakes,
+  curiosityScore,
+  duration,
+}: {
+  normalizedText: string;
+  firstSentence: string;
+  isViralOrGiveaway: boolean;
+  hookNeedsWork: boolean;
+  effectiveHookScore: number;
+  isGenericMotivationalEnding: boolean;
+  structures: ScriptStructures;
+  hasScenarioOpener: boolean;
+  scenarioHasStakes: boolean;
+  curiosityScore: number;
+  duration: number;
+}): OpeningFeedbackAnalysis {
+  const riskyParts: RiskyPart[] = [];
+  const riskyLineIndexes: number[] = [];
+  const warningLineIndexes: number[] = [];
+
+  const viralHasClearPremise =
+    isViralOrGiveaway &&
+    (
+      /\$[\d,]+|\b\d[\d,]* (dollars?|bucks|usd)\b/i.test(
+        normalizedText,
+      ) ||
+      /\b(iphone|ipad|ps5|xbox|car|giveaway|wherever|whatever|whichever).{0,40}(lands?|wins?|gets?|keep)\b/i.test(
+        normalizedText.toLowerCase(),
+      ) ||
+      /\b(bet|challenge|impossible|can you)\b/i.test(
+        firstSentence.toLowerCase(),
+      )
+    );
+
+  if (
+    hookNeedsWork &&
+    effectiveHookScore < 45 &&
+    !viralHasClearPremise
+  ) {
+    if (
+      !isGenericMotivationalEnding &&
+      !structures.hasListBuildup &&
+      (
+        structures.hasStrongPayoffLate ||
+        structures.hasConsequencePayoff
+      )
+    ) {
+      riskyParts.push({
+        time: createTimeRange(
+          0,
+          0.25,
+          duration,
+        ),
+        title: "Strong payoff appears too late.",
+        description:
+          "The opening announces the topic instead of leading with the strongest consequence or detail from the script.",
+      });
+    } else {
+      const isLowStakesScenario =
+        hasScenarioOpener &&
+        !scenarioHasStakes;
+
+      riskyParts.push({
+        time: createTimeRange(
+          0,
+          0.25,
+          duration,
+        ),
+        title: isLowStakesScenario
+          ? "Opening lacks stakes or consequence."
+          : "Weak opening.",
+        description: isLowStakesScenario
+          ? "The scenario creates an image but does not give viewers a strong reason to care. Add a consequence, mystery, or specific strange result."
+          : "The first line may not stop viewers from swiping. It needs more curiosity, contrast, or a clear result.",
+      });
+    }
+
+    riskyLineIndexes.push(0);
+  } else if (
+    hookNeedsWork &&
+    effectiveHookScore < 65
+  ) {
+    warningLineIndexes.push(0);
+  }
+
+  if (
+    hookNeedsWork &&
+    curiosityScore < 12 &&
+    effectiveHookScore < 55
+  ) {
+    const alreadyHasOpeningIssue =
+      riskyParts.some(
+        (part) =>
+          part.title === "Weak opening." ||
+          part.title ===
+            "Strong payoff appears too late.",
+      );
+
+    if (!alreadyHasOpeningIssue) {
+      riskyParts.push({
+        time: createTimeRange(
+          0,
+          0.3,
+          duration,
+        ),
+        title: "No clear curiosity gap.",
+        description:
+          "The opening explains the topic but does not create enough tension or an unanswered question.",
+      });
+
+      if (!riskyLineIndexes.includes(0)) {
+        riskyLineIndexes.push(0);
+      }
+    }
+  }
+
+  return {
+    riskyParts,
+    riskyLineIndexes,
+    warningLineIndexes,
+  };
+}
+
 type FlatMiddleFeedback = {
   riskyPart: RiskyPart | null;
   riskyLineIndex: number | null;
