@@ -16,6 +16,7 @@ import {
 
 import {
   analyzeFlatMiddleFeedback,
+  analyzeGenericFeedback,
   analyzeOpeningFeedback,
   analyzeShortScriptFeedback,
   buildMainTakeaway,
@@ -377,29 +378,43 @@ const hasStructuredEscalation =
     ...openingFeedback.warningLineIndexes,
   );
 
-  // ── 3. Generic/filler script ────────────────────────────────────────────────
-  // Do not call a scenario-building script "generic" — use a more precise label.
-  const hasScenarioStructure =
-    openingWindowSignals.hasScenarioOpener ||
-    /^(imagine|what if|picture this)\b/i.test(lines[0] ?? "");
-  const genericLabel = hasScenarioStructure
-    ? "Scenario lacks stakes or consequence."
-    : "Script feels too generic.";
-  const genericDescription = hasScenarioStructure
-    ? "The scenario creates an image but the lines do not build toward a strong consequence, mystery, or specific tension."
-    : "The lines repeat obvious ideas without a concrete example, number, twist, or consequence.";
-
-  if (signals.genericPenalty >= 12 && overallScore < 72) {
-    riskyParts.push({
-      time: createTimeRange(0.2, 0.7, duration),
-      title: genericLabel,
-      description: genericDescription,
+  const genericFeedback =
+    analyzeGenericFeedback({
+      lines,
+      hasScenarioOpener:
+        openingWindowSignals.hasScenarioOpener,
+      genericPenalty:
+        signals.genericPenalty,
+      overallScore,
+      duration,
     });
-    const midIdx = Math.floor(totalLines / 2);
-    if (!riskyLineIndexes.includes(midIdx)) riskyLineIndexes.push(midIdx);
-    if (totalLines > 3 && !riskyLineIndexes.includes(midIdx - 1)) {
-      warningLineIndexes.push(midIdx - 1);
-    }
+
+  if (genericFeedback.riskyPart) {
+    riskyParts.push(
+      genericFeedback.riskyPart,
+    );
+  }
+
+  if (
+    genericFeedback.riskyLineIndex !== null &&
+    !riskyLineIndexes.includes(
+      genericFeedback.riskyLineIndex,
+    )
+  ) {
+    riskyLineIndexes.push(
+      genericFeedback.riskyLineIndex,
+    );
+  }
+
+  if (
+    genericFeedback.warningLineIndex !== null &&
+    !riskyLineIndexes.includes(
+      genericFeedback.warningLineIndex,
+    )
+  ) {
+    warningLineIndexes.push(
+      genericFeedback.warningLineIndex,
+    );
   }
 
   // ── 4. Flat middle — only when structure detection confirms it ──────────────

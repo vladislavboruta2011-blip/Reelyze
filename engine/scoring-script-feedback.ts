@@ -327,6 +327,68 @@ export function analyzeOpeningFeedback({
   };
 }
 
+type GenericFeedback = {
+  riskyPart: RiskyPart | null;
+  riskyLineIndex: number | null;
+  warningLineIndex: number | null;
+};
+
+export function analyzeGenericFeedback({
+  lines,
+  hasScenarioOpener,
+  genericPenalty,
+  overallScore,
+  duration,
+}: {
+  lines: string[];
+  hasScenarioOpener: boolean;
+  genericPenalty: number;
+  overallScore: number;
+  duration: number;
+}): GenericFeedback {
+  if (
+    genericPenalty < 12 ||
+    overallScore >= 72
+  ) {
+    return {
+      riskyPart: null,
+      riskyLineIndex: null,
+      warningLineIndex: null,
+    };
+  }
+
+  const hasScenarioStructure =
+    hasScenarioOpener ||
+    /^(imagine|what if|picture this)\b/i.test(
+      lines[0] ?? "",
+    );
+
+  const midIdx = Math.floor(
+    lines.length / 2,
+  );
+
+  return {
+    riskyPart: {
+      time: createTimeRange(
+        0.2,
+        0.7,
+        duration,
+      ),
+      title: hasScenarioStructure
+        ? "Scenario lacks stakes or consequence."
+        : "Script feels too generic.",
+      description: hasScenarioStructure
+        ? "The scenario creates an image but the lines do not build toward a strong consequence, mystery, or specific tension."
+        : "The lines repeat obvious ideas without a concrete example, number, twist, or consequence.",
+    },
+    riskyLineIndex: midIdx,
+    warningLineIndex:
+      lines.length > 3
+        ? midIdx - 1
+        : null,
+  };
+}
+
 type FlatMiddleFeedback = {
   riskyPart: RiskyPart | null;
   riskyLineIndex: number | null;
