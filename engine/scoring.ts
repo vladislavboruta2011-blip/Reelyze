@@ -15,6 +15,7 @@ import {
 } from "./scoring-evaluation";
 
 import {
+  analyzeFillerFeedback,
   analyzeFlatMiddleFeedback,
   analyzeGenericFeedback,
   analyzeLengthFeedback,
@@ -526,18 +527,25 @@ const hasStructuredEscalation =
   }
 
   // ── 7. Filler phrases ────────────────────────────────────────────────────────
-  const fluffPhrases = [
-    "basically", "as you can see", "i just want to", "this is very important",
-    "let's talk about", "i'm going to explain", "really important",
-  ];
-  if (fluffPhrases.some(p => lower.includes(p))) {
-    if (!riskyParts.some(p => p.title === "Script feels too generic." || p.title === "Possible filler phrases.")) {
-      riskyParts.push({
-        time: createTimeRange(0.3, 0.6, duration),
-        title: "Possible filler phrases.",
-        description: "Some lines may sound like setup instead of real value.",
-      });
-    }
+  const fillerFeedback =
+    analyzeFillerFeedback({
+      lower,
+      duration,
+    });
+
+  if (
+    fillerFeedback.riskyPart &&
+    !riskyParts.some(
+      (part) =>
+        part.title ===
+          "Script feels too generic." ||
+        part.title ===
+          "Possible filler phrases.",
+    )
+  ) {
+    riskyParts.push(
+      fillerFeedback.riskyPart,
+    );
   }
 
   // ── 8. Script too long ──────────────────────────────────────────────────────
@@ -641,9 +649,8 @@ const hasStructuredEscalation =
       middleHasConcreteContent,
       wordCount,
       overallScore,
-      hasFluffPhrases: fluffPhrases.some(
-        (phrase) => lower.includes(phrase),
-      ),
+      hasFluffPhrases:
+        fillerFeedback.hasFillerPhrases,
       charCount,
       isStructurallyCompleteShort,
       primaryWeak,
