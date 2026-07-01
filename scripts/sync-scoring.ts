@@ -234,6 +234,7 @@ const requiredScriptFeedbackExports = [
   "export function buildMainTakeaway(",
   "export function analyzeFlatMiddleFeedback(",
   "export function analyzeGenericFeedback(",
+  "export function analyzeLengthFeedback(",
 ];
 
 const missingScriptFeedbackExports =

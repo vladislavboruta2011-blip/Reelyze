@@ -389,6 +389,37 @@ export function analyzeGenericFeedback({
   };
 }
 
+type LengthFeedback = {
+  riskyPart: RiskyPart | null;
+};
+
+export function analyzeLengthFeedback({
+  charCount,
+  duration,
+}: {
+  charCount: number;
+  duration: number;
+}): LengthFeedback {
+  if (charCount <= 850) {
+    return {
+      riskyPart: null,
+    };
+  }
+
+  return {
+    riskyPart: {
+      time: createTimeRange(
+        0.55,
+        0.85,
+        duration,
+      ),
+      title: "Script may be too long.",
+      description:
+        "Viewers may lose focus before the ending.",
+    },
+  };
+}
+
 type FlatMiddleFeedback = {
   riskyPart: RiskyPart | null;
   riskyLineIndex: number | null;
