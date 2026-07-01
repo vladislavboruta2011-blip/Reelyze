@@ -48,6 +48,11 @@ const scoringTimingPath = path.join(
   "engine/scoring-timing.ts",
 );
 
+const scoringCalibrationPath = path.join(
+  projectRoot,
+  "engine/scoring-calibration.ts",
+);
+
 const duplicatePath = path.join(
   projectRoot,
   "app/results/engine/scoring.ts",
@@ -95,6 +100,11 @@ const scoringRiskFinalizationSource = fs.readFileSync(
 
 const scoringTimingSource = fs.readFileSync(
   scoringTimingPath,
+  "utf8",
+);
+
+const scoringCalibrationSource = fs.readFileSync(
+  scoringCalibrationPath,
   "utf8",
 );
 
@@ -328,6 +338,28 @@ if (missingScoringTimingExports.length > 0) {
     [
       "Scoring timing module is missing required exports:",
       ...missingScoringTimingExports.map(
+        (declaration) => `  - ${declaration}`,
+      ),
+    ].join("\n"),
+  );
+}
+
+const requiredScoringCalibrationExports = [
+  "export type CalibratedScoringScores",
+  "export function calibrateScoringScores(",
+];
+
+const missingScoringCalibrationExports =
+  requiredScoringCalibrationExports.filter(
+    (declaration) =>
+      !scoringCalibrationSource.includes(declaration),
+  );
+
+if (missingScoringCalibrationExports.length > 0) {
+  throw new Error(
+    [
+      "Scoring calibration module is missing required exports:",
+      ...missingScoringCalibrationExports.map(
         (declaration) => `  - ${declaration}`,
       ),
     ].join("\n"),

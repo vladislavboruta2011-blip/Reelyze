@@ -20,6 +20,8 @@ import {
   normalizeAutoCaptionScript,
 } from "./scoring-script-feedback";
 
+import { calibrateScoringScores } from "./scoring-calibration";
+
 import {
   dedupeFixes,
   getFixSemanticKey,
@@ -244,68 +246,22 @@ const hasStructuredEscalation =
     if (retentionRisk > 45) retentionRisk = 45;
   }
 
-  // ── Script-type calibration boosts ────────────────────────────────────────
-  // These run AFTER the main score is computed and apply type-aware floors.
+  const calibratedScores = calibrateScoringScores({
+    scriptType,
+    firstSentence,
+    normalizedText,
+    text,
+    displayHookScore,
+    overallScore,
+    retentionRisk,
+    signals,
+  });
 
-  // Viral challenge / giveaway: floor hook and overall when premise is clear.
-  let calibratedHookScore = displayHookScore;
+  const calibratedHookScore =
+    calibratedScores.calibratedHookScore;
 
-  if (scriptType === "viral_challenge" || scriptType === "giveaway_or_prize") {
-    const firstLower2 = firstSentence.toLowerCase();
-    const hasStakeInFirst =
-      /\$[\d,]+|\b\d[\d,]* (dollars?|bucks|usd)\b/i.test(firstSentence) ||
-      /\b(iphone|ipad|ps5|xbox|car|prize|giveaway|bet)\b/i.test(firstLower2) ||
-      /\b(can you|impossible|wherever|whatever|whichever)\b/i.test(firstLower2);
-
-    // If the first line has a clear challenge/stake signal, floor hook at 62
-    if (hasStakeInFirst && calibratedHookScore < 62) {
-      calibratedHookScore = 62;
-    }
-
-    const hasChallengePremise =
-      /\$[\d,]+|\b\d[\d,]* (dollars?|bucks|usd)\b/i.test(normalizedText) ||
-      /\b(iphone|ipad|ps5|xbox|car|prize|giveaway)\b/i.test(normalizedText.toLowerCase()) ||
-      /\b(wherever|whatever|whichever).{3,40}\b(subscriber|person|country|city|name)\b/i.test(normalizedText.toLowerCase()) ||
-      /\b(bet|challenge|impossible|can you)\b/i.test(normalizedText.toLowerCase());
-
-    if (hasChallengePremise && overallScore < 58) {
-      overallScore = 58;
-    }
-    if (hasChallengePremise && calibratedHookScore >= 55 && overallScore < 65) {
-      overallScore = Math.max(overallScore, 63);
-    }
-  }
-
-  // Emotional story: floor overall at 52 when emotional arc signals are present.
-  // (stakesScore threshold lowered to 10 so emotional phrases from Patch 2 count)
-  if (scriptType === "emotional_story") {
-    if (overallScore < 52 && signals.stakesScore >= 10) {
-      overallScore = 52;
-    }
-    // If the story has a clear named person + payoff arc, push to 55
-    const hasNamedPersonAndArc =
-      /\b[A-Z][a-z]{2,}\b/.test(text) &&
-      /\b(years later|after becoming|changed (his|her|their) life|never forgot|went back|returned)\b/i.test(normalizedText.toLowerCase());
-    if (hasNamedPersonAndArc && overallScore < 55) {
-      overallScore = 55;
-    }
-  }
-
-  // Auto-caption: reduce generic penalty impact (messy transcripts look generic)
-  if (scriptType === "auto_caption_transcript") {
-    if (overallScore < 50 && signals.genericPenalty < 42) {
-      overallScore = Math.max(overallScore, 50);
-    }
-  }
-
-  overallScore = clampScore(overallScore);
-
-  // Final safety boundaries for non-empty scripts.
-  if (text.length > 0) {
-    overallScore = Math.max(15, overallScore);
-    retentionRisk = Math.min(90, retentionRisk);
-  }
-
+  overallScore = calibratedScores.overallScore;
+  retentionRisk = calibratedScores.retentionRisk;
 
   // ── Hook status flags — drive risky parts, fixes, button label, scene breakdown ─
   // hookNeedsWork: the hook is weak enough that it should be the primary feedback.
