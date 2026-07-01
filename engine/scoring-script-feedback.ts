@@ -389,6 +389,72 @@ export function analyzeGenericFeedback({
   };
 }
 
+type PayoffFeedback = {
+  riskyPart: RiskyPart | null;
+  riskyLineIndex: number | null;
+};
+
+export function analyzePayoffFeedback({
+  payoffStrength,
+  consequenceScore,
+  wordCount,
+  isGoodScript,
+  lastLineIsStrong,
+  isGenericMotivationalEnding,
+  totalLines,
+  duration,
+}: {
+  payoffStrength: number;
+  consequenceScore: number;
+  wordCount: number;
+  isGoodScript: boolean;
+  lastLineIsStrong: boolean;
+  isGenericMotivationalEnding: boolean;
+  totalLines: number;
+  duration: number;
+}): PayoffFeedback {
+  if (
+    !(
+      (
+        payoffStrength < 28 &&
+        consequenceScore < 15 &&
+        wordCount >= 20 &&
+        !isGoodScript &&
+        !lastLineIsStrong
+      ) ||
+      (
+        isGenericMotivationalEnding &&
+        !isGoodScript
+      )
+    )
+  ) {
+    return {
+      riskyPart: null,
+      riskyLineIndex: null,
+    };
+  }
+
+  return {
+    riskyPart: {
+      time: createTimeRange(
+        0.75,
+        1.0,
+        duration,
+      ),
+      title: isGenericMotivationalEnding
+        ? "Weak or generic payoff."
+        : "Payoff could be stronger.",
+      description: isGenericMotivationalEnding
+        ? "The ending is too vague to feel rewarding. Replace it with a specific consequence, result, or unresolved detail."
+        : "The ending may not feel rewarding. A clearer result or consequence would help.",
+    },
+    riskyLineIndex: Math.max(
+      0,
+      totalLines - 1,
+    ),
+  };
+}
+
 type OpenLoopFeedback = {
   middleHasConcreteContent: boolean;
   riskyPart: RiskyPart | null;

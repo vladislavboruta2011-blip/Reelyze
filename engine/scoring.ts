@@ -21,6 +21,7 @@ import {
   analyzeLengthFeedback,
   analyzeOpenLoopFeedback,
   analyzeOpeningFeedback,
+  analyzePayoffFeedback,
   analyzeShortScriptFeedback,
   buildMainTakeaway,
   detectScriptType,
@@ -456,18 +457,31 @@ const hasStructuredEscalation =
   // Instead, check if the issue is placement (strong payoff but hook was weak).
   // lastLine, lastLineLower, and isGenericMotivationalEnding are already declared above.
 
-  if (
-    (payoffStrength < 28 && signals.consequenceScore < 15 && wordCount >= 20 && !isGoodScript && !lastLineIsStrong) ||
-    (isGenericMotivationalEnding && !isGoodScript)
-  ) {
-    riskyParts.push({
-      time: createTimeRange(0.75, 1.0, duration),
-      title: isGenericMotivationalEnding ? "Weak or generic payoff." : "Payoff could be stronger.",
-      description: isGenericMotivationalEnding
-        ? "The ending is too vague to feel rewarding. Replace it with a specific consequence, result, or unresolved detail."
-        : "The ending may not feel rewarding. A clearer result or consequence would help.",
+  const payoffFeedback =
+    analyzePayoffFeedback({
+      payoffStrength,
+      consequenceScore:
+        signals.consequenceScore,
+      wordCount,
+      isGoodScript,
+      lastLineIsStrong,
+      isGenericMotivationalEnding,
+      totalLines,
+      duration,
     });
-    riskyLineIndexes.push(Math.max(0, totalLines - 1));
+
+  if (payoffFeedback.riskyPart) {
+    riskyParts.push(
+      payoffFeedback.riskyPart,
+    );
+  }
+
+  if (
+    payoffFeedback.riskyLineIndex !== null
+  ) {
+    riskyLineIndexes.push(
+      payoffFeedback.riskyLineIndex,
+    );
   }
 
   // If hook needs work but ending IS strong: label as placement issue
