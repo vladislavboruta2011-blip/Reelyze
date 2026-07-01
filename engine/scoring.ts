@@ -28,6 +28,7 @@ import { analyzeScoringEnding } from "./scoring-ending";
 
 import {
   buildBodyAndLengthFixes,
+  buildPayoffFixes,
   buildPrimaryWeaknessFixes,
   buildScriptTypeFixes,
   buildSupportingSignalFixes,
@@ -576,16 +577,17 @@ const hasStructuredEscalation =
     addFix(fix);
   }
 
-  // Payoff fix — only if last line is NOT already a strong consequence
-  if (
-    payoffStrength < 28 &&
-    signals.consequenceScore < 15 &&
-    wordCount >= 20 &&
-    !isGoodScript &&
-    !lastLineIsStrong &&
-    primaryWeak !== "payoff"
+  for (
+    const fix of buildPayoffFixes({
+      payoffStrength,
+      consequenceScore: signals.consequenceScore,
+      wordCount,
+      isGoodScript,
+      lastLineIsStrong,
+      primaryWeak,
+    })
   ) {
-    addFix("Make the final payoff more specific — state the result, consequence, or unresolved mystery clearly.");
+    addFix(fix);
   }
 
   // If the last line IS strong but hook is weak — suggest moving it
