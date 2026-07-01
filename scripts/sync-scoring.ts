@@ -291,6 +291,7 @@ const requiredScoringFixExports = [
   "export function buildScriptTypeFixes(",
   "export function buildPrimaryWeaknessFixes(",
   "export function buildSupportingSignalFixes(",
+  "export function buildBodyAndLengthFixes(",
 ];
 
 const missingScoringFixExports =

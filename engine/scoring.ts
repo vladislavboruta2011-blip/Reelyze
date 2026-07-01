@@ -27,6 +27,7 @@ import { calibrateScoringScores } from "./scoring-calibration";
 import { analyzeScoringEnding } from "./scoring-ending";
 
 import {
+  buildBodyAndLengthFixes,
   buildPrimaryWeaknessFixes,
   buildScriptTypeFixes,
   buildSupportingSignalFixes,
@@ -592,30 +593,25 @@ const hasStructuredEscalation =
     addFix("Lead with your strongest consequence: the final line of your script would make a more powerful opening.");
   }
 
- if (
-    hookNeedsWork &&
-    signals.openLoopScore === 0 &&
-    signals.curiosityScore < 12 &&
-    signals.contrastScore < 15 &&
-    !hasStructuredEscalation &&
-    !middleHasConcreteContent &&
-    wordCount >= 35 &&
-    overallScore < 58
+  for (
+    const fix of buildBodyAndLengthFixes({
+      hookNeedsWork,
+      openLoopScore: signals.openLoopScore,
+      curiosityScore: signals.curiosityScore,
+      contrastScore: signals.contrastScore,
+      hasStructuredEscalation,
+      middleHasConcreteContent,
+      wordCount,
+      overallScore,
+      hasFluffPhrases: fluffPhrases.some(
+        (phrase) => lower.includes(phrase),
+      ),
+      charCount,
+      isStructurallyCompleteShort,
+      primaryWeak,
+    })
   ) {
-    addFix("Add an unanswered question or a delayed reveal to keep viewers engaged through the middle.");
-  }
-  if (fluffPhrases.some(p => lower.includes(p))) {
-    addFix("Replace filler phrases with a specific example, concrete consequence, or direct insight.");
-  }
-  if (
-    charCount < 180 &&
-    !isStructurallyCompleteShort &&
-    primaryWeak !== "short"
-  ) {
-    addFix("Add one stronger example or consequence before the final payoff.");
-  }
-  if (charCount > 850) {
-    addFix("Cut repeated explanations and keep only the strongest points.");
+    addFix(fix);
   }
 
  // Hook fix for medium-score scripts — only when hook actually needs work
