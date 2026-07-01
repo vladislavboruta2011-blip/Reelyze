@@ -15,6 +15,7 @@ import {
 } from "./scoring-evaluation";
 
 import {
+  analyzeFlatMiddleFeedback,
   buildMainTakeaway,
   detectScriptType,
   normalizeAutoCaptionScript,
@@ -404,65 +405,34 @@ const hasStructuredEscalation =
   }
 
   // ── 4. Flat middle — only when structure detection confirms it ──────────────
-  if (totalLines >= 5) {
-    const middleLines = lines.slice(
-      Math.floor(totalLines * 0.33),
-      Math.floor(totalLines * 0.66)
+  const flatMiddleFeedback =
+    analyzeFlatMiddleFeedback({
+      lines,
+      structures,
+      isGoodScript,
+      retentionRisk,
+      duration,
+      existingRiskyTitles:
+        riskyParts.map(
+          (part) => part.title,
+        ),
+    });
+
+  if (flatMiddleFeedback.riskyPart) {
+    riskyParts.push(
+      flatMiddleFeedback.riskyPart,
     );
-    const middleText = middleLines.join(" ").toLowerCase();
-    const middleHasContrastSignal = [
-      "but", "however", "then", "suddenly", "except", "actually",
-      "the problem", "real problem", "if it", "that is why", "result",
-    ].some(p => middleText.includes(p));
+  }
 
-    // Use structure detection: list buildup and mystery buildup are NOT flat middle
-    const middleIsStructured =
-      structures.hasListBuildup ||
-      structures.hasMysteryClueBuildup ||
-      structures.hasContradictionReversal;
-
-    const shortLineCount = middleLines.filter(l => l.split(/\s+/).length <= 7).length;
-    const hasListBuildupPattern = shortLineCount >= 2;
-
-    const postMiddleLines = lines.slice(Math.floor(totalLines * 0.66));
-    const postMiddleText = postMiddleLines.join(" ").toLowerCase();
-    const hasPostEscalation =
-      postMiddleText.includes("now imagine") ||
-      postMiddleText.includes("now think") ||
-      postMiddleText.includes("millions") ||
-      postMiddleText.includes("permanent") ||
-      postMiddleText.includes("once it") ||
-      postMiddleText.includes("everyone") ||
-      postMiddleText.includes("the scary part") ||
-      postMiddleText.includes("that is what") ||
-      postMiddleText.includes("that is why");
-
-    const middleFlat =
-      !middleHasContrastSignal &&
-      !hasListBuildupPattern &&
-      !hasPostEscalation &&
-      !middleIsStructured;
-
-if (middleFlat && !isGoodScript && retentionRisk >= 35) {
-      if (!riskyParts.some(p =>
-        p.title === "Script feels too generic." ||
-        p.title === "Middle may lose momentum."
-      )) {
-        // Give a more specific description based on what IS in the script
-        const hasMystery = structures.hasMysteryClueBuildup;
-        const description = hasMystery
-          ? "The mystery buildup works, but the strongest clue could appear earlier to create a faster curiosity gap."
-          : "No contrast, escalation, or new tension was found in the middle section.";
-
-        riskyParts.push({
-          time: createTimeRange(0.35, 0.65, duration),
-          title: "Middle may lose momentum.",
-          description,
-        });
-      }
-      const midI = Math.floor(totalLines / 2);
-      if (!riskyLineIndexes.includes(midI)) riskyLineIndexes.push(midI);
-    }
+  if (
+    flatMiddleFeedback.riskyLineIndex !== null &&
+    !riskyLineIndexes.includes(
+      flatMiddleFeedback.riskyLineIndex,
+    )
+  ) {
+    riskyLineIndexes.push(
+      flatMiddleFeedback.riskyLineIndex,
+    );
   }
 
   // ── 5. Payoff / ending ──────────────────────────────────────────────────────
