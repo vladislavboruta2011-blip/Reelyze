@@ -43,6 +43,11 @@ const scoringRiskFinalizationPath = path.join(
   "engine/scoring-risk-finalization.ts",
 );
 
+const scoringTimingPath = path.join(
+  projectRoot,
+  "engine/scoring-timing.ts",
+);
+
 const duplicatePath = path.join(
   projectRoot,
   "app/results/engine/scoring.ts",
@@ -88,6 +93,11 @@ const scoringRiskFinalizationSource = fs.readFileSync(
   "utf8",
 );
 
+const scoringTimingSource = fs.readFileSync(
+  scoringTimingPath,
+  "utf8",
+);
+
 const forbiddenResultsDeclarations = [
   "function analyzeScript(",
   "function createScriptLines(",
@@ -115,9 +125,11 @@ if (duplicatedDeclarations.length > 0) {
 
 const requiredScoringExports = [
   "export function analyzeScript(",
-  "export function createScriptLines(",
-  "export function estimateDuration(",
-  "export function formatTime(",
+  `export {
+  createScriptLines,
+  estimateDuration,
+  formatTime,
+} from "./scoring-timing";`,
   `export type {
   AnalysisResult,
   RiskyPart,
@@ -292,6 +304,30 @@ if (missingRiskFinalizationExports.length > 0) {
     [
       "Scoring risk-finalization module is missing required exports:",
       ...missingRiskFinalizationExports.map(
+        (declaration) => `  - ${declaration}`,
+      ),
+    ].join("\n"),
+  );
+}
+
+const requiredScoringTimingExports = [
+  "export function createScriptLines(",
+  "export function estimateDuration(",
+  "export function createTimeRange(",
+  "export function formatTime(",
+];
+
+const missingScoringTimingExports =
+  requiredScoringTimingExports.filter(
+    (declaration) =>
+      !scoringTimingSource.includes(declaration),
+  );
+
+if (missingScoringTimingExports.length > 0) {
+  throw new Error(
+    [
+      "Scoring timing module is missing required exports:",
+      ...missingScoringTimingExports.map(
         (declaration) => `  - ${declaration}`,
       ),
     ].join("\n"),
