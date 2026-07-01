@@ -289,6 +289,7 @@ const requiredScoringFixExports = [
   "export function getFixSemanticKey(",
   "export function dedupeFixes(",
   "export function buildScriptTypeFixes(",
+  "export function buildPrimaryWeaknessFixes(",
 ];
 
 const missingScoringFixExports =

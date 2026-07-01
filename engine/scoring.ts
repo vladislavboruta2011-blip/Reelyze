@@ -27,6 +27,7 @@ import { calibrateScoringScores } from "./scoring-calibration";
 import { analyzeScoringEnding } from "./scoring-ending";
 
 import {
+  buildPrimaryWeaknessFixes,
   buildScriptTypeFixes,
   getFixSemanticKey,
 } from "./scoring-fixes";
@@ -541,40 +542,16 @@ const hasStructuredEscalation =
     addFix(fix);
   }
 
-  // Primary weakness fix — only add hook rewrites when hook actually needs work
-  if (primaryWeak === "hook" && hookNeedsWork && effectiveHookScore < 65) {
-    if (
-      !structures.hasListBuildup &&
-      (structures.hasStrongPayoffLate || structures.hasConsequencePayoff)
-    ) {
-      // The consequence exists — just needs to move forward
-      addFix("Lead with the consequence: move your strongest final line to the very beginning.");
-   } else if (structures.hasMysteryClueBuildup) {
-      // Universal: mystery/clue script — find the most concrete physical detail line
-      const strongestMysteryClue = lines.slice(1).find(l => {
-        const ll = l.toLowerCase();
-        const wordCount = l.split(/\s+/).length;
-        // A good clue line: concrete object/state + not too long + not a vague summary
-        return wordCount >= 5 && wordCount <= 18 &&
-          (ll.includes("still") || ll.includes("untouched") || ll.includes("left behind") ||
-           ll.includes("no signs") || ll.includes("nothing was") || ll.includes("everything was") ||
-           ll.includes("appeared") || ll.includes("looked like") || ll.includes("seemed"));
-      });
-      if (strongestMysteryClue) {
-        addFix(`Open with the most specific physical detail: "${strongestMysteryClue.replace(/[.!?]+$/, "").trim()}" creates more tension than announcing the topic.`);
-      } else {
-        addFix("Open with the most specific clue or physical detail from the script instead of announcing the topic.");
-      }
-    } else {
-      addFix("Rewrite the opening line — it should lead with the strongest detail, consequence, or contrast from your script, not just announce the topic.");
-    }
-  }
-  if (primaryWeak === "generic") {
-    addFix("Replace generic advice lines with a single concrete example, number, or real consequence.");
-    addFix("Cut any sentence that could apply to any video — only keep lines specific to this topic.");
-  }
-  if (primaryWeak === "payoff") {
-    addFix("Make the final payoff more specific — state the result, consequence, or unresolved mystery clearly.");
+  for (
+    const fix of buildPrimaryWeaknessFixes({
+      primaryWeak,
+      hookNeedsWork,
+      effectiveHookScore,
+      structures,
+      lines,
+    })
+  ) {
+    addFix(fix);
   }
 
   // Supporting fixes — only add hook-focused fixes when hook needs work
