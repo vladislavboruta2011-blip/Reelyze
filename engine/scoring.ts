@@ -17,6 +17,7 @@ import {
 import {
   analyzeFlatMiddleFeedback,
   analyzeGenericFeedback,
+  analyzeLengthFeedback,
   analyzeOpeningFeedback,
   analyzeShortScriptFeedback,
   buildMainTakeaway,
@@ -540,12 +541,16 @@ const hasStructuredEscalation =
   }
 
   // ── 8. Script too long ──────────────────────────────────────────────────────
-  if (charCount > 850) {
-    riskyParts.push({
-      time: createTimeRange(0.55, 0.85, duration),
-      title: "Script may be too long.",
-      description: "Viewers may lose focus before the ending.",
+  const lengthFeedback =
+    analyzeLengthFeedback({
+      charCount,
+      duration,
     });
+
+  if (lengthFeedback.riskyPart) {
+    riskyParts.push(
+      lengthFeedback.riskyPart,
+    );
   }
 
   // ── Build fixes — context-aware, not generic ────────────────────────────────
