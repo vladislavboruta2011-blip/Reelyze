@@ -389,6 +389,55 @@ export function analyzeGenericFeedback({
   };
 }
 
+type FillerFeedback = {
+  hasFillerPhrases: boolean;
+  riskyPart: RiskyPart | null;
+};
+
+export function analyzeFillerFeedback({
+  lower,
+  duration,
+}: {
+  lower: string;
+  duration: number;
+}): FillerFeedback {
+  const fillerPhrases = [
+    "basically",
+    "as you can see",
+    "i just want to",
+    "this is very important",
+    "let's talk about",
+    "i'm going to explain",
+    "really important",
+  ];
+
+  const hasFillerPhrases =
+    fillerPhrases.some((phrase) =>
+      lower.includes(phrase),
+    );
+
+  if (!hasFillerPhrases) {
+    return {
+      hasFillerPhrases: false,
+      riskyPart: null,
+    };
+  }
+
+  return {
+    hasFillerPhrases: true,
+    riskyPart: {
+      time: createTimeRange(
+        0.3,
+        0.6,
+        duration,
+      ),
+      title: "Possible filler phrases.",
+      description:
+        "Some lines may sound like setup instead of real value.",
+    },
+  };
+}
+
 type LengthFeedback = {
   riskyPart: RiskyPart | null;
 };
