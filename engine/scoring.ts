@@ -17,6 +17,7 @@ import {
 import {
   analyzeFlatMiddleFeedback,
   analyzeOpeningFeedback,
+  analyzeShortScriptFeedback,
   buildMainTakeaway,
   detectScriptType,
   normalizeAutoCaptionScript,
@@ -316,18 +317,23 @@ const hasStructuredEscalation =
   const isViralOrGiveaway = scriptType === "viral_challenge" || scriptType === "giveaway_or_prize";
   const isEmotionalStory = scriptType === "emotional_story";
 
-  // ── 1. Very short script ────────────────────────────────────────────────────
-  if (charCount < 180 && !isStructurallyCompleteShort) {
-    riskyParts.push({
-      time: createTimeRange(0.1, 0.8, duration),
-      title: "Script may be too short.",
-      description: "The idea may not feel developed enough before the ending.",
+  const shortScriptFeedback =
+    analyzeShortScriptFeedback({
+      charCount,
+      isStructurallyCompleteShort,
+      isPrimaryWeakShort:
+        primaryWeak === "short",
+      duration,
     });
-    if (primaryWeak === "short") {
-      addFix("Add one stronger example, specific detail, or consequence before the final payoff.");
-      addFix("Include a number, result, or named reference to make the script feel grounded.");
-      addFix("Expand the payoff — state clearly what changes, what was lost, or what the viewer should take away.");
-    }
+
+  if (shortScriptFeedback.riskyPart) {
+    riskyParts.push(
+      shortScriptFeedback.riskyPart,
+    );
+  }
+
+  for (const fix of shortScriptFeedback.fixes) {
+    addFix(fix);
   }
 
   const endingAnalysis = analyzeScoringEnding({
