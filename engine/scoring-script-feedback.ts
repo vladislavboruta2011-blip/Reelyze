@@ -455,6 +455,52 @@ export function analyzePayoffFeedback({
   };
 }
 
+type PayoffPlacementFeedback = {
+  replacement:
+    | {
+        title: string;
+        description: string;
+      }
+    | null;
+};
+
+export function analyzePayoffPlacementFeedback({
+  isGenericMotivationalEnding,
+  hasListBuildup,
+  lastLineIsStrong,
+  hookNeedsWork,
+  effectiveHookScore,
+  alreadyHasStrongPayoffLateFeedback,
+}: {
+  isGenericMotivationalEnding: boolean;
+  hasListBuildup: boolean;
+  lastLineIsStrong: boolean;
+  hookNeedsWork: boolean;
+  effectiveHookScore: number;
+  alreadyHasStrongPayoffLateFeedback: boolean;
+}): PayoffPlacementFeedback {
+  if (
+    isGenericMotivationalEnding ||
+    hasListBuildup ||
+    !lastLineIsStrong ||
+    !hookNeedsWork ||
+    effectiveHookScore >= 55 ||
+    alreadyHasStrongPayoffLateFeedback
+  ) {
+    return {
+      replacement: null,
+    };
+  }
+
+  return {
+    replacement: {
+      title: "Strong payoff appears too late.",
+      description:
+        "The strongest consequence is at the end but not in the opening. Move it earlier to stop the scroll.",
+    },
+  };
+}
+
 type OpenLoopFeedback = {
   middleHasConcreteContent: boolean;
   riskyPart: RiskyPart | null;

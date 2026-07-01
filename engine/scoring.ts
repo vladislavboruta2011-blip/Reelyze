@@ -22,6 +22,7 @@ import {
   analyzeOpenLoopFeedback,
   analyzeOpeningFeedback,
   analyzePayoffFeedback,
+  analyzePayoffPlacementFeedback,
   analyzeShortScriptFeedback,
   buildMainTakeaway,
   detectScriptType,
@@ -487,21 +488,32 @@ const hasStructuredEscalation =
   // If hook needs work but ending IS strong: label as placement issue
   // Do NOT run when the ending is generic/motivational — isGenericMotivationalEnding already
   // sets lastLineIsStrong to false, but guard explicitly here for clarity and safety.
-  if (
-    !isGenericMotivationalEnding &&
-    !structures.hasListBuildup &&
-    lastLineIsStrong &&
-    hookNeedsWork &&
-    effectiveHookScore < 55 &&
-    !riskyParts.some(p => p.title === "Strong payoff appears too late.")
-  ) {
+  const payoffPlacementFeedback =
+    analyzePayoffPlacementFeedback({
+      isGenericMotivationalEnding,
+      hasListBuildup:
+        structures.hasListBuildup,
+      lastLineIsStrong,
+      hookNeedsWork,
+      effectiveHookScore,
+      alreadyHasStrongPayoffLateFeedback:
+        riskyParts.some(
+          (part) =>
+            part.title ===
+            "Strong payoff appears too late.",
+        ),
+    });
+
+  if (payoffPlacementFeedback.replacement) {
     // Replace generic "Weak opening" with placement-specific feedback
-    const weakOpeningIdx = riskyParts.findIndex(p => p.title === "Weak opening.");
+    const weakOpeningIdx = riskyParts.findIndex(
+      (part) =>
+        part.title === "Weak opening.",
+    );
     if (weakOpeningIdx >= 0) {
       riskyParts[weakOpeningIdx] = {
         time: riskyParts[weakOpeningIdx].time,
-        title: "Strong payoff appears too late.",
-        description: "The strongest consequence is at the end but not in the opening. Move it earlier to stop the scroll.",
+        ...payoffPlacementFeedback.replacement,
       };
     }
   }
