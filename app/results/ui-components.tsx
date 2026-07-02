@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { AudioLines, FastForward, Scissors } from "lucide-react";
 import type { RiskyPart, ScoreData } from "../../engine/scoring";
 
 export function Card({
@@ -105,6 +106,36 @@ export function RiskyPartItem({
         }
       >
         {part.description}
+      </p>
+    </div>
+  );
+}
+
+export function SuggestedFixItem({
+  fix,
+  index,
+  compact = false,
+}: {
+  fix: string;
+  index: number;
+  compact?: boolean;
+}) {
+  const FixIcon =
+    index % 3 === 0 ? AudioLines : index % 3 === 1 ? Scissors : FastForward;
+
+  return (
+    <div className="flex items-start gap-3 rounded-[12px] border border-[#E5E7EB] bg-[#F8F8FC] px-3 py-3">
+      <IconBox>
+        <FixIcon size={compact ? 16 : 18} />
+      </IconBox>
+      <p
+        className={
+          compact
+            ? "flex-1 text-[12px] leading-[1.6] text-[#6B7280]"
+            : "text-[13px] leading-[1.65] text-[#6B7280]"
+        }
+      >
+        {fix}
       </p>
     </div>
   );
