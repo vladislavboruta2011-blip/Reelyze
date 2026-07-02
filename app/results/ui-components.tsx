@@ -24,6 +24,75 @@ export function IconBox({ children }: { children: ReactNode }) {
   );
 }
 
+const HELPFUL_FEEDBACK_REASONS = [
+  "Accurate score",
+  "Useful fixes",
+  "Clear explanation",
+  "Other",
+];
+
+const UNHELPFUL_FEEDBACK_REASONS = [
+  "Wrong score",
+  "Bad suggestions",
+  "Not specific enough",
+  "Other",
+];
+
+export function FeedbackReasonOptions({
+  rating,
+  selectedReason,
+  disabled,
+  onSelect,
+  compact = false,
+}: {
+  rating: "helpful" | "unhelpful";
+  selectedReason: string | null;
+  disabled: boolean;
+  onSelect: (reason: string) => void;
+  compact?: boolean;
+}) {
+  const reasons =
+    rating === "helpful"
+      ? HELPFUL_FEEDBACK_REASONS
+      : UNHELPFUL_FEEDBACK_REASONS;
+
+  const selectedClasses =
+    rating === "helpful"
+      ? "border-[#22C55E]/50 bg-[#22C55E]/10 text-[#22C55E]"
+      : "border-[#7C3AED]/50 bg-[#7C3AED]/10 text-[#7C3AED]";
+
+  const unselectedClasses = [
+    "border-[#E5E7EB]",
+    compact ? "bg-[#F8F8FC]" : "",
+    "text-[#6B7280]",
+    rating === "helpful"
+      ? "hover:border-[#22C55E]/30 hover:text-[#6B7280]"
+      : "hover:border-[#7C3AED]/30 hover:text-[#6B7280]",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      {reasons.map((reason) => (
+        <button
+          key={reason}
+          disabled={disabled}
+          onClick={() => onSelect(reason)}
+          className={[
+            "w-full rounded-[8px] border px-2.5 py-2 text-left text-[12px] font-medium transition",
+            selectedReason === reason
+              ? selectedClasses
+              : unselectedClasses,
+          ].join(" ")}
+        >
+          {reason}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function DesktopScoreCard({
   title,
   data,
