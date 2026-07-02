@@ -32,6 +32,7 @@ import {
   DesktopScoreCard,
   FeedbackReasonOptions,
   IconBox,
+  MobileScoreCards,
   RiskyPartsContent,
   SceneBreakdownContent,
   ScriptLinesContent,
@@ -870,22 +871,11 @@ const hookCopyButtonLabel =
             <div className="flex flex-col gap-3 px-5">
 
               {/* Score cards — horizontal row */}
-              <div className="grid grid-cols-3 gap-2.5">
-                {[
-                  { label: "Overall", score: analysis.overall.score, color: analysis.overall.ringColor, status: analysis.overall.label },
-                  { label: "Hook", score: analysis.hook.score, color: analysis.hook.color, status: analysis.hook.label },
-                  { label: "Risk", score: analysis.risk.score, color: analysis.risk.color, status: analysis.risk.label },
-                ].map((item) => (
-                  <div key={item.label} className="flex flex-col items-center justify-center gap-1 rounded-[16px] border border-[#E5E7EB] bg-white py-4 px-2">
-                    <p className="text-[10px] font-medium text-[#6B7280] text-center">{item.label}</p>
-                    <span className="text-[32px] font-bold leading-none tracking-[-0.03em] text-[#111827]">{item.score}</span>
-                    <div className="w-full h-[3px] rounded-full bg-[#E5E7EB] overflow-hidden">
-                      <div className="h-full rounded-full" style={{ width: `${item.score}%`, backgroundColor: item.color }} />
-                    </div>
-                    <p className="text-[10px] font-semibold" style={{ color: item.color }}>{item.status}</p>
-                  </div>
-                ))}
-              </div>
+              <MobileScoreCards
+                overall={analysis.overall}
+                hook={analysis.hook}
+                risk={analysis.risk}
+              />
 
               {/* Main Takeaway */}
               <div className="rounded-[18px] border border-[#DDD6FE] bg-[#F3E8FF] px-4 py-4 shadow-[0_0_24px_rgba(124,58,237,0.07)]">
