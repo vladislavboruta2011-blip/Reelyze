@@ -34,7 +34,7 @@ import {
   RiskyPartsContent,
   SceneBreakdownContent,
   ScriptLinesContent,
-  SuggestedFixItem,
+  SuggestedFixesContent,
 } from "./ui-components";
 import {
   SquarePen,
@@ -753,20 +753,7 @@ const hookCopyButtonLabel =
                         </button>
                       )}
                       <div className="flex flex-col gap-3">
-                        {displayFixes.length === 0 ? (
-                          <div>
-                            <p className="text-[14px] font-medium text-[#111827]">No fixes needed.</p>
-                            <p className="mt-1 text-[13px] leading-[1.55] text-[#6B7280]">The script already performs well based on the current analysis.</p>
-                          </div>
-                        ) : (
-                          displayFixes.map((fix, index) => (
-                            <SuggestedFixItem
-                              key={`${fix}-${index}`}
-                              fix={fix}
-                              index={index}
-                            />
-                          ))
-                        )}
+                        <SuggestedFixesContent fixes={displayFixes} />
                       </div>
                     </Card>
                   </div>
@@ -944,21 +931,10 @@ const hookCopyButtonLabel =
                   <span className="text-[11px] font-medium text-[#6B7280]">{pluralize(displayFixes.length, "suggestion", "suggestions")}</span>
                 </div>
                 <div className="px-4 pb-4 flex flex-col gap-2.5">
-                  {displayFixes.length === 0 ? (
-                    <div className="rounded-[12px] border border-[#E5E7EB] bg-[#F8F8FC] px-4 py-3">
-                      <p className="text-[13px] font-medium text-[#111827]">No fixes needed.</p>
-                      <p className="mt-1 text-[12px] text-[#6B7280]">The script already performs well.</p>
-                    </div>
-                  ) : (
-                    (mobileFixesOpen ? displayFixes : displayFixes.slice(0, 3)).map((fix, index) => (
-                      <SuggestedFixItem
-                        key={`${fix}-${index}`}
-                        fix={fix}
-                        index={index}
-                        compact
-                      />
-                    ))
-                  )}
+                  <SuggestedFixesContent
+                    fixes={mobileFixesOpen ? displayFixes : displayFixes.slice(0, 3)}
+                    compact
+                  />
                   {displayFixes.length > 3 && (
                     <button onClick={() => setMobileFixesOpen(!mobileFixesOpen)} className="flex w-full items-center justify-center gap-1.5 pt-1">
                       <span className="text-[12px] font-semibold text-[#6B7280]">{mobileFixesOpen ? "Show fewer" : "View all suggestions"}</span>
