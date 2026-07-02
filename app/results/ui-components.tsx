@@ -200,6 +200,56 @@ export function SuggestedFixItem({
   );
 }
 
+export function SuggestedFixesContent({
+  fixes,
+  compact = false,
+}: {
+  fixes: string[];
+  compact?: boolean;
+}) {
+  if (fixes.length === 0) {
+    return (
+      <div
+        className={
+          compact
+            ? "rounded-[12px] border border-[#E5E7EB] bg-[#F8F8FC] px-4 py-3"
+            : ""
+        }
+      >
+        <p
+          className={
+            compact
+              ? "text-[13px] font-medium text-[#111827]"
+              : "text-[14px] font-medium text-[#111827]"
+          }
+        >
+          No fixes needed.
+        </p>
+        <p
+          className={
+            compact
+              ? "mt-1 text-[12px] text-[#6B7280]"
+              : "mt-1 text-[13px] leading-[1.55] text-[#6B7280]"
+          }
+        >
+          {compact
+            ? "The script already performs well."
+            : "The script already performs well based on the current analysis."}
+        </p>
+      </div>
+    );
+  }
+
+  return fixes.map((fix, index) => (
+    <SuggestedFixItem
+      key={`${fix}-${index}`}
+      fix={fix}
+      index={index}
+      compact={compact}
+    />
+  ));
+}
+
 export function SceneBreakdownContent({
   segments,
   scaleLabels,
