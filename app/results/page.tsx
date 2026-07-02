@@ -22,7 +22,6 @@ import {
   type AnalysisResult,
   type RiskyPart,
   type SceneSegment,
-  type ScoreData,
 } from "../../engine/scoring";
 import {
   createLineTimestamps,
@@ -30,7 +29,11 @@ import {
 } from "./timing-helpers";
 import { createDisplayFixes } from "./fixes-helpers";
 import { pluralize } from "./text-helpers";
-import { Card, IconBox } from "./ui-components";
+import {
+  Card,
+  DesktopScoreCard,
+  IconBox,
+} from "./ui-components";
 import {
   SquarePen,
   PencilLine,
@@ -667,42 +670,21 @@ const hookCopyButtonLabel =
               <>
                 {/* Score cards */}
                 <div className="mb-6 grid grid-cols-3 gap-5">
-                  <Card className="p-6">
-                    <p className="text-[13px] font-medium text-[#6B7280]">Overall Score</p>
-                    <div className="mt-3 flex items-baseline gap-1.5">
-                      <span className="text-[40px] font-bold leading-none tracking-[-0.03em] text-[#111827]">{analysis.overall.score}</span>
-                      <span className="text-[14px] text-[#6B7280]">/100</span>
-                    </div>
-                    <div className="mt-4 h-[5px] overflow-hidden rounded-full bg-[#E5E7EB]">
-                      <div className="h-full rounded-full" style={{ width: `${analysis.overall.score}%`, backgroundColor: analysis.overall.ringColor, boxShadow: `0 0 8px ${analysis.overall.ringColor}55` }} />
-                    </div>
-                    <p className="mt-3.5 text-[14px] font-semibold" style={{ color: analysis.overall.ringColor }}>{analysis.overall.label}</p>
-                    <p className="mt-1 text-[13px] leading-[1.55] text-[#6B7280] line-clamp-2">{analysis.overall.description}</p>
-                  </Card>
-                  <Card className="p-6">
-                    <p className="text-[13px] font-medium text-[#6B7280]">Hook Score</p>
-                    <div className="mt-3 flex items-baseline gap-1.5">
-                      <span className="text-[40px] font-bold leading-none tracking-[-0.03em] text-[#111827]">{analysis.hook.score}</span>
-                      <span className="text-[14px] text-[#6B7280]">/100</span>
-                    </div>
-                    <div className="mt-4 h-[5px] overflow-hidden rounded-full bg-[#E5E7EB]">
-                      <div className="h-full rounded-full" style={{ width: `${analysis.hook.score}%`, backgroundColor: analysis.hook.color, boxShadow: `0 0 8px ${analysis.hook.color}55` }} />
-                    </div>
-                    <p className="mt-3.5 text-[14px] font-semibold" style={{ color: analysis.hook.color }}>{analysis.hook.label}</p>
-                    <p className="mt-1 text-[13px] leading-[1.55] text-[#6B7280] line-clamp-2">{analysis.hook.description}</p>
-                  </Card>
-                  <Card className="p-6">
-                    <p className="text-[13px] font-medium text-[#6B7280]">Retention Risk</p>
-                    <div className="mt-3 flex items-baseline gap-1.5">
-                      <span className="text-[40px] font-bold leading-none tracking-[-0.03em] text-[#111827]">{analysis.risk.score}</span>
-                      <span className="text-[14px] text-[#6B7280]">/100</span>
-                    </div>
-                    <div className="mt-4 h-[5px] overflow-hidden rounded-full bg-[#E5E7EB]">
-                      <div className="h-full rounded-full" style={{ width: `${analysis.risk.score}%`, backgroundColor: analysis.risk.color, boxShadow: `0 0 8px ${analysis.risk.color}55` }} />
-                    </div>
-                    <p className="mt-3.5 text-[14px] font-semibold" style={{ color: analysis.risk.color }}>{analysis.risk.label}</p>
-                    <p className="mt-1 text-[13px] leading-[1.55] text-[#6B7280] line-clamp-2">{analysis.risk.description}</p>
-                  </Card>
+                  <DesktopScoreCard
+                    title="Overall Score"
+                    data={analysis.overall}
+                    accentColor={analysis.overall.ringColor}
+                  />
+                  <DesktopScoreCard
+                    title="Hook Score"
+                    data={analysis.hook}
+                    accentColor={analysis.hook.color}
+                  />
+                  <DesktopScoreCard
+                    title="Retention Risk"
+                    data={analysis.risk}
+                    accentColor={analysis.risk.color}
+                  />
                 </div>
 
                 {/* Main Takeaway */}
