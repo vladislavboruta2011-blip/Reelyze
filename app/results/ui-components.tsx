@@ -228,3 +228,76 @@ export function SceneBreakdownContent({
     </>
   );
 }
+
+export function ScriptLinesContent({
+  lines,
+  timestamps,
+  riskyLineIndexes,
+  warningLineIndexes,
+  fallbackTimestamp,
+  compact = false,
+}: {
+  lines: string[];
+  timestamps: string[];
+  riskyLineIndexes: number[];
+  warningLineIndexes: number[];
+  fallbackTimestamp: string;
+  compact?: boolean;
+}) {
+  return (
+    <div className={compact ? "flex flex-col gap-1.5" : "flex flex-col gap-2"}>
+      {lines.map((line, index) => {
+        const isRisky = riskyLineIndexes.includes(index);
+        const isWarning =
+          !isRisky && warningLineIndexes.includes(index);
+
+        const timestampColor = isRisky
+          ? "text-[#7C3AED]"
+          : isWarning
+            ? "text-[#FF9A1F]"
+            : compact
+              ? "text-[#9CA3AF]"
+              : "text-[#6B7280]";
+
+        const lineColor = isRisky
+          ? "text-[#7C3AED]"
+          : isWarning
+            ? "text-[#FF9A1F]"
+            : "text-[#6B7280]";
+
+        const statusClasses = isRisky
+          ? "border border-[#DDD6FE] bg-[#F3E8FF]"
+          : isWarning
+            ? compact
+              ? "border border-[#FF9A1F]/20 bg-[#FF9A1F]/[0.05]"
+              : "border border-[#FF9A1F]/25 bg-[#FF9A1F]/[0.06]"
+            : "border border-transparent";
+
+        return (
+          <div
+            key={`${timestamps[index] ?? index}-${line}`}
+            className={[
+              compact
+                ? "grid grid-cols-[44px_1fr] gap-2.5 rounded-[8px] px-2.5 py-2 text-[12px] leading-[1.55]"
+                : "grid min-w-0 grid-cols-[48px_minmax(0,1fr)] gap-3 rounded-[10px] px-3 py-2.5 text-[13px] leading-[1.6]",
+              statusClasses,
+            ].join(" ")}
+          >
+            <span className={timestampColor}>
+              {timestamps[index] ?? fallbackTimestamp}
+            </span>
+            <span
+              className={
+                compact
+                  ? lineColor
+                  : `${lineColor} min-w-0 break-words [overflow-wrap:anywhere]`
+              }
+            >
+              {line}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
