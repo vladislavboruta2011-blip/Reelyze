@@ -29,6 +29,7 @@ import {
   createScaleLabels,
 } from "./timing-helpers";
 import { createDisplayFixes } from "./fixes-helpers";
+import { pluralize } from "./text-helpers";
 import { Card, IconBox } from "./ui-components";
 import {
   SquarePen,
@@ -57,12 +58,6 @@ const MAX_TITLE_CHARACTERS = 200;
 
 const fallbackScript =
   "What if one small change could make viewers watch until the end? But the real problem is not editing speed. It is that the first line gives viewers no reason to stay.";
-
-function pluralize(count: number, singular: string, plural: string) {
-  return count === 1
-    ? `${count} ${singular}`
-    : `${count} ${plural}`;
-}
 
 type ImproveSuccessPayload = {
   status: "good" | "improved";
