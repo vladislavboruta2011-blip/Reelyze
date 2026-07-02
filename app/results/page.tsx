@@ -33,6 +33,7 @@ import {
   IconBox,
   RiskyPartItem,
   SceneBreakdownContent,
+  ScriptLinesContent,
   SuggestedFixItem,
 } from "./ui-components";
 import {
@@ -51,8 +52,6 @@ import {
 const inter = Inter({
   subsets: ["latin"],
 });
-
-type LineStatus = "normal" | "warning" | "risky";
 
 const MAX_SCRIPT_CHARACTERS = 1000;
 const MAX_TITLE_CHARACTERS = 200;
@@ -710,23 +709,13 @@ const hookCopyButtonLabel =
                       )}
                     </div>
                     <div className="max-h-[480px] min-w-0 overflow-y-auto overflow-x-hidden rounded-[16px] border border-[#E5E7EB] bg-[#F8F8FC] p-4">
-                      <div className="flex flex-col gap-2">
-                        {scriptLines.map((line, index) => {
-                          const status: LineStatus = analysis.riskyLineIndexes.includes(index) ? "risky" : analysis.warningLineIndexes.includes(index) ? "warning" : "normal";
-                          const isRisky = status === "risky";
-                          const isWarning = status === "warning";
-                          return (
-                            <div key={`${lineTimestamps[index] ?? index}-${line}`}
-                              className={["grid min-w-0 grid-cols-[48px_minmax(0,1fr)] gap-3 rounded-[10px] px-3 py-2.5 text-[13px] leading-[1.6]", isRisky ? "border border-[#DDD6FE] bg-[#F3E8FF]" : isWarning ? "border border-[#FF9A1F]/25 bg-[#FF9A1F]/[0.06]" : "border border-transparent"].join(" ")}
-                            >
-                              <span className={isRisky ? "text-[#7C3AED]" : isWarning ? "text-[#FF9A1F]" : "text-[#6B7280]"}>{lineTimestamps[index] ?? formatTime(estimatedDuration)}</span>
-                              <span className={`${isRisky ? "text-[#7C3AED]" : isWarning ? "text-[#FF9A1F]" : "text-[#6B7280]"} min-w-0 break-words [overflow-wrap:anywhere]`}>
-  {line}
-</span>
-                            </div>
-                          );
-                        })}
-                      </div>
+                      <ScriptLinesContent
+                        lines={scriptLines}
+                        timestamps={lineTimestamps}
+                        riskyLineIndexes={analysis.riskyLineIndexes}
+                        warningLineIndexes={analysis.warningLineIndexes}
+                        fallbackTimestamp={formatTime(estimatedDuration)}
+                      />
                     </div>
                     <p className="mt-4 text-[12px] text-[#6B7280]">
   {characterCount} / 1000 Characters — ~{formatTime(estimatedDuration)} estimated
@@ -1022,21 +1011,14 @@ const hookCopyButtonLabel =
                       </div>
                     )}
                     <div className="rounded-[12px] border border-[#E5E7EB] bg-[#F8F8FC] p-3 max-h-[300px] overflow-y-auto">
-                      <div className="flex flex-col gap-1.5">
-                        {scriptLines.map((line, index) => {
-                          const status: LineStatus = analysis.riskyLineIndexes.includes(index) ? "risky" : analysis.warningLineIndexes.includes(index) ? "warning" : "normal";
-                          const isRisky = status === "risky";
-                          const isWarning = status === "warning";
-                          return (
-                            <div key={`${lineTimestamps[index] ?? index}-${line}`}
-                              className={["grid grid-cols-[44px_1fr] gap-2.5 rounded-[8px] px-2.5 py-2 text-[12px] leading-[1.55]", isRisky ? "border border-[#DDD6FE] bg-[#F3E8FF]" : isWarning ? "border border-[#FF9A1F]/20 bg-[#FF9A1F]/[0.05]" : "border border-transparent"].join(" ")}
-                            >
-                              <span className={isRisky ? "text-[#7C3AED]" : isWarning ? "text-[#FF9A1F]" : "text-[#9CA3AF]"}>{lineTimestamps[index] ?? formatTime(estimatedDuration)}</span>
-                              <span className={isRisky ? "text-[#7C3AED]" : isWarning ? "text-[#FF9A1F]" : "text-[#6B7280]"}>{line}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
+                      <ScriptLinesContent
+                        lines={scriptLines}
+                        timestamps={lineTimestamps}
+                        riskyLineIndexes={analysis.riskyLineIndexes}
+                        warningLineIndexes={analysis.warningLineIndexes}
+                        fallbackTimestamp={formatTime(estimatedDuration)}
+                        compact
+                      />
                     </div>
                     <p className="mt-2 text-[11px] text-[#9CA3AF]">~{formatTime(estimatedDuration)} estimated</p>
                   </div>
