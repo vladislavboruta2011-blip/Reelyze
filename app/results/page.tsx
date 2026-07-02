@@ -30,6 +30,7 @@ import { pluralize } from "./text-helpers";
 import {
   Card,
   DesktopScoreCard,
+  FeedbackReasonOptions,
   IconBox,
   RiskyPartsContent,
   SceneBreakdownContent,
@@ -552,48 +553,44 @@ const hookCopyButtonLabel =
               {desktopFeedback === "helpful" && !desktopFeedbackSubmitted && (
                 <div className="mt-3">
                   <p className="text-[11px] text-[#6B7280] mb-1.5">What was helpful?</p>
-                  <div className="flex flex-col gap-1.5">
-                    {["Accurate score", "Useful fixes", "Clear explanation", "Other"].map((reason) => (
-                      <button
-                        key={reason}
-                        disabled={feedbackSubmitting}
-                        onClick={() => {
-                          if (reason === "Other") { setDesktopOtherFeedbackOpen(true); return; }
-                          setDesktopSelectedReason(reason);
-                          void submitFeedback("helpful", reason).then((ok) => {
-                            if (ok) setDesktopFeedbackSubmitted(true);
-                          });
-                        }}
-                        className={["w-full rounded-[8px] border px-2.5 py-2 text-left text-[12px] font-medium transition", desktopSelectedReason === reason ? "border-[#22C55E]/50 bg-[#22C55E]/10 text-[#22C55E]" : "border-[#E5E7EB] text-[#6B7280] hover:border-[#22C55E]/30 hover:text-[#6B7280]"].join(" ")}
-                      >
-                        {reason}
-                      </button>
-                    ))}
-                  </div>
+                  <FeedbackReasonOptions
+                    rating="helpful"
+                    selectedReason={desktopSelectedReason}
+                    disabled={feedbackSubmitting}
+                    onSelect={(reason) => {
+                      if (reason === "Other") {
+                        setDesktopOtherFeedbackOpen(true);
+                        return;
+                      }
+
+                      setDesktopSelectedReason(reason);
+                      void submitFeedback("helpful", reason).then((ok) => {
+                        if (ok) setDesktopFeedbackSubmitted(true);
+                      });
+                    }}
+                  />
                 </div>
               )}
 
               {desktopFeedback === "dislike" && !desktopFeedbackSubmitted && (
                 <div className="mt-3">
                   <p className="text-[11px] text-[#6B7280] mb-1.5">What was wrong?</p>
-                  <div className="flex flex-col gap-1.5">
-                    {["Wrong score", "Bad suggestions", "Not specific enough", "Other"].map((reason) => (
-                      <button
-                        key={reason}
-                        disabled={feedbackSubmitting}
-                        onClick={() => {
-                          if (reason === "Other") { setDesktopOtherFeedbackOpen(true); return; }
-                          setDesktopSelectedReason(reason);
-                          void submitFeedback("unhelpful", reason).then((ok) => {
-                            if (ok) setDesktopFeedbackSubmitted(true);
-                          });
-                        }}
-                        className={["w-full rounded-[8px] border px-2.5 py-2 text-left text-[12px] font-medium transition", desktopSelectedReason === reason ? "border-[#7C3AED]/50 bg-[#7C3AED]/10 text-[#7C3AED]" : "border-[#E5E7EB] text-[#6B7280] hover:border-[#7C3AED]/30 hover:text-[#6B7280]"].join(" ")}
-                      >
-                        {reason}
-                      </button>
-                    ))}
-                  </div>
+                  <FeedbackReasonOptions
+                    rating="unhelpful"
+                    selectedReason={desktopSelectedReason}
+                    disabled={feedbackSubmitting}
+                    onSelect={(reason) => {
+                      if (reason === "Other") {
+                        setDesktopOtherFeedbackOpen(true);
+                        return;
+                      }
+
+                      setDesktopSelectedReason(reason);
+                      void submitFeedback("unhelpful", reason).then((ok) => {
+                        if (ok) setDesktopFeedbackSubmitted(true);
+                      });
+                    }}
+                  />
                 </div>
               )}
 
@@ -1022,48 +1019,46 @@ const hookCopyButtonLabel =
                 {mobileFeedback === "helpful" && !mobileFeedbackSubmitted && (
                   <div className="mt-3">
                     <p className="text-[11px] text-[#6B7280] mb-1.5">What was helpful?</p>
-                    <div className="flex flex-col gap-1.5">
-                      {["Accurate score", "Useful fixes", "Clear explanation", "Other"].map((reason) => (
-                        <button
-                          key={reason}
-                          disabled={feedbackSubmitting}
-                          onClick={() => {
-                            if (reason === "Other") { setIsFeedbackOpen(true); return; }
-                            setMobileSelectedReason(reason);
-                            void submitFeedback("helpful", reason).then((ok) => {
-                              if (ok) setMobileFeedbackSubmitted(true);
-                            });
-                          }}
-                          className={["w-full rounded-[8px] border px-2.5 py-2 text-left text-[12px] font-medium transition", mobileSelectedReason === reason ? "border-[#22C55E]/50 bg-[#22C55E]/10 text-[#22C55E]" : "border-[#E5E7EB] bg-[#F8F8FC] text-[#6B7280] hover:border-[#22C55E]/30 hover:text-[#6B7280]"].join(" ")}
-                        >
-                          {reason}
-                        </button>
-                      ))}
-                    </div>
+                    <FeedbackReasonOptions
+                      rating="helpful"
+                      selectedReason={mobileSelectedReason}
+                      disabled={feedbackSubmitting}
+                      compact
+                      onSelect={(reason) => {
+                        if (reason === "Other") {
+                          setIsFeedbackOpen(true);
+                          return;
+                        }
+
+                        setMobileSelectedReason(reason);
+                        void submitFeedback("helpful", reason).then((ok) => {
+                          if (ok) setMobileFeedbackSubmitted(true);
+                        });
+                      }}
+                    />
                   </div>
                 )}
 
                 {mobileFeedback === "dislike" && !mobileFeedbackSubmitted && (
                   <div className="mt-3">
                     <p className="text-[11px] text-[#6B7280] mb-1.5">What was wrong?</p>
-                    <div className="flex flex-col gap-1.5">
-                      {["Wrong score", "Bad suggestions", "Not specific enough", "Other"].map((reason) => (
-                        <button
-                          key={reason}
-                          disabled={feedbackSubmitting}
-                          onClick={() => {
-                            if (reason === "Other") { setIsFeedbackOpen(true); return; }
-                            setMobileSelectedReason(reason);
-                            void submitFeedback("unhelpful", reason).then((ok) => {
-                              if (ok) setMobileFeedbackSubmitted(true);
-                            });
-                          }}
-                          className={["w-full rounded-[8px] border px-2.5 py-2 text-left text-[12px] font-medium transition", mobileSelectedReason === reason ? "border-[#7C3AED]/50 bg-[#7C3AED]/10 text-[#7C3AED]" : "border-[#E5E7EB] bg-[#F8F8FC] text-[#6B7280] hover:border-[#7C3AED]/30 hover:text-[#6B7280]"].join(" ")}
-                        >
-                          {reason}
-                        </button>
-                      ))}
-                    </div>
+                    <FeedbackReasonOptions
+                      rating="unhelpful"
+                      selectedReason={mobileSelectedReason}
+                      disabled={feedbackSubmitting}
+                      compact
+                      onSelect={(reason) => {
+                        if (reason === "Other") {
+                          setIsFeedbackOpen(true);
+                          return;
+                        }
+
+                        setMobileSelectedReason(reason);
+                        void submitFeedback("unhelpful", reason).then((ok) => {
+                          if (ok) setMobileFeedbackSubmitted(true);
+                        });
+                      }}
+                    />
                   </div>
                 )}
 
