@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { ScoreData } from "../../engine/scoring";
+import type { RiskyPart, ScoreData } from "../../engine/scoring";
 
 export function Card({
   children,
@@ -61,5 +61,51 @@ export function DesktopScoreCard({
         {data.description}
       </p>
     </Card>
+  );
+}
+
+export function RiskyPartItem({
+  part,
+  compact = false,
+}: {
+  part: RiskyPart;
+  compact?: boolean;
+}) {
+  return (
+    <div
+      className={
+        compact
+          ? "rounded-[12px] border border-[#E5E7EB] bg-[#F8F8FC] p-4"
+          : "rounded-[14px] border border-[#E5E7EB] bg-[#F8F8FC] p-4"
+      }
+    >
+      <p
+        className={
+          compact
+            ? "text-[11px] font-semibold text-[#7C3AED]"
+            : "text-[12px] font-semibold text-[#7C3AED]"
+        }
+      >
+        {part.time}
+      </p>
+      <p
+        className={
+          compact
+            ? "mt-1 text-[13px] font-medium text-[#111827]"
+            : "mt-1.5 text-[14px] font-medium text-[#111827]"
+        }
+      >
+        {part.title}
+      </p>
+      <p
+        className={
+          compact
+            ? "mt-0.5 text-[12px] leading-[1.5] text-[#6B7280]"
+            : "mt-1 text-[13px] leading-[1.55] text-[#6B7280]"
+        }
+      >
+        {part.description}
+      </p>
+    </div>
   );
 }

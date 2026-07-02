@@ -20,7 +20,6 @@ import {
   formatTime,
   getHookRewriteReason,
   type AnalysisResult,
-  type RiskyPart,
   type SceneSegment,
 } from "../../engine/scoring";
 import {
@@ -33,6 +32,7 @@ import {
   Card,
   DesktopScoreCard,
   IconBox,
+  RiskyPartItem,
 } from "./ui-components";
 import {
   SquarePen,
@@ -751,11 +751,10 @@ const hookCopyButtonLabel =
                           </div>
                         ) : (
                           analysis.riskyParts.map((part) => (
-                            <div key={`${part.time}-${part.title}`} className="rounded-[14px] border border-[#E5E7EB] bg-[#F8F8FC] p-4">
-                              <p className="text-[12px] font-semibold text-[#7C3AED]">{part.time}</p>
-                              <p className="mt-1.5 text-[14px] font-medium text-[#111827]">{part.title}</p>
-                              <p className="mt-1 text-[13px] leading-[1.55] text-[#6B7280]">{part.description}</p>
-                            </div>
+                            <RiskyPartItem
+                              key={`${part.time}-${part.title}`}
+                              part={part}
+                            />
                           ))
                         )}
                       </div>
@@ -982,11 +981,11 @@ const hookCopyButtonLabel =
                     </div>
                   ) : (
                     analysis.riskyParts.map((part) => (
-                      <div key={`${part.time}-${part.title}`} className="rounded-[12px] border border-[#E5E7EB] bg-[#F8F8FC] p-4">
-                        <p className="text-[11px] font-semibold text-[#7C3AED]">{part.time}</p>
-                        <p className="mt-1 text-[13px] font-medium text-[#111827]">{part.title}</p>
-                        <p className="mt-0.5 text-[12px] leading-[1.5] text-[#6B7280]">{part.description}</p>
-                      </div>
+                      <RiskyPartItem
+                        key={`${part.time}-${part.title}`}
+                        part={part}
+                        compact
+                      />
                     ))
                   )}
                 </div>
