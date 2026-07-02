@@ -33,15 +33,13 @@ import {
   DesktopScoreCard,
   IconBox,
   RiskyPartItem,
+  SuggestedFixItem,
 } from "./ui-components";
 import {
   SquarePen,
   PencilLine,
   ThumbsUp,
   ThumbsDown,
-  AudioLines,
-  Scissors,
-  FastForward,
   ArrowLeft,
   Share2,
   ChevronDown,
@@ -784,12 +782,11 @@ const hookCopyButtonLabel =
                           </div>
                         ) : (
                           displayFixes.map((fix, index) => (
-                            <div key={`${fix}-${index}`} className="flex items-start gap-3 rounded-[12px] border border-[#E5E7EB] bg-[#F8F8FC] px-3 py-3">
-                              <IconBox>
-                                {index % 3 === 0 ? <AudioLines size={18} /> : index % 3 === 1 ? <Scissors size={18} /> : <FastForward size={18} />}
-                              </IconBox>
-                              <p className="text-[13px] leading-[1.65] text-[#6B7280]">{fix}</p>
-                            </div>
+                            <SuggestedFixItem
+                              key={`${fix}-${index}`}
+                              fix={fix}
+                              index={index}
+                            />
                           ))
                         )}
                       </div>
@@ -1005,12 +1002,12 @@ const hookCopyButtonLabel =
                     </div>
                   ) : (
                     (mobileFixesOpen ? displayFixes : displayFixes.slice(0, 3)).map((fix, index) => (
-                      <div key={`${fix}-${index}`} className="flex items-start gap-3 rounded-[12px] border border-[#E5E7EB] bg-[#F8F8FC] px-3 py-3">
-                        <IconBox>
-                          {index % 3 === 0 ? <AudioLines size={16} /> : index % 3 === 1 ? <Scissors size={16} /> : <FastForward size={16} />}
-                        </IconBox>
-                        <p className="flex-1 text-[12px] leading-[1.6] text-[#6B7280]">{fix}</p>
-                      </div>
+                      <SuggestedFixItem
+                        key={`${fix}-${index}`}
+                        fix={fix}
+                        index={index}
+                        compact
+                      />
                     ))
                   )}
                   {displayFixes.length > 3 && (
