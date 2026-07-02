@@ -34,6 +34,17 @@ It focuses on:
 4. Which parts may cause viewers to leave.
 5. How the hook can be improved.
 
+## Production Environment
+
+Admin feedback routes are protected with Basic Auth.
+
+Set these server-side environment variables in production before accessing `/admin/feedback` or `/api/admin/feedback`:
+
+- `ADMIN_USERNAME`
+- `ADMIN_PASSWORD`
+
+If either value is missing, admin routes intentionally return `503` so private feedback data is not exposed.
+
 ## Status
 
 MVP deployed and ready for testing.
