@@ -31,7 +31,7 @@ import {
   Card,
   DesktopScoreCard,
   IconBox,
-  RiskyPartItem,
+  RiskyPartsContent,
   SceneBreakdownContent,
   ScriptLinesContent,
   SuggestedFixItem,
@@ -730,21 +730,10 @@ const hookCopyButtonLabel =
                         <h2 className="text-[17px] font-semibold text-[#111827]">Risky Parts</h2>
                         <span className="text-[12px] font-medium text-[#6B7280]">{pluralize(analysis.riskyParts.length, "found", "found")}</span>
                       </div>
-                      <div className="flex flex-col gap-3">
-                        {analysis.riskyParts.length === 0 ? (
-                          <div>
-                            <p className="text-[14px] font-medium text-[#111827]">{analysis.fixes.length > 0 ? "No major risky parts found." : "No risky parts found."}</p>
-                            <p className="mt-1 text-[13px] leading-[1.55] text-[#6B7280]">{analysis.fixes.length > 0 ? "No material drop-off points were found; the suggestions below are optional refinements." : "This script stays focused and does not contain any major drop-off points."}</p>
-                          </div>
-                        ) : (
-                          analysis.riskyParts.map((part) => (
-                            <RiskyPartItem
-                              key={`${part.time}-${part.title}`}
-                              part={part}
-                            />
-                          ))
-                        )}
-                      </div>
+                      <RiskyPartsContent
+                        parts={analysis.riskyParts}
+                        hasFixes={analysis.fixes.length > 0}
+                      />
                     </Card>
 
                     {/* Suggested Fixes */}
@@ -941,22 +930,11 @@ const hookCopyButtonLabel =
                   <h2 className="text-[15px] font-semibold text-[#111827]">Risky Parts</h2>
                   <span className="text-[11px] font-medium text-[#6B7280]">{pluralize(analysis.riskyParts.length, "found", "found")}</span>
                 </div>
-                <div className="px-4 pb-4 flex flex-col gap-2.5">
-                  {analysis.riskyParts.length === 0 ? (
-                    <div className="rounded-[12px] border border-[#E5E7EB] bg-[#F8F8FC] px-4 py-3">
-                      <p className="text-[13px] font-medium text-[#111827]">{analysis.fixes.length > 0 ? "No major risky parts found." : "No risky parts found."}</p>
-                      <p className="mt-1 text-[12px] leading-[1.5] text-[#6B7280]">{analysis.fixes.length > 0 ? "No material drop-off points were found; the suggestions below are optional refinements." : "This script stays focused and does not contain any major drop-off points."}</p>
-                    </div>
-                  ) : (
-                    analysis.riskyParts.map((part) => (
-                      <RiskyPartItem
-                        key={`${part.time}-${part.title}`}
-                        part={part}
-                        compact
-                      />
-                    ))
-                  )}
-                </div>
+                <RiskyPartsContent
+                  parts={analysis.riskyParts}
+                  hasFixes={analysis.fixes.length > 0}
+                  compact
+                />
               </div>
 
               {/* Suggested Fixes */}

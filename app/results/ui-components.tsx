@@ -111,6 +111,65 @@ export function RiskyPartItem({
   );
 }
 
+export function RiskyPartsContent({
+  parts,
+  hasFixes,
+  compact = false,
+}: {
+  parts: RiskyPart[];
+  hasFixes: boolean;
+  compact?: boolean;
+}) {
+  return (
+    <div
+      className={
+        compact
+          ? "px-4 pb-4 flex flex-col gap-2.5"
+          : "flex flex-col gap-3"
+      }
+    >
+      {parts.length === 0 ? (
+        <div
+          className={
+            compact
+              ? "rounded-[12px] border border-[#E5E7EB] bg-[#F8F8FC] px-4 py-3"
+              : ""
+          }
+        >
+          <p
+            className={
+              compact
+                ? "text-[13px] font-medium text-[#111827]"
+                : "text-[14px] font-medium text-[#111827]"
+            }
+          >
+            {hasFixes ? "No major risky parts found." : "No risky parts found."}
+          </p>
+          <p
+            className={
+              compact
+                ? "mt-1 text-[12px] leading-[1.5] text-[#6B7280]"
+                : "mt-1 text-[13px] leading-[1.55] text-[#6B7280]"
+            }
+          >
+            {hasFixes
+              ? "No material drop-off points were found; the suggestions below are optional refinements."
+              : "This script stays focused and does not contain any major drop-off points."}
+          </p>
+        </div>
+      ) : (
+        parts.map((part) => (
+          <RiskyPartItem
+            key={`${part.time}-${part.title}`}
+            part={part}
+            compact={compact}
+          />
+        ))
+      )}
+    </div>
+  );
+}
+
 export function SuggestedFixItem({
   fix,
   index,
