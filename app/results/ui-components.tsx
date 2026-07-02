@@ -134,6 +134,70 @@ export function DesktopScoreCard({
   );
 }
 
+export function MobileScoreCards({
+  overall,
+  hook,
+  risk,
+}: {
+  overall: ScoreData;
+  hook: ScoreData;
+  risk: ScoreData;
+}) {
+  const items = [
+    {
+      label: "Overall",
+      score: overall.score,
+      color: overall.ringColor,
+      status: overall.label,
+    },
+    {
+      label: "Hook",
+      score: hook.score,
+      color: hook.color,
+      status: hook.label,
+    },
+    {
+      label: "Risk",
+      score: risk.score,
+      color: risk.color,
+      status: risk.label,
+    },
+  ];
+
+  return (
+    <div className="grid grid-cols-3 gap-2.5">
+      {items.map((item) => (
+        <div
+          key={item.label}
+          className="flex flex-col items-center justify-center gap-1 rounded-[16px] border border-[#E5E7EB] bg-white px-2 py-4"
+        >
+          <p className="text-center text-[10px] font-medium text-[#6B7280]">
+            {item.label}
+          </p>
+          <span className="text-[32px] font-bold leading-none tracking-[-0.03em] text-[#111827]">
+            {item.score}
+          </span>
+          <div className="h-[3px] w-full overflow-hidden rounded-full bg-[#E5E7EB]">
+            <div
+              className="h-full rounded-full"
+              style={{
+                width: `${item.score}%`,
+                backgroundColor: item.color,
+              }}
+            />
+          </div>
+          <p
+            className="text-[10px] font-semibold"
+            style={{ color: item.color }}
+          >
+            {item.status}
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function RiskyPartItem({
   part,
   compact = false,
