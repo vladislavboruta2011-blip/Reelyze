@@ -2,6 +2,89 @@ import { config } from "dotenv";
 
 config({ path: ".env.local" });
 
+const originalFetch = globalThis.fetch;
+const originalSupabaseUrl = process.env.SUPABASE_URL;
+const originalSupabaseSecretKey = process.env.SUPABASE_SECRET_KEY;
+const persistedFeedbackRequests: Record<string, unknown>[] = [];
+
+process.env.SUPABASE_URL = "https://feedback-test.supabase.co";
+process.env.SUPABASE_SECRET_KEY = "feedback-test-secret";
+
+globalThis.fetch = (async (
+  input: RequestInfo | URL,
+  init?: RequestInit
+): Promise<Response> => {
+  const request = input instanceof Request ? input : null;
+  const url =
+    typeof input === "string"
+      ? input
+      : input instanceof URL
+        ? input.toString()
+        : input.url;
+  const method = (
+    init?.method ??
+    request?.method ??
+    "GET"
+  ).toUpperCase();
+
+  if (
+    !url.includes("/rest/v1/feedback") ||
+    method != "POST"
+  ) {
+    throw new Error(
+      `Unexpected Supabase request: ${method} ${url}`
+    );
+  }
+
+  let rawBody = init?.body;
+
+  if (rawBody === undefined && request) {
+    rawBody = await request.clone().text();
+  }
+
+  if (typeof rawBody !== "string") {
+    throw new Error("Expected Supabase request body to be JSON.");
+  }
+
+  const parsedBody = JSON.parse(rawBody) as unknown;
+
+  if (
+    typeof parsedBody !== "object" ||
+    parsedBody === null ||
+    Array.isArray(parsedBody)
+  ) {
+    throw new Error("Expected persisted feedback to be an object.");
+  }
+
+  persistedFeedbackRequests.push(
+    parsedBody as Record<string, unknown>
+  );
+
+  return new Response("[]", {
+    status: 201,
+    headers: {
+      "content-type": "application/json",
+    },
+  });
+}) as typeof globalThis.fetch;
+
+function restoreTestEnvironment(): void {
+  globalThis.fetch = originalFetch;
+
+  if (originalSupabaseUrl === undefined) {
+    delete process.env.SUPABASE_URL;
+  } else {
+    process.env.SUPABASE_URL = originalSupabaseUrl;
+  }
+
+  if (originalSupabaseSecretKey === undefined) {
+    delete process.env.SUPABASE_SECRET_KEY;
+  } else {
+    process.env.SUPABASE_SECRET_KEY =
+      originalSupabaseSecretKey;
+  }
+}
+
 function createRequest(
   body: unknown,
   contentType = "application/json"
@@ -138,10 +221,22 @@ async function main(): Promise<void> {
     console.log("PASS — rejects oversized script");
   }
 
+  if (persistedFeedbackRequests.length !== 2) {
+    throw new Error(
+      `Expected exactly 2 mocked Supabase inserts, received ${persistedFeedbackRequests.length}.`
+    );
+  }
+
+  console.log(
+    "PASS — persists only valid feedback through mocked Supabase"
+  );
   console.log("\nFeedback API tests: all passed");
+  restoreTestEnvironment();
 }
 
 main().catch((error: unknown) => {
+  restoreTestEnvironment();
+
   const message =
     error instanceof Error ? error.message : "Unknown test failure.";
 
