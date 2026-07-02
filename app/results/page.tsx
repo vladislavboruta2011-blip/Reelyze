@@ -20,7 +20,6 @@ import {
   formatTime,
   getHookRewriteReason,
   type AnalysisResult,
-  type SceneSegment,
 } from "../../engine/scoring";
 import {
   createLineTimestamps,
@@ -33,6 +32,7 @@ import {
   DesktopScoreCard,
   IconBox,
   RiskyPartItem,
+  SceneBreakdownContent,
   SuggestedFixItem,
 } from "./ui-components";
 import {
@@ -797,28 +797,10 @@ const hookCopyButtonLabel =
                 {/* Scene Breakdown */}
                 <Card className="mt-5 p-6">
                   <h2 className="mb-4 text-[17px] font-semibold text-[#111827]">Scene Breakdown</h2>
-                  <div className="flex h-[7px] w-full overflow-hidden rounded-full bg-[#E5E7EB]">
-                    {analysis.sceneSegments.map((segment, index) => {
-                      const totalDesktopWidth = 1110;
-                      const pct = segment.width / totalDesktopWidth;
-                      return (
-                        <div key={`${segment.label}-${index}`} className="h-full" style={{ width: `${pct * 100}%`, backgroundColor: segment.color, opacity: 0.88 }} />
-                      );
-                    })}
-                  </div>
-                  <div className="mt-3 grid grid-cols-5 text-[11.5px] text-[#9CA3AF]">
-                    {scaleLabels.map((label, i) => (
-                      <p key={label} className={i === 4 ? "text-right" : ""}>{label}</p>
-                    ))}
-                  </div>
-                  <div className="mt-4 flex items-center gap-6">
-                    {analysis.sceneSegments.map((segment, index) => (
-                      <div key={`${segment.label}-${index}`} className="flex items-center gap-2">
-                        <span className="h-[4px] w-[16px] rounded-full" style={{ backgroundColor: segment.color }} />
-                        <span className="text-[12px] text-[#6B7280]">{segment.label}</span>
-                      </div>
-                    ))}
-                  </div>
+                  <SceneBreakdownContent
+                    segments={analysis.sceneSegments}
+                    scaleLabels={scaleLabels}
+                  />
                 </Card>
               </>
             )}
@@ -1072,25 +1054,11 @@ const hookCopyButtonLabel =
                 </button>
                 {mobileSceneOpen && (
                   <div className="px-4 pb-4">
-                    <div className="flex h-[6px] w-full overflow-hidden rounded-full bg-[#E5E7EB] mb-3">
-                      {analysis.sceneSegments.map((segment, index) => {
-                        const pct = segment.width / 1110;
-                        return <div key={`${segment.label}-${index}`} className="h-full" style={{ width: `${pct * 100}%`, backgroundColor: segment.color, opacity: 0.9 }} />;
-                      })}
-                    </div>
-                    <div className="grid grid-cols-5 text-[10px] text-[#9CA3AF] mb-3">
-                      {scaleLabels.map((label, i) => (
-                        <p key={label} className={i === 4 ? "text-right" : ""}>{label}</p>
-                      ))}
-                    </div>
-                    <div className="flex flex-wrap gap-3">
-                      {analysis.sceneSegments.map((segment, index) => (
-                        <div key={`${segment.label}-${index}`} className="flex items-center gap-1.5">
-                          <span className="h-[3px] w-[14px] rounded-full" style={{ backgroundColor: segment.color }} />
-                          <span className="text-[11px] text-[#6B7280]">{segment.label}</span>
-                        </div>
-                      ))}
-                    </div>
+                    <SceneBreakdownContent
+                      segments={analysis.sceneSegments}
+                      scaleLabels={scaleLabels}
+                      compact
+                    />
                   </div>
                 )}
               </div>

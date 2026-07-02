@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { AudioLines, FastForward, Scissors } from "lucide-react";
-import type { RiskyPart, ScoreData } from "../../engine/scoring";
+import type { RiskyPart, SceneSegment, ScoreData } from "../../engine/scoring";
 
 export function Card({
   children,
@@ -138,5 +138,93 @@ export function SuggestedFixItem({
         {fix}
       </p>
     </div>
+  );
+}
+
+export function SceneBreakdownContent({
+  segments,
+  scaleLabels,
+  compact = false,
+}: {
+  segments: SceneSegment[];
+  scaleLabels: string[];
+  compact?: boolean;
+}) {
+  return (
+    <>
+      <div
+        className={
+          compact
+            ? "mb-3 flex h-[6px] w-full overflow-hidden rounded-full bg-[#E5E7EB]"
+            : "flex h-[7px] w-full overflow-hidden rounded-full bg-[#E5E7EB]"
+        }
+      >
+        {segments.map((segment, index) => {
+          const pct = segment.width / 1110;
+
+          return (
+            <div
+              key={`${segment.label}-${index}`}
+              className="h-full"
+              style={{
+                width: `${pct * 100}%`,
+                backgroundColor: segment.color,
+                opacity: compact ? 0.9 : 0.88,
+              }}
+            />
+          );
+        })}
+      </div>
+
+      <div
+        className={
+          compact
+            ? "mb-3 grid grid-cols-5 text-[10px] text-[#9CA3AF]"
+            : "mt-3 grid grid-cols-5 text-[11.5px] text-[#9CA3AF]"
+        }
+      >
+        {scaleLabels.map((label, index) => (
+          <p
+            key={label}
+            className={index === scaleLabels.length - 1 ? "text-right" : ""}
+          >
+            {label}
+          </p>
+        ))}
+      </div>
+
+      <div
+        className={
+          compact
+            ? "flex flex-wrap gap-3"
+            : "mt-4 flex items-center gap-6"
+        }
+      >
+        {segments.map((segment, index) => (
+          <div
+            key={`${segment.label}-${index}`}
+            className={compact ? "flex items-center gap-1.5" : "flex items-center gap-2"}
+          >
+            <span
+              className={
+                compact
+                  ? "h-[3px] w-[14px] rounded-full"
+                  : "h-[4px] w-[16px] rounded-full"
+              }
+              style={{ backgroundColor: segment.color }}
+            />
+            <span
+              className={
+                compact
+                  ? "text-[11px] text-[#6B7280]"
+                  : "text-[12px] text-[#6B7280]"
+              }
+            >
+              {segment.label}
+            </span>
+          </div>
+        ))}
+      </div>
+    </>
   );
 }
