@@ -1049,6 +1049,36 @@ export function validateAnalysisV2Result(
       return validation;
     }
 
+    const normalizedSuggestion =
+      validation.value.suggestion
+        .replace(/\s+/g, " ")
+        .trim()
+        .replace(/[.!?]+$/, "")
+        .toLowerCase();
+
+    const requestsVerifiedFactualMaterial =
+      /\bverified\b/i.test(
+        validation.value.suggestion
+      );
+
+    const allowedVerifiedFactualRequests = new Set([
+      "add a verified consequence or implication that explains why this matters",
+      "add a verified contrast, example, or measurable result that strengthens the payoff",
+    ]);
+
+    if (
+      requestsVerifiedFactualMaterial &&
+      !allowedVerifiedFactualRequests.has(
+        normalizedSuggestion
+      )
+    ) {
+      return {
+        ok: false,
+        reason:
+          "A suggested fix requesting verified factual material must use one of the allowed neutral diagnostic forms without extra factual direction.",
+      };
+    }
+
     suggestedFixes.push(validation.value);
   }
 

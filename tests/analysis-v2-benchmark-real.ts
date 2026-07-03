@@ -13,6 +13,16 @@ type BenchmarkEvaluation = {
   failures: string[];
 };
 
+const REAL_BENCHMARK_PROVIDER_MAX_ATTEMPTS = 3;
+const REAL_BENCHMARK_PROVIDER_RETRY_DELAY_MS =
+  2_000;
+
+function wait(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, milliseconds);
+  });
+}
+
 function checkScoreRange(
   label: string,
   value: number,
@@ -262,10 +272,35 @@ async function main(): Promise<void> {
   const scoreTripletCounts = new Map<string, number>();
 
   for (const benchmarkCase of ANALYSIS_V2_BENCHMARK_CASES) {
-    const runResult = await runAnalysisV2(
+    let providerAttempt = 1;
+    let runResult = await runAnalysisV2(
       benchmarkCase.script,
       benchmarkCase.title
     );
+
+    while (
+      !runResult.ok &&
+      runResult.status === 503 &&
+      providerAttempt <
+        REAL_BENCHMARK_PROVIDER_MAX_ATTEMPTS
+    ) {
+      const nextAttempt = providerAttempt + 1;
+
+      console.warn(
+        `Provider unavailable for ${benchmarkCase.id}. Retrying case (${nextAttempt}/${REAL_BENCHMARK_PROVIDER_MAX_ATTEMPTS})...`
+      );
+
+      await wait(
+        REAL_BENCHMARK_PROVIDER_RETRY_DELAY_MS *
+          providerAttempt
+      );
+
+      providerAttempt = nextAttempt;
+      runResult = await runAnalysisV2(
+        benchmarkCase.script,
+        benchmarkCase.title
+      );
+    }
 
     if (!runResult.ok) {
       console.error("\n" + "=".repeat(80));

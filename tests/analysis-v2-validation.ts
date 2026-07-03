@@ -608,6 +608,113 @@ const tests: TestCase[] = [
     },
   },
   {
+    name: "rejects candidate facts appended to a verified factual request",
+    run: () => {
+      const value = createMixedResult();
+
+      value.suggestedFixes = [
+        {
+          target: "payoff",
+          suggestion:
+            "Add a verified consequence or implication that explains why this matters, such as cultural significance, genetic distribution, or common misconceptions.",
+          optional: false,
+        },
+      ];
+
+      const result = validateAnalysisV2Result(
+        value,
+        script
+      );
+
+      assert.equal(result.ok, false);
+
+      if (result.ok) {
+        throw new Error(
+          "Expected the unsupported factual direction to be rejected."
+        );
+      }
+
+      assert.match(
+        result.reason,
+        /must use one of the allowed neutral diagnostic forms without extra factual direction/i
+      );
+    },
+  },
+  {
+    name: "rejects a contextualized verified request outside the neutral forms",
+    run: () => {
+      const value = createMixedResult();
+
+      value.suggestedFixes = [
+        {
+          target: "payoff",
+          suggestion:
+            "Add a verified consequence or implication that explains why the warm soapy water step matters.",
+          optional: false,
+        },
+      ];
+
+      const result = validateAnalysisV2Result(
+        value,
+        script
+      );
+
+      assert.equal(result.ok, false);
+    },
+  },
+  {
+    name: "accepts an allowed neutral verified diagnostic fix",
+    run: () => {
+      const value = createMixedResult();
+
+      value.suggestedFixes = [
+        {
+          target: "payoff",
+          suggestion:
+            "Add a verified consequence or implication that explains why this matters.",
+          optional: false,
+        },
+      ];
+
+      const result = validateAnalysisV2Result(
+        value,
+        script
+      );
+
+      if (!result.ok) {
+        throw new Error(result.reason);
+      }
+
+      assert.equal(result.ok, true);
+    },
+  },
+  {
+    name: "accepts a grounded contextualized fix without a verified claim",
+    run: () => {
+      const value = createMixedResult();
+
+      value.suggestedFixes = [
+        {
+          target: "payoff",
+          suggestion:
+            "Explain why the warm soapy water step matters before moving to the next instruction.",
+          optional: false,
+        },
+      ];
+
+      const result = validateAnalysisV2Result(
+        value,
+        script
+      );
+
+      if (!result.ok) {
+        throw new Error(result.reason);
+      }
+
+      assert.equal(result.ok, true);
+    },
+  },
+  {
     name: "rejects more than two suggested fixes",
     run: () => {
       const value = createWeakResult();

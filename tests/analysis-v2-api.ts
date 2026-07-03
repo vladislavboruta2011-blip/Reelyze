@@ -137,6 +137,365 @@ const tests: TestCase[] = [
   },
 
   {
+    name: "runAnalysisV2 gives grounded retry guidance after parallel list misclassification",
+    run: async () => {
+      const originalityScript =
+        "These are three overlooked productivity habits that almost nobody talks about. Put your phone in another room because notifications pull your attention away. Write down one priority because a long task list splits your focus. Then work for 25 minutes because a short timer makes starting feel easier.";
+
+      let callCount = 0;
+      const userPrompts: string[] = [];
+
+      const createOriginalityResult = (
+        scriptType: "list_escalation" | "how_to"
+      ): Record<string, unknown> => ({
+        scriptType,
+        verdict: "mixed",
+        scores: {
+          overall: 70,
+          hook: 75,
+          retentionRisk: 40,
+        },
+        hookDecision: "refine",
+        hookAssessment:
+          "The opening makes an unsupported novelty claim because the habits are presented as overlooked even though the script gives familiar advice.",
+        suggestedHook:
+          "These are three productivity habits that can make focusing easier.",
+        riskyParts: [
+          {
+            excerpt:
+              "These are three overlooked productivity habits that almost nobody talks about.",
+            reason:
+              "The novelty claim is not supported by the familiar habits that follow.",
+            severity: "medium",
+          },
+        ],
+        suggestedFixes: [
+          {
+            target: "hook",
+            suggestion:
+              "Remove or soften the claim that the habits are overlooked or that almost nobody talks about them.",
+            optional: false,
+          },
+        ],
+        scenes: [
+          {
+            excerpt:
+              "These are three overlooked productivity habits that almost nobody talks about.",
+            label: "Unsupported novelty claim",
+            status: "risky",
+          },
+          {
+            excerpt:
+              "Put your phone in another room because notifications pull your attention away.",
+            label: "First habit",
+            status: "strong",
+          },
+          {
+            excerpt:
+              "Write down one priority because a long task list splits your focus.",
+            label: "Second habit",
+            status: "strong",
+          },
+          {
+            excerpt:
+              "Then work for 25 minutes because a short timer makes starting feel easier.",
+            label: "Third habit",
+            status: "strong",
+          },
+        ],
+        mainTakeaway:
+          "The advice is clear, but the opening overstates its novelty and should be softened.",
+      });
+
+      const invalidResult =
+        createOriginalityResult(
+          "list_escalation"
+        );
+
+      const correctedResult =
+        createOriginalityResult("how_to");
+
+      const modelCaller: AnalysisV2ModelCaller =
+        async (_systemPrompt, userPrompt) => {
+          callCount += 1;
+          userPrompts.push(userPrompt);
+
+          return {
+            raw: JSON.stringify(
+              callCount === 1
+                ? invalidResult
+                : correctedResult
+            ),
+            modelUsed: "mock-model",
+          };
+        };
+
+      const result = await runAnalysisV2(
+        originalityScript,
+        "Three overlooked productivity habits",
+        modelCaller
+      );
+
+      assert.equal(result.ok, true);
+      assert.equal(result.status, 200);
+      assert.equal(callCount, 2);
+
+      const retryPrompt = userPrompts[1] ?? "";
+
+      assert.match(
+        retryPrompt,
+        /Classify the script as how_to or generic_advice, not list_escalation\./
+      );
+      assert.match(
+        retryPrompt,
+        /Do not use the word "verified"/i
+      );
+      assert.match(
+        retryPrompt,
+        /remove or soften that claim instead of asking the creator to prove it/i
+      );
+      assert.match(
+        retryPrompt,
+        /use hookDecision refine or rewrite rather than keep/i
+      );
+
+      if (result.ok) {
+        assert.equal(
+          result.response.result.scriptType,
+          "how_to"
+        );
+        assert.equal(
+          result.response.result.hookDecision,
+          "refine"
+        );
+        assert.equal(
+          result.response.result
+            .suggestedFixes[0]?.suggestion,
+          "Remove or soften the claim that the habits are overlooked or that almost nobody talks about them."
+        );
+      }
+    },
+  },
+
+  {
+    name: "runAnalysisV2 gives specific retry guidance for generic advice without a concrete anchor",
+    run: async () => {
+      const genericAdviceScript =
+        "Life is full of choices. Some choices are good, and some choices are bad. It is up to you to decide which path to take.";
+
+      let callCount = 0;
+      const userPrompts: string[] = [];
+
+      const createGenericAdviceResult = (
+        hookDecision: "rewrite" | "diagnostic",
+        suggestedHook: string | null
+      ): Record<string, unknown> => ({
+        scriptType: "generic_advice",
+        verdict: "weak",
+        scores: {
+          overall: 35,
+          hook: 30,
+          retentionRisk: 70,
+        },
+        hookDecision,
+        hookAssessment:
+          "The opening is generic and lacks a concrete example, mechanism, named situation, number, or observable result.",
+        suggestedHook,
+        riskyParts: [
+          {
+            excerpt: "Life is full of choices.",
+            reason:
+              "The opening is generic and does not provide a concrete premise or observable result.",
+            severity: "high",
+          },
+        ],
+        suggestedFixes: [
+          {
+            target: "hook",
+            suggestion:
+              "Add a concrete example, mechanism, named situation, number, or observable result before rewriting the hook.",
+            optional: false,
+          },
+        ],
+        scenes: [
+          {
+            excerpt:
+              "Life is full of choices. Some choices are good, and some choices are bad. It is up to you to decide which path to take.",
+            label: "Generic advice",
+            status: "risky",
+          },
+        ],
+        mainTakeaway:
+          "The script needs concrete source material before a grounded hook can be written.",
+      });
+
+      const invalidResult =
+        createGenericAdviceResult(
+          "rewrite",
+          "Life is full of choices."
+        );
+
+      const correctedResult =
+        createGenericAdviceResult(
+          "diagnostic",
+          null
+        );
+
+      const modelCaller: AnalysisV2ModelCaller =
+        async (_systemPrompt, userPrompt) => {
+          callCount += 1;
+          userPrompts.push(userPrompt);
+
+          return {
+            raw: JSON.stringify(
+              callCount === 1
+                ? invalidResult
+                : correctedResult
+            ),
+            modelUsed: "mock-model",
+          };
+        };
+
+      const result = await runAnalysisV2(
+        genericAdviceScript,
+        "Life choices",
+        modelCaller
+      );
+
+      assert.equal(result.ok, true);
+      assert.equal(result.status, 200);
+      assert.equal(callCount, 2);
+
+      const retryPrompt = userPrompts[1] ?? "";
+
+      assert.match(
+        retryPrompt,
+        /Use hookDecision diagnostic\./
+      );
+      assert.match(
+        retryPrompt,
+        /Set suggestedHook to null\./
+      );
+      assert.match(
+        retryPrompt,
+        /Do not use the word "verified"/i
+      );
+      assert.match(
+        retryPrompt,
+        /Add a concrete example, mechanism, named situation, number, or observable result before rewriting the hook\./
+      );
+
+      if (result.ok) {
+        assert.equal(
+          result.response.result.hookDecision,
+          "diagnostic"
+        );
+        assert.equal(
+          result.response.result.suggestedHook,
+          undefined
+        );
+      }
+    },
+  },
+
+  {
+    name: "runAnalysisV2 gives specific retry guidance for invalid verified factual fixes",
+    run: async () => {
+      let callCount = 0;
+      const userPrompts: string[] = [];
+
+      const createMixedResultWithFix = (
+        suggestion: string
+      ): Record<string, unknown> => {
+        const value = createValidResult();
+
+        value.verdict = "mixed";
+        value.scores = {
+          overall: 70,
+          hook: 82,
+          retentionRisk: 40,
+        };
+        value.riskyParts = [
+          {
+            excerpt:
+              "It usually comes apart in under five minutes.",
+            reason:
+              "The payoff needs a clearer consequence.",
+            severity: "medium",
+          },
+        ];
+        value.suggestedFixes = [
+          {
+            target: "payoff",
+            suggestion,
+            optional: false,
+          },
+        ];
+        value.mainTakeaway =
+          "The script is useful, but the payoff needs a clearer consequence.";
+
+        return value;
+      };
+
+      const invalidResult = createMixedResultWithFix(
+        "Add a verified consequence or implication that explains why the warm soapy water step matters."
+      );
+
+      const correctedResult = createMixedResultWithFix(
+        "Add a verified consequence or implication that explains why this matters."
+      );
+
+      const modelCaller: AnalysisV2ModelCaller =
+        async (_systemPrompt, userPrompt) => {
+          callCount += 1;
+          userPrompts.push(userPrompt);
+
+          return {
+            raw: JSON.stringify(
+              callCount === 1
+                ? invalidResult
+                : correctedResult
+            ),
+            modelUsed: "mock-model",
+          };
+        };
+
+      const result = await runAnalysisV2(
+        script,
+        "Super glue removal",
+        modelCaller
+      );
+
+      assert.equal(result.ok, true);
+      assert.equal(result.status, 200);
+      assert.equal(callCount, 2);
+
+      const retryPrompt = userPrompts[1] ?? "";
+
+      assert.match(
+        retryPrompt,
+        /use exactly one of these complete sentences/i
+      );
+      assert.match(
+        retryPrompt,
+        /Add a verified consequence or implication that explains why this matters\./
+      );
+      assert.match(
+        retryPrompt,
+        /Alternatively, remove the word "verified"/i
+      );
+
+      if (result.ok) {
+        assert.equal(
+          result.response.result.suggestedFixes[0]
+            ?.suggestion,
+          "Add a verified consequence or implication that explains why this matters."
+        );
+      }
+    },
+  },
+
+  {
     name: "runAnalysisV2 rejects malformed model JSON",
     run: async () => {
       let callCount = 0;
