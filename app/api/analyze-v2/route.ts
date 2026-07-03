@@ -278,19 +278,65 @@ function buildAnalysisV2RetryUserPrompt(
   originalUserPrompt: string,
   validationReason: string
 ): string {
-  const specificGuidance =
+  const specificGuidance: string[] = [];
+
+  if (
     validationReason.includes(
       "unrevealed specific opening promise"
     )
-      ? [
-          "Specific correction:",
-          "If the opening promises one hidden setting, secret, cause, reason, or mechanism but the script never names it, treat this as a material hook/payoff problem.",
-          "Do not use hookDecision keep.",
-          "Do not call the hook clear and specific.",
-          "Keep overall at 65 or lower unless the script reveals the promised item.",
-          "Use a grounded riskyPart excerpt from the opening promise and a required fix that asks to reveal or remove the promise.",
-        ]
-      : [];
+  ) {
+    specificGuidance.push(
+      "Specific correction:",
+      "If the opening promises one hidden setting, secret, cause, reason, or mechanism but the script never names it, treat this as a material hook/payoff problem.",
+      "Do not use hookDecision keep.",
+      "Do not call the hook clear and specific.",
+      "Keep overall at 65 or lower unless the script reveals the promised item.",
+      "Use a grounded riskyPart excerpt from the opening promise and a required fix that asks to reveal or remove the promise."
+    );
+  } else if (
+    validationReason.includes(
+      "must be classified as how_to or generic_advice"
+    )
+  ) {
+    specificGuidance.push(
+      "Specific correction:",
+      "Classify the script as how_to or generic_advice, not list_escalation.",
+      "Preserve the material issue already identified instead of inventing a new issue for the retry.",
+      'Do not use the word "verified" in suggestedFixes for this correction.',
+      "Do not request external evidence, new facts, measurable results, or examples merely to prove that ordinary advice is overlooked, unique, original, secret, or rarely discussed.",
+      "If the opening makes an unsupported novelty or originality claim, remove or soften that claim instead of asking the creator to prove it.",
+      "If that unsupported claim is a material opening issue, use hookDecision refine or rewrite rather than keep.",
+      "Keep every fix grounded in claims and wording already present in the submitted script."
+    );
+  } else if (
+    validationReason.includes(
+      "requires a diagnostic hook decision"
+    )
+  ) {
+    specificGuidance.push(
+      "Specific correction:",
+      "The submitted generic advice does not contain enough concrete source material for a grounded hook rewrite.",
+      "Use hookDecision diagnostic.",
+      "Set suggestedHook to null.",
+      "Do not invent or imply a replacement hook.",
+      'Do not use the word "verified" in suggestedFixes for this correction.',
+      "Use this required hook fix exactly:",
+      '"Add a concrete example, mechanism, named situation, number, or observable result before rewriting the hook."'
+    );
+  } else if (
+    validationReason.includes(
+      "allowed neutral diagnostic forms"
+    )
+  ) {
+    specificGuidance.push(
+      "Specific correction:",
+      "When a suggestedFix requests verified factual material, use exactly one of these complete sentences and do not add anything else:",
+      '"Add a verified consequence or implication that explains why this matters."',
+      '"Add a verified contrast, example, or measurable result that strengthens the payoff."',
+      'Alternatively, remove the word "verified" and write a contextualized fix using only facts already present in the submitted script.',
+      "Do not append candidate facts, examples, affected groups, consequences, effects, or possible factual directions."
+    );
+  }
 
   return [
     originalUserPrompt,

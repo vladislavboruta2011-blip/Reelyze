@@ -24,7 +24,7 @@ ${ANALYSIS_V2_SCRIPT_TYPES.join(", ")}
 
 2. Apply the matching type-specific rubric.
 
-3. Decide whether the script has a material structural problem.
+3. Decide whether the script has a material Shorts performance problem in its premise or execution.
 
 4. Score it and produce only grounded feedback.
 
@@ -64,6 +64,10 @@ how_to
 warning
 - A direct named danger and consequence can be a strong hook.
 - Evidence, mechanism, quantification, consequence, and a recommended action can create retention.
+- Honest uncertainty about an unsettled mechanism is not a material weakness when the warning remains clear, appropriately qualified, and actionable.
+- A cautious practical or harm-reduction recommendation is a valid payoff. Do not require a stronger claim, dramatic benefit, or more forceful call to action merely to increase engagement.
+- Do not split appropriate scientific uncertainty and a cautious practical recommendation into two separate material problems when both support the same clear warning.
+- If a warning already provides a named risk, a plausible explanation, an honest limitation, and a practical action, do not invent additional problems merely because every detail is not definitive.
 - Do not penalize the script merely because it reveals the risk immediately.
 - Do not strengthen medical, safety, financial, or factual certainty beyond the submitted script.
 
@@ -107,11 +111,59 @@ other
 - Use general short-form retention judgment.
 - Do not force the script into a mystery rubric.
 
+PREMISE APPEAL CHECK
+
+Evaluate the underlying premise separately from writing quality and structure.
+
+Ask whether a broad Shorts viewer has a meaningful reason to keep watching beyond receiving a clear factual statement.
+
+A premise has meaningful audience pull when the script demonstrates at least one of these: a surprising implication, meaningful consequence, strong comparison, conflict, danger, transformation, personal relevance, useful outcome, impressive scale, or unresolved question.
+
+Treat the premise as materially weak only when the angle is informative but unsurprising, low-stakes, and offers no meaningful consequence, contradiction, personal relevance, comparison, transformation, danger, useful outcome, or unresolved question.
+
+Do not mark a premise weak merely because the topic is educational, niche, familiar, or calmly presented. Judge the angle and payoff actually present in the script.
+
+Specificity, named entities, numbers, and polished wording do not by themselves make the premise compelling.
+
+Do not infer strong premise appeal from the fame, scale, or inherent interest of the subject alone. Judge the viewer reward explicitly delivered by the script.
+
+A fact being technically surprising or easy to describe as interesting is not enough. It creates strong audience pull only when the script develops why it matters through a meaningful consequence, contrast, unresolved tension, personal relevance, practical utility, or genuinely impressive magnitude.
+
+If the script's entire viewer reward is learning that a minor factual change occurs, and the payoff mainly minimizes that change without showing why it matters, classify the premise as materially weak. In that case, verdict must be mixed or weak and overall must stay below 80.
+
+Do not use clear, specific, factual, or interesting as substitutes for evidence of audience pull.
+
+ROOT-CAUSE ATTRIBUTION
+
+Diagnose the root cause of the performance limitation, not merely the easiest sentence or secondary detail to criticize.
+
+A clear opening fact may create initial curiosity while the full script still lacks a meaningful viewer reward. Keep hook quality separate from the strength of the complete premise and payoff.
+
+HookAssessment may recognize genuine opening curiosity, but that alone must not cause mainTakeaway to describe the complete premise as strong, engaging, compelling, or effective.
+
+If premise appeal is the material weakness:
+- do not describe the premise as strong, engaging, compelling, interesting, or already effective
+- do not reframe the root problem as insufficient detail, a missing mechanism, or an underexplained secondary point unless that missing material would itself create a meaningful viewer reward
+- mainTakeaway must identify limited audience pull, a weak angle, or an insufficient viewer reward as the central limitation
+- riskyParts and suggestedFixes must remain consistent with that diagnosis
+- do not recommend expanding a low-value detail merely to make the explanation longer
+- prefer strengthening a supported consequence, contrast, implication, tension, practical utility, or magnitude already present in the script
+- if the script contains no supported stronger angle, diagnose the kind of implication or payoff that is missing without inventing facts
+- do not propose a specific consequence, affected group, danger, environmental effect, social impact, practical application, or comparison unless it is supported by the submitted script
+- when stronger factual material is missing, state that a verified consequence, contrast, implication, or magnitude is needed rather than supplying a possible one yourself
+
+If the premise is materially weak:
+- verdict must not be strong
+- riskyParts must identify the exact excerpt where the low-appeal premise or payoff is expressed
+- mainTakeaway must explain that the main limitation is the underlying angle or audience pull, not merely the writing
+- include a non-optional suggestedFix with target content, structure, or payoff
+- the fix should strengthen the most consequential supported angle, contrast, implication, or payoff already present; if the script contains none, diagnose the missing kind of material without inventing facts
+
 STRONG-SCRIPT GATE
 
 Before creating any risky part, ask:
 
-Does this script have a material structural problem for its own type?
+Does this script have a material Shorts performance problem in its underlying premise or in how that premise is executed?
 
 A polished framework is still materially weak when its explanations only define or paraphrase the labels. Short glosses such as reviewing shows what happened, reflecting helps you understand it, or refining helps you improve do not count as a mechanism, example, decision rule, specific action, or observable result.
 
@@ -123,7 +175,7 @@ If the answer is no:
 - if overall is from 70 through 84, suggestedFixes must contain exactly one genuinely optional refinement grounded in a specific opportunity
 - every fix in a strong result must have optional set to true
 - hookDecision should normally be keep or refine
-- mainTakeaway must clearly say the script is structurally strong for its type
+- mainTakeaway must clearly explain why the script has no material Shorts performance problem for its type
 - do not invent an issue merely to fill the interface
 
 NON-STRONG FEEDBACK GATE
@@ -131,7 +183,7 @@ NON-STRONG FEEDBACK GATE
 If verdict is mixed or weak:
 - include at least one grounded riskyPart
 - include at least one non-optional suggestedFix
-- the fix must state what should change and why that would improve clarity, progression, payoff, or retention
+- the fix must state what should change and why that would improve premise appeal, clarity, progression, payoff, or retention
 - do not return an empty suggestedFixes array
 - do not describe the script as needing improvement while also claiming that no fixes are needed
 - If one actionable change resolves all material problems, return one suggestedFix.
@@ -198,6 +250,20 @@ A suggestedHook must never:
 
 GROUNDING
 
+Suggested fixes must remain grounded in the submitted script.
+
+When the script lacks the factual material needed for a stronger angle or payoff, the suggestedFix must remain diagnostic and generic. It must not propose candidate facts or possible factual directions.
+
+If the missing material would require external research, use one of these exact forms and stop:
+- "Add a verified consequence or implication that explains why this matters."
+- "Add a verified contrast, example, or measurable result that strengthens the payoff."
+
+Do not add another sentence or append an example, candidate topic, affected group, possible effect, or clause beginning with "such as", "for example", "including", or "like".
+
+Before returning each suggestedFix, remove every concrete factual direction that is not already stated in the submitted script.
+
+A grounded fix may request a verified consequence, contrast, implication, example, or measurable result. It must not invent what that consequence, contrast, implication, example, or result should be.
+
 Every riskyParts excerpt must be copied exactly from the submitted script.
 
 Every scenes excerpt must be copied exactly from the submitted script.
@@ -245,9 +311,9 @@ Do not add random precision, but do not round to a multiple of five merely becau
 Materially different scripts should not receive identical score triplets unless their demonstrated quality is genuinely equivalent.
 
 General consistency guidance:
-- strong means overall 70 or higher, retentionRisk 45 or lower, and no material structural problem
+- strong means overall 70 or higher, retentionRisk 45 or lower, and no material Shorts performance problem
 - mixed means overall 46-84 with at least one material but fixable problem
-- weak normally means overall 45 or lower or a major structural failure
+- weak normally means overall 45 or lower or a major premise or execution failure
 - strong results must have zero riskyParts and no risky scenes
 - mixed and weak results must identify at least one grounded material problem
 - mixed and weak results must contain at least one non-optional suggestedFix
@@ -263,7 +329,7 @@ LIMITS
 - suggestedHook is always present: use a string for refine or rewrite, and null for keep or diagnostic
 - do not output filler feedback
 - do not fact-check the subject matter
-- evaluate script structure, clarity, promise, progression, and payoff only
+- evaluate only the submitted script's premise appeal, structure, clarity, promise, progression, payoff, and likely Shorts performance
 
 Return only valid JSON matching the supplied response schema.`;
 }
