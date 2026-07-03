@@ -81,6 +81,26 @@ const requiredRules = [
     name: "a numbered advice list does not create escalation",
     text: "A count such as three habits, five tips, or seven steps does not create escalation. Ordering words such as first, then, and finally also do not create escalation by themselves.",
   },
+  {
+    name: "overall score reflects Shorts performance potential",
+    text: "Overall score must reflect Shorts performance potential, not just writing quality.",
+  },
+  {
+    name: "clear educational structure is not enough for a very high score",
+    text: "A script should not receive a very high overall score merely because it is clear, logical, educational, or well structured.",
+  },
+  {
+    name: "low-interest topics should usually stay below 80",
+    text: "A well-structured script with a low-interest topic, weak stakes, no meaningful curiosity gap, and an informative-but-unsurprising payoff should usually stay below 80.",
+  },
+  {
+    name: "85 plus requires strong execution and a compelling Shorts idea",
+    text: "Scores of 85 or higher should be reserved for scripts that combine strong execution with a genuinely compelling Shorts idea.",
+  },
+  {
+    name: "educational content can still score high with real pull",
+    text: "Do not punish educational content when the angle creates real surprise, conflict, personal relevance, mystery, or emotional stakes.",
+  },
 ];
 
 let failures = 0;

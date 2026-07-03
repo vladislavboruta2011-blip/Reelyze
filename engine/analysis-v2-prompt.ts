@@ -229,6 +229,13 @@ Score meanings:
 - hook: higher is better
 - retentionRisk: higher is worse
 
+Overall score must reflect Shorts performance potential, not just writing quality.
+A script should not receive a very high overall score merely because it is clear, logical, educational, or well structured.
+When assigning overall, consider whether the underlying idea itself creates strong viewer curiosity, emotional pull, conflict, contradiction, personal relevance, surprise, or an unresolved question for a Shorts feed.
+A well-structured script with a low-interest topic, weak stakes, no meaningful curiosity gap, and an informative-but-unsurprising payoff should usually stay below 80.
+Scores of 85 or higher should be reserved for scripts that combine strong execution with a genuinely compelling Shorts idea.
+Do not punish educational content when the angle creates real surprise, conflict, personal relevance, mystery, or emotional stakes.
+
 Use the full 0-100 range.
 
 Score each dimension independently from evidence in this exact script.
