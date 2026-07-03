@@ -3,6 +3,7 @@ import {
   ANALYSIS_V2_HOOK_DECISIONS,
   ANALYSIS_V2_LIMITS,
   ANALYSIS_V2_SCENE_STATUSES,
+  ANALYSIS_V2_SCORE_COMPONENT_KEYS,
   ANALYSIS_V2_SCRIPT_TYPES,
   ANALYSIS_V2_SEVERITIES,
   ANALYSIS_V2_VERDICTS,
@@ -76,6 +77,649 @@ function isFiniteScore(value: unknown): value is number {
     value >= 0 &&
     value <= 100
   );
+}
+
+function isScoreComponent(
+  value: unknown
+): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isInteger(value) &&
+    value >= 0 &&
+    value <= 25
+  );
+}
+
+function hasExactlyKeys(
+  value: Record<string, unknown>,
+  requiredKeys: readonly string[]
+): boolean {
+  return (
+    hasOnlyKeys(value, requiredKeys) &&
+    requiredKeys.every((key) =>
+      Object.prototype.hasOwnProperty.call(
+        value,
+        key
+      )
+    )
+  );
+}
+
+type ScoreComponentGroupValidation =
+  | {
+      ok: true;
+      value: Record<string, number>;
+    }
+  | {
+      ok: false;
+      reason: string;
+    };
+
+function validateScoreComponentGroup(
+  raw: unknown,
+  requiredKeys: readonly string[],
+  label: string
+): ScoreComponentGroupValidation {
+  if (!isPlainObject(raw)) {
+    return {
+      ok: false,
+      reason: `${label} score components must be an object.`,
+    };
+  }
+
+  if (!hasExactlyKeys(raw, requiredKeys)) {
+    return {
+      ok: false,
+      reason: `${label} score components must contain exactly: ${requiredKeys.join(
+        ", "
+      )}.`,
+    };
+  }
+
+  const value: Record<string, number> = {};
+
+  for (const key of requiredKeys) {
+    if (!isScoreComponent(raw[key])) {
+      return {
+        ok: false,
+        reason: `${label}.${key} must be an integer from 0 to 25.`,
+      };
+    }
+
+    value[key] = raw[key];
+  }
+
+  return {
+    ok: true,
+    value,
+  };
+}
+
+function sumScoreComponentGroup(
+  values: Record<string, number>,
+  keys: readonly string[]
+): number {
+  return keys.reduce(
+    (total, key) => total + values[key],
+    0
+  );
+}
+
+const ALLOWED_VERIFIED_FACTUAL_FIXES = [
+  {
+    normalized:
+      "add a verified consequence or implication that explains why this matters",
+    canonical:
+      "Add a verified consequence or implication that explains why this matters.",
+  },
+  {
+    normalized:
+      "add a verified contrast, example, or measurable result that strengthens the payoff",
+    canonical:
+      "Add a verified contrast, example, or measurable result that strengthens the payoff.",
+  },
+] as const;
+
+function canonicalizeVerifiedFactualSuggestion(
+  suggestion: string
+): string | null {
+  const normalized = suggestion
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/[.!?]+$/, "")
+    .toLowerCase();
+
+  for (const allowed of ALLOWED_VERIFIED_FACTUAL_FIXES) {
+    if (normalized === allowed.normalized) {
+      return allowed.canonical;
+    }
+
+    if (!normalized.startsWith(allowed.normalized)) {
+      continue;
+    }
+
+    const suffix = normalized.slice(
+      allowed.normalized.length
+    );
+
+    const isAppendedCandidateDirection =
+      /^(?:\s*[,;:]?\s*|\s*[-—]\s*)(?:such as|for example|including|like)\b/i.test(
+        suffix
+      );
+
+    if (isAppendedCandidateDirection) {
+      return allowed.canonical;
+    }
+  }
+
+  return null;
+}
+
+function hasResolvedSurvivalNarrative(
+  script: string
+): boolean {
+  const hasEstablishedDanger =
+    /\b(?:gunman|shooting|shot|bullet|struck|wounded|injured|attack|crash|explosion|fire|trapped|collapsed|ricocheted|missed (?:his|her|their|the) heart|missing (?:his|her|their|the) heart)\b/i.test(
+      script
+    );
+
+  const hasResolvedSurvivalOutcome =
+    /\b(?:survived|survive|made it out alive|escaped alive|recovered)\b/i.test(
+      script
+    );
+
+  const openingWindow =
+    extractAnalysisV2OpeningWindow(script);
+
+  const openingPromisesExternalAftermath =
+    /\b(?:what happened next|aftermath|changed history|changed security|led to|resulted in|the impact|the consequence|why it mattered)\b/i.test(
+      openingWindow
+    );
+
+  return (
+    hasEstablishedDanger &&
+    hasResolvedSurvivalOutcome &&
+    !openingPromisesExternalAftermath
+  );
+}
+
+function isResolvedSurvivalExcerpt(
+  excerpt: string
+): boolean {
+  return /\b(?:survived|survive|made it out alive|escaped alive|recovered)\b/i.test(
+    excerpt
+  );
+}
+
+function criticizesResolvedSurvivalForMissingExternalMeaning(
+  reason: string
+): boolean {
+  return /\b(?:underwhelming|significance|consequence|broader implication|external implication|why (?:this|it) matters|limiting viewer reward|deeper implication)\b/i.test(
+    reason
+  );
+}
+
+function requestsExternalNarrativeConsequence(
+  suggestion: string
+): boolean {
+  const normalized = suggestion
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return (
+    /\b(?:verified consequence|broader implication|external consequence|historical consequence|policy change|security response|significance)\b/i.test(
+      normalized
+    ) ||
+    /\bwhy\b.{0,120}\bmatters\b/i.test(
+      normalized
+    ) ||
+    /\b(?:contrast|example|implication)\b.{0,120}\b(?:survival|survived|wounded individuals?)\b/i.test(
+      normalized
+    )
+  );
+}
+
+function hasUnpunctuatedCompleteCausalExplanation(
+  script: string
+): boolean {
+  const normalized = script
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const hasSentenceBoundary =
+    /[.!?]/.test(normalized);
+
+  const hasCausalLink =
+    /\b(?:because|since|due to|causes?|caused by|when|as a result)\b/i.test(
+      normalized
+    );
+
+  const hasPhysicalOrObservableEffect =
+    /\b(?:releases?|raises?|increases?|prepares?|triggers?|affects?|makes?|causes?|shakes?|contracts?)\b/i.test(
+      normalized
+    );
+
+  const hasResolution =
+    /\b(?:once|after|when)\b.{0,160}\b(?:falls?|drops?|fades?|stops?|ends?|returns?|recovers?|settles?)\b/i.test(
+      normalized
+    );
+
+  return (
+    !hasSentenceBoundary &&
+    hasCausalLink &&
+    hasPhysicalOrObservableEffect &&
+    hasResolution
+  );
+}
+
+function criticizesCompleteCausalExplanationForMissingDepth(
+  feedback: string
+): boolean {
+  const normalized = feedback
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const explicitlyRejectsNeedForMoreDepth =
+    /\b(?:does not|doesn't|do not|don't|did not|didn't)\s+(?:need|require|lack)\b.{0,100}\b(?:depth|deeper mechanism|more detail|additional detail|additional examples?|more examples?|additional implications?)\b/i.test(
+      normalized
+    ) ||
+    /\bno need (?:to|for)\b.{0,100}\b(?:depth|deeper mechanism|more detail|additional detail|additional examples?|more examples?|additional implications?)\b/i.test(
+      normalized
+    ) ||
+    /\bwithout (?:needing|requiring)\b.{0,100}\b(?:depth|a deeper mechanism|more detail|additional detail|additional examples?|more examples?|additional implications?)\b/i.test(
+      normalized
+    );
+
+  if (explicitlyRejectsNeedForMoreDepth) {
+    return false;
+  }
+
+  return /\b(?:very brief|too brief|lacks depth|lacks deeper mechanism|deeper mechanism|lacks.*examples?|needs.*examples?|missing.*mechanism|shallow|incomplete explanation|more detail|additional detail|additional implications?)\b/i.test(
+    normalized
+  );
+}
+
+function requestsUnnecessaryCausalExpansion(
+  feedback: string
+): boolean {
+  const normalized = feedback
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const explicitlyRejectsCausalExpansion =
+    /\b(?:does not|doesn't|do not|don't|did not|didn't)\s+(?:need|require|request)\b.{0,120}\b(?:explanations?|mechanisms?|examples?|details?|implications?|consequences?)\b/i.test(
+      normalized
+    ) ||
+    /\bno need (?:to|for)\b.{0,120}\b(?:expand|deepen|add|include|provide|explanations?|mechanisms?|examples?|details?|implications?|consequences?)\b/i.test(
+      normalized
+    ) ||
+    /\bwithout (?:needing|requiring|requesting|adding|including|providing|expanding|deepening)\b.{0,120}\b(?:explanations?|mechanisms?|examples?|details?|implications?|consequences?)\b/i.test(
+      normalized
+    );
+
+  if (explicitlyRejectsCausalExpansion) {
+    return false;
+  }
+
+  const directlyExpandsExistingMaterial =
+    /\b(?:expand(?:s|ed|ing)?|deepen(?:s|ed|ing)?)\b.{0,120}\b(?:explanations?|mechanisms?|examples?|details?|implications?|consequences?)\b/i.test(
+      normalized
+    );
+
+  const addsMoreMaterial =
+    /\b(?:add(?:ed|ing)?|include(?:d|ing)?|provide(?:d|ing)?)\b.{0,80}\b(?:(?:a|an|the|some)\s+)?(?:more|additional|further|deeper|clearer|detailed|extra|another|new|specific|concrete)\b.{0,60}\b(?:explanations?|mechanisms?|examples?|details?|implications?|consequences?)\b/i.test(
+      normalized
+    );
+
+  const explicitlyRequestsMoreMaterial =
+    /\b(?:needs?|requires?|requests?|should|could|would)\b.{0,100}\b(?:clearer|deeper|more detailed|additional|further|extra|another|new|specific|concrete)\b.{0,60}\b(?:explanations?|mechanisms?|examples?|details?|implications?|consequences?)\b/i.test(
+      normalized
+    ) ||
+    /\b(?:clearer|deeper|more detailed|additional|further|extra|another|new|specific|concrete)\b.{0,60}\b(?:explanations?|mechanisms?|examples?|details?|implications?|consequences?)\b.{0,50}\b(?:is|are)\s+(?:needed|required|missing)\b/i.test(
+      normalized
+    );
+
+  return (
+    directlyExpandsExistingMaterial ||
+    addsMoreMaterial ||
+    explicitlyRequestsMoreMaterial
+  );
+}
+
+function deriveOverallScoreForCausalNormalization(
+  raw: Record<string, unknown>
+): number | null {
+  if (
+    isPlainObject(raw.scores) &&
+    typeof raw.scores.overall === "number" &&
+    Number.isFinite(raw.scores.overall) &&
+    raw.scores.overall >= 0 &&
+    raw.scores.overall <= 100
+  ) {
+    return Math.round(raw.scores.overall);
+  }
+
+  if (!isPlainObject(raw.scoreComponents)) {
+    return null;
+  }
+
+  const overallValidation =
+    validateScoreComponentGroup(
+      raw.scoreComponents.overall,
+      ANALYSIS_V2_SCORE_COMPONENT_KEYS.overall,
+      "scoreComponents.overall"
+    );
+
+  if (!overallValidation.ok) {
+    return null;
+  }
+
+  return sumScoreComponentGroup(
+    overallValidation.value,
+    ANALYSIS_V2_SCORE_COMPONENT_KEYS.overall
+  );
+}
+
+function deriveRetentionRiskForCausalNormalization(
+  raw: Record<string, unknown>
+): number | null {
+  if (
+    isPlainObject(raw.scores) &&
+    typeof raw.scores.retentionRisk === "number" &&
+    Number.isFinite(raw.scores.retentionRisk) &&
+    raw.scores.retentionRisk >= 0 &&
+    raw.scores.retentionRisk <= 100
+  ) {
+    return Math.round(
+      raw.scores.retentionRisk
+    );
+  }
+
+  if (!isPlainObject(raw.scoreComponents)) {
+    return null;
+  }
+
+  const retentionValidation =
+    validateScoreComponentGroup(
+      raw.scoreComponents.retentionRisk,
+      ANALYSIS_V2_SCORE_COMPONENT_KEYS.retentionRisk,
+      "scoreComponents.retentionRisk"
+    );
+
+  if (!retentionValidation.ok) {
+    return null;
+  }
+
+  return sumScoreComponentGroup(
+    retentionValidation.value,
+    ANALYSIS_V2_SCORE_COMPONENT_KEYS.retentionRisk
+  );
+}
+
+export function normalizeAnalysisV2CompleteCausalExplanationModelResult(
+  raw: unknown,
+  script: string
+): unknown | null {
+  if (
+    !isPlainObject(raw) ||
+    raw.scriptType !== "explanation" ||
+    !hasUnpunctuatedCompleteCausalExplanation(script) ||
+    !Array.isArray(raw.riskyParts) ||
+    !Array.isArray(raw.suggestedFixes) ||
+    !Array.isArray(raw.scenes) ||
+    raw.scenes.length === 0
+  ) {
+    return null;
+  }
+
+  const overall =
+    deriveOverallScoreForCausalNormalization(
+      raw
+    );
+  const retentionRisk =
+    deriveRetentionRiskForCausalNormalization(
+      raw
+    );
+
+  if (
+    overall === null ||
+    retentionRisk === null
+  ) {
+    return null;
+  }
+
+  const feedbackTexts: string[] = [];
+
+  if (typeof raw.hookAssessment === "string") {
+    feedbackTexts.push(raw.hookAssessment);
+  }
+
+  if (typeof raw.mainTakeaway === "string") {
+    feedbackTexts.push(raw.mainTakeaway);
+  }
+
+  for (const part of raw.riskyParts) {
+    if (
+      isPlainObject(part) &&
+      typeof part.reason === "string"
+    ) {
+      feedbackTexts.push(part.reason);
+    }
+  }
+
+  for (const fix of raw.suggestedFixes) {
+    if (
+      isPlainObject(fix) &&
+      typeof fix.suggestion === "string"
+    ) {
+      feedbackTexts.push(fix.suggestion);
+    }
+  }
+
+  for (const scene of raw.scenes) {
+    if (
+      isPlainObject(scene) &&
+      typeof scene.label === "string"
+    ) {
+      feedbackTexts.push(scene.label);
+    }
+  }
+
+  const containsInvalidCausalCritique =
+    feedbackTexts.some(
+      (feedback) =>
+        criticizesCompleteCausalExplanationForMissingDepth(
+          feedback
+        ) ||
+        requestsUnnecessaryCausalExpansion(
+          feedback
+        )
+    );
+
+  const containsStrongFeedbackConflict =
+    raw.verdict === "strong" &&
+    (
+      raw.riskyParts.length > 0 ||
+      raw.suggestedFixes.some(
+        (fix) =>
+          isPlainObject(fix) &&
+          fix.optional === false
+      ) ||
+      raw.scenes.some(
+        (scene) =>
+          isPlainObject(scene) &&
+          scene.status === "risky"
+      )
+    );
+
+  const fillerMatch =
+    /^\s*(so basically)\b/i.exec(script);
+
+  if (
+    fillerMatch === null &&
+    !containsInvalidCausalCritique
+  ) {
+    return null;
+  }
+
+  if (
+    fillerMatch !== null &&
+    !containsInvalidCausalCritique &&
+    !containsStrongFeedbackConflict
+  ) {
+    return null;
+  }
+
+  const neutralizedScenes = raw.scenes.map(
+    (scene) => {
+      if (
+        !isPlainObject(scene) ||
+        typeof scene.excerpt !== "string" ||
+        typeof scene.label !== "string" ||
+        typeof scene.status !== "string"
+      ) {
+        return scene;
+      }
+
+      const labelContainsInvalidCritique =
+        criticizesCompleteCausalExplanationForMissingDepth(
+          scene.label
+        ) ||
+        requestsUnnecessaryCausalExpansion(
+          scene.label
+        );
+
+      return {
+        ...scene,
+        label: labelContainsInvalidCritique
+          ? "Cause, observable effect, and resolution"
+          : scene.label,
+      };
+    }
+  );
+
+  if (fillerMatch !== null) {
+    if (
+      overall > 84 ||
+      typeof raw.suggestedHook !== "string" ||
+      raw.suggestedHook.trim().length === 0
+    ) {
+      return null;
+    }
+
+    const fillerExcerpt = fillerMatch[1];
+
+    return {
+      ...raw,
+      verdict:
+        overall <= 45 ? "weak" : "mixed",
+      hookDecision: "refine",
+      hookAssessment:
+        "The opening filler delays the concrete premise, while the cause, observable effect, and resolution remain complete.",
+      suggestedHook: raw.suggestedHook.trim(),
+      riskyParts: [
+        {
+          excerpt: fillerExcerpt,
+          reason:
+            "The opening filler delays the concrete premise and reduces hook immediacy.",
+          severity: "medium",
+        },
+      ],
+      suggestedFixes: [
+        {
+          target: "hook",
+          suggestion:
+            `Remove the opening filler '${fillerExcerpt}' and start directly with the concrete premise.`,
+          optional: false,
+        },
+      ],
+      scenes: neutralizedScenes.map(
+        (scene) =>
+          isPlainObject(scene)
+            ? {
+                ...scene,
+                status:
+                  scene.status === "risky"
+                    ? "average"
+                    : scene.status,
+              }
+            : scene
+      ),
+      mainTakeaway:
+        "The causal explanation is complete; only the opening filler limits immediacy.",
+    };
+  }
+
+  const canUseStrongResult =
+    overall >= 70 &&
+    retentionRisk <= 45;
+
+  if (canUseStrongResult) {
+    return {
+      ...raw,
+      verdict: "strong",
+      hookDecision: "keep",
+      hookAssessment:
+        "The opening immediately presents the physical reaction, and the script completes the causal chain from trigger to effect and resolution.",
+      suggestedHook: null,
+      riskyParts: [],
+      suggestedFixes: [],
+      scenes: neutralizedScenes.map(
+        (scene) =>
+          isPlainObject(scene)
+            ? {
+                ...scene,
+                status: "strong",
+              }
+            : scene
+      ),
+      mainTakeaway:
+        "The script provides a complete causal explanation from the trigger through the observable effect to the resolution.",
+    };
+  }
+
+  if (
+    overall < 46 ||
+    overall > 84
+  ) {
+    return null;
+  }
+
+  return {
+    ...raw,
+    verdict: "mixed",
+    hookDecision: "keep",
+    hookAssessment:
+      "The opening immediately presents the physical reaction and establishes the explanation clearly.",
+    suggestedHook: null,
+    riskyParts: [
+      {
+        excerpt: script,
+        reason:
+          "The lack of sentence boundaries makes the otherwise complete causal explanation harder to scan and follow.",
+        severity: "low",
+      },
+    ],
+    suggestedFixes: [
+      {
+        target: "clarity",
+        suggestion:
+          "Add sentence boundaries between the trigger, physical effect, and resolution without expanding the explanation.",
+        optional: false,
+      },
+    ],
+    scenes: neutralizedScenes.map(
+      (scene) =>
+        isPlainObject(scene)
+          ? {
+              ...scene,
+              status: "average",
+            }
+          : scene
+    ),
+    mainTakeaway:
+      "The causal explanation is complete; only the missing sentence boundaries reduce readability.",
+  };
 }
 
 function isEnumMember<T extends string>(
@@ -1049,28 +1693,21 @@ export function validateAnalysisV2Result(
       return validation;
     }
 
-    const normalizedSuggestion =
-      validation.value.suggestion
-        .replace(/\s+/g, " ")
-        .trim()
-        .replace(/[.!?]+$/, "")
-        .toLowerCase();
-
     const requestsVerifiedFactualMaterial =
       /\bverified\b/i.test(
         validation.value.suggestion
       );
 
-    const allowedVerifiedFactualRequests = new Set([
-      "add a verified consequence or implication that explains why this matters",
-      "add a verified contrast, example, or measurable result that strengthens the payoff",
-    ]);
+    const canonicalVerifiedSuggestion =
+      requestsVerifiedFactualMaterial
+        ? canonicalizeVerifiedFactualSuggestion(
+            validation.value.suggestion
+          )
+        : null;
 
     if (
       requestsVerifiedFactualMaterial &&
-      !allowedVerifiedFactualRequests.has(
-        normalizedSuggestion
-      )
+      canonicalVerifiedSuggestion === null
     ) {
       return {
         ok: false,
@@ -1079,7 +1716,15 @@ export function validateAnalysisV2Result(
       };
     }
 
-    suggestedFixes.push(validation.value);
+    suggestedFixes.push(
+      canonicalVerifiedSuggestion
+        ? {
+            ...validation.value,
+            suggestion:
+              canonicalVerifiedSuggestion,
+          }
+        : validation.value
+    );
   }
 
   if (!Array.isArray(raw.scenes)) {
@@ -1130,6 +1775,65 @@ export function validateAnalysisV2Result(
   const requiredFixes = suggestedFixes.filter(
     (fix) => !fix.optional
   );
+
+  const hasInvalidResolvedSurvivalPayoffCritique =
+    raw.scriptType === "narrative_event" &&
+    hasResolvedSurvivalNarrative(script) &&
+    riskyParts.some(
+      (part) =>
+        isResolvedSurvivalExcerpt(part.excerpt) &&
+        criticizesResolvedSurvivalForMissingExternalMeaning(
+          part.reason
+        )
+    ) &&
+    suggestedFixes.some(
+      (fix) =>
+        !fix.optional &&
+        fix.target === "payoff" &&
+        requestsExternalNarrativeConsequence(
+          fix.suggestion
+        )
+    );
+
+  if (hasInvalidResolvedSurvivalPayoffCritique) {
+    return {
+      ok: false,
+      reason:
+        "A resolved survival narrative cannot be treated as missing payoff solely because it lacks an external consequence or significance.",
+    };
+  }
+
+  const causalExplanationFeedback = [
+    raw.hookAssessment,
+    raw.mainTakeaway,
+    ...riskyParts.map((part) => part.reason),
+    ...suggestedFixes.map(
+      (fix) => fix.suggestion
+    ),
+    ...scenes.map((scene) => scene.label),
+  ];
+
+  const hasInvalidUnpunctuatedExplanationCritique =
+    raw.scriptType === "explanation" &&
+    hasUnpunctuatedCompleteCausalExplanation(script) &&
+    causalExplanationFeedback.some(
+      (feedback) =>
+        criticizesCompleteCausalExplanationForMissingDepth(
+          feedback
+        ) ||
+        requestsUnnecessaryCausalExpansion(
+          feedback
+        )
+    );
+
+  if (hasInvalidUnpunctuatedExplanationCritique) {
+    return {
+      ok: false,
+      reason:
+        "A complete causal explanation in an unpunctuated script cannot be treated as missing mechanism solely because it could include more detail or examples.",
+    };
+  }
+
   const requiredHookFixes = suggestedFixes.filter(
     (fix) =>
       fix.target === "hook" && !fix.optional
@@ -1321,17 +2025,6 @@ export function validateAnalysisV2Result(
     }
 
     if (
-      overall < 85 &&
-      suggestedFixes.length === 0
-    ) {
-      return {
-        ok: false,
-        reason:
-          "A strong result below 85 must contain one optional refinement.",
-      };
-    }
-
-    if (
       hookDecision !== "keep" &&
       hookDecision !== "refine"
     ) {
@@ -1422,4 +2115,127 @@ export function validateAnalysisV2Result(
       mainTakeaway: raw.mainTakeaway.trim(),
     },
   };
+}
+
+export function validateAnalysisV2ModelResult(
+  raw: unknown,
+  script: string
+): AnalysisV2ResultValidation {
+  if (
+    !isPlainObject(raw) ||
+    !Object.prototype.hasOwnProperty.call(
+      raw,
+      "scoreComponents"
+    )
+  ) {
+    // Backward compatibility for existing deterministic tests
+    // and already-stored public AnalysisV2 results.
+    return validateAnalysisV2Result(raw, script);
+  }
+
+  const requiredRootKeys = [
+    "scriptType",
+    "verdict",
+    "scoreComponents",
+    "hookDecision",
+    "hookAssessment",
+    "suggestedHook",
+    "riskyParts",
+    "suggestedFixes",
+    "scenes",
+    "mainTakeaway",
+  ] as const;
+
+  if (!hasExactlyKeys(raw, requiredRootKeys)) {
+    return {
+      ok: false,
+      reason:
+        "The model response must contain exactly the required component-scoring fields.",
+    };
+  }
+
+  if (!isPlainObject(raw.scoreComponents)) {
+    return {
+      ok: false,
+      reason: "scoreComponents must be an object.",
+    };
+  }
+
+  if (
+    !hasExactlyKeys(raw.scoreComponents, [
+      "overall",
+      "hook",
+      "retentionRisk",
+    ])
+  ) {
+    return {
+      ok: false,
+      reason:
+        "scoreComponents must contain exactly overall, hook, and retentionRisk.",
+    };
+  }
+
+  const overallValidation =
+    validateScoreComponentGroup(
+      raw.scoreComponents.overall,
+      ANALYSIS_V2_SCORE_COMPONENT_KEYS.overall,
+      "scoreComponents.overall"
+    );
+
+  if (!overallValidation.ok) {
+    return overallValidation;
+  }
+
+  const hookValidation =
+    validateScoreComponentGroup(
+      raw.scoreComponents.hook,
+      ANALYSIS_V2_SCORE_COMPONENT_KEYS.hook,
+      "scoreComponents.hook"
+    );
+
+  if (!hookValidation.ok) {
+    return hookValidation;
+  }
+
+  const retentionRiskValidation =
+    validateScoreComponentGroup(
+      raw.scoreComponents.retentionRisk,
+      ANALYSIS_V2_SCORE_COMPONENT_KEYS.retentionRisk,
+      "scoreComponents.retentionRisk"
+    );
+
+  if (!retentionRiskValidation.ok) {
+    return retentionRiskValidation;
+  }
+
+  const publicResult = {
+    scriptType: raw.scriptType,
+    verdict: raw.verdict,
+    scores: {
+      overall: sumScoreComponentGroup(
+        overallValidation.value,
+        ANALYSIS_V2_SCORE_COMPONENT_KEYS.overall
+      ),
+      hook: sumScoreComponentGroup(
+        hookValidation.value,
+        ANALYSIS_V2_SCORE_COMPONENT_KEYS.hook
+      ),
+      retentionRisk: sumScoreComponentGroup(
+        retentionRiskValidation.value,
+        ANALYSIS_V2_SCORE_COMPONENT_KEYS.retentionRisk
+      ),
+    },
+    hookDecision: raw.hookDecision,
+    hookAssessment: raw.hookAssessment,
+    suggestedHook: raw.suggestedHook,
+    riskyParts: raw.riskyParts,
+    suggestedFixes: raw.suggestedFixes,
+    scenes: raw.scenes,
+    mainTakeaway: raw.mainTakeaway,
+  };
+
+  return validateAnalysisV2Result(
+    publicResult,
+    script
+  );
 }

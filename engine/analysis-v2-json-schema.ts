@@ -3,10 +3,33 @@ import {
   ANALYSIS_V2_HOOK_DECISIONS,
   ANALYSIS_V2_LIMITS,
   ANALYSIS_V2_SCENE_STATUSES,
+  ANALYSIS_V2_SCORE_COMPONENT_KEYS,
   ANALYSIS_V2_SCRIPT_TYPES,
   ANALYSIS_V2_SEVERITIES,
   ANALYSIS_V2_VERDICTS,
 } from "./analysis-v2-schema";
+
+function buildScoreComponentProperties(
+  keys: readonly string[]
+): Record<
+  string,
+  {
+    type: "integer";
+    minimum: 0;
+    maximum: 25;
+  }
+> {
+  return Object.fromEntries(
+    keys.map((key) => [
+      key,
+      {
+        type: "integer" as const,
+        minimum: 0 as const,
+        maximum: 25 as const,
+      },
+    ])
+  );
+}
 
 export const ANALYSIS_V2_JSON_SCHEMA = {
   type: "object",
@@ -14,7 +37,7 @@ export const ANALYSIS_V2_JSON_SCHEMA = {
   required: [
     "scriptType",
     "verdict",
-    "scores",
+    "scoreComponents",
     "hookDecision",
     "hookAssessment",
     "suggestedHook",
@@ -32,7 +55,7 @@ export const ANALYSIS_V2_JSON_SCHEMA = {
       type: "string",
       enum: [...ANALYSIS_V2_VERDICTS],
     },
-    scores: {
+    scoreComponents: {
       type: "object",
       additionalProperties: false,
       required: [
@@ -42,19 +65,37 @@ export const ANALYSIS_V2_JSON_SCHEMA = {
       ],
       properties: {
         overall: {
-          type: "number",
-          minimum: 0,
-          maximum: 100,
+          type: "object",
+          additionalProperties: false,
+          required: [
+            ...ANALYSIS_V2_SCORE_COMPONENT_KEYS.overall,
+          ],
+          properties:
+            buildScoreComponentProperties(
+              ANALYSIS_V2_SCORE_COMPONENT_KEYS.overall
+            ),
         },
         hook: {
-          type: "number",
-          minimum: 0,
-          maximum: 100,
+          type: "object",
+          additionalProperties: false,
+          required: [
+            ...ANALYSIS_V2_SCORE_COMPONENT_KEYS.hook,
+          ],
+          properties:
+            buildScoreComponentProperties(
+              ANALYSIS_V2_SCORE_COMPONENT_KEYS.hook
+            ),
         },
         retentionRisk: {
-          type: "number",
-          minimum: 0,
-          maximum: 100,
+          type: "object",
+          additionalProperties: false,
+          required: [
+            ...ANALYSIS_V2_SCORE_COMPONENT_KEYS.retentionRisk,
+          ],
+          properties:
+            buildScoreComponentProperties(
+              ANALYSIS_V2_SCORE_COMPONENT_KEYS.retentionRisk
+            ),
         },
       },
     },

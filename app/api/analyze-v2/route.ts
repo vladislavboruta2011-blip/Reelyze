@@ -11,9 +11,10 @@ import {
   type AnalysisV2SuccessResponse,
 } from "@/engine/analysis-v2-schema";
 import {
+  normalizeAnalysisV2CompleteCausalExplanationModelResult,
   parseAnalysisV2Json,
   validateAnalysisV2Input,
-  validateAnalysisV2Result,
+  validateAnalysisV2ModelResult,
 } from "@/engine/analysis-v2-validation";
 
 const ANALYSIS_V2_MODEL =
@@ -279,6 +280,10 @@ function buildAnalysisV2RetryUserPrompt(
   validationReason: string
 ): string {
   const specificGuidance: string[] = [];
+  const originalPromptHasNoveltyClaim =
+    /\b(?:overlooked|little-known|secret|surprising|unique|nobody talks about|almost nobody talks about|almost nobody knows|rarely discussed|original)\b/i.test(
+      originalUserPrompt
+    );
 
   if (
     validationReason.includes(
@@ -290,7 +295,7 @@ function buildAnalysisV2RetryUserPrompt(
       "If the opening promises one hidden setting, secret, cause, reason, or mechanism but the script never names it, treat this as a material hook/payoff problem.",
       "Do not use hookDecision keep.",
       "Do not call the hook clear and specific.",
-      "Keep overall at 65 or lower unless the script reveals the promised item.",
+      "Keep the derived overall component total at 65 or lower unless the script reveals the promised item.",
       "Use a grounded riskyPart excerpt from the opening promise and a required fix that asks to reveal or remove the promise."
     );
   } else if (
@@ -325,6 +330,37 @@ function buildAnalysisV2RetryUserPrompt(
     );
   } else if (
     validationReason.includes(
+      "complete causal explanation in an unpunctuated script"
+    )
+  ) {
+    specificGuidance.push(
+      "Specific correction:",
+      "Evaluate the semantic causal chain separately from punctuation and transcription formatting.",
+      "The submitted script already states a cause, an observable physical effect, and a resolution.",
+      "Do not call the explanation shallow, incomplete, too brief, or lacking a mechanism merely because the clauses run together.",
+      "Do not request an additional example, deeper mechanism, implication, or factual expansion.",
+      "Preserve the fulfilled mechanism, progression, and payoff components when recalculating the scores.",
+      "If missing punctuation materially harms comprehension, identify at most one clarity or delivery issue and recommend adding sentence boundaries.",
+      "Do not convert a punctuation issue into a content, premise, mechanism, or payoff failure.",
+      "If the causal sequence remains understandable and no independent material problem exists, use a strong verdict with no riskyParts or required suggestedFixes."
+    );
+  } else if (
+    validationReason.includes(
+      "resolved survival narrative"
+    )
+  ) {
+    specificGuidance.push(
+      "Specific correction:",
+      "The script already establishes concrete danger and ends with a resolved survival outcome.",
+      "Treat that survival outcome as a valid narrative payoff.",
+      "Do not criticize the survival sentence for lacking a separate external consequence, historical impact, policy change, security response, broader implication, or explanation of significance.",
+      "Remove the riskyPart and required payoff fix that target the resolved survival sentence.",
+      "Do not request verified factual material merely to extend the resolved outcome.",
+      "Reassess the score components using the chronology, escalating danger, narrow avoidance of a worse outcome, and final survival resolution.",
+      "If no independent material problem remains, use a strong verdict with zero riskyParts and no required suggestedFixes."
+    );
+  } else if (
+    validationReason.includes(
       "allowed neutral diagnostic forms"
     )
   ) {
@@ -334,8 +370,20 @@ function buildAnalysisV2RetryUserPrompt(
       '"Add a verified consequence or implication that explains why this matters."',
       '"Add a verified contrast, example, or measurable result that strengthens the payoff."',
       'Alternatively, remove the word "verified" and write a contextualized fix using only facts already present in the submitted script.',
-      "Do not append candidate facts, examples, affected groups, consequences, effects, or possible factual directions."
+      "Do not append candidate facts, examples, affected groups, consequences, effects, or possible factual directions.",
+      "If the script already delivers its intended payoff and no material issue remains, remove the riskyPart and suggestedFix instead of forcing a verified factual request.",
+      "For a mystery that presents concrete clues and does not promise a solution, an unresolved ending is allowed; do not request a verified explanation or factual resolution."
     );
+
+    if (originalPromptHasNoveltyClaim) {
+      specificGuidance.push(
+        "This script contains a novelty or originality claim.",
+        'Do not use the word "verified" in the corrected suggestedFix.',
+        "Do not request external proof, research, examples, statistics, measurable results, or new facts to prove that the material is overlooked, secret, surprising, unique, original, or rarely discussed.",
+        "Use a grounded hook fix that removes or softens the unsupported novelty wording using only wording and claims already present in the submitted script.",
+        "The preferred correction is to remove or soften the novelty claim, not to ask the creator to prove it."
+      );
+    }
   }
 
   return [
@@ -347,6 +395,155 @@ function buildAnalysisV2RetryUserPrompt(
     "Generate a new complete analysis from the original script.",
     "Correct the validation problem without inventing facts, excerpts, numbers, entities, or promises.",
     "Return only JSON that follows the required schema.",
+  ].join("\n");
+}
+
+function isAnalysisV2FinalTargetedRetryReason(
+  validationReason: string
+): boolean {
+  return (
+    validationReason.includes(
+      "complete causal explanation in an unpunctuated script"
+    ) ||
+    validationReason.includes(
+      "unrevealed specific opening promise"
+    ) ||
+    validationReason.includes(
+      "verdict is inconsistent with the supplied"
+    ) ||
+    validationReason.includes(
+      "allowed neutral diagnostic forms"
+    ) ||
+    validationReason.includes(
+      "A strong result must not contain risky parts"
+    ) ||
+    validationReason.includes(
+      "A strong result must not contain risky scenes"
+    ) ||
+    validationReason.includes(
+      "A strong result may contain at most one optional refinement"
+    ) ||
+    validationReason.includes(
+      "Every fix in a strong result must be optional"
+    ) ||
+    validationReason.includes(
+      "A strong result must use keep or refine"
+    )
+  );
+}
+
+function buildAnalysisV2FinalTargetedRetryUserPrompt(
+  originalUserPrompt: string,
+  validationReason: string
+): string {
+  const specificGuidance: string[] = [];
+  const originalPromptHasTranscriptMarkers =
+    /\[(?:music|applause|noise|sound)\]/i.test(
+      originalUserPrompt
+    );
+
+  if (
+    validationReason.includes(
+      "complete causal explanation in an unpunctuated script"
+    )
+  ) {
+    specificGuidance.push(
+      "Evaluate the semantic clauses separately from punctuation and transcription formatting.",
+      "The deterministic validator has already confirmed that the submitted script contains a cause, an observable effect, and a resolution.",
+      "Treat the causal mechanism, progression, and resolution as fulfilled.",
+      "Do not request a deeper mechanism, additional example, more detail, further implication, or factual expansion.",
+      "Do not lower mechanism, progression, or payoff components merely because the explanation could be longer.",
+      "If punctuation genuinely harms comprehension, report at most one clarity or delivery issue.",
+      "Do not convert formatting into a content, premise, mechanism, progression, or payoff failure.",
+      "If no independent material problem remains, use verdict strong, riskyParts [], suggestedFixes [], and no risky scenes."
+    );
+
+  } else if (
+    validationReason.includes(
+      "unrevealed specific opening promise"
+    )
+  ) {
+    specificGuidance.push(
+      "The opening promises one specific hidden setting, secret, cause, reason, or mechanism, but the script never reveals it.",
+      "Treat this as a material hook and payoff problem.",
+      "Do not use verdict strong.",
+      "Do not use hookDecision keep.",
+      "Do not describe the hook as clear, low-risk, fulfilled, or specific enough.",
+      "Keep the derived overall score at 65 or lower.",
+      "Include a grounded riskyPart copied from the opening promise.",
+      "Include a non-optional fix that asks the creator to reveal the promised item or remove the promise.",
+      "Do not invent the missing setting, cause, reason, mechanism, entity, or fact in suggestedHook or suggestedFixes."
+    );
+  } else if (
+    validationReason.includes(
+      "verdict is inconsistent with the supplied"
+    )
+  ) {
+    specificGuidance.push(
+      "Recalculate the public scores by summing the required score components before choosing the verdict.",
+      "Then choose a verdict that matches the derived totals and the feedback arrays.",
+      "A strong verdict requires overall at least 70, retentionRisk at most 45, zero riskyParts, no risky scenes, and no required fixes.",
+      "A mixed verdict requires overall from 46 through 84 and must contain at least one grounded riskyPart and one non-optional suggestedFix.",
+      "Do not preserve a mixed verdict when the derived overall score falls outside the mixed range.",
+      "Do not change component scores merely to preserve the previous verdict.",
+      "Align the verdict, riskyParts, scenes, suggestedFixes, hookDecision, and derived scores with the same evidence."
+    );
+  } else if (
+    validationReason.includes(
+      "allowed neutral diagnostic forms"
+    )
+  ) {
+    specificGuidance.push(
+      "A suggestedFix that requests verified factual material must use exactly one of these complete sentences:",
+      '"Add a verified consequence or implication that explains why this matters."',
+      '"Add a verified contrast, example, or measurable result that strengthens the payoff."',
+      "Do not add context before or after the selected sentence.",
+      "Do not replace 'this' with a specific action, step, object, topic, group, consequence, or factual direction.",
+      "Do not append examples, candidate implications, affected groups, mechanisms, or clauses beginning with such as, for example, including, or like.",
+      'Alternatively, remove the word "verified" and write a grounded contextualized fix using only information already present in the submitted script.',
+      "If the script already fulfills the intended explanation and payoff, remove the riskyPart and required suggestedFix instead of forcing external factual material."
+    );
+  }
+
+  specificGuidance.push(
+    "Before returning JSON, perform a final deterministic consistency check across scoreComponents, derived scores, verdict, hookDecision, suggestedHook, riskyParts, suggestedFixes, and scenes.",
+    "Choose exactly one coherent result path and apply it consistently to every field.",
+    "Strong path: derived overall must be at least 70, retentionRisk must be at most 45, riskyParts must be [], there must be no risky scenes, there must be no non-optional fixes, there may be at most one optional fix, and hookDecision must be keep or refine.",
+    "Mixed path: derived overall must be from 46 through 84, there must be at least one grounded riskyPart, and there must be at least one non-optional suggestedFix supported by the same evidence.",
+    "Never return verdict strong while retaining any riskyPart, risky scene, or non-optional suggestedFix.",
+    "Do not correct only the verdict. Make the component scores, derived totals, feedback arrays, scene statuses, hook decision, and summary describe the same evidence.",
+    "Recalculate all three public scores from the supplied scoreComponents immediately before returning the final JSON."
+  );
+
+  if (originalPromptHasTranscriptMarkers) {
+    specificGuidance.push(
+      "The submitted script contains bracketed auto-caption markers.",
+      "Treat [music], [applause], [noise], and [sound] as non-semantic transcription cues during semantic evaluation.",
+      "Semantic removal applies only to judging the explanation; it does not permit removing or changing a marker inside an excerpt.",
+      "Every riskyParts[].excerpt and scenes[].excerpt must remain an exact contiguous substring of the original submitted script.",
+      "If an excerpt spans a bracketed marker, include that marker exactly or split the content into separate exact contiguous excerpts.",
+      "Never concatenate words from opposite sides of a marker into an excerpt that does not literally exist in the original script.",
+      "Read the meaningful words before and after each marker as one continuous causal sequence.",
+      "Do not treat a transcript marker as evidence that a causal step, mechanism, example, or payoff is missing.",
+      'A leading filler phrase such as "so basically" may justify at most one hook or clarity issue.',
+      'Choose one coherent outcome for that filler: either retain it as a material issue and use verdict mixed with exactly one grounded riskyPart and one non-optional hook fix, or treat it as non-material and use verdict strong with no riskyParts, no risky scenes, and no required fixes.',
+      'Never use verdict strong while still describing "so basically" as a remaining material problem in riskyParts, suggestedFixes, scene labels, hookAssessment, or mainTakeaway.',
+      'If you report that filler issue, quote only the exact filler phrase and recommend removing it; do not request a deeper mechanism, additional example, implication, or factual expansion.',
+      "Preserve the fulfilled cause, observable effect, and resolution after ignoring the transcript markers.",
+      "Apply these transcript constraints together with the correction for the latest validation failure."
+    );
+  }
+
+  return [
+    originalUserPrompt,
+    "",
+    "Final targeted correction required:",
+    `The latest corrected response still failed deterministic validation: ${validationReason}`,
+    ...specificGuidance,
+    "Generate one new complete analysis from the original submitted script.",
+    "Correct the stated validation failure without inventing facts, excerpts, numbers, entities, or promises.",
+    "Return only JSON matching the required schema.",
+    "Do not mention these correction instructions in the result.",
   ].join("\n");
 }
 
@@ -379,7 +576,7 @@ export async function runAnalysisV2(
 
   let currentUserPrompt = userPrompt;
 
-  for (let attempt = 0; attempt < 2; attempt += 1) {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
     let modelOutput: AnalysisV2ModelOutput;
 
     try {
@@ -456,7 +653,7 @@ export async function runAnalysisV2(
     }
 
     const resultValidation =
-      validateAnalysisV2Result(
+      validateAnalysisV2ModelResult(
         parsed,
         inputValidation.script
       );
@@ -471,8 +668,55 @@ export async function runAnalysisV2(
         continue;
       }
 
+      const canUseFinalTargetedRetry =
+        attempt === 1 &&
+        isAnalysisV2FinalTargetedRetryReason(
+          resultValidation.reason
+        );
+
+      if (canUseFinalTargetedRetry) {
+        currentUserPrompt =
+          buildAnalysisV2FinalTargetedRetryUserPrompt(
+            userPrompt,
+            resultValidation.reason
+          );
+        continue;
+      }
+
+      if (attempt === 2) {
+        const normalizedModelResult =
+          normalizeAnalysisV2CompleteCausalExplanationModelResult(
+            parsed,
+            inputValidation.script
+          );
+
+        if (normalizedModelResult !== null) {
+          const normalizedValidation =
+            validateAnalysisV2ModelResult(
+              normalizedModelResult,
+              inputValidation.script
+            );
+
+          if (normalizedValidation.ok) {
+            return {
+              ok: true,
+              status: 200,
+              response: {
+                status: "ok",
+                result:
+                  normalizedValidation.value,
+                modelUsed:
+                  modelOutput.modelUsed,
+              },
+            };
+          }
+        }
+      }
+
       console.error(
-        "[analyze-v2] validation failed after retry:",
+        attempt === 2
+          ? "[analyze-v2] validation failed after final targeted retry:"
+          : "[analyze-v2] validation failed after retry:",
         resultValidation.reason
       );
 
