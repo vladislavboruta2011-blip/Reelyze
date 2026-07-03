@@ -34,6 +34,8 @@ export default async function AdminFeedbackPage() {
     .limit(50);
 
   const feedback = (data ?? []) as FeedbackRecord[];
+  const helpfulCount = feedback.filter((item) => item.rating === "helpful").length;
+  const unhelpfulCount = feedback.filter((item) => item.rating === "unhelpful").length;
 
   return (
     <main className="min-h-screen bg-[#050505] px-6 py-10 text-white">
@@ -55,6 +57,35 @@ export default async function AdminFeedbackPage() {
           <div className="mb-6 rounded-[16px] border border-[#EF4444]/30 bg-[#EF4444]/10 p-4 text-[14px] text-[#FCA5A5]">
             Feedback could not be loaded.
           </div>
+        )}
+
+        {!error && feedback.length > 0 && (
+          <section className="mb-6 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-[16px] border border-[#24242A] bg-[#0B0B0F] p-4">
+              <p className="text-[12px] uppercase tracking-[0.16em] text-[#777A85]">
+                Total
+              </p>
+              <p className="mt-2 text-[26px] font-semibold text-white">
+                {feedback.length}
+              </p>
+            </div>
+            <div className="rounded-[16px] border border-[#24242A] bg-[#0B0B0F] p-4">
+              <p className="text-[12px] uppercase tracking-[0.16em] text-[#777A85]">
+                Helpful
+              </p>
+              <p className="mt-2 text-[26px] font-semibold text-[#22C55E]">
+                {helpfulCount}
+              </p>
+            </div>
+            <div className="rounded-[16px] border border-[#24242A] bg-[#0B0B0F] p-4">
+              <p className="text-[12px] uppercase tracking-[0.16em] text-[#777A85]">
+                Unhelpful
+              </p>
+              <p className="mt-2 text-[26px] font-semibold text-[#EF4444]">
+                {unhelpfulCount}
+              </p>
+            </div>
+          </section>
         )}
 
         {!error && feedback.length === 0 && (
