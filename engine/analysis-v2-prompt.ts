@@ -43,6 +43,8 @@ ${ANALYSIS_V2_SCRIPT_TYPES.join(", ")}
 - Treat explicit novelty claims such as overlooked, little-known, secret, surprising, unique, nobody talks about, or almost nobody knows as promises that must be supported by the script's actual material.
 - If the script claims that familiar advice is overlooked, secret, unknown, surprising, or unique but only delivers conventional points without a less-obvious mechanism, contrast, example, observation, or application, treat that as a material hook and payoff weakness.
 - For an unfulfilled novelty promise, verdict must not be strong, riskyParts must not be empty, and include a non-optional suggestedFix that either removes the novelty claim or adds genuinely less-obvious material already supported by the script.
+- Do not request verified evidence, external proof, new research, measurable results, or additional facts merely to prove that conventional advice is overlooked, secret, surprising, unique, or rarely discussed.
+- When the script does not already contain supported less-obvious material, the grounded correction is to remove or soften the novelty wording using claims already present in the script.
 - Do not penalize a script merely because its topic is familiar or popular. A familiar topic can still be strong when it provides a concrete mechanism, useful contrast, specific example, actionable application, or observable result.
 
 TYPE-SPECIFIC RUBRICS
@@ -58,6 +60,10 @@ how_to
 - Useful upcoming steps are a valid reason to keep watching.
 - Named steps, mnemonic labels, or a polished framework are not automatically useful or concrete.
 - If each step's explanation merely restates its label without adding a mechanism, example, decision rule, specific action, or observable result, treat that as a material content and payoff weakness; verdict must not be strong, riskyParts must not be empty, and include a non-optional suggestedFix.
+- A concrete action paired with a direct causal mechanism and practical benefit can be a complete how-to payoff even when no separate example is included.
+- A causal chain such as increasing physical distance → creating a pause → making an unwanted action easier to resist is already a concrete mechanism, not a vague claim.
+- Do not require an additional example, deeper psychological explanation, study, measurement, or technical detail merely because the existing practical mechanism could be expanded.
+- Do not split one complete action-and-mechanism chain into separate riskyParts for the action, the mechanism, and the payoff.
 - Completing the promised task is a real payoff.
 - Do not require mystery, emotional escalation, a twist, or an unanswered dramatic question.
 
@@ -74,6 +80,10 @@ warning
 narrative_event
 - Chronological events, concrete developments, and rising stakes can create retention.
 - A resolved outcome is a valid payoff.
+- Survival, escape, recovery, capture, discovery, or another clearly resolved outcome can complete the viewer reward when the preceding chronology establishes meaningful danger or stakes.
+- A final statement confirming that the affected people survived can be a meaningful payoff when the script has already shown injuries, escalating danger, or a narrowly avoided worse outcome.
+- Do not require a later policy change, historical consequence, broader implication, security response, or separate explanation of significance when the chronology itself establishes why the resolved outcome matters.
+- Do not create a riskyPart solely because a resolved survival outcome does not add another external consequence.
 - Do not require explicit mystery language or a separate surprise if the chronology already escalates and resolves.
 
 mystery
@@ -171,9 +181,9 @@ If the answer is no:
 - verdict must be strong
 - riskyParts must be empty
 - scenes must not contain risky status
-- if overall is 85 or higher, suggestedFixes may be empty or contain one genuinely optional refinement
-- if overall is from 70 through 84, suggestedFixes must contain exactly one genuinely optional refinement grounded in a specific opportunity
+- suggestedFixes may be empty or contain one genuinely optional refinement grounded in a specific opportunity
 - every fix in a strong result must have optional set to true
+- do not create an optional refinement merely because the overall score is below 85
 - hookDecision should normally be keep or refine
 - mainTakeaway must clearly explain why the script has no material Shorts performance problem for its type
 - do not invent an issue merely to fill the interface
@@ -248,6 +258,53 @@ A suggestedHook must never:
 - contradict the hookAssessment
 - A suggestedHook must not state the explanation and then promise to explain that same explanation.
 
+WARNING CALIBRATION
+
+For warning scripts:
+- cautious wording about an association, risk, or still-uncertain mechanism is not automatically a weakness
+- an unresolved mechanism is not a missing payoff when the script accurately communicates the uncertainty and gives a practical action
+- a concrete action such as cutting back, replacing some use, avoiding a behavior, or seeking help is not vague merely because it avoids an absolute command
+- do not create a riskyPart solely because the script is cautious instead of definitive
+- do not split one supposed warning-payoff limitation into separate riskyParts for uncertainty and practical advice when both describe the same root issue
+- when the uncertainty is honest and the practical takeaway is clear, do not invent a material problem merely to justify a mixed verdict
+
+UNRESOLVED MYSTERY CALIBRATION
+
+For mystery scripts:
+- an unresolved outcome can be the intended payoff when the script builds concrete clues and clearly states that the event remains unexplained
+- do not treat the absence of a factual solution as an incomplete payoff unless the opening explicitly promises that the solution will be revealed
+- do not request a verified explanation, cause, consequence, or factual resolution merely because the real-world mystery remains unresolved
+- do not create a riskyPart or suggestedFix solely to force a closed explanation onto a deliberately unresolved mystery
+
+CONCISE EXPLANATION CALIBRATION
+
+For short explanation scripts:
+- a clear high-level causal explanation can be sufficient even when it does not include microscopic, technical, historical, genetic, or scientific detail
+- do not call an explanation vague merely because it could be expanded with more detail
+- require deeper mechanism only when the current explanation is circular, contradictory, unintelligible, or fails to answer the promise made by the opening
+- sufficient explanatory clarity does not automatically create strong premise appeal or a compelling Shorts payoff
+- a script may clearly fulfill its factual promise while still having only modest viewer reward, stakes, surprise, relevance, or broader appeal
+- if limited viewer reward is the material weakness, identify that root limitation once instead of separately criticizing mechanism depth, premise appeal, and payoff
+- do not invent or prescribe a specific cultural, genetic, historical, scientific, social, or appearance-related direction
+- when stronger factual material is genuinely needed, use the allowed neutral verified diagnostic form without appending candidate directions
+- when one root limitation explains the result, use at most one riskyPart and one required suggestedFix
+
+TRANSCRIPTION AND PUNCTUATION CALIBRATION
+
+For scripts with missing punctuation, lowercase text, or auto-caption formatting:
+- evaluate the semantic clauses and causal sequence before judging explanation depth
+- treat bracketed transcription cues such as [music], [applause], [noise], or [sound] as non-semantic markers rather than missing content
+- mentally remove bracketed transcription cues only when evaluating whether the meaningful words contain a cause, effect, progression, and resolution
+- semantic removal does not permit deleting, skipping, normalizing, or paraphrasing those cues inside riskyParts or scenes excerpts
+- never join words from opposite sides of a transcription cue into one excerpt unless that full text, including the cue, exists contiguously in the submitted script
+- a leading conversational filler phrase such as "so basically" may create one hook clarity issue, but it does not prove that the later mechanism or payoff is missing
+- if the causal explanation remains complete after removing filler and transcript cues, target only the filler or formatting issue and preserve the fulfilled explanation components
+- missing punctuation alone is a readability or delivery issue, not evidence that the premise, mechanism, progression, or payoff is missing
+- if the text still communicates a complete causal chain that answers the opening promise, do not call it shallow, vague, incomplete, or lacking depth merely because the clauses run together
+- do not request an additional example, deeper mechanism, more detailed explanation, extra consequence, or further factual expansion when the submitted text already states the cause, physical effect, and resolution
+- if punctuation materially harms comprehension, identify at most one clarity or delivery issue; do not convert it into a content, premise, or payoff failure
+- lowercase text alone is not a material Shorts performance problem
+
 GROUNDING
 
 Suggested fixes must remain grounded in the submitted script.
@@ -267,6 +324,10 @@ A grounded fix may request a verified consequence, contrast, implication, exampl
 Every riskyParts excerpt must be copied exactly from the submitted script.
 
 Every scenes excerpt must be copied exactly from the submitted script.
+
+If an excerpt crosses a bracketed transcription cue such as [music], copy that cue exactly inside the excerpt or split the content into separate exact contiguous excerpts.
+
+Ignoring a transcription cue during semantic evaluation never allows removing it from an excerpt or joining non-contiguous text around it.
 
 Do not paraphrase excerpts.
 Do not add ellipses.
@@ -295,20 +356,63 @@ Score meanings:
 - hook: higher is better
 - retentionRisk: higher is worse
 
+Calibrate the score components from evidence before choosing the verdict.
+The verdict summarizes the evidence; it must not act as a preset score template.
+Return scoreComponents instead of final scores.
+The server derives each public score by adding its four components.
+Use integer component values from 0 through 25.
+Do not default component values to multiples of five, familiar totals, or repeated patterns associated with a verdict.
+
 Overall score must reflect Shorts performance potential, not just writing quality.
 A script should not receive a very high overall score merely because it is clear, logical, educational, or well structured.
-When assigning overall, consider whether the underlying idea itself creates strong viewer curiosity, emotional pull, conflict, contradiction, personal relevance, surprise, or an unresolved question for a Shorts feed.
-A well-structured script with a low-interest topic, weak stakes, no meaningful curiosity gap, and an informative-but-unsurprising payoff should usually stay below 80.
-Scores of 85 or higher should be reserved for scripts that combine strong execution with a genuinely compelling Shorts idea.
+When assigning the overall components, consider whether the underlying idea itself creates strong viewer curiosity, emotional pull, conflict, contradiction, personal relevance, surprise, or an unresolved question for a Shorts feed.
+A well-structured script with a low-interest topic, weak stakes, no meaningful curiosity gap, and an informative-but-unsurprising payoff should produce an overall component total below 80.
+An overall component total of 85 or higher should be reserved for scripts that combine strong execution with a genuinely compelling Shorts idea.
 Do not punish educational content when the angle creates real surprise, conflict, personal relevance, mystery, or emotional stakes.
 
-Use the full 0-100 range.
+A clear, accurate, self-contained script with a concrete opening, coherent progression, and a fulfilled promise should generally not produce a derived overall total below 55 merely because its topic has moderate rather than broad audience appeal.
+Limited premise appeal should mainly reduce scoreComponents.overall.premiseAppeal.
+Do not automatically reduce openingPromise, progression, or payoff when those elements are clear, accurate, and fulfilled.
+Reserve a derived overall total below 55 for a major premise or execution failure across multiple components, or one severe failure that substantially removes the viewer reward.
+Do not count the same weakness against several overall or retention-risk components unless the weakness genuinely and independently affects each component.
+Limited audience breadth or a modest topic is not itself retention risk.
 
-Score each dimension independently from evidence in this exact script.
-Do not default to familiar round values, repeated score triplets, or the same score pattern used for other scripts.
-Scores may be any whole number from 0 to 100.
-Do not add random precision, but do not round to a multiple of five merely because it is convenient.
-Materially different scripts should not receive identical score triplets unless their demonstrated quality is genuinely equivalent.
+EVIDENCE-BASED SCORE COMPONENTS
+
+Assign these four overall components independently:
+- scoreComponents.overall.premiseAppeal: strength of the underlying idea and viewer reward
+- scoreComponents.overall.openingPromise: strength and accuracy of the opening promise
+- scoreComponents.overall.progression: density and sustained reasons to continue
+- scoreComponents.overall.payoff: strength and completion of the promised value
+
+Assign these four hook components independently:
+- scoreComponents.hook.immediacy: how quickly the concrete premise begins
+- scoreComponents.hook.specificity: how concrete and understandable the opening is
+- scoreComponents.hook.viewerPull: curiosity, stakes, relevance, contrast, or practical pull
+- scoreComponents.hook.deliveryAlignment: credibility and alignment with what the script delivers
+
+Assign these four retention-risk components independently:
+- scoreComponents.retentionRisk.openingFriction: delayed specificity, filler, or opening confusion
+- scoreComponents.retentionRisk.progressionRisk: stalled, repetitive, or low-density development
+- scoreComponents.retentionRisk.predictabilityRisk: predictable development or lack of meaningful escalation
+- scoreComponents.retentionRisk.payoffRisk: incomplete, weak, contradictory, or missing payoff
+
+Higher overall and hook components are better.
+Higher retention-risk components are worse.
+Do not return final overall, hook, or retentionRisk values.
+Do not output arithmetic or explanatory component calculations.
+Do not choose components by starting from the verdict or a preferred total.
+Do not construct retention risk as the inverse of overall or hook.
+When scripts differ on one or more components, reflect that difference instead of collapsing them to the same familiar pattern.
+Scripts with the same verdict may still need clearly separated component totals when their premise appeal, opening strength, progression, or payoff materially differs.
+
+Use the full 0-25 range for each component when the evidence warrants it.
+
+Score each component independently from evidence in this exact script.
+Do not default to familiar component values, repeated component profiles, or patterns commonly associated with a verdict.
+Component values may be any whole number from 0 to 25.
+Do not add random precision, but do not round components to multiples of five merely because it is convenient.
+Materially different scripts should not receive identical component profiles unless their demonstrated quality is genuinely equivalent.
 
 General consistency guidance:
 - strong means overall 70 or higher, retentionRisk 45 or lower, and no material Shorts performance problem

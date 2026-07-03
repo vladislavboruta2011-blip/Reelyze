@@ -67,6 +67,27 @@ export type AnalysisV2Scores = {
   retentionRisk: number;
 };
 
+export const ANALYSIS_V2_SCORE_COMPONENT_KEYS = {
+  overall: [
+    "premiseAppeal",
+    "openingPromise",
+    "progression",
+    "payoff",
+  ],
+  hook: [
+    "immediacy",
+    "specificity",
+    "viewerPull",
+    "deliveryAlignment",
+  ],
+  retentionRisk: [
+    "openingFriction",
+    "progressionRisk",
+    "predictabilityRisk",
+    "payoffRisk",
+  ],
+} as const;
+
 export type AnalysisV2RiskyPart = {
   excerpt: string;
   reason: string;

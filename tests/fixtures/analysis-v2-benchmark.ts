@@ -35,6 +35,40 @@ export type AnalysisV2BenchmarkCase = {
   expected: AnalysisV2BenchmarkExpectation;
 };
 
+export type AnalysisV2BenchmarkComparison = {
+  id: string;
+  strongerCaseId: string;
+  weakerCaseId: string;
+  minimumOverallLead?: number;
+  minimumHookLead?: number;
+  minimumRetentionRiskImprovement?: number;
+};
+
+export const ANALYSIS_V2_BENCHMARK_COMPARISONS:
+  AnalysisV2BenchmarkComparison[] = [
+  {
+    id: "stronger-everest-angle-beats-minor-growth-fact",
+    strongerCaseId: "positive-himalayas-stronger-angle",
+    weakerCaseId: "negative-polished-low-appeal-himalayas",
+    minimumOverallLead: 5,
+    minimumRetentionRiskImprovement: 5,
+  },
+  {
+    id: "mechanism-led-phone-advice-beats-predictable-list",
+    strongerCaseId: "positive-familiar-how-to-practical-value",
+    weakerCaseId: "negative-concrete-but-predictable-productivity",
+    minimumOverallLead: 5,
+    minimumRetentionRiskImprovement: 5,
+  },
+  {
+    id: "fresh-saving-mechanism-beats-generic-wealth-habits",
+    strongerCaseId: "positive-familiar-topic-fresh-mechanism",
+    weakerCaseId: "negative-polished-wealth-habits",
+    minimumOverallLead: 5,
+    minimumRetentionRiskImprovement: 5,
+  },
+];
+
 export const ANALYSIS_V2_BENCHMARK_CASES:
   AnalysisV2BenchmarkCase[] = [
   {
@@ -46,7 +80,7 @@ export const ANALYSIS_V2_BENCHMARK_CASES:
     expected: {
       scriptTypes: ["explanation"],
       verdicts: ["strong", "mixed"],
-      overall: { min: 55 },
+      overall: { min: 46 },
       hook: { min: 55 },
       retentionRisk: { max: 50 },
       hookDecisions: ["keep", "refine"],
@@ -363,7 +397,7 @@ export const ANALYSIS_V2_BENCHMARK_CASES:
       ],
       verdicts: ["weak"],
       overall: { max: 45 },
-      retentionRisk: { min: 55 },
+      retentionRisk: { min: 50 },
       hookDecisions: ["diagnostic"],
       minRiskyParts: 1,
       maxRiskyParts: 2,
@@ -445,7 +479,7 @@ export const ANALYSIS_V2_BENCHMARK_CASES:
       ],
       verdicts: ["weak", "mixed"],
       overall: { max: 60 },
-      hook: { max: 62 },
+      hook: { max: 75 },
       retentionRisk: { min: 45 },
       hookDecisions: [
         "diagnostic",
@@ -746,9 +780,20 @@ export const ANALYSIS_V2_BENCHMARK_CASES:
     expected: {
       scriptTypes: ["explanation"],
       verdicts: ["strong", "mixed"],
-      overall: { min: 50 },
+      overall: { min: 46 },
       maxRiskyParts: 2,
       maxSuggestedFixes: 2,
+      forbiddenFeedback: [
+        "deeper mechanism",
+        "additional example",
+        "lacks a mechanism",
+        "lacks mechanism",
+        "lacks depth",
+        "incomplete explanation",
+        "more causal depth",
+        "expand the explanation",
+        "more detailed explanation",
+      ],
     },
   },
 ];

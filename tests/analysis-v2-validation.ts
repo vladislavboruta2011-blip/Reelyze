@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 
 import {
+  normalizeAnalysisV2CompleteCausalExplanationModelResult,
   parseAnalysisV2Json,
   validateAnalysisV2Input,
+  validateAnalysisV2ModelResult,
   validateAnalysisV2Result,
 } from "../engine/analysis-v2-validation";
 
@@ -139,6 +141,36 @@ function createMixedResult(): Record<string, unknown> {
   };
 }
 
+function createComponentModelResult(): Record<string, unknown> {
+  const result = createStrongResult();
+
+  delete result.scores;
+
+  result.scoreComponents = {
+    overall: {
+      premiseAppeal: 21,
+      openingPromise: 21,
+      progression: 21,
+      payoff: 21,
+    },
+    hook: {
+      immediacy: 21,
+      specificity: 21,
+      viewerPull: 20,
+      deliveryAlignment: 20,
+    },
+    retentionRisk: {
+      openingFriction: 5,
+      progressionRisk: 5,
+      predictabilityRisk: 6,
+      payoffRisk: 6,
+    },
+  };
+  result.suggestedHook = null;
+
+  return result;
+}
+
 type TestCase = {
   name: string;
   run: () => void;
@@ -224,6 +256,69 @@ const tests: TestCase[] = [
     },
   },
   {
+    name: "derives public scores from model score components",
+    run: () => {
+      const result = validateAnalysisV2ModelResult(
+        createComponentModelResult(),
+        script
+      );
+
+      assert.equal(result.ok, true);
+
+      if (result.ok) {
+        assert.deepEqual(result.value.scores, {
+          overall: 84,
+          hook: 82,
+          retentionRisk: 22,
+        });
+        assert.equal(
+          "scoreComponents" in result.value,
+          false
+        );
+      }
+    },
+  },
+  {
+    name: "rejects an out-of-range score component",
+    run: () => {
+      const modelResult =
+        createComponentModelResult();
+      const scoreComponents =
+        modelResult.scoreComponents as {
+          overall: Record<string, number>;
+        };
+
+      scoreComponents.overall.premiseAppeal = 26;
+
+      const result = validateAnalysisV2ModelResult(
+        modelResult,
+        script
+      );
+
+      assert.equal(result.ok, false);
+    },
+  },
+  {
+    name: "rejects a missing score component",
+    run: () => {
+      const modelResult =
+        createComponentModelResult();
+      const scoreComponents =
+        modelResult.scoreComponents as {
+          hook: Record<string, number>;
+        };
+
+      delete scoreComponents.hook.viewerPull;
+
+      const result = validateAnalysisV2ModelResult(
+        modelResult,
+        script
+      );
+
+      assert.equal(result.ok, false);
+    },
+  },
+  {
     name: "accepts a valid weak result",
     run: () => {
       const result = validateAnalysisV2Result(
@@ -257,6 +352,747 @@ const tests: TestCase[] = [
       );
 
       assert.equal(result.ok, false);
+    },
+  },
+  {
+    name: "rejects an external-consequence fix for a resolved survival narrative",
+    run: () => {
+      const presidentScript =
+        "In 1981, a gunman opened fire outside a hotel in Washington. The first shot missed. Another struck a press secretary. A police officer and a Secret Service agent were also hit. One bullet ricocheted off the presidential car and entered the president's chest, missing his heart by inches. Every person who was wounded survived.";
+
+      const value = createMixedResult();
+
+      value.scriptType = "narrative_event";
+      value.scores = {
+        overall: 63,
+        hook: 80,
+        retentionRisk: 40,
+      };
+      value.riskyParts = [
+        {
+          excerpt:
+            "Every person who was wounded survived.",
+          reason:
+            "The payoff is underwhelming because it lacks a broader consequence or explanation of significance.",
+          severity: "medium",
+        },
+      ];
+      value.suggestedFixes = [
+        {
+          target: "payoff",
+          suggestion:
+            "Add a verified consequence or implication that explains why this matters.",
+          optional: false,
+        },
+      ];
+      value.scenes = [
+        {
+          excerpt:
+            "In 1981, a gunman opened fire outside a hotel in Washington.",
+          label: "Attack begins",
+          status: "strong",
+        },
+        {
+          excerpt:
+            "One bullet ricocheted off the presidential car and entered the president's chest, missing his heart by inches.",
+          label: "Peak danger",
+          status: "strong",
+        },
+        {
+          excerpt:
+            "Every person who was wounded survived.",
+          label: "Resolved survival outcome",
+          status: "risky",
+        },
+      ];
+      value.mainTakeaway =
+        "The chronology escalates clearly, but the survival outcome supposedly needs another consequence.";
+
+      const result = validateAnalysisV2Result(
+        value,
+        presidentScript
+      );
+
+      assert.equal(result.ok, false);
+
+      if (result.ok) {
+        throw new Error(
+          "Expected the external-consequence payoff critique to be rejected."
+        );
+      }
+
+      assert.match(
+        result.reason,
+        /resolved survival narrative cannot be treated as missing payoff/i
+      );
+    },
+  },
+  {
+    name: "rejects a paraphrased significance fix for a resolved survival narrative",
+    run: () => {
+      const presidentScript =
+        "In 1981, a gunman opened fire outside a hotel in Washington. The first shot missed. Another struck a press secretary. A police officer and a Secret Service agent were also hit. One bullet ricocheted off the presidential car and entered the president's chest, missing his heart by inches. Every person who was wounded survived.";
+
+      const value = createMixedResult();
+
+      value.scriptType = "narrative_event";
+      value.scores = {
+        overall: 60,
+        hook: 75,
+        retentionRisk: 45,
+      };
+      value.riskyParts = [
+        {
+          excerpt:
+            "Every person who was wounded survived.",
+          reason:
+            "The script ends with a minimal payoff that lacks a clear explanation of the significance or consequence of this survival, limiting viewer reward.",
+          severity: "medium",
+        },
+      ];
+      value.suggestedFixes = [
+        {
+          target: "payoff",
+          suggestion:
+            "Add a contrast, example, or implication that strengthens why the survival of all wounded individuals matters in the context of the shooting.",
+          optional: false,
+        },
+      ];
+      value.scenes = [
+        {
+          excerpt:
+            "In 1981, a gunman opened fire outside a hotel in Washington.",
+          label: "Attack begins",
+          status: "strong",
+        },
+        {
+          excerpt:
+            "One bullet ricocheted off the presidential car and entered the president's chest, missing his heart by inches.",
+          label: "Peak danger",
+          status: "strong",
+        },
+        {
+          excerpt:
+            "Every person who was wounded survived.",
+          label: "Resolved survival outcome",
+          status: "risky",
+        },
+      ];
+      value.mainTakeaway =
+        "The chronology escalates clearly, but the survival ending supposedly needs another implication.";
+
+      const result = validateAnalysisV2Result(
+        value,
+        presidentScript
+      );
+
+      assert.equal(result.ok, false);
+
+      if (result.ok) {
+        throw new Error(
+          "Expected the paraphrased significance fix to be rejected."
+        );
+      }
+
+      assert.match(
+        result.reason,
+        /resolved survival narrative cannot be treated as missing payoff/i
+      );
+    },
+  },
+  {
+    name: "normalizes repeated missing-depth feedback for a complete auto-caption explanation",
+    run: () => {
+      const autoCaptionScript =
+        "so basically [music] your body releases adrenaline when it senses danger and that is why your hands shake [music] the response normally fades after the danger has passed";
+      const value =
+        createComponentModelResult();
+
+      value.scriptType = "explanation";
+      value.verdict = "strong";
+      value.scoreComponents = {
+        overall: {
+          premiseAppeal: 12,
+          openingPromise: 12,
+          progression: 13,
+          payoff: 12,
+        },
+        hook: {
+          immediacy: 16,
+          specificity: 16,
+          viewerPull: 16,
+          deliveryAlignment: 15,
+        },
+        retentionRisk: {
+          openingFriction: 13,
+          progressionRisk: 13,
+          predictabilityRisk: 14,
+          payoffRisk: 13,
+        },
+      };
+      value.hookDecision = "refine";
+      value.hookAssessment =
+        "The opening filler reduces immediacy, and the explanation needs more detail.";
+      value.suggestedHook =
+        "Your body releases adrenaline when it senses danger, causing your hands to shake.";
+      value.riskyParts = [
+        {
+          excerpt: autoCaptionScript,
+          reason:
+            "The explanation lacks a deeper mechanism and additional consequences.",
+          severity: "medium",
+        },
+      ];
+      value.suggestedFixes = [
+        {
+          target: "middle",
+          suggestion:
+            "Add more detailed explanation or consequences to improve retention.",
+          optional: false,
+        },
+      ];
+      value.scenes = [
+        {
+          excerpt: autoCaptionScript,
+          label:
+            "Incomplete explanation needing more detail",
+          status: "risky",
+        },
+      ];
+      value.mainTakeaway =
+        "Adding more detailed explanation or consequences would improve retention.";
+
+      const normalized =
+        normalizeAnalysisV2CompleteCausalExplanationModelResult(
+          value,
+          autoCaptionScript
+        );
+
+      assert.notEqual(normalized, null);
+
+      const result =
+        validateAnalysisV2ModelResult(
+          normalized,
+          autoCaptionScript
+        );
+
+      if (!result.ok) {
+        throw new Error(result.reason);
+      }
+
+      assert.equal(
+        result.value.verdict,
+        "mixed"
+      );
+      assert.equal(
+        result.value.scores.overall,
+        49
+      );
+      assert.equal(
+        result.value.riskyParts.length,
+        1
+      );
+      assert.equal(
+        result.value.riskyParts[0]?.excerpt,
+        "so basically"
+      );
+      assert.equal(
+        result.value.suggestedFixes.length,
+        1
+      );
+      assert.equal(
+        result.value.suggestedFixes[0]?.target,
+        "hook"
+      );
+      assert.equal(
+        result.value.scenes[0]?.status,
+        "average"
+      );
+      assert.equal(
+        result.value.mainTakeaway,
+        "The causal explanation is complete; only the opening filler limits immediacy."
+      );
+    },
+  },
+  {
+    name: "rejects missing-depth criticism in any feedback field for a complete auto-caption explanation",
+    run: () => {
+      const autoCaptionScript =
+        "so basically [music] your body releases adrenaline when it senses danger and that is why your hands shake [music] the response normally fades after the danger has passed";
+
+      const createValidAutoCaptionResult =
+        (): Record<string, unknown> => {
+          const value = createMixedResult();
+
+          value.scriptType = "explanation";
+          value.scores = {
+            overall: 47,
+            hook: 60,
+            retentionRisk: 55,
+          };
+          value.hookDecision = "refine";
+          value.hookAssessment =
+            "The opening filler delays the otherwise complete causal explanation.";
+          value.suggestedHook =
+            "Your body releases adrenaline when it senses danger, causing your hands to shake.";
+          value.riskyParts = [
+            {
+              excerpt: "so basically",
+              reason:
+                "Generic filler delays the concrete premise and reduces hook immediacy.",
+              severity: "medium",
+            },
+          ];
+          value.suggestedFixes = [
+            {
+              target: "hook",
+              suggestion:
+                "Remove the generic filler 'so basically' and start directly with the concrete premise.",
+              optional: false,
+            },
+          ];
+          value.scenes = [
+            {
+              excerpt: autoCaptionScript,
+              label:
+                "Complete causal explanation with opening filler",
+              status: "average",
+            },
+          ];
+          value.mainTakeaway =
+            "The causal explanation is complete; only the opening filler needs refinement.";
+
+          return value;
+        };
+
+      const variants: Array<{
+        name: string;
+        mutate: (
+          value: Record<string, unknown>
+        ) => void;
+      }> = [
+        {
+          name: "hookAssessment",
+          mutate: (value) => {
+            value.hookAssessment =
+              "The opening is clear, but the explanation lacks a deeper mechanism.";
+          },
+        },
+        {
+          name: "mainTakeaway",
+          mutate: (value) => {
+            value.mainTakeaway =
+              "The script offers only a minimal payoff without deeper mechanism or broader viewer reward.";
+          },
+        },
+        {
+          name: "inflected expansion request in mainTakeaway",
+          mutate: (value) => {
+            value.mainTakeaway =
+              "Strengthening the hook and adding more detailed explanation or consequences would improve retention and engagement.";
+          },
+        },
+        {
+          name: "riskyParts reason",
+          mutate: (value) => {
+            value.riskyParts = [
+              {
+                excerpt: "so basically",
+                reason:
+                  "The explanation lacks deeper mechanism even though the quoted filler is the only opening issue.",
+                severity: "medium",
+              },
+            ];
+          },
+        },
+        {
+          name: "suggestedFix suggestion",
+          mutate: (value) => {
+            value.suggestedFixes = [
+              {
+                target: "middle",
+                suggestion:
+                  "Expand the explanation with a deeper mechanism or additional example.",
+                optional: false,
+              },
+            ];
+          },
+        },
+        {
+          name: "scene label",
+          mutate: (value) => {
+            value.scenes = [
+              {
+                excerpt: autoCaptionScript,
+                label:
+                  "Incomplete explanation without deeper mechanism",
+                status: "average",
+              },
+            ];
+          },
+        },
+      ];
+
+      for (const variant of variants) {
+        const value =
+          createValidAutoCaptionResult();
+
+        variant.mutate(value);
+
+        const result =
+          validateAnalysisV2Result(
+            value,
+            autoCaptionScript
+          );
+
+        assert.equal(
+          result.ok,
+          false,
+          `${variant.name} should be rejected`
+        );
+
+        if (result.ok) {
+          throw new Error(
+            `Expected ${variant.name} missing-depth criticism to be rejected.`
+          );
+        }
+
+        assert.match(
+          result.reason,
+          /complete causal explanation in an unpunctuated script cannot be treated as missing mechanism/i
+        );
+      }
+    },
+  },
+  {
+    name: "accepts an explicit statement that a complete causal explanation does not need deeper mechanism",
+    run: () => {
+      const autoCaptionScript =
+        "so basically [music] your body releases adrenaline when it senses danger and that is why your hands shake [music] the response normally fades after the danger has passed";
+      const value = createMixedResult();
+
+      value.scriptType = "explanation";
+      value.scores = {
+        overall: 47,
+        hook: 60,
+        retentionRisk: 55,
+      };
+      value.hookDecision = "refine";
+      value.hookAssessment =
+        "The opening filler delays the otherwise complete causal explanation.";
+      value.suggestedHook =
+        "Your body releases adrenaline when it senses danger, causing your hands to shake.";
+      value.riskyParts = [
+        {
+          excerpt: "so basically",
+          reason:
+            "Generic filler delays the concrete premise and reduces hook immediacy.",
+          severity: "medium",
+        },
+      ];
+      value.suggestedFixes = [
+        {
+          target: "hook",
+          suggestion:
+            "Remove the generic filler 'so basically' and start directly with the concrete premise.",
+          optional: false,
+        },
+      ];
+      value.scenes = [
+        {
+          excerpt: autoCaptionScript,
+          label:
+            "Complete causal explanation with opening filler",
+          status: "average",
+        },
+      ];
+      value.mainTakeaway =
+        "The causal explanation is complete and does not need a deeper mechanism; only the opening filler needs refinement.";
+
+      const result =
+        validateAnalysisV2Result(
+          value,
+          autoCaptionScript
+        );
+
+      if (!result.ok) {
+        throw new Error(result.reason);
+      }
+
+      assert.equal(result.ok, true);
+    },
+  },
+  {
+    name: "normalizes repeated missing-depth feedback to strong when unpunctuated causal scores support strong",
+    run: () => {
+      const noPunctuationScript =
+        "your hands can shake after a stressful moment because the body releases adrenaline the hormone raises heart rate and prepares the muscles for action once the adrenaline level falls the shaking usually stops";
+      const value =
+        createComponentModelResult();
+
+      value.scriptType = "explanation";
+      value.verdict = "mixed";
+      value.scoreComponents = {
+        overall: {
+          premiseAppeal: 18,
+          openingPromise: 18,
+          progression: 18,
+          payoff: 18,
+        },
+        hook: {
+          immediacy: 18,
+          specificity: 18,
+          viewerPull: 17,
+          deliveryAlignment: 17,
+        },
+        retentionRisk: {
+          openingFriction: 8,
+          progressionRisk: 8,
+          predictabilityRisk: 7,
+          payoffRisk: 7,
+        },
+      };
+      value.hookDecision = "keep";
+      value.hookAssessment =
+        "The premise is clear, but the explanation supposedly needs more detail.";
+      value.riskyParts = [
+        {
+          excerpt: noPunctuationScript,
+          reason:
+            "The explanation lacks deeper mechanism and additional examples.",
+          severity: "medium",
+        },
+      ];
+      value.suggestedFixes = [
+        {
+          target: "middle",
+          suggestion:
+            "Add more detailed explanation and examples.",
+          optional: false,
+        },
+      ];
+      value.scenes = [
+        {
+          excerpt: noPunctuationScript,
+          label:
+            "Incomplete explanation needing more detail",
+          status: "risky",
+        },
+      ];
+      value.mainTakeaway =
+        "The script needs a deeper mechanism.";
+
+      const normalized =
+        normalizeAnalysisV2CompleteCausalExplanationModelResult(
+          value,
+          noPunctuationScript
+        );
+
+      assert.notEqual(normalized, null);
+
+      const result =
+        validateAnalysisV2ModelResult(
+          normalized,
+          noPunctuationScript
+        );
+
+      if (!result.ok) {
+        throw new Error(result.reason);
+      }
+
+      assert.equal(
+        result.value.verdict,
+        "strong"
+      );
+      assert.equal(
+        result.value.scores.overall,
+        72
+      );
+      assert.equal(
+        result.value.scores.retentionRisk,
+        30
+      );
+      assert.equal(
+        result.value.hookDecision,
+        "keep"
+      );
+      assert.equal(
+        result.value.riskyParts.length,
+        0
+      );
+      assert.equal(
+        result.value.suggestedFixes.length,
+        0
+      );
+      assert.equal(
+        result.value.scenes[0]?.status,
+        "strong"
+      );
+    },
+  },
+  {
+    name: "normalizes repeated missing-depth feedback to a readability issue when unpunctuated causal scores are mixed",
+    run: () => {
+      const noPunctuationScript =
+        "your hands can shake after a stressful moment because the body releases adrenaline the hormone raises heart rate and prepares the muscles for action once the adrenaline level falls the shaking usually stops";
+      const value =
+        createComponentModelResult();
+
+      value.scriptType = "explanation";
+      value.verdict = "mixed";
+      value.scoreComponents = {
+        overall: {
+          premiseAppeal: 15,
+          openingPromise: 15,
+          progression: 15,
+          payoff: 15,
+        },
+        hook: {
+          immediacy: 17,
+          specificity: 17,
+          viewerPull: 16,
+          deliveryAlignment: 15,
+        },
+        retentionRisk: {
+          openingFriction: 13,
+          progressionRisk: 13,
+          predictabilityRisk: 12,
+          payoffRisk: 12,
+        },
+      };
+      value.hookDecision = "keep";
+      value.hookAssessment =
+        "The explanation supposedly needs more detail.";
+      value.riskyParts = [
+        {
+          excerpt: noPunctuationScript,
+          reason:
+            "The explanation lacks deeper mechanism.",
+          severity: "medium",
+        },
+      ];
+      value.suggestedFixes = [
+        {
+          target: "middle",
+          suggestion:
+            "Expand the explanation with another example.",
+          optional: false,
+        },
+      ];
+      value.scenes = [
+        {
+          excerpt: noPunctuationScript,
+          label: "Incomplete explanation",
+          status: "risky",
+        },
+      ];
+      value.mainTakeaway =
+        "More causal depth is needed.";
+
+      const normalized =
+        normalizeAnalysisV2CompleteCausalExplanationModelResult(
+          value,
+          noPunctuationScript
+        );
+
+      assert.notEqual(normalized, null);
+
+      const result =
+        validateAnalysisV2ModelResult(
+          normalized,
+          noPunctuationScript
+        );
+
+      if (!result.ok) {
+        throw new Error(result.reason);
+      }
+
+      assert.equal(
+        result.value.verdict,
+        "mixed"
+      );
+      assert.equal(
+        result.value.scores.overall,
+        60
+      );
+      assert.equal(
+        result.value.riskyParts.length,
+        1
+      );
+      assert.equal(
+        result.value.riskyParts[0]?.excerpt,
+        noPunctuationScript
+      );
+      assert.equal(
+        result.value.suggestedFixes[0]?.target,
+        "clarity"
+      );
+      assert.equal(
+        result.value.scenes[0]?.status,
+        "average"
+      );
+    },
+  },
+  {
+    name: "rejects missing-depth feedback for a complete unpunctuated causal explanation",
+    run: () => {
+      const noPunctuationScript =
+        "your hands can shake after a stressful moment because the body releases adrenaline the hormone raises heart rate and prepares the muscles for action once the adrenaline level falls the shaking usually stops";
+
+      const value = createMixedResult();
+
+      value.scriptType = "explanation";
+      value.scores = {
+        overall: 49,
+        hook: 65,
+        retentionRisk: 45,
+      };
+      value.hookDecision = "keep";
+      value.hookAssessment =
+        "The opening immediately introduces the concrete premise about why hands shake after stress.";
+      value.riskyParts = [
+        {
+          excerpt: noPunctuationScript,
+          reason:
+            "The explanation is very brief and lacks deeper mechanism, examples, or implications that would increase viewer engagement and payoff.",
+          severity: "medium",
+        },
+      ];
+      value.suggestedFixes = [
+        {
+          target: "middle",
+          suggestion:
+            "Expand the explanation to include a clearer mechanism or example of how adrenaline causes shaking and why it stops, to increase viewer engagement and payoff.",
+          optional: false,
+        },
+      ];
+      value.scenes = [
+        {
+          excerpt: noPunctuationScript,
+          label: "Complete causal explanation",
+          status: "risky",
+        },
+      ];
+      value.mainTakeaway =
+        "The script explains the cause and resolution but supposedly needs deeper mechanism.";
+
+      const result = validateAnalysisV2Result(
+        value,
+        noPunctuationScript
+      );
+
+      assert.equal(result.ok, false);
+
+      if (result.ok) {
+        throw new Error(
+          "Expected the unnecessary causal-expansion feedback to be rejected."
+        );
+      }
+
+      assert.match(
+        result.reason,
+        /complete causal explanation in an unpunctuated script cannot be treated as missing mechanism/i
+      );
     },
   },
   {
@@ -295,7 +1131,7 @@ const tests: TestCase[] = [
     },
   },
   {
-    name: "rejects a strong result below 85 without an optional refinement",
+    name: "accepts a strong result below 85 without an optional refinement",
     run: () => {
       const value = createStrongResult();
       value.suggestedFixes = [];
@@ -305,7 +1141,15 @@ const tests: TestCase[] = [
         script
       );
 
-      assert.equal(result.ok, false);
+      if (!result.ok) {
+        throw new Error(result.reason);
+      }
+
+      assert.equal(result.ok, true);
+      assert.equal(
+        result.value.suggestedFixes.length,
+        0
+      );
     },
   },
   {
@@ -608,7 +1452,7 @@ const tests: TestCase[] = [
     },
   },
   {
-    name: "rejects candidate facts appended to a verified factual request",
+    name: "removes candidate facts appended to an allowed verified request",
     run: () => {
       const value = createMixedResult();
 
@@ -626,18 +1470,38 @@ const tests: TestCase[] = [
         script
       );
 
-      assert.equal(result.ok, false);
-
-      if (result.ok) {
-        throw new Error(
-          "Expected the unsupported factual direction to be rejected."
-        );
+      if (!result.ok) {
+        throw new Error(result.reason);
       }
 
-      assert.match(
-        result.reason,
-        /must use one of the allowed neutral diagnostic forms without extra factual direction/i
+      assert.equal(result.ok, true);
+      assert.equal(
+        result.value.suggestedFixes[0]
+          ?.suggestion,
+        "Add a verified consequence or implication that explains why this matters."
       );
+    },
+  },
+  {
+    name: "rejects arbitrary text appended after an allowed verified request",
+    run: () => {
+      const value = createMixedResult();
+
+      value.suggestedFixes = [
+        {
+          target: "payoff",
+          suggestion:
+            "Add a verified consequence or implication that explains why this matters, and completely rewrite the ending.",
+          optional: false,
+        },
+      ];
+
+      const result = validateAnalysisV2Result(
+        value,
+        script
+      );
+
+      assert.equal(result.ok, false);
     },
   },
   {
