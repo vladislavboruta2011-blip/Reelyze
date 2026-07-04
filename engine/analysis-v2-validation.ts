@@ -1782,6 +1782,167 @@ function getLowestOverallComponentKeys(
     .map(([key]) => key);
 }
 
+const OVERALL_COMPONENT_REPAIR_LABELS: Record<
+  OverallBreakdownKey,
+  string
+> = {
+  premiseAppeal: "premise appeal",
+  openingPromise: "opening promise",
+  progression: "progression",
+  payoff: "payoff",
+};
+
+const OVERALL_COMPONENT_REPAIR_LIMITATIONS: Record<
+  OverallBreakdownKey,
+  string
+> = {
+  premiseAppeal:
+    "the idea has limited audience pull or viewer reward",
+  openingPromise:
+    "the opening promise is not as compelling or specific as it could be",
+  progression:
+    "the middle progression is not developed strongly enough",
+  payoff:
+    "the ending payoff does not deliver a strong enough viewer reward",
+};
+
+function formatOverallComponentList(
+  keys: OverallBreakdownKey[]
+): string {
+  const labels = keys.map(
+    (key) => OVERALL_COMPONENT_REPAIR_LABELS[key]
+  );
+
+  if (labels.length <= 1) {
+    return labels[0] ?? "overall execution";
+  }
+
+  if (labels.length === 2) {
+    return `${labels[0]} and ${labels[1]}`;
+  }
+
+  return `${labels.slice(0, -1).join(", ")}, and ${
+    labels[labels.length - 1]
+  }`;
+}
+
+export function repairAnalysisV2MainTakeawayForScoreBreakdown(
+  raw: unknown
+): unknown | null {
+  if (
+    !isPlainObject(raw) ||
+    typeof raw.mainTakeaway !== "string"
+  ) {
+    return null;
+  }
+
+  let breakdown: AnalysisV2ScoreBreakdown;
+
+  if (
+    Object.prototype.hasOwnProperty.call(
+      raw,
+      "scoreComponents"
+    )
+  ) {
+    if (
+      !isPlainObject(raw.scoreComponents) ||
+      !hasExactlyKeys(raw.scoreComponents, [
+        "overall",
+        "hook",
+        "retentionRisk",
+      ])
+    ) {
+      return null;
+    }
+
+    const overallValidation =
+      validateScoreComponentGroup(
+        raw.scoreComponents.overall,
+        ANALYSIS_V2_SCORE_COMPONENT_KEYS.overall,
+        "scoreComponents.overall"
+      );
+    const hookValidation =
+      validateScoreComponentGroup(
+        raw.scoreComponents.hook,
+        ANALYSIS_V2_SCORE_COMPONENT_KEYS.hook,
+        "scoreComponents.hook"
+      );
+    const retentionRiskValidation =
+      validateScoreComponentGroup(
+        raw.scoreComponents.retentionRisk,
+        ANALYSIS_V2_SCORE_COMPONENT_KEYS.retentionRisk,
+        "scoreComponents.retentionRisk"
+      );
+
+    if (
+      !overallValidation.ok ||
+      !hookValidation.ok ||
+      !retentionRiskValidation.ok
+    ) {
+      return null;
+    }
+
+    breakdown = createScoreBreakdown(
+      overallValidation.value,
+      hookValidation.value,
+      retentionRiskValidation.value
+    );
+  } else {
+    if (
+      !isPlainObject(raw.scores) ||
+      !isPlainObject(raw.scoreBreakdown)
+    ) {
+      return null;
+    }
+
+    if (
+      !hasOnlyKeys(raw.scores, [
+        "overall",
+        "hook",
+        "retentionRisk",
+      ]) ||
+      !isFiniteScore(raw.scores.overall) ||
+      !isFiniteScore(raw.scores.hook) ||
+      !isFiniteScore(raw.scores.retentionRisk)
+    ) {
+      return null;
+    }
+
+    const normalizedScores: AnalysisV2Scores = {
+      overall: Math.round(raw.scores.overall),
+      hook: Math.round(raw.scores.hook),
+      retentionRisk: Math.round(
+        raw.scores.retentionRisk
+      ),
+    };
+
+    const breakdownValidation = validateScoreBreakdown(
+      raw.scoreBreakdown,
+      normalizedScores
+    );
+
+    if (!breakdownValidation.ok) {
+      return null;
+    }
+
+    breakdown = breakdownValidation.value;
+  }
+
+  const lowestKeys =
+    getLowestOverallComponentKeys(breakdown);
+  const componentList =
+    formatOverallComponentList(lowestKeys);
+  const primaryLimitation =
+    OVERALL_COMPONENT_REPAIR_LIMITATIONS[
+      lowestKeys[0] ?? "premiseAppeal"
+    ];
+
+  return {
+    ...raw,
+    mainTakeaway: `The script is understandable, but its ${componentList} limits the overall score because ${primaryLimitation}.`,
+  };
+}
+
 function mainTakeawayExplainsLowestOverallComponent(
   mainTakeaway: string,
   breakdown: AnalysisV2ScoreBreakdown

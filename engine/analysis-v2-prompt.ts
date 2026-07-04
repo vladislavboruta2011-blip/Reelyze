@@ -37,6 +37,7 @@ ${ANALYSIS_V2_SCRIPT_TYPES.join(", ")}
 - If the opening is only a topic announcement or framing phrase such as today I want to talk about, in this video, or productivity is important, hookDecision must be rewrite or diagnostic, and overall should stay below 60.
 - Treat unsupported absolute promises in the opening hook as a material hook weakness, even when later steps are concrete. Examples include guarantees success, cannot fail, will make you a millionaire, will change your life, and completely change your financial life.
 - If an opening hook makes an unsupported absolute promise, hookDecision must not be keep, riskyParts must not be empty, and the relevant suggestedFix must be non-optional with target hook.
+- When an opening hook makes an unsupported absolute promise, do not describe the hook as strong, fairly strong, clear and specific, or already effective in hookAssessment.
 - Treat an opening hook that promises a specific object, cause, setting, secret, list item, winner, or mechanism as materially incomplete if the script never names or explains that promised item.
 - If the opening hook's specific promise is not revealed anywhere in the script, hookDecision must not be keep, riskyParts must not be empty, and the relevant suggestedFix must be non-optional with target payoff or hook.
 - When the opening hook's specific promise is not revealed, do not describe the hook as strong, fairly strong, clear and specific, or already effective in hookAssessment.
@@ -206,7 +207,8 @@ If verdict is mixed or weak:
 - do not describe the script as needing improvement while also claiming that no fixes are needed
 - If one actionable change resolves all material problems, return one suggestedFix.
 - If the script has two materially different problems that require different changes, return two suggestedFixes.
-- If multiple riskyParts share the same root cause, one suggestedFix may address all of them.
+- If multiple riskyParts share the same root cause, merge them into one riskyPart unless they require materially different changes.
+- If one actionable change resolves multiple riskyParts, return one suggestedFix that addresses the shared root cause.
 - Do not create a second suggestedFix merely to fill the available limit.
 - Treat an explicit promise near the end as a material payoff problem when the promised information is not delivered anywhere in the script.
 - If an unfulfilled promise is independent from another material problem, report it as a separate riskyPart with a separate suggestedFix.

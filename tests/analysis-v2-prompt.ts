@@ -14,8 +14,12 @@ const requiredRules = [
     text: "If the script has two materially different problems that require different changes, return two suggestedFixes.",
   },
   {
-    name: "shared root causes may use one shared fix",
-    text: "If multiple riskyParts share the same root cause, one suggestedFix may address all of them.",
+    name: "shared root causes should be merged",
+    text: "If multiple riskyParts share the same root cause, merge them into one riskyPart unless they require materially different changes.",
+  },
+  {
+    name: "shared root causes should use one shared fix",
+    text: "If one actionable change resolves multiple riskyParts, return one suggestedFix that addresses the shared root cause.",
   },
   {
     name: "the model must not invent a second fix",
@@ -52,6 +56,10 @@ const requiredRules = [
   {
     name: "generic opening filler requires a mandatory hook fix",
     text: "For generic opening filler, hookDecision must be refine or rewrite and the suggestedFix with target hook must have optional set to false.",
+  },
+  {
+    name: "unsupported absolute promise cannot be praised as clear",
+    text: "When an opening hook makes an unsupported absolute promise, do not describe the hook as strong, fairly strong, clear and specific, or already effective in hookAssessment.",
   },
   {
     name: "named frameworks are not automatically concrete",

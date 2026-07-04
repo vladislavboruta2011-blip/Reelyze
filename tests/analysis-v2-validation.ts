@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   normalizeAnalysisV2CompleteCausalExplanationModelResult,
   parseAnalysisV2Json,
+  repairAnalysisV2MainTakeawayForScoreBreakdown,
   validateAnalysisV2Input,
   validateAnalysisV2ModelResult,
   validateAnalysisV2Result,
@@ -390,6 +391,56 @@ const tests: TestCase[] = [
           );
 
         assert.equal(result.ok, false);
+      },
+    },
+    {
+      name: "repairs a below-80 takeaway that ignores the lowest overall component",
+      run: () => {
+        const modelResult =
+          createComponentModelResult();
+        const scoreComponents =
+          modelResult.scoreComponents as {
+            overall: Record<string, number>;
+          };
+
+        scoreComponents.overall = {
+          premiseAppeal: 10,
+          openingPromise: 21,
+          progression: 21,
+          payoff: 21,
+        };
+        modelResult.mainTakeaway =
+          "The script is clear and structurally polished throughout.";
+
+        const repaired =
+          repairAnalysisV2MainTakeawayForScoreBreakdown(
+            modelResult
+          );
+
+        assert.notEqual(repaired, null);
+
+        const result =
+          validateAnalysisV2ModelResult(
+            repaired,
+            script
+          );
+
+        if (!result.ok) {
+          throw new Error(result.reason);
+        }
+
+        assert.equal(
+          result.value.scores.overall,
+          73
+        );
+        assert.match(
+          result.value.mainTakeaway,
+          /premise appeal/i
+        );
+        assert.match(
+          result.value.mainTakeaway,
+          /limits the overall score/i
+        );
       },
     },
     {
