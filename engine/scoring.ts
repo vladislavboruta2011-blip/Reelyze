@@ -23,12 +23,12 @@ import {
   analyzePayoffFeedback,
   analyzePayoffPlacementFeedback,
   analyzeShortScriptFeedback,
-  buildMainTakeaway,
   detectScriptType,
   normalizeAutoCaptionScript,
 } from "./scoring-script-feedback";
 
 import { calibrateScoringScores } from "./scoring-calibration";
+import { buildMainTakeaway } from "./scoring-main-takeaway";
 
 import { analyzeScoringEnding } from "./scoring-ending";
 
