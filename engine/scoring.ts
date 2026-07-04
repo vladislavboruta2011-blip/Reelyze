@@ -2,7 +2,6 @@ export { createHookRewrite, getHookRewriteReason } from "./scoring-rewrite";
 
 import {
   detectScriptStructures,
-  type ScriptStructures,
 } from "./scoring-structures";
 
 import {
@@ -53,7 +52,6 @@ import {
 
 import {
   createScriptLines,
-  createTimeRange,
 } from "./scoring-timing";
 
 export {
