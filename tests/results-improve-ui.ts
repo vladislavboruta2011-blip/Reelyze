@@ -2,6 +2,10 @@ import { readFileSync } from "node:fs";
 
 const source = readFileSync("app/results/page.tsx", "utf8");
 const homeSource = readFileSync("app/page.tsx", "utf8");
+const uiComponentsSource = readFileSync(
+  "app/results/ui-components.tsx",
+  "utf8"
+);
 let failures = 0;
 
 console.log("\nReelyze Improve Hook UI Regression Tests\n");
@@ -443,6 +447,79 @@ if (preservesLegacyHookActionLabel) {
   );
   failures += 1;
 }
+
+
+const breakdownRenderCount =
+  source.split("<ScoreBreakdownCard").length - 1;
+
+const breakdownGuardCount =
+  source.split(
+    "analysis.scoreBreakdown &&"
+  ).length - 1;
+
+const desktopScoreIndex = source.indexOf(
+  'title="Retention Risk"'
+);
+const desktopBreakdownIndex = source.indexOf(
+  "<ScoreBreakdownCard",
+  desktopScoreIndex
+);
+const desktopTakeawayIndex = source.indexOf(
+  "{/* Main Takeaway */}",
+  desktopBreakdownIndex
+);
+
+const mobileScoresIndex = source.indexOf(
+  "<MobileScoreCards"
+);
+const mobileBreakdownIndex = source.indexOf(
+  "<ScoreBreakdownCard",
+  mobileScoresIndex
+);
+const mobileTakeawayIndex = source.indexOf(
+  "{/* Main Takeaway */}",
+  mobileBreakdownIndex
+);
+
+const hasScoreBreakdownComponent =
+  uiComponentsSource.includes(
+    "export function ScoreBreakdownCard("
+  ) &&
+  uiComponentsSource.includes(
+    "Why these scores?"
+  ) &&
+  uiComponentsSource.includes(
+    "Lower is better for"
+  ) &&
+  uiComponentsSource.includes(
+    "item.score * 4"
+  );
+
+const scoreBreakdownAppearsInCorrectOrder =
+  desktopScoreIndex >= 0 &&
+  desktopBreakdownIndex > desktopScoreIndex &&
+  desktopTakeawayIndex > desktopBreakdownIndex &&
+  mobileScoresIndex >= 0 &&
+  mobileBreakdownIndex > mobileScoresIndex &&
+  mobileTakeawayIndex > mobileBreakdownIndex;
+
+if (
+  source.includes("  ScoreBreakdownCard,") &&
+  breakdownRenderCount === 2 &&
+  breakdownGuardCount === 2 &&
+  hasScoreBreakdownComponent &&
+  scoreBreakdownAppearsInCorrectOrder
+) {
+  console.log(
+    "✅ PASS — score breakdown appears after score cards on desktop and mobile"
+  );
+} else {
+  console.error(
+    "❌ FAIL — Score breakdown must be guarded and rendered between score cards and Main Takeaway on desktop and mobile"
+  );
+  failures += 1;
+}
+
 
 if (failures > 0) {
   process.exitCode = 1;

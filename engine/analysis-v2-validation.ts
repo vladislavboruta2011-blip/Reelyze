@@ -11,6 +11,8 @@ import {
   type AnalysisV2HookDecision,
   type AnalysisV2Result,
   type AnalysisV2RiskyPart,
+  type AnalysisV2ScoreBreakdown,
+  type AnalysisV2Scores,
   type AnalysisV2Scene,
   type AnalysisV2SceneStatus,
   type AnalysisV2ScriptType,
@@ -163,6 +165,134 @@ function sumScoreComponentGroup(
     (total, key) => total + values[key],
     0
   );
+}
+
+function createScoreBreakdown(
+  overall: Record<string, number>,
+  hook: Record<string, number>,
+  retentionRisk: Record<string, number>
+): AnalysisV2ScoreBreakdown {
+  return {
+    overall: {
+      premiseAppeal: overall.premiseAppeal,
+      openingPromise: overall.openingPromise,
+      progression: overall.progression,
+      payoff: overall.payoff,
+    },
+    hook: {
+      immediacy: hook.immediacy,
+      specificity: hook.specificity,
+      viewerPull: hook.viewerPull,
+      deliveryAlignment: hook.deliveryAlignment,
+    },
+    retentionRisk: {
+      openingFriction: retentionRisk.openingFriction,
+      progressionRisk: retentionRisk.progressionRisk,
+      predictabilityRisk:
+        retentionRisk.predictabilityRisk,
+      payoffRisk: retentionRisk.payoffRisk,
+    },
+  };
+}
+
+type ScoreBreakdownValidation =
+  | {
+      ok: true;
+      value: AnalysisV2ScoreBreakdown;
+    }
+  | {
+      ok: false;
+      reason: string;
+    };
+
+function validateScoreBreakdown(
+  raw: unknown,
+  scores: AnalysisV2Scores
+): ScoreBreakdownValidation {
+  if (!isPlainObject(raw)) {
+    return {
+      ok: false,
+      reason: "scoreBreakdown must be an object.",
+    };
+  }
+
+  if (
+    !hasExactlyKeys(raw, [
+      "overall",
+      "hook",
+      "retentionRisk",
+    ])
+  ) {
+    return {
+      ok: false,
+      reason:
+        "scoreBreakdown must contain exactly overall, hook, and retentionRisk.",
+    };
+  }
+
+  const overallValidation =
+    validateScoreComponentGroup(
+      raw.overall,
+      ANALYSIS_V2_SCORE_COMPONENT_KEYS.overall,
+      "scoreBreakdown.overall"
+    );
+
+  if (!overallValidation.ok) {
+    return overallValidation;
+  }
+
+  const hookValidation =
+    validateScoreComponentGroup(
+      raw.hook,
+      ANALYSIS_V2_SCORE_COMPONENT_KEYS.hook,
+      "scoreBreakdown.hook"
+    );
+
+  if (!hookValidation.ok) {
+    return hookValidation;
+  }
+
+  const retentionRiskValidation =
+    validateScoreComponentGroup(
+      raw.retentionRisk,
+      ANALYSIS_V2_SCORE_COMPONENT_KEYS.retentionRisk,
+      "scoreBreakdown.retentionRisk"
+    );
+
+  if (!retentionRiskValidation.ok) {
+    return retentionRiskValidation;
+  }
+
+  const totalsMatch =
+    sumScoreComponentGroup(
+      overallValidation.value,
+      ANALYSIS_V2_SCORE_COMPONENT_KEYS.overall
+    ) === scores.overall &&
+    sumScoreComponentGroup(
+      hookValidation.value,
+      ANALYSIS_V2_SCORE_COMPONENT_KEYS.hook
+    ) === scores.hook &&
+    sumScoreComponentGroup(
+      retentionRiskValidation.value,
+      ANALYSIS_V2_SCORE_COMPONENT_KEYS.retentionRisk
+    ) === scores.retentionRisk;
+
+  if (!totalsMatch) {
+    return {
+      ok: false,
+      reason:
+        "scoreBreakdown totals must match the public scores.",
+    };
+  }
+
+  return {
+    ok: true,
+    value: createScoreBreakdown(
+      overallValidation.value,
+      hookValidation.value,
+      retentionRiskValidation.value
+    ),
+  };
 }
 
 const ALLOWED_VERIFIED_FACTUAL_FIXES = [
@@ -456,6 +586,135 @@ function deriveRetentionRiskForCausalNormalization(
   );
 }
 
+function createCausalNormalizationMainTakeaway(
+  raw: Record<string, unknown>,
+  overall: number,
+  baseTakeaway: string
+): string {
+  if (
+    overall >= 80 ||
+    !isPlainObject(raw.scoreComponents)
+  ) {
+    return baseTakeaway;
+  }
+
+  const overallValidation =
+    validateScoreComponentGroup(
+      raw.scoreComponents.overall,
+      ANALYSIS_V2_SCORE_COMPONENT_KEYS.overall,
+      "scoreComponents.overall"
+    );
+
+  if (!overallValidation.ok) {
+    return baseTakeaway;
+  }
+
+  const entries = Object.entries(
+    overallValidation.value
+  );
+
+  const lowestScore = Math.min(
+    ...entries.map(([, score]) => score)
+  );
+
+  const lowestKeys = entries
+    .filter(([, score]) => score === lowestScore)
+    .map(([key]) => key);
+
+  const componentPatterns: Record<
+    string,
+    RegExp
+  > = {
+    premiseAppeal:
+      /\bpremise\b|\baudience pull\b|\bviewer reward\b|\bangle\b|\bidea\b|\btopic\b|\bstakes?\b|\brelevance\b|\binterest\b/i,
+    openingPromise:
+      /\bopening promise\b|\bpromise\b|\bhook\b|\bopening\b|\bimmediacy\b/i,
+    progression:
+      /\bprogression\b|\bstructure\b|\bmiddle\b|\bmomentum\b|\bdevelopment\b|\bsequence\b|\brepetition\b|\bpacing\b|\bsentence boundaries\b|\breadability\b/i,
+    payoff:
+      /\bpayoff\b|\bending\b|\bconclusion\b|\bresolution\b|\breward\b/i,
+  };
+
+  const limitationPattern =
+    /\blimit(?:s|ed|ation|ations|ing)?\b|\bweak(?:er|ness|nesses)?\b|\blow(?:er)?\b|\bmodest\b|\bmoderate(?:ly)?\b|\bthin\b|\bflat\b|\bpredictable\b|\bgeneric\b|\bunclear\b|\bunderdeveloped\b|\binsufficient\b|\bmissing\b|\black(?:s|ing)?\b|\bneeds?\b|\bonly\b|\bholds? back\b|\bcaps?\b|\bcosts?\b|\breduces?\b|\bdoes not\b|\bdoesn't\b|\bfails? to\b|\bnot enough\b/i;
+
+  const alreadyExplainsLowestComponent =
+    limitationPattern.test(baseTakeaway) &&
+    lowestKeys.some((key) =>
+      componentPatterns[key]?.test(
+        baseTakeaway
+      )
+    );
+
+  if (alreadyExplainsLowestComponent) {
+    return baseTakeaway;
+  }
+
+  const labels: Record<string, string> = {
+    premiseAppeal: "premise appeal",
+    openingPromise: "opening promise",
+    progression: "progression",
+    payoff: "payoff",
+  };
+
+  if (lowestKeys.length === 4) {
+    return (
+      `${baseTakeaway} ` +
+      "The premise, opening promise, progression, and payoff are all solid but only moderately strong, which limits the overall score."
+    );
+  }
+
+  if (lowestKeys.length > 1) {
+    const lowestLabels = lowestKeys.map(
+      (key) => labels[key] ?? key
+    );
+
+    const finalLabel =
+      lowestLabels.pop() ?? "";
+
+    const joinedLabels =
+      lowestLabels.length === 0
+        ? finalLabel
+        : `${lowestLabels.join(", ")} and ${finalLabel}`;
+
+    return (
+      `${baseTakeaway} ` +
+      `The lowest-scoring areas are ${joinedLabels}; their moderate strength limits the overall score.`
+    );
+  }
+
+  const lowestKey = lowestKeys[0];
+
+  switch (lowestKey) {
+    case "premiseAppeal":
+      return (
+        `${baseTakeaway} ` +
+        "The main limitation is moderate audience pull from the premise, which keeps the overall score below 80."
+      );
+
+    case "openingPromise":
+      return (
+        `${baseTakeaway} ` +
+        "The main limitation is the opening promise, which is clear but only moderately strong."
+      );
+
+    case "progression":
+      return (
+        `${baseTakeaway} ` +
+        "The main limitation is progression, which is complete but only moderately engaging."
+      );
+
+    case "payoff":
+      return (
+        `${baseTakeaway} ` +
+        "The main limitation is the payoff, which resolves the explanation but offers only a moderate viewer reward."
+      );
+
+    default:
+      return baseTakeaway;
+  }
+}
+
 export function normalizeAnalysisV2CompleteCausalExplanationModelResult(
   raw: unknown,
   script: string
@@ -646,7 +905,11 @@ export function normalizeAnalysisV2CompleteCausalExplanationModelResult(
             : scene
       ),
       mainTakeaway:
-        "The causal explanation is complete; only the opening filler limits immediacy.",
+        createCausalNormalizationMainTakeaway(
+          raw,
+          overall,
+          "The causal explanation is complete; only the opening filler limits immediacy."
+        ),
     };
   }
 
@@ -674,7 +937,11 @@ export function normalizeAnalysisV2CompleteCausalExplanationModelResult(
             : scene
       ),
       mainTakeaway:
-        "The script provides a complete causal explanation from the trigger through the observable effect to the resolution.",
+        createCausalNormalizationMainTakeaway(
+          raw,
+          overall,
+          "The script provides a complete causal explanation from the trigger through the observable effect to the resolution."
+        ),
     };
   }
 
@@ -718,7 +985,11 @@ export function normalizeAnalysisV2CompleteCausalExplanationModelResult(
           : scene
     ),
     mainTakeaway:
-      "The causal explanation is complete; only the missing sentence boundaries reduce readability.",
+      createCausalNormalizationMainTakeaway(
+        raw,
+        overall,
+        "The causal explanation is complete; only the missing sentence boundaries reduce readability."
+      ),
   };
 }
 
@@ -1423,6 +1694,147 @@ function validateScene(
   };
 }
 
+type OverallBreakdownKey =
+  keyof AnalysisV2ScoreBreakdown["overall"];
+
+const OVERALL_COMPONENT_TAKEAWAY_TERMS: Record<
+  OverallBreakdownKey,
+  readonly RegExp[]
+> = {
+  premiseAppeal: [
+    /\bpremise\b/i,
+    /\baudience pull\b/i,
+    /\bviewer reward\b/i,
+    /\bangle\b/i,
+    /\bidea\b/i,
+    /\btopic\b/i,
+    /\bstakes?\b/i,
+    /\brelevance\b/i,
+    /\binterest\b/i,
+  ],
+  openingPromise: [
+    /\bopening promise\b/i,
+    /\bpromise\b/i,
+    /\bhook\b/i,
+    /\bopening\b/i,
+    /\bimmediacy\b/i,
+  ],
+  progression: [
+    /\bprogression\b/i,
+    /\bstructure\b/i,
+    /\bmiddle\b/i,
+    /\bmomentum\b/i,
+    /\bdevelopment\b/i,
+    /\bsequence\b/i,
+    /\brepetition\b/i,
+    /\bpacing\b/i,
+    /\bsentence boundaries\b/i,
+    /\breadability\b/i,
+  ],
+  payoff: [
+    /\bpayoff\b/i,
+    /\bending\b/i,
+    /\bconclusion\b/i,
+    /\bresolution\b/i,
+    /\breward\b/i,
+  ],
+};
+
+const OVERALL_LIMITATION_TERMS = [
+  /\blimit(?:s|ed|ation|ations|ing)?\b/i,
+  /\bweak(?:er|ness|nesses)?\b/i,
+  /\blow(?:er)?\b/i,
+  /\bmodest\b/i,
+  /\bthin\b/i,
+  /\bflat\b/i,
+  /\bpredictable\b/i,
+  /\bgeneric\b/i,
+  /\bunclear\b/i,
+  /\bunderdeveloped\b/i,
+  /\binsufficient\b/i,
+  /\bmissing\b/i,
+  /\black(?:s|ing)?\b/i,
+  /\bneeds?\b/i,
+  /\bonly\b/i,
+  /\bholds? back\b/i,
+  /\bcaps?\b/i,
+  /\bcosts?\b/i,
+  /\breduces?\b/i,
+  /\bdoes not\b/i,
+  /\bdoesn't\b/i,
+  /\bfails? to\b/i,
+  /\bnot enough\b/i,
+] as const;
+
+function getLowestOverallComponentKeys(
+  breakdown: AnalysisV2ScoreBreakdown
+): OverallBreakdownKey[] {
+  const entries = Object.entries(
+    breakdown.overall
+  ) as [OverallBreakdownKey, number][];
+
+  const lowestScore = Math.min(
+    ...entries.map(([, score]) => score)
+  );
+
+  return entries
+    .filter(([, score]) => score === lowestScore)
+    .map(([key]) => key);
+}
+
+function mainTakeawayExplainsLowestOverallComponent(
+  mainTakeaway: string,
+  breakdown: AnalysisV2ScoreBreakdown
+): boolean {
+  const lowestKeys =
+    getLowestOverallComponentKeys(breakdown);
+
+  const mentionsLowestComponent = lowestKeys.some(
+    (key) =>
+      OVERALL_COMPONENT_TAKEAWAY_TERMS[key].some(
+        (pattern) => pattern.test(mainTakeaway)
+      )
+  );
+
+  const explainsLimitation =
+    OVERALL_LIMITATION_TERMS.some((pattern) =>
+      pattern.test(mainTakeaway)
+    );
+
+  return (
+    mentionsLowestComponent &&
+    explainsLimitation
+  );
+}
+
+function hasBlanketNoLimitationClaim(
+  mainTakeaway: string
+): boolean {
+  const hasNoLimitationClaim =
+    /\b(?:no|without(?:\s+any)?)\s+(?:material|meaningful|significant|major|notable|real)\s+(?:shorts\s+performance\s+)?(?:problems?|issues?|limitations?|weaknesses?)\b/i.test(
+      mainTakeaway
+    );
+
+  if (!hasNoLimitationClaim) {
+    return false;
+  }
+
+  const isScopedToOneComponent =
+    /\b(?:problems?|issues?|limitations?|weaknesses?)\s+(?:in|with|around)\s+(?:the\s+)?(?:hook|opening|premise|progression|structure|payoff|ending)\b/i.test(
+      mainTakeaway
+    );
+
+  const includesQualification =
+    /\b(?:but|however|although|while|yet|except)\b/i.test(
+      mainTakeaway
+    );
+
+  return (
+    !isScopedToOneComponent &&
+    !includesQualification
+  );
+}
+
 export function validateAnalysisV2Result(
   raw: unknown,
   script: string
@@ -1439,6 +1851,7 @@ export function validateAnalysisV2Result(
       "scriptType",
       "verdict",
       "scores",
+      "scoreBreakdown",
       "hookDecision",
       "hookAssessment",
       "suggestedHook",
@@ -1510,6 +1923,35 @@ export function validateAnalysisV2Result(
         "All scores must be finite numbers from 0 to 100.",
     };
   }
+
+
+  const normalizedScores: AnalysisV2Scores = {
+    overall: Math.round(raw.scores.overall),
+    hook: Math.round(raw.scores.hook),
+    retentionRisk: Math.round(
+      raw.scores.retentionRisk
+    ),
+  };
+
+  let scoreBreakdown:
+    | AnalysisV2ScoreBreakdown
+    | undefined;
+
+  if (raw.scoreBreakdown !== undefined) {
+    const scoreBreakdownValidation =
+      validateScoreBreakdown(
+        raw.scoreBreakdown,
+        normalizedScores
+      );
+
+    if (!scoreBreakdownValidation.ok) {
+      return scoreBreakdownValidation;
+    }
+
+    scoreBreakdown =
+      scoreBreakdownValidation.value;
+  }
+
 
   if (
     !isEnumMember(
@@ -1767,6 +2209,39 @@ export function validateAnalysisV2Result(
       ok: false,
       reason: "mainTakeaway is missing or too long.",
     };
+  }
+
+  const normalizedMainTakeaway =
+    raw.mainTakeaway.trim();
+
+  if (
+    normalizedScores.overall < 80 &&
+    scoreBreakdown
+  ) {
+    if (
+      hasBlanketNoLimitationClaim(
+        normalizedMainTakeaway
+      )
+    ) {
+      return {
+        ok: false,
+        reason:
+          "An overall score below 80 cannot be paired with a mainTakeaway claiming that the script has no material or meaningful limitations.",
+      };
+    }
+
+    if (
+      !mainTakeawayExplainsLowestOverallComponent(
+        normalizedMainTakeaway,
+        scoreBreakdown
+      )
+    ) {
+      return {
+        ok: false,
+        reason:
+          "For an overall score below 80, mainTakeaway must identify the lowest-scoring overall component and explain how it limited the score.",
+      };
+    }
   }
 
   const verdict = raw.verdict as AnalysisV2Verdict;
@@ -2101,6 +2576,11 @@ export function validateAnalysisV2Result(
           raw.scores.retentionRisk
         ),
       },
+      ...(scoreBreakdown
+        ? {
+            scoreBreakdown,
+          }
+        : {}),
       hookDecision: normalizedHookDecision,
       hookAssessment: raw.hookAssessment.trim(),
       ...(normalizedSuggestedHook
@@ -2112,7 +2592,7 @@ export function validateAnalysisV2Result(
       riskyParts,
       suggestedFixes,
       scenes,
-      mainTakeaway: raw.mainTakeaway.trim(),
+      mainTakeaway: normalizedMainTakeaway,
     },
   };
 }
@@ -2225,6 +2705,11 @@ export function validateAnalysisV2ModelResult(
         ANALYSIS_V2_SCORE_COMPONENT_KEYS.retentionRisk
       ),
     },
+    scoreBreakdown: createScoreBreakdown(
+      overallValidation.value,
+      hookValidation.value,
+      retentionRiskValidation.value
+    ),
     hookDecision: raw.hookDecision,
     hookAssessment: raw.hookAssessment,
     suggestedHook: raw.suggestedHook,

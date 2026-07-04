@@ -244,40 +244,189 @@ const tests: TestCase[] = [
       assert.equal(parsed, null);
     },
   },
-  {
-    name: "accepts a valid strong result",
-    run: () => {
-      const result = validateAnalysisV2Result(
-        createStrongResult(),
-        script
-      );
-
-      assert.equal(result.ok, true);
-    },
-  },
-  {
-    name: "derives public scores from model score components",
-    run: () => {
-      const result = validateAnalysisV2ModelResult(
-        createComponentModelResult(),
-        script
-      );
-
-      assert.equal(result.ok, true);
-
-      if (result.ok) {
-        assert.deepEqual(result.value.scores, {
-          overall: 84,
-          hook: 82,
-          retentionRisk: 22,
-        });
-        assert.equal(
-          "scoreComponents" in result.value,
-          false
+    {
+      name: "accepts a valid strong result without a score breakdown",
+      run: () => {
+        const result = validateAnalysisV2Result(
+          createStrongResult(),
+          script
         );
-      }
+
+        assert.equal(result.ok, true);
+
+        if (result.ok) {
+          assert.equal(
+            result.value.scoreBreakdown,
+            undefined
+          );
+        }
+      },
     },
-  },
+    {
+      name: "derives public scores and breakdown from model score components",
+      run: () => {
+        const modelResult =
+          createComponentModelResult();
+
+        const result = validateAnalysisV2ModelResult(
+          modelResult,
+          script
+        );
+
+        assert.equal(result.ok, true);
+
+        if (result.ok) {
+          assert.deepEqual(result.value.scores, {
+            overall: 84,
+            hook: 82,
+            retentionRisk: 22,
+          });
+          assert.deepEqual(
+            result.value.scoreBreakdown,
+            modelResult.scoreComponents
+          );
+          assert.equal(
+            "scoreComponents" in result.value,
+            false
+          );
+        }
+      },
+    },
+    {
+      name: "rejects a score breakdown whose totals do not match the public scores",
+      run: () => {
+        const modelValidation =
+          validateAnalysisV2ModelResult(
+            createComponentModelResult(),
+            script
+          );
+
+        if (!modelValidation.ok) {
+          throw new Error(
+            modelValidation.reason
+          );
+        }
+
+        const breakdown =
+          modelValidation.value.scoreBreakdown;
+
+        if (!breakdown) {
+          throw new Error(
+            "Expected a score breakdown."
+          );
+        }
+
+        const invalidResult = {
+          ...modelValidation.value,
+          scoreBreakdown: {
+            ...breakdown,
+            overall: {
+              ...breakdown.overall,
+              premiseAppeal:
+                breakdown.overall.premiseAppeal - 1,
+            },
+          },
+        };
+
+        const result = validateAnalysisV2Result(
+          invalidResult,
+          script
+        );
+
+        assert.equal(result.ok, false);
+      },
+    },
+    {
+      name: "rejects a below-80 breakdown paired with a blanket no-problem takeaway",
+      run: () => {
+        const modelResult =
+          createComponentModelResult();
+        const scoreComponents =
+          modelResult.scoreComponents as {
+            overall: Record<string, number>;
+          };
+
+        scoreComponents.overall = {
+          premiseAppeal: 10,
+          openingPromise: 21,
+          progression: 21,
+          payoff: 21,
+        };
+        modelResult.mainTakeaway =
+          "The script has no material Shorts performance problems.";
+
+        const result =
+          validateAnalysisV2ModelResult(
+            modelResult,
+            script
+          );
+
+        assert.equal(result.ok, false);
+      },
+    },
+    {
+      name: "rejects a below-80 takeaway that ignores the lowest overall component",
+      run: () => {
+        const modelResult =
+          createComponentModelResult();
+        const scoreComponents =
+          modelResult.scoreComponents as {
+            overall: Record<string, number>;
+          };
+
+        scoreComponents.overall = {
+          premiseAppeal: 10,
+          openingPromise: 21,
+          progression: 21,
+          payoff: 21,
+        };
+        modelResult.mainTakeaway =
+          "The script is clear and structurally polished throughout.";
+
+        const result =
+          validateAnalysisV2ModelResult(
+            modelResult,
+            script
+          );
+
+        assert.equal(result.ok, false);
+      },
+    },
+    {
+      name: "accepts a below-80 takeaway that explains the lowest overall component",
+      run: () => {
+        const modelResult =
+          createComponentModelResult();
+        const scoreComponents =
+          modelResult.scoreComponents as {
+            overall: Record<string, number>;
+          };
+
+        scoreComponents.overall = {
+          premiseAppeal: 10,
+          openingPromise: 21,
+          progression: 21,
+          payoff: 21,
+        };
+        modelResult.mainTakeaway =
+          "The main limitation is limited audience pull: the premise offers only a modest viewer reward despite clear execution.";
+
+        const result =
+          validateAnalysisV2ModelResult(
+            modelResult,
+            script
+          );
+
+        if (!result.ok) {
+          throw new Error(result.reason);
+        }
+
+        assert.equal(
+          result.value.scores.overall,
+          73
+        );
+      },
+    },
   {
     name: "rejects an out-of-range score component",
     run: () => {
@@ -916,6 +1065,10 @@ const tests: TestCase[] = [
         result.value.hookDecision,
         "keep"
       );
+        assert.match(
+          result.value.mainTakeaway,
+          /all solid but only moderately strong/
+        );
       assert.equal(
         result.value.riskyParts.length,
         0

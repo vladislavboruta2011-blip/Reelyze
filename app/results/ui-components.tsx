@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { AudioLines, FastForward, Scissors } from "lucide-react";
 import type { RiskyPart, SceneSegment, ScoreData } from "../../engine/scoring";
+import type { AnalysisV2UiScoreBreakdown } from "../../engine/analysis-v2-ui-adapter";
 
 export function Card({
   children,
@@ -195,6 +196,139 @@ export function MobileScoreCards({
         </div>
       ))}
     </div>
+  );
+}
+
+export function ScoreBreakdownCard({
+  breakdown,
+  compact = false,
+}: {
+  breakdown: AnalysisV2UiScoreBreakdown;
+  compact?: boolean;
+}) {
+  const groups = [
+    breakdown.overall,
+    breakdown.hook,
+    breakdown.risk,
+  ];
+
+  return (
+    <Card className={compact ? "p-4" : "p-6"}>
+      <div>
+        <h2
+          className={
+            compact
+              ? "text-[15px] font-semibold text-[#111827]"
+              : "text-[17px] font-semibold text-[#111827]"
+          }
+        >
+          Why these scores?
+        </h2>
+        <p
+          className={
+            compact
+              ? "mt-1 text-[11px] leading-[1.55] text-[#6B7280]"
+              : "mt-1.5 text-[13px] leading-[1.55] text-[#6B7280]"
+          }
+        >
+          Each total is built from four components
+          scored out of 25. Lower is better for
+          Retention Risk.
+        </p>
+      </div>
+
+      <div
+        className={
+          compact
+            ? "mt-4 grid grid-cols-1 gap-3"
+            : "mt-5 grid grid-cols-1 gap-4 lg:grid-cols-3"
+        }
+      >
+        {groups.map((group) => {
+          const accentColor =
+            group.direction === "higher-is-riskier"
+              ? "#EF4444"
+              : group.title === "Hook Score"
+                ? "#22C55E"
+                : "#7C3AED";
+
+          return (
+            <div
+              key={group.title}
+              className={
+                compact
+                  ? "rounded-[14px] border border-[#E5E7EB] bg-[#F8F8FC] p-3.5"
+                  : "rounded-[16px] border border-[#E5E7EB] bg-[#F8F8FC] p-4"
+              }
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[13px] font-semibold text-[#111827]">
+                    {group.title}
+                  </p>
+                  <p className="mt-0.5 text-[10px] text-[#6B7280]">
+                    {group.direction ===
+                    "higher-is-riskier"
+                      ? "Lower is better"
+                      : "Higher is better"}
+                  </p>
+                </div>
+
+                <div className="flex shrink-0 items-baseline gap-1">
+                  <span
+                    className="text-[22px] font-bold leading-none"
+                    style={{ color: accentColor }}
+                  >
+                    {group.total}
+                  </span>
+                  <span className="text-[10px] text-[#6B7280]">
+                    /100
+                  </span>
+                </div>
+              </div>
+
+              <div className="mt-4 flex flex-col gap-3.5">
+                {group.items.map((item) => (
+                  <div key={item.label}>
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-[11px] font-semibold text-[#374151]">
+                        {item.label}
+                      </p>
+                      <p className="shrink-0 text-[11px] font-semibold text-[#111827]">
+                        {item.score}
+                        <span className="font-normal text-[#9CA3AF]">
+                          /{item.maxScore}
+                        </span>
+                      </p>
+                    </div>
+
+                    <div className="mt-1.5 h-[4px] overflow-hidden rounded-full bg-[#E5E7EB]">
+                      <div
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${Math.max(
+                            0,
+                            Math.min(
+                              100,
+                              item.score * 4
+                            )
+                          )}%`,
+                          backgroundColor: accentColor,
+                        }}
+                      />
+                    </div>
+
+                    <p className="mt-1.5 text-[10.5px] leading-[1.45] text-[#6B7280]">
+                      {item.description}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
   );
 }
 
