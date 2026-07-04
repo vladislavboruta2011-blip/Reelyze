@@ -165,6 +165,32 @@ export const ANALYSIS_V2_BENCHMARK_CASES:
     },
   },
   {
+    id: "positive-plain-valid-explanation",
+    category: "positive",
+    title: "Why mugs have handles",
+    script:
+      "Most mugs have handles for one simple reason: hot drinks heat the cup itself. The handle creates distance between your hand and the hot surface, so you can hold the mug more comfortably. It also gives you a steadier grip when the mug is full. That is why the handle matters even though it looks like a basic design choice.",
+    expected: {
+      scriptTypes: ["explanation"],
+      verdicts: ["strong", "mixed"],
+      overall: { min: 55, max: 82 },
+      hook: { min: 55 },
+      retentionRisk: { max: 55 },
+      hookDecisions: ["keep", "refine"],
+      maxRiskyParts: 2,
+      maxSuggestedFixes: 2,
+      forbiddenFeedback: [
+        "no meaningful limitations",
+        "no material limitations",
+        "no significant problems",
+        "no major issues",
+        "weak hook",
+        "answer is revealed too early",
+        "needs a mystery",
+      ],
+    },
+  },
+  {
     id: "positive-president-chronology",
     category: "positive",
     title: "The 1981 presidential shooting",

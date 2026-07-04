@@ -219,6 +219,104 @@ const tests: TestCase[] = [
       },
     },
   {
+    name: "runAnalysisV2 repairs an invalid below-80 main takeaway without retrying",
+    run: async () => {
+      let callCount = 0;
+      const componentResult =
+        createValidComponentResult();
+      const scoreComponents =
+        componentResult.scoreComponents as {
+          overall: Record<string, number>;
+        };
+
+      scoreComponents.overall = {
+        premiseAppeal: 10,
+        openingPromise: 21,
+        progression: 21,
+        payoff: 21,
+      };
+      componentResult.verdict = "mixed";
+      componentResult.riskyParts = [
+        {
+          excerpt:
+            "It usually comes apart in under five minutes.",
+          reason:
+            "The ending resolves the process, but the premise has limited audience pull.",
+          severity: "medium",
+        },
+      ];
+      componentResult.suggestedFixes = [
+        {
+          target: "payoff",
+          suggestion:
+            "Connect the final resolution more clearly to why the result matters to the viewer.",
+          optional: false,
+        },
+      ];
+      componentResult.scenes = [
+        {
+          excerpt:
+            "If super glue gets stuck to your skin, do not pull it apart.",
+          label: "Problem and warning",
+          status: "strong",
+        },
+        {
+          excerpt:
+            "First, soak the area in warm soapy water.",
+          label: "First step",
+          status: "strong",
+        },
+        {
+          excerpt:
+            "It usually comes apart in under five minutes.",
+          label: "Limited viewer reward",
+          status: "risky",
+        },
+      ];
+      componentResult.mainTakeaway =
+        "The script is clear and structurally polished throughout.";
+
+      const modelCaller: AnalysisV2ModelCaller =
+        async () => {
+          callCount += 1;
+
+          return {
+            raw: JSON.stringify(componentResult),
+            modelUsed: "mock-repair-model",
+          };
+        };
+
+      const result = await runAnalysisV2(
+        script,
+        "Super glue removal",
+        modelCaller
+      );
+
+      assert.equal(result.ok, true);
+      assert.equal(result.status, 200);
+      assert.equal(callCount, 1);
+
+      if (result.ok) {
+        assert.equal(
+          result.response.modelUsed,
+          "mock-repair-model"
+        );
+        assert.equal(
+          result.response.result.scores.overall,
+          73
+        );
+        assert.match(
+          result.response.result.mainTakeaway,
+          /premise appeal/i
+        );
+        assert.match(
+          result.response.result.mainTakeaway,
+          /limits the overall score/i
+        );
+      }
+    },
+  },
+  {
     name: "runAnalysisV2 retries once after invalid grounded analysis",
     run: async () => {
       let callCount = 0;

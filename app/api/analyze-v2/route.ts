@@ -13,6 +13,7 @@ import {
 import {
   normalizeAnalysisV2CompleteCausalExplanationModelResult,
   parseAnalysisV2Json,
+  repairAnalysisV2MainTakeawayForScoreBreakdown,
   validateAnalysisV2Input,
   validateAnalysisV2ModelResult,
 } from "@/engine/analysis-v2-validation";
@@ -659,6 +660,36 @@ export async function runAnalysisV2(
       );
 
     if (!resultValidation.ok) {
+      if (
+        resultValidation.reason ===
+        "For an overall score below 80, mainTakeaway must identify the lowest-scoring overall component and explain how it limited the score."
+      ) {
+        const repairedModelResult =
+          repairAnalysisV2MainTakeawayForScoreBreakdown(
+            parsed
+          );
+
+        if (repairedModelResult !== null) {
+          const repairedValidation =
+            validateAnalysisV2ModelResult(
+              repairedModelResult,
+              inputValidation.script
+            );
+
+          if (repairedValidation.ok) {
+            return {
+              ok: true,
+              status: 200,
+              response: {
+                status: "ok",
+                result: repairedValidation.value,
+                modelUsed: modelOutput.modelUsed,
+              },
+            };
+          }
+        }
+      }
+
       if (attempt === 0) {
         currentUserPrompt =
           buildAnalysisV2RetryUserPrompt(
