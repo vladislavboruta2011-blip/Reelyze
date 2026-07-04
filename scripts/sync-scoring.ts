@@ -33,6 +33,11 @@ const scoringMainTakeawayPath = path.join(
   "engine/scoring-main-takeaway.ts",
 );
 
+const scoringScoreCalculationPath = path.join(
+  projectRoot,
+  "engine/scoring-score-calculation.ts",
+);
+
 const scoringResultHelpersPath = path.join(
   projectRoot,
   "engine/scoring-result-helpers.ts",
@@ -95,6 +100,11 @@ const scoringScriptFeedbackSource = fs.readFileSync(
 
 const scoringMainTakeawaySource = fs.readFileSync(
   scoringMainTakeawayPath,
+  "utf8",
+);
+
+const scoringScoreCalculationSource = fs.readFileSync(
+  scoringScoreCalculationPath,
   "utf8",
 );
 
@@ -280,6 +290,28 @@ if (missingMainTakeawayExports.length > 0) {
     [
       "Scoring main-takeaway module is missing required exports:",
       ...missingMainTakeawayExports.map(
+        (declaration) => `  - ${declaration}`,
+      ),
+    ].join("\n"),
+  );
+}
+
+const requiredScoreCalculationExports = [
+  "export type ScoringCalculationState",
+  "export function calculateScoringState(",
+];
+
+const missingScoreCalculationExports =
+  requiredScoreCalculationExports.filter(
+    (declaration) =>
+      !scoringScoreCalculationSource.includes(declaration),
+  );
+
+if (missingScoreCalculationExports.length > 0) {
+  throw new Error(
+    [
+      "Scoring score-calculation module is missing required exports:",
+      ...missingScoreCalculationExports.map(
         (declaration) => `  - ${declaration}`,
       ),
     ].join("\n"),
