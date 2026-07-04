@@ -211,6 +211,114 @@ const tests: TestCase[] = [
       );
     },
   },
+    {
+      name: "keeps score breakdown optional for legacy results",
+      run: () => {
+        const adapted =
+          adaptAnalysisV2ForResults(
+            mixedResponse,
+            mixedScript,
+            [mixedScript],
+            10
+          );
+
+        assert.equal(
+          adapted.scoreBreakdown,
+          undefined
+        );
+      },
+    },
+    {
+      name: "adapts score breakdown into user-facing groups",
+      run: () => {
+        const responseWithBreakdown:
+          AnalysisV2SuccessResponse = {
+            ...mixedResponse,
+            result: {
+              ...mixedResponse.result,
+              scoreBreakdown: {
+                overall: {
+                  premiseAppeal: 15,
+                  openingPromise: 15,
+                  progression: 15,
+                  payoff: 16,
+                },
+                hook: {
+                  immediacy: 17,
+                  specificity: 17,
+                  viewerPull: 17,
+                  deliveryAlignment: 17,
+                },
+                retentionRisk: {
+                  openingFriction: 13,
+                  progressionRisk: 13,
+                  predictabilityRisk: 13,
+                  payoffRisk: 13,
+                },
+              },
+            },
+          };
+
+        const adapted =
+          adaptAnalysisV2ForResults(
+            responseWithBreakdown,
+            mixedScript,
+            [mixedScript],
+            10
+          );
+
+        const breakdown =
+          adapted.scoreBreakdown;
+
+        assert.ok(breakdown);
+
+        assert.equal(
+          breakdown.overall.title,
+          "Overall Score"
+        );
+        assert.equal(
+          breakdown.overall.total,
+          mixedResponse.result.scores.overall
+        );
+        assert.deepEqual(
+          breakdown.overall.items.map(
+            (item) => [
+              item.label,
+              item.score,
+              item.maxScore,
+            ]
+          ),
+          [
+            ["Premise Appeal", 15, 25],
+            ["Opening Promise", 15, 25],
+            ["Progression", 15, 25],
+            ["Payoff", 16, 25],
+          ]
+        );
+
+        assert.equal(
+          breakdown.hook.items[2].label,
+          "Viewer Pull"
+        );
+        assert.equal(
+          breakdown.hook.items[2].score,
+          17
+        );
+
+        assert.equal(
+          breakdown.risk.direction,
+          "higher-is-riskier"
+        );
+        assert.equal(
+          breakdown.risk.items[0].label,
+          "Opening Friction"
+        );
+        assert.equal(
+          breakdown.risk.items[0].score,
+          13
+        );
+      },
+    },
   {
     name: "mixed verdict overrides a strong score label",
     run: () => {

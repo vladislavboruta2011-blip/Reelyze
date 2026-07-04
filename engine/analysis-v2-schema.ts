@@ -67,6 +67,27 @@ export type AnalysisV2Scores = {
   retentionRisk: number;
 };
 
+export type AnalysisV2ScoreBreakdown = {
+  overall: {
+    premiseAppeal: number;
+    openingPromise: number;
+    progression: number;
+    payoff: number;
+  };
+  hook: {
+    immediacy: number;
+    specificity: number;
+    viewerPull: number;
+    deliveryAlignment: number;
+  };
+  retentionRisk: {
+    openingFriction: number;
+    progressionRisk: number;
+    predictabilityRisk: number;
+    payoffRisk: number;
+  };
+};
+
 export const ANALYSIS_V2_SCORE_COMPONENT_KEYS = {
   overall: [
     "premiseAppeal",
@@ -110,6 +131,7 @@ export type AnalysisV2Result = {
   scriptType: AnalysisV2ScriptType;
   verdict: AnalysisV2Verdict;
   scores: AnalysisV2Scores;
+  scoreBreakdown?: AnalysisV2ScoreBreakdown;
   hookDecision: AnalysisV2HookDecision;
   hookAssessment: string;
   suggestedHook?: string;

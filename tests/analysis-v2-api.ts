@@ -175,42 +175,49 @@ const tests: TestCase[] = [
       );
     },
   },
-  {
-    name: "runAnalysisV2 derives scores without exposing components",
-    run: async () => {
-      const modelCaller: AnalysisV2ModelCaller =
-        async () => ({
-          raw: JSON.stringify(
-            createValidComponentResult()
-          ),
-          modelUsed: "mock-component-model",
-        });
+    {
+      name: "runAnalysisV2 derives scores and exposes a validated breakdown",
+      run: async () => {
+        const componentResult =
+          createValidComponentResult();
 
-      const result = await runAnalysisV2(
-        script,
-        "Super glue removal",
-        modelCaller
-      );
+        const modelCaller: AnalysisV2ModelCaller =
+          async () => ({
+            raw: JSON.stringify(
+              componentResult
+            ),
+            modelUsed: "mock-component-model",
+          });
 
-      assert.equal(result.ok, true);
-
-      if (result.ok) {
-        assert.deepEqual(
-          result.response.result.scores,
-          {
-            overall: 88,
-            hook: 82,
-            retentionRisk: 22,
-          }
+        const result = await runAnalysisV2(
+          script,
+          "Super glue removal",
+          modelCaller
         );
-        assert.equal(
-          "scoreComponents" in
-            result.response.result,
-          false
-        );
-      }
+
+        assert.equal(result.ok, true);
+
+        if (result.ok) {
+          assert.deepEqual(
+            result.response.result.scores,
+            {
+              overall: 88,
+              hook: 82,
+              retentionRisk: 22,
+            }
+          );
+          assert.deepEqual(
+            result.response.result.scoreBreakdown,
+            componentResult.scoreComponents
+          );
+          assert.equal(
+            "scoreComponents" in
+              result.response.result,
+            false
+          );
+        }
+      },
     },
-  },
   {
     name: "runAnalysisV2 retries once after invalid grounded analysis",
     run: async () => {

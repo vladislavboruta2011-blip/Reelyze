@@ -198,6 +198,18 @@ const requiredRules = [
     text: "when stronger factual material is missing, state that a verified consequence, contrast, implication, or magnitude is needed rather than supplying a possible one yourself",
   },
   {
+    name: "below-80 takeaways identify the lowest overall component",
+    text: "mainTakeaway must identify the lowest-scoring Overall component as the main reason points were lost",
+  },
+  {
+    name: "below-80 takeaways cannot deny all limitations",
+    text: "do not claim that the script has no material, meaningful, significant, major, or notable problems, issues, limitations, or weaknesses",
+  },
+  {
+    name: "strong below-80 results explain a non-material limitation",
+    text: "describe the lowest-scoring component as the main non-material limitation or clearest opportunity holding the score below 80",
+  },
+  {
     name: "honest warning uncertainty is not automatically a weakness",
     text: "Honest uncertainty about an unsettled mechanism is not a material weakness when the warning remains clear, appropriately qualified, and actionable.",
   },

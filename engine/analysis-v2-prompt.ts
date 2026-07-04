@@ -169,6 +169,14 @@ If the premise is materially weak:
 - include a non-optional suggestedFix with target content, structure, or payoff
 - the fix should strengthen the most consequential supported angle, contrast, implication, or payoff already present; if the script contains none, diagnose the missing kind of material without inventing facts
 
+SCORE-TAKEAWAY CONSISTENCY
+
+When the overall component total is below 80:
+- mainTakeaway must identify the lowest-scoring Overall component as the main reason points were lost
+- explain that limitation in user-facing language, not by listing only a score or technical component key
+- do not claim that the script has no material, meaningful, significant, major, or notable problems, issues, limitations, or weaknesses
+- if verdict is strong because no issue crosses the material-risk threshold, describe the lowest-scoring component as the main non-material limitation or clearest opportunity holding the score below 80
+
 STRONG-SCRIPT GATE
 
 Before creating any risky part, ask:
@@ -185,7 +193,7 @@ If the answer is no:
 - every fix in a strong result must have optional set to true
 - do not create an optional refinement merely because the overall score is below 85
 - hookDecision should normally be keep or refine
-- mainTakeaway must clearly explain why the script has no material Shorts performance problem for its type
+- mainTakeaway must clearly explain why the script has no material Shorts performance problem for its type; when the overall component total is below 80, it must also identify the main non-material limitation that kept the score below 80
 - do not invent an issue merely to fill the interface
 
 NON-STRONG FEEDBACK GATE

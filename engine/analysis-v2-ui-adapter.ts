@@ -17,6 +17,28 @@ export type AnalysisV2UiScoreData = {
   description: string;
 };
 
+export type AnalysisV2UiScoreBreakdownItem = {
+  label: string;
+  score: number;
+  maxScore: number;
+  description: string;
+};
+
+export type AnalysisV2UiScoreBreakdownGroup = {
+  title: string;
+  total: number;
+  direction:
+    | "higher-is-better"
+    | "higher-is-riskier";
+  items: AnalysisV2UiScoreBreakdownItem[];
+};
+
+export type AnalysisV2UiScoreBreakdown = {
+  overall: AnalysisV2UiScoreBreakdownGroup;
+  hook: AnalysisV2UiScoreBreakdownGroup;
+  risk: AnalysisV2UiScoreBreakdownGroup;
+};
+
 export type AnalysisV2UiRiskyPart = {
   time: string;
   title: string;
@@ -33,6 +55,7 @@ export type AnalysisV2UiResult = {
   overall: AnalysisV2UiScoreData;
   hook: AnalysisV2UiScoreData;
   risk: AnalysisV2UiScoreData;
+  scoreBreakdown?: AnalysisV2UiScoreBreakdown;
   riskyParts: AnalysisV2UiRiskyPart[];
   fixes: string[];
   riskyLineIndexes: number[];
@@ -342,6 +365,134 @@ function createSceneSegments(
   });
 }
 
+function adaptScoreBreakdown(
+  result: AnalysisV2Result
+): AnalysisV2UiScoreBreakdown | undefined {
+  const breakdown = result.scoreBreakdown;
+
+  if (!breakdown) {
+    return undefined;
+  }
+
+  return {
+    overall: {
+      title: "Overall Score",
+      total: result.scores.overall,
+      direction: "higher-is-better",
+      items: [
+        {
+          label: "Premise Appeal",
+          score:
+            breakdown.overall.premiseAppeal,
+          maxScore: 25,
+          description:
+            "How interesting and rewarding the underlying idea is.",
+        },
+        {
+          label: "Opening Promise",
+          score:
+            breakdown.overall.openingPromise,
+          maxScore: 25,
+          description:
+            "How clearly the opening promises value that the script delivers.",
+        },
+        {
+          label: "Progression",
+          score: breakdown.overall.progression,
+          maxScore: 25,
+          description:
+            "How well each beat adds another reason to keep watching.",
+        },
+        {
+          label: "Payoff",
+          score: breakdown.overall.payoff,
+          maxScore: 25,
+          description:
+            "How strongly the ending completes the promised value.",
+        },
+      ],
+    },
+    hook: {
+      title: "Hook Score",
+      total: result.scores.hook,
+      direction: "higher-is-better",
+      items: [
+        {
+          label: "Immediacy",
+          score: breakdown.hook.immediacy,
+          maxScore: 25,
+          description:
+            "How quickly the script reaches its concrete premise.",
+        },
+        {
+          label: "Specificity",
+          score: breakdown.hook.specificity,
+          maxScore: 25,
+          description:
+            "How concrete and easy to understand the opening is.",
+        },
+        {
+          label: "Viewer Pull",
+          score: breakdown.hook.viewerPull,
+          maxScore: 25,
+          description:
+            "How much curiosity, relevance, contrast, or stakes the opening creates.",
+        },
+        {
+          label: "Delivery Alignment",
+          score:
+            breakdown.hook.deliveryAlignment,
+          maxScore: 25,
+          description:
+            "How accurately the hook matches what the script delivers.",
+        },
+      ],
+    },
+    risk: {
+      title: "Retention Risk",
+      total: result.scores.retentionRisk,
+      direction: "higher-is-riskier",
+      items: [
+        {
+          label: "Opening Friction",
+          score:
+            breakdown.retentionRisk
+              .openingFriction,
+          maxScore: 25,
+          description:
+            "Delay, filler, or confusion before the premise begins.",
+        },
+        {
+          label: "Progression Risk",
+          score:
+            breakdown.retentionRisk
+              .progressionRisk,
+          maxScore: 25,
+          description:
+            "Repetition, stalled development, or low information density.",
+        },
+        {
+          label: "Predictability Risk",
+          score:
+            breakdown.retentionRisk
+              .predictabilityRisk,
+          maxScore: 25,
+          description:
+            "How easily viewers can predict the script's next beats.",
+        },
+        {
+          label: "Payoff Risk",
+          score:
+            breakdown.retentionRisk.payoffRisk,
+          maxScore: 25,
+          description:
+            "Risk that the ending feels weak, incomplete, or contradictory.",
+        },
+      ],
+    },
+  };
+}
+
 export function adaptAnalysisV2ForResults(
   response: AnalysisV2SuccessResponse,
   script: string,
@@ -409,6 +560,7 @@ export function adaptAnalysisV2ForResults(
       ringColor: riskColor,
       description: getRiskDescription(result),
     },
+    scoreBreakdown: adaptScoreBreakdown(result),
     riskyParts: result.riskyParts.map((part) => ({
       time: createExcerptTimeRange(
         script,

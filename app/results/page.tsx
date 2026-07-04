@@ -11,6 +11,7 @@ import {
   ANALYSIS_V2_STORAGE_KEY,
   adaptAnalysisV2ForResults,
   parseStoredAnalysisV2,
+  type AnalysisV2UiResult,
 } from "../../engine/analysis-v2-ui-adapter";
 import {
   analyzeScript,
@@ -31,8 +32,8 @@ import {
   Card,
   DesktopScoreCard,
   FeedbackReasonOptions,
-  IconBox,
   MobileScoreCards,
+  ScoreBreakdownCard,
   RiskyPartsContent,
   SceneBreakdownContent,
   ScriptLinesContent,
@@ -50,6 +51,11 @@ import {
   Target,
   ShieldCheck,
 } from "lucide-react";
+
+type ResultsPageAnalysis = AnalysisResult & {
+  scoreBreakdown?:
+    AnalysisV2UiResult["scoreBreakdown"];
+};
 
 const inter = Inter({
   subsets: ["latin"],
@@ -205,7 +211,7 @@ const [mobileScriptOpen, setMobileScriptOpen] = useState(false);
 
   const characterCount = activeScript.length;
 
-  const analysis = useMemo(() => {
+  const analysis = useMemo<ResultsPageAnalysis>(() => {
     if (savedAnalysisV2) {
       return adaptAnalysisV2ForResults(
         savedAnalysisV2,
@@ -682,6 +688,16 @@ const hookCopyButtonLabel =
                   />
                 </div>
 
+                  {analysis.scoreBreakdown && (
+                    <div className="mb-6">
+                      <ScoreBreakdownCard
+                        breakdown={
+                          analysis.scoreBreakdown
+                        }
+                      />
+                    </div>
+                  )}
+
                 {/* Main Takeaway */}
                 <div className="mb-6 rounded-[16px] border border-[#DDD6FE] bg-[#F3E8FF] px-5 py-4 shadow-[0_0_28px_rgba(124,58,237,0.07)]">
                   <div className="flex items-start gap-3">
@@ -876,6 +892,15 @@ const hookCopyButtonLabel =
                 hook={analysis.hook}
                 risk={analysis.risk}
               />
+
+                {analysis.scoreBreakdown && (
+                  <ScoreBreakdownCard
+                    breakdown={
+                      analysis.scoreBreakdown
+                    }
+                    compact
+                  />
+                )}
 
               {/* Main Takeaway */}
               <div className="rounded-[18px] border border-[#DDD6FE] bg-[#F3E8FF] px-4 py-4 shadow-[0_0_24px_rgba(124,58,237,0.07)]">
