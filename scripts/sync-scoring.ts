@@ -28,6 +28,11 @@ const scoringScriptFeedbackPath = path.join(
   "engine/scoring-script-feedback.ts",
 );
 
+const scoringMainTakeawayPath = path.join(
+  projectRoot,
+  "engine/scoring-main-takeaway.ts",
+);
+
 const scoringResultHelpersPath = path.join(
   projectRoot,
   "engine/scoring-result-helpers.ts",
@@ -85,6 +90,11 @@ const scoringEvaluationSource = fs.readFileSync(
 
 const scoringScriptFeedbackSource = fs.readFileSync(
   scoringScriptFeedbackPath,
+  "utf8",
+);
+
+const scoringMainTakeawaySource = fs.readFileSync(
+  scoringMainTakeawayPath,
   "utf8",
 );
 
@@ -231,7 +241,6 @@ const requiredScriptFeedbackExports = [
   "export function normalizeAutoCaptionScript(",
   "export function analyzeOpeningFeedback(",
   "export function analyzeShortScriptFeedback(",
-  "export function buildMainTakeaway(",
   "export function analyzeFlatMiddleFeedback(",
   "export function analyzeGenericFeedback(",
   "export function analyzeOpenLoopFeedback(",
@@ -250,6 +259,27 @@ if (missingScriptFeedbackExports.length > 0) {
     [
       "Scoring script-feedback module is missing required exports:",
       ...missingScriptFeedbackExports.map(
+        (declaration) => `  - ${declaration}`,
+      ),
+    ].join("\n"),
+  );
+}
+
+const requiredMainTakeawayExports = [
+  "export function buildMainTakeaway(",
+];
+
+const missingMainTakeawayExports =
+  requiredMainTakeawayExports.filter(
+    (declaration) =>
+      !scoringMainTakeawaySource.includes(declaration),
+  );
+
+if (missingMainTakeawayExports.length > 0) {
+  throw new Error(
+    [
+      "Scoring main-takeaway module is missing required exports:",
+      ...missingMainTakeawayExports.map(
         (declaration) => `  - ${declaration}`,
       ),
     ].join("\n"),
