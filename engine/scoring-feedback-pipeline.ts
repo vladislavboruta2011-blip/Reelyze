@@ -12,10 +12,12 @@ import {
 } from "./scoring-fixes";
 import {
   collectWarningLineIndexes,
-  enforceScoringFeedbackMinimums,
   finalizeScoringFeedback,
   type FinalizedScoringFeedback,
 } from "./scoring-risk-finalization";
+import {
+  enforceScoringFeedbackMinimums,
+} from "./scoring-feedback-minimums";
 import type { RiskyPart } from "./scoring-result-helpers";
 import type { ScoringCalculationState } from "./scoring-score-calculation";
 import {

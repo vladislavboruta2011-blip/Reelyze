@@ -88,6 +88,11 @@ const scoringRiskFinalizationPath = path.join(
   "engine/scoring-risk-finalization.ts",
 );
 
+const scoringFeedbackMinimumsPath = path.join(
+  projectRoot,
+  "engine/scoring-feedback-minimums.ts",
+);
+
 const scoringTimingPath = path.join(
   projectRoot,
   "engine/scoring-timing.ts",
@@ -190,6 +195,11 @@ const scoringFixesSource = fs.readFileSync(
 
 const scoringRiskFinalizationSource = fs.readFileSync(
   scoringRiskFinalizationPath,
+  "utf8",
+);
+
+const scoringFeedbackMinimumsSource = fs.readFileSync(
+  scoringFeedbackMinimumsPath,
   "utf8",
 );
 
@@ -595,11 +605,33 @@ if (missingScoringFixExports.length > 0) {
   );
 }
 
+const requiredFeedbackMinimumsExports = [
+  "export function enforceScoringFeedbackMinimums(",
+];
+
+const missingFeedbackMinimumsExports =
+  requiredFeedbackMinimumsExports.filter(
+    (declaration) =>
+      !scoringFeedbackMinimumsSource.includes(
+        declaration,
+      ),
+  );
+
+if (missingFeedbackMinimumsExports.length > 0) {
+  throw new Error(
+    [
+      "Scoring feedback-minimums module is missing required exports:",
+      ...missingFeedbackMinimumsExports.map(
+        (declaration) => `  - ${declaration}`,
+      ),
+    ].join("\n"),
+  );
+}
+
 const requiredRiskFinalizationExports = [
   "export type FinalizedScoringFeedback",
   "export function collectWarningLineIndexes(",
   "export function finalizeScoringFeedback(",
-  "export function enforceScoringFeedbackMinimums(",
 ];
 
 const missingRiskFinalizationExports =
