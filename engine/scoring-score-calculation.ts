@@ -12,7 +12,7 @@ import { clampScore } from "./scoring-result-helpers";
 import {
   detectScriptType,
   normalizeAutoCaptionScript,
-} from "./scoring-script-feedback";
+} from "./scoring-script-preprocessing";
 import {
   detectScriptStructures,
   type ScriptStructures,
