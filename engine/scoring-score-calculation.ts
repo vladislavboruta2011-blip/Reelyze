@@ -1,11 +1,11 @@
 import {
-  calculatePayoffStrength,
   extractOpeningWindow,
   extractUniversalSignals,
   scoreOpeningWindow,
   type UniversalSignals,
 } from "./scoring-evaluation";
 import { calculateHookStrength } from "./scoring-hook-evaluation";
+import { calculatePayoffStrength } from "./scoring-payoff-evaluation";
 import { calculateRetentionStructure } from "./scoring-retention-evaluation";
 import { calibrateScoringScores } from "./scoring-calibration";
 import { clampScore } from "./scoring-result-helpers";
