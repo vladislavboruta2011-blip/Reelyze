@@ -93,6 +93,11 @@ const scoringFixesPath = path.join(
   "engine/scoring-fixes.ts",
 );
 
+const scoringFixBuildersPath = path.join(
+  projectRoot,
+  "engine/scoring-fix-builders.ts",
+);
+
 const scoringRiskFinalizationPath = path.join(
   projectRoot,
   "engine/scoring-risk-finalization.ts",
@@ -210,6 +215,11 @@ const scoringResultHelpersSource = fs.readFileSync(
 
 const scoringFixesSource = fs.readFileSync(
   scoringFixesPath,
+  "utf8",
+);
+
+const scoringFixBuildersSource = fs.readFileSync(
+  scoringFixBuildersPath,
   "utf8",
 );
 
@@ -598,14 +608,6 @@ if (missingResultHelperExports.length > 0) {
 const requiredScoringFixExports = [
   "export function getFixSemanticKey(",
   "export function dedupeFixes(",
-  "export function buildScriptTypeFixes(",
-  "export function buildPrimaryWeaknessFixes(",
-  "export function buildSupportingSignalFixes(",
-  "export function buildBodyAndLengthFixes(",
-  "export function buildMediumScoreFixes(",
-  "export function buildOptionalImprovementFixes(",
-  "export function buildPayoffFixes(",
-  "export function buildStrongEndingOpeningFixes(",
 ];
 
 const missingScoringFixExports =
@@ -619,6 +621,36 @@ if (missingScoringFixExports.length > 0) {
     [
       "Scoring fixes module is missing required exports:",
       ...missingScoringFixExports.map(
+        (declaration) => `  - ${declaration}`,
+      ),
+    ].join("\n"),
+  );
+}
+
+const requiredFixBuilderExports = [
+  "export function buildScriptTypeFixes(",
+  "export function buildPrimaryWeaknessFixes(",
+  "export function buildSupportingSignalFixes(",
+  "export function buildBodyAndLengthFixes(",
+  "export function buildMediumScoreFixes(",
+  "export function buildOptionalImprovementFixes(",
+  "export function buildPayoffFixes(",
+  "export function buildStrongEndingOpeningFixes(",
+];
+
+const missingFixBuilderExports =
+  requiredFixBuilderExports.filter(
+    (declaration) =>
+      !scoringFixBuildersSource.includes(
+        declaration,
+      ),
+  );
+
+if (missingFixBuilderExports.length > 0) {
+  throw new Error(
+    [
+      "Scoring fix-builders module is missing required exports:",
+      ...missingFixBuilderExports.map(
         (declaration) => `  - ${declaration}`,
       ),
     ].join("\n"),
