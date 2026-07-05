@@ -25,9 +25,11 @@ import {
 import {
   analyzeFillerFeedback,
   analyzeFlatMiddleFeedback,
-  analyzeGenericFeedback,
   analyzeLengthFeedback,
   analyzeOpenLoopFeedback,
+} from "./scoring-body-feedback";
+import {
+  analyzeGenericFeedback,
   analyzeOpeningFeedback,
   analyzeShortScriptFeedback,
 } from "./scoring-script-feedback";

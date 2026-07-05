@@ -48,6 +48,11 @@ const scoringPayoffFeedbackPath = path.join(
   "engine/scoring-payoff-feedback.ts",
 );
 
+const scoringBodyFeedbackPath = path.join(
+  projectRoot,
+  "engine/scoring-body-feedback.ts",
+);
+
 const scoringScriptFeedbackPath = path.join(
   projectRoot,
   "engine/scoring-script-feedback.ts",
@@ -145,6 +150,11 @@ const scoringScriptPreprocessingSource = fs.readFileSync(
 
 const scoringPayoffFeedbackSource = fs.readFileSync(
   scoringPayoffFeedbackPath,
+  "utf8",
+);
+
+const scoringBodyFeedbackSource = fs.readFileSync(
+  scoringBodyFeedbackPath,
   "utf8",
 );
 
@@ -410,14 +420,34 @@ if (missingPayoffFeedbackExports.length > 0) {
   );
 }
 
-const requiredScriptFeedbackExports = [
-  "export function analyzeOpeningFeedback(",
-  "export function analyzeShortScriptFeedback(",
-  "export function analyzeFlatMiddleFeedback(",
-  "export function analyzeGenericFeedback(",
+const requiredBodyFeedbackExports = [
   "export function analyzeOpenLoopFeedback(",
   "export function analyzeFillerFeedback(",
   "export function analyzeLengthFeedback(",
+  "export function analyzeFlatMiddleFeedback(",
+];
+
+const missingBodyFeedbackExports =
+  requiredBodyFeedbackExports.filter(
+    (declaration) =>
+      !scoringBodyFeedbackSource.includes(declaration),
+  );
+
+if (missingBodyFeedbackExports.length > 0) {
+  throw new Error(
+    [
+      "Scoring body-feedback module is missing required exports:",
+      ...missingBodyFeedbackExports.map(
+        (declaration) => `  - ${declaration}`,
+      ),
+    ].join("\n"),
+  );
+}
+
+const requiredScriptFeedbackExports = [
+  "export function analyzeOpeningFeedback(",
+  "export function analyzeShortScriptFeedback(",
+  "export function analyzeGenericFeedback(",
 ];
 
 const missingScriptFeedbackExports =
