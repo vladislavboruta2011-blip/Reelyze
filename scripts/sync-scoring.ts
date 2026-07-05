@@ -23,6 +23,11 @@ const scoringEvaluationPath = path.join(
   "engine/scoring-evaluation.ts",
 );
 
+const scoringHookEvaluationPath = path.join(
+  projectRoot,
+  "engine/scoring-hook-evaluation.ts",
+);
+
 const scoringScriptFeedbackPath = path.join(
   projectRoot,
   "engine/scoring-script-feedback.ts",
@@ -95,6 +100,11 @@ const scoringRewriteSource = fs.readFileSync(
 
 const scoringEvaluationSource = fs.readFileSync(
   scoringEvaluationPath,
+  "utf8",
+);
+
+const scoringHookEvaluationSource = fs.readFileSync(
+  scoringHookEvaluationPath,
   "utf8",
 );
 
@@ -234,7 +244,6 @@ const requiredEvaluationExports = [
   "export function extractOpeningWindow(",
   "export function scoreOpeningWindow(",
   "export function extractUniversalSignals(",
-  "export function calculateHookStrength(",
   "export function calculateRetentionStructure(",
   "export function calculatePayoffStrength(",
 ];
@@ -250,6 +259,27 @@ if (missingEvaluationExports.length > 0) {
     [
       "Scoring evaluation module is missing required exports:",
       ...missingEvaluationExports.map(
+        (declaration) => `  - ${declaration}`,
+      ),
+    ].join("\n"),
+  );
+}
+
+const requiredHookEvaluationExports = [
+  "export function calculateHookStrength(",
+];
+
+const missingHookEvaluationExports =
+  requiredHookEvaluationExports.filter(
+    (declaration) =>
+      !scoringHookEvaluationSource.includes(declaration),
+  );
+
+if (missingHookEvaluationExports.length > 0) {
+  throw new Error(
+    [
+      "Scoring hook-evaluation module is missing required exports:",
+      ...missingHookEvaluationExports.map(
         (declaration) => `  - ${declaration}`,
       ),
     ].join("\n"),
