@@ -1,5 +1,4 @@
 import {
-  calculateHookStrength,
   calculatePayoffStrength,
   calculateRetentionStructure,
   extractOpeningWindow,
@@ -7,6 +6,7 @@ import {
   scoreOpeningWindow,
   type UniversalSignals,
 } from "./scoring-evaluation";
+import { calculateHookStrength } from "./scoring-hook-evaluation";
 import { calibrateScoringScores } from "./scoring-calibration";
 import { clampScore } from "./scoring-result-helpers";
 import {
