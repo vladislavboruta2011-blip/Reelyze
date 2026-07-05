@@ -18,6 +18,11 @@ const scoringRankingStructuresPath = path.join(
   "engine/scoring-ranking-structures.ts",
 );
 
+const scoringStructureDetectorsPath = path.join(
+  projectRoot,
+  "engine/scoring-structure-detectors.ts",
+);
+
 const scoringRewritePath = path.join(
   projectRoot,
   "engine/scoring-rewrite.ts",
@@ -130,6 +135,11 @@ const scoringSource = fs.readFileSync(
 
 const scoringRankingStructuresSource = fs.readFileSync(
   scoringRankingStructuresPath,
+  "utf8",
+);
+
+const scoringStructureDetectorsSource = fs.readFileSync(
+  scoringStructureDetectorsPath,
   "utf8",
 );
 
@@ -703,6 +713,35 @@ if (missingScoringCalibrationExports.length > 0) {
     [
       "Scoring calibration module is missing required exports:",
       ...missingScoringCalibrationExports.map(
+        (declaration) => `  - ${declaration}`,
+      ),
+    ].join("\n"),
+  );
+}
+
+const requiredStructureDetectorExports = [
+  "export function detectPersistenceArc(",
+  "export function detectCapabilityViolation(",
+  "export function detectAnomalySequence(",
+  "export function detectConsequenceProgression(",
+  "export function detectNarrativeArc(",
+  "export function hasStrongOutcomePayoff(",
+  "export function hasSpecificQuantity(",
+];
+
+const missingStructureDetectorExports =
+  requiredStructureDetectorExports.filter(
+    (declaration) =>
+      !scoringStructureDetectorsSource.includes(
+        declaration,
+      ),
+  );
+
+if (missingStructureDetectorExports.length > 0) {
+  throw new Error(
+    [
+      "Scoring structure-detectors module is missing required exports:",
+      ...missingStructureDetectorExports.map(
         (declaration) => `  - ${declaration}`,
       ),
     ].join("\n"),
