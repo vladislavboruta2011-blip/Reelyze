@@ -19,14 +19,16 @@ import {
 import type { RiskyPart } from "./scoring-result-helpers";
 import type { ScoringCalculationState } from "./scoring-score-calculation";
 import {
+  analyzePayoffFeedback,
+  analyzePayoffPlacementFeedback,
+} from "./scoring-payoff-feedback";
+import {
   analyzeFillerFeedback,
   analyzeFlatMiddleFeedback,
   analyzeGenericFeedback,
   analyzeLengthFeedback,
   analyzeOpenLoopFeedback,
   analyzeOpeningFeedback,
-  analyzePayoffFeedback,
-  analyzePayoffPlacementFeedback,
   analyzeShortScriptFeedback,
 } from "./scoring-script-feedback";
 

@@ -43,6 +43,11 @@ const scoringScriptPreprocessingPath = path.join(
   "engine/scoring-script-preprocessing.ts",
 );
 
+const scoringPayoffFeedbackPath = path.join(
+  projectRoot,
+  "engine/scoring-payoff-feedback.ts",
+);
+
 const scoringScriptFeedbackPath = path.join(
   projectRoot,
   "engine/scoring-script-feedback.ts",
@@ -135,6 +140,11 @@ const scoringPayoffEvaluationSource = fs.readFileSync(
 
 const scoringScriptPreprocessingSource = fs.readFileSync(
   scoringScriptPreprocessingPath,
+  "utf8",
+);
+
+const scoringPayoffFeedbackSource = fs.readFileSync(
+  scoringPayoffFeedbackPath,
   "utf8",
 );
 
@@ -372,6 +382,28 @@ if (missingScriptPreprocessingExports.length > 0) {
     [
       "Scoring script-preprocessing module is missing required exports:",
       ...missingScriptPreprocessingExports.map(
+        (declaration) => `  - ${declaration}`,
+      ),
+    ].join("\n"),
+  );
+}
+
+const requiredPayoffFeedbackExports = [
+  "export function analyzePayoffFeedback(",
+  "export function analyzePayoffPlacementFeedback(",
+];
+
+const missingPayoffFeedbackExports =
+  requiredPayoffFeedbackExports.filter(
+    (declaration) =>
+      !scoringPayoffFeedbackSource.includes(declaration),
+  );
+
+if (missingPayoffFeedbackExports.length > 0) {
+  throw new Error(
+    [
+      "Scoring payoff-feedback module is missing required exports:",
+      ...missingPayoffFeedbackExports.map(
         (declaration) => `  - ${declaration}`,
       ),
     ].join("\n"),
