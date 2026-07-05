@@ -28,6 +28,11 @@ const scoringHookEvaluationPath = path.join(
   "engine/scoring-hook-evaluation.ts",
 );
 
+const scoringRetentionEvaluationPath = path.join(
+  projectRoot,
+  "engine/scoring-retention-evaluation.ts",
+);
+
 const scoringScriptFeedbackPath = path.join(
   projectRoot,
   "engine/scoring-script-feedback.ts",
@@ -105,6 +110,11 @@ const scoringEvaluationSource = fs.readFileSync(
 
 const scoringHookEvaluationSource = fs.readFileSync(
   scoringHookEvaluationPath,
+  "utf8",
+);
+
+const scoringRetentionEvaluationSource = fs.readFileSync(
+  scoringRetentionEvaluationPath,
   "utf8",
 );
 
@@ -244,7 +254,6 @@ const requiredEvaluationExports = [
   "export function extractOpeningWindow(",
   "export function scoreOpeningWindow(",
   "export function extractUniversalSignals(",
-  "export function calculateRetentionStructure(",
   "export function calculatePayoffStrength(",
 ];
 
@@ -280,6 +289,27 @@ if (missingHookEvaluationExports.length > 0) {
     [
       "Scoring hook-evaluation module is missing required exports:",
       ...missingHookEvaluationExports.map(
+        (declaration) => `  - ${declaration}`,
+      ),
+    ].join("\n"),
+  );
+}
+
+const requiredRetentionEvaluationExports = [
+  "export function calculateRetentionStructure(",
+];
+
+const missingRetentionEvaluationExports =
+  requiredRetentionEvaluationExports.filter(
+    (declaration) =>
+      !scoringRetentionEvaluationSource.includes(declaration),
+  );
+
+if (missingRetentionEvaluationExports.length > 0) {
+  throw new Error(
+    [
+      "Scoring retention-evaluation module is missing required exports:",
+      ...missingRetentionEvaluationExports.map(
         (declaration) => `  - ${declaration}`,
       ),
     ].join("\n"),
