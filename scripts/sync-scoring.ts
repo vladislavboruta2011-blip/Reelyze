@@ -38,6 +38,11 @@ const scoringScoreCalculationPath = path.join(
   "engine/scoring-score-calculation.ts",
 );
 
+const scoringFeedbackPipelinePath = path.join(
+  projectRoot,
+  "engine/scoring-feedback-pipeline.ts",
+);
+
 const scoringResultHelpersPath = path.join(
   projectRoot,
   "engine/scoring-result-helpers.ts",
@@ -105,6 +110,11 @@ const scoringMainTakeawaySource = fs.readFileSync(
 
 const scoringScoreCalculationSource = fs.readFileSync(
   scoringScoreCalculationPath,
+  "utf8",
+);
+
+const scoringFeedbackPipelineSource = fs.readFileSync(
+  scoringFeedbackPipelinePath,
   "utf8",
 );
 
@@ -312,6 +322,27 @@ if (missingScoreCalculationExports.length > 0) {
     [
       "Scoring score-calculation module is missing required exports:",
       ...missingScoreCalculationExports.map(
+        (declaration) => `  - ${declaration}`,
+      ),
+    ].join("\n"),
+  );
+}
+
+const requiredFeedbackPipelineExports = [
+  "export function buildScoringFeedbackPipeline(",
+];
+
+const missingFeedbackPipelineExports =
+  requiredFeedbackPipelineExports.filter(
+    (declaration) =>
+      !scoringFeedbackPipelineSource.includes(declaration),
+  );
+
+if (missingFeedbackPipelineExports.length > 0) {
+  throw new Error(
+    [
+      "Scoring feedback-pipeline module is missing required exports:",
+      ...missingFeedbackPipelineExports.map(
         (declaration) => `  - ${declaration}`,
       ),
     ].join("\n"),
