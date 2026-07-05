@@ -13,6 +13,11 @@ const scoringPath = path.join(
   "engine/scoring.ts",
 );
 
+const scoringRankingStructuresPath = path.join(
+  projectRoot,
+  "engine/scoring-ranking-structures.ts",
+);
+
 const scoringRewritePath = path.join(
   projectRoot,
   "engine/scoring-rewrite.ts",
@@ -120,6 +125,11 @@ const resultsSource = fs.readFileSync(
 
 const scoringSource = fs.readFileSync(
   scoringPath,
+  "utf8",
+);
+
+const scoringRankingStructuresSource = fs.readFileSync(
+  scoringRankingStructuresPath,
   "utf8",
 );
 
@@ -693,6 +703,30 @@ if (missingScoringCalibrationExports.length > 0) {
     [
       "Scoring calibration module is missing required exports:",
       ...missingScoringCalibrationExports.map(
+        (declaration) => `  - ${declaration}`,
+      ),
+    ].join("\n"),
+  );
+}
+
+const requiredRankingStructuresExports = [
+  "export interface RankingStructures",
+  "export function detectRankingStructures(",
+];
+
+const missingRankingStructuresExports =
+  requiredRankingStructuresExports.filter(
+    (declaration) =>
+      !scoringRankingStructuresSource.includes(
+        declaration,
+      ),
+  );
+
+if (missingRankingStructuresExports.length > 0) {
+  throw new Error(
+    [
+      "Scoring ranking-structures module is missing required exports:",
+      ...missingRankingStructuresExports.map(
         (declaration) => `  - ${declaration}`,
       ),
     ].join("\n"),
