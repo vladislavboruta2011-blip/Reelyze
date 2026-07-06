@@ -5,7 +5,6 @@
 
 
 import { lineHasRewriteHardAnchor } from "./scoring-rewrite-anchor";
-import { capitalizeFirst } from "./scoring-rewrite-formatting";
 import { isRewriteFillerIntro, isRewriteScenarioOpener } from "./scoring-rewrite-openers";
 import { createNumberSentenceRewrite } from "./scoring-rewrite-number-sentence";
 import { createConsequenceRewrite } from "./scoring-rewrite-consequence";
@@ -13,6 +12,7 @@ import { createVisualDetailRewrite } from "./scoring-rewrite-visual-detail";
 import { createReversalRewrite } from "./scoring-rewrite-reversal";
 import { createFillerFallbackRewrite } from "./scoring-rewrite-filler-fallback";
 import { createContrastFallbackRewrite } from "./scoring-rewrite-contrast-fallback";
+import { createDefaultFallbackRewrite } from "./scoring-rewrite-default-fallback";
 
 export function createHookRewrite(script: string): string {
   const allLines = script
@@ -109,8 +109,7 @@ export function createHookRewrite(script: string): string {
   if (contrastFallbackRewrite) return contrastFallbackRewrite;
 
   // ── Default: contrast using first line ────────────────────────────────────
-  const shortSubject = firstLine.replace(/[.!?]+$/, "").split(/\s+/).slice(0, 7).join(" ");
-  return `${capitalizeFirst(shortSubject)} — but not for the reason most people think.`;
+  return createDefaultFallbackRewrite(firstLine);
 }
 
 export { getHookRewriteReason } from "./scoring-rewrite-reason";
