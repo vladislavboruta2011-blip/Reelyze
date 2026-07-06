@@ -5,6 +5,7 @@
 
 
 import { lineHasRewriteHardAnchor } from "./scoring-rewrite-anchor";
+import { capitalizeFirst } from "./scoring-rewrite-formatting";
 
 export function createHookRewrite(script: string): string {
   const allLines = script
@@ -219,11 +220,6 @@ export function createHookRewrite(script: string): string {
   // ── Default: contrast using first line ────────────────────────────────────
   const shortSubject = firstLine.replace(/[.!?]+$/, "").split(/\s+/).slice(0, 7).join(" ");
   return `${capitalizeFirst(shortSubject)} — but not for the reason most people think.`;
-}
-
-function capitalizeFirst(text: string): string {
-  if (!text) return text;
-  return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 export { getHookRewriteReason } from "./scoring-rewrite-reason";
