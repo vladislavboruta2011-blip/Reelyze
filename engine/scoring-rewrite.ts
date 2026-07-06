@@ -9,6 +9,7 @@ import { capitalizeFirst } from "./scoring-rewrite-formatting";
 import { isRewriteFillerIntro, isRewriteScenarioOpener } from "./scoring-rewrite-openers";
 import { createNumberSentenceRewrite } from "./scoring-rewrite-number-sentence";
 import { createConsequenceRewrite } from "./scoring-rewrite-consequence";
+import { createVisualDetailRewrite } from "./scoring-rewrite-visual-detail";
 
 export function createHookRewrite(script: string): string {
   const allLines = script
@@ -81,46 +82,8 @@ export function createHookRewrite(script: string): string {
 
   // ── Step 3: concrete physical / visual detail (universal mystery/event) ───
   // Any line with a specific physical scene, object, or observable state.
-  const visualDetailLine = bodyLines.find(line => {
-    const ll = line.toLowerCase();
-    const wc = line.split(/\s+/).length;
-    return wc >= 5 && wc <= 22 && (
-      // observable state (universal: any subject can be "still there")
-      /\bstill\b/.test(ll) ||
-      // absence / presence markers (universal)
-      /\bleft behind\b|\buntouched\b|\bno signs of\b/.test(ll) ||
-      // disappearance / discovery (universal)
-      /\bdisappeared\b|\bvanished\b|\bfound\b|\bdiscovered\b/.test(ll) ||
-      // specific named objects in context (universal — any physical object detail)
-      (ll.includes("on the") && /\b(table|floor|ground|deck|shelf|wall|seat)\b/.test(ll)) ||
-      // nobody / absence of people (universal)
-      /\bnobody\b|\bno one\b|\bevery person\b|\beveryone (was gone|had left|disappeared)\b/.test(ll)
-    );
-  });
-
-  if (visualDetailLine) {
-    const cleaned = visualDetailLine.replace(/[.!?]+$/, "").trim();
-    const words = cleaned.split(/\s+/);
-    const hook = words.length <= 18
-      ? capitalizeFirst(cleaned)
-      : capitalizeFirst(words.slice(0, 14).join(" "));
-
-    // Find a complementary second detail (any absence or contrast line)
-    const secondDetail = bodyLines.find(line => {
-      const ll = line.toLowerCase();
-      return line !== visualDetailLine &&
-        (ll.includes("but") || ll.includes("yet") || ll.includes("gone") ||
-         ll.includes("missing") || ll.includes("nobody") || ll.includes("no one")) &&
-        line.split(/\s+/).length >= 4 && line.split(/\s+/).length <= 14;
-    });
-
-    if (secondDetail) {
-      const secondCleaned = secondDetail.replace(/[.!?]+$/, "").trim().toLowerCase();
-      const secondWords = secondCleaned.split(/\s+/).slice(0, 8).join(" ");
-      return `${hook} — ${secondWords}.`;
-    }
-    return `${hook} — and nobody knew why.`;
-  }
+  const visualDetailRewrite = createVisualDetailRewrite(bodyLines);
+  if (visualDetailRewrite) return visualDetailRewrite;
 
   // ── Step 4: contradiction / reversal (universal) ──────────────────────────
   // Any line that reverses an assumption using "not" + a core concept.
