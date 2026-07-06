@@ -6,6 +6,7 @@
 
 import { lineHasRewriteHardAnchor } from "./scoring-rewrite-anchor";
 import { capitalizeFirst } from "./scoring-rewrite-formatting";
+import { isRewriteFillerIntro, isRewriteScenarioOpener } from "./scoring-rewrite-openers";
 
 export function createHookRewrite(script: string): string {
   const allLines = script
@@ -18,12 +19,7 @@ export function createHookRewrite(script: string): string {
   const firstLower = firstLine.toLowerCase();
 
   // ── Detect filler intro ────────────────────────────────────────────────────
-  const isFillerIntro =
-    firstLower.startsWith("today i") || firstLower.startsWith("in this video") ||
-    firstLower.startsWith("i will") || firstLower.startsWith("i want to") ||
-    firstLower.startsWith("let's talk") || firstLower.startsWith("so today") ||
-    firstLower.startsWith("hey guys") || firstLower.startsWith("welcome") ||
-    firstLower.startsWith("this video");
+  const isFillerIntro = isRewriteFillerIntro(firstLower);
 
 // ── Generic script guard ──────────────────────────────────────────────────
   // If the script has no concrete material, do not invent a fake hook.
@@ -39,8 +35,7 @@ export function createHookRewrite(script: string): string {
   // scenario premise with the final payoff/realization line.
   // E.g. "Imagine the world went silent for one minute" + "Even silence has a sound"
   // → "What if the world went silent for one minute — and even silence has a sound?"
-  const isScenarioOpener =
-    /^(imagine|what if|picture this)\b/i.test(firstLower);
+  const isScenarioOpener = isRewriteScenarioOpener(firstLower);
   if (isScenarioOpener && bodyLines.length >= 3) {
     const finalPayoffLine = bodyLines[bodyLines.length - 1] ?? "";
     // Pick the last line as payoff candidate — prefer it if it's a realization/paradox/twist

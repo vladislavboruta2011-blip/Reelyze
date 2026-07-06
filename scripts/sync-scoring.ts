@@ -38,6 +38,11 @@ const scoringRewriteFormattingPath = path.join(
   "engine/scoring-rewrite-formatting.ts",
 );
 
+const scoringRewriteOpenersPath = path.join(
+  projectRoot,
+  "engine/scoring-rewrite-openers.ts",
+);
+
 const scoringRewriteReasonPath = path.join(
   projectRoot,
   "engine/scoring-rewrite-reason.ts",
@@ -180,6 +185,11 @@ const scoringRewriteAnchorSource = fs.readFileSync(
 
 const scoringRewriteFormattingSource = fs.readFileSync(
   scoringRewriteFormattingPath,
+  "utf8",
+);
+
+const scoringRewriteOpenersSource = fs.readFileSync(
+  scoringRewriteOpenersPath,
   "utf8",
 );
 
@@ -403,6 +413,28 @@ if (missingRewriteFormattingExports.length > 0) {
     [
       "Scoring rewrite formatting module is missing required exports:",
       ...missingRewriteFormattingExports.map(
+        (declaration) => `  - ${declaration}`,
+      ),
+    ].join("\n"),
+  );
+}
+
+const requiredRewriteOpenersExports = [
+  "export function isRewriteFillerIntro(",
+  "export function isRewriteScenarioOpener(",
+];
+
+const missingRewriteOpenersExports =
+  requiredRewriteOpenersExports.filter(
+    (declaration) =>
+      !scoringRewriteOpenersSource.includes(declaration),
+  );
+
+if (missingRewriteOpenersExports.length > 0) {
+  throw new Error(
+    [
+      "Scoring rewrite openers module is missing required exports:",
+      ...missingRewriteOpenersExports.map(
         (declaration) => `  - ${declaration}`,
       ),
     ].join("\n"),
