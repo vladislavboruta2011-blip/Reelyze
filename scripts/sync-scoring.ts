@@ -43,6 +43,11 @@ const scoringRewriteNumberSentencePath = path.join(
   "engine/scoring-rewrite-number-sentence.ts",
 );
 
+const scoringRewriteConsequencePath = path.join(
+  projectRoot,
+  "engine/scoring-rewrite-consequence.ts",
+);
+
 const scoringRewriteOpenersPath = path.join(
   projectRoot,
   "engine/scoring-rewrite-openers.ts",
@@ -195,6 +200,11 @@ const scoringRewriteFormattingSource = fs.readFileSync(
 
 const scoringRewriteNumberSentenceSource = fs.readFileSync(
   scoringRewriteNumberSentencePath,
+  "utf8",
+);
+
+const scoringRewriteConsequenceSource = fs.readFileSync(
+  scoringRewriteConsequencePath,
   "utf8",
 );
 
@@ -444,6 +454,27 @@ if (missingRewriteNumberSentenceExports.length > 0) {
     [
       "Scoring rewrite number sentence module is missing required exports:",
       ...missingRewriteNumberSentenceExports.map(
+        (declaration) => `  - ${declaration}`,
+      ),
+    ].join("\n"),
+  );
+}
+
+const requiredRewriteConsequenceExports = [
+  "export function createConsequenceRewrite(",
+];
+
+const missingRewriteConsequenceExports =
+  requiredRewriteConsequenceExports.filter(
+    (declaration) =>
+      !scoringRewriteConsequenceSource.includes(declaration),
+  );
+
+if (missingRewriteConsequenceExports.length > 0) {
+  throw new Error(
+    [
+      "Scoring rewrite consequence module is missing required exports:",
+      ...missingRewriteConsequenceExports.map(
         (declaration) => `  - ${declaration}`,
       ),
     ].join("\n"),
