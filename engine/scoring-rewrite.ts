@@ -12,6 +12,7 @@ import { createConsequenceRewrite } from "./scoring-rewrite-consequence";
 import { createVisualDetailRewrite } from "./scoring-rewrite-visual-detail";
 import { createReversalRewrite } from "./scoring-rewrite-reversal";
 import { createFillerFallbackRewrite } from "./scoring-rewrite-filler-fallback";
+import { createContrastFallbackRewrite } from "./scoring-rewrite-contrast-fallback";
 
 export function createHookRewrite(script: string): string {
   const allLines = script
@@ -100,21 +101,12 @@ export function createHookRewrite(script: string): string {
   if (fillerFallbackRewrite) return fillerFallbackRewrite;
 
   // ── Step 6: existing contrast hook — reinforce with body payoff ───────────
-  if (
-    firstLower.startsWith("most people think") ||
-    firstLower.startsWith("most creators think") ||
-    firstLower.includes(" but ") ||
-    firstLower.includes(" not ")
-  ) {
-    const payoffLine = bodyLines[bodyLines.length - 2] ?? bodyLines[bodyLines.length - 1] ?? "";
-    const cleaned = payoffLine.replace(/[.!?]+$/, "").trim().toLowerCase();
-    const words = cleaned.split(/\s+/);
-    if (words.length >= 4 && words.length <= 15) {
-      return `${capitalizeFirst(firstLine.replace(/[.!?]+$/, ""))} — ${cleaned}.`;
-    }
-    const shortFirst = firstLine.replace(/[.!?]+$/, "").split(/\s+/).slice(0, 8).join(" ");
-    return `${capitalizeFirst(shortFirst)} — but that is not what the script reveals.`;
-  }
+  const contrastFallbackRewrite = createContrastFallbackRewrite(
+    firstLower,
+    firstLine,
+    bodyLines,
+  );
+  if (contrastFallbackRewrite) return contrastFallbackRewrite;
 
   // ── Default: contrast using first line ────────────────────────────────────
   const shortSubject = firstLine.replace(/[.!?]+$/, "").split(/\s+/).slice(0, 7).join(" ");
