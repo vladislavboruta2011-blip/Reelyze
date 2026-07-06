@@ -53,6 +53,11 @@ const scoringRewriteVisualDetailPath = path.join(
   "engine/scoring-rewrite-visual-detail.ts",
 );
 
+const scoringRewriteReversalPath = path.join(
+  projectRoot,
+  "engine/scoring-rewrite-reversal.ts",
+);
+
 const scoringRewriteOpenersPath = path.join(
   projectRoot,
   "engine/scoring-rewrite-openers.ts",
@@ -215,6 +220,11 @@ const scoringRewriteConsequenceSource = fs.readFileSync(
 
 const scoringRewriteVisualDetailSource = fs.readFileSync(
   scoringRewriteVisualDetailPath,
+  "utf8",
+);
+
+const scoringRewriteReversalSource = fs.readFileSync(
+  scoringRewriteReversalPath,
   "utf8",
 );
 
@@ -506,6 +516,27 @@ if (missingRewriteVisualDetailExports.length > 0) {
     [
       "Scoring rewrite visual detail module is missing required exports:",
       ...missingRewriteVisualDetailExports.map(
+        (declaration) => `  - ${declaration}`,
+      ),
+    ].join("\n"),
+  );
+}
+
+const requiredRewriteReversalExports = [
+  "export function createReversalRewrite(",
+];
+
+const missingRewriteReversalExports =
+  requiredRewriteReversalExports.filter(
+    (declaration) =>
+      !scoringRewriteReversalSource.includes(declaration),
+  );
+
+if (missingRewriteReversalExports.length > 0) {
+  throw new Error(
+    [
+      "Scoring rewrite reversal module is missing required exports:",
+      ...missingRewriteReversalExports.map(
         (declaration) => `  - ${declaration}`,
       ),
     ].join("\n"),
