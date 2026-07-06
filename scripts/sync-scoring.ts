@@ -48,6 +48,11 @@ const scoringRewriteConsequencePath = path.join(
   "engine/scoring-rewrite-consequence.ts",
 );
 
+const scoringRewriteVisualDetailPath = path.join(
+  projectRoot,
+  "engine/scoring-rewrite-visual-detail.ts",
+);
+
 const scoringRewriteOpenersPath = path.join(
   projectRoot,
   "engine/scoring-rewrite-openers.ts",
@@ -205,6 +210,11 @@ const scoringRewriteNumberSentenceSource = fs.readFileSync(
 
 const scoringRewriteConsequenceSource = fs.readFileSync(
   scoringRewriteConsequencePath,
+  "utf8",
+);
+
+const scoringRewriteVisualDetailSource = fs.readFileSync(
+  scoringRewriteVisualDetailPath,
   "utf8",
 );
 
@@ -475,6 +485,27 @@ if (missingRewriteConsequenceExports.length > 0) {
     [
       "Scoring rewrite consequence module is missing required exports:",
       ...missingRewriteConsequenceExports.map(
+        (declaration) => `  - ${declaration}`,
+      ),
+    ].join("\n"),
+  );
+}
+
+const requiredRewriteVisualDetailExports = [
+  "export function createVisualDetailRewrite(",
+];
+
+const missingRewriteVisualDetailExports =
+  requiredRewriteVisualDetailExports.filter(
+    (declaration) =>
+      !scoringRewriteVisualDetailSource.includes(declaration),
+  );
+
+if (missingRewriteVisualDetailExports.length > 0) {
+  throw new Error(
+    [
+      "Scoring rewrite visual detail module is missing required exports:",
+      ...missingRewriteVisualDetailExports.map(
         (declaration) => `  - ${declaration}`,
       ),
     ].join("\n"),
