@@ -28,6 +28,11 @@ const scoringRewritePath = path.join(
   "engine/scoring-rewrite.ts",
 );
 
+const scoringRewriteAnchorPath = path.join(
+  projectRoot,
+  "engine/scoring-rewrite-anchor.ts",
+);
+
 const scoringRewriteReasonPath = path.join(
   projectRoot,
   "engine/scoring-rewrite-reason.ts",
@@ -160,6 +165,11 @@ const scoringStructureDetectorsSource = fs.readFileSync(
 
 const scoringRewriteSource = fs.readFileSync(
   scoringRewritePath,
+  "utf8",
+);
+
+const scoringRewriteAnchorSource = fs.readFileSync(
+  scoringRewriteAnchorPath,
   "utf8",
 );
 
@@ -341,6 +351,27 @@ if (missingRewriteExports.length > 0) {
     [
       "Scoring rewrite module is missing required exports:",
       ...missingRewriteExports.map(
+        (declaration) => `  - ${declaration}`,
+      ),
+    ].join("\n"),
+  );
+}
+
+const requiredRewriteAnchorExports = [
+  "export function lineHasRewriteHardAnchor(",
+];
+
+const missingRewriteAnchorExports =
+  requiredRewriteAnchorExports.filter(
+    (declaration) =>
+      !scoringRewriteAnchorSource.includes(declaration),
+  );
+
+if (missingRewriteAnchorExports.length > 0) {
+  throw new Error(
+    [
+      "Scoring rewrite anchor module is missing required exports:",
+      ...missingRewriteAnchorExports.map(
         (declaration) => `  - ${declaration}`,
       ),
     ].join("\n"),
