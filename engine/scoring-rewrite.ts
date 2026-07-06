@@ -10,6 +10,7 @@ import { isRewriteFillerIntro, isRewriteScenarioOpener } from "./scoring-rewrite
 import { createNumberSentenceRewrite } from "./scoring-rewrite-number-sentence";
 import { createConsequenceRewrite } from "./scoring-rewrite-consequence";
 import { createVisualDetailRewrite } from "./scoring-rewrite-visual-detail";
+import { createReversalRewrite } from "./scoring-rewrite-reversal";
 
 export function createHookRewrite(script: string): string {
   const allLines = script
@@ -87,23 +88,8 @@ export function createHookRewrite(script: string): string {
 
   // ── Step 4: contradiction / reversal (universal) ──────────────────────────
   // Any line that reverses an assumption using "not" + a core concept.
-  const reversalLine = bodyLines.find(line => {
-    const ll = line.toLowerCase();
-    const wc = line.split(/\s+/).length;
-    return wc >= 5 && wc <= 22 && (
-      (ll.includes(" not ") || ll.startsWith("not ")) &&
-      (ll.includes("just") || ll.includes("about") || ll.includes("only") ||
-       ll.includes("really") || ll.includes("the real") || ll.includes("selling") ||
-       ll.includes("buying") || ll.includes("question") || ll.includes("point") ||
-       ll.includes("reason") || ll.includes("idea"))
-    );
-  });
-  if (reversalLine) {
-    const cleaned = reversalLine.replace(/[.!?]+$/, "").trim();
-    const words = cleaned.split(/\s+/);
-    if (words.length <= 18) return capitalizeFirst(cleaned) + ".";
-    return capitalizeFirst(words.slice(0, 14).join(" ")) + ".";
-  }
+  const reversalRewrite = createReversalRewrite(bodyLines);
+  if (reversalRewrite) return reversalRewrite;
 
   // ── Step 5: filler intro — anchor to best body line ───────────────────────
   if (isFillerIntro && bodyLines.length >= 2) {
