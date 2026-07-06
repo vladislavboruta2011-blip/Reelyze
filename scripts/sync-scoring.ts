@@ -68,6 +68,11 @@ const scoringRewriteContrastFallbackPath = path.join(
   "engine/scoring-rewrite-contrast-fallback.ts",
 );
 
+const scoringRewriteDefaultFallbackPath = path.join(
+  projectRoot,
+  "engine/scoring-rewrite-default-fallback.ts",
+);
+
 const scoringRewriteOpenersPath = path.join(
   projectRoot,
   "engine/scoring-rewrite-openers.ts",
@@ -245,6 +250,11 @@ const scoringRewriteFillerFallbackSource = fs.readFileSync(
 
 const scoringRewriteContrastFallbackSource = fs.readFileSync(
   scoringRewriteContrastFallbackPath,
+  "utf8",
+);
+
+const scoringRewriteDefaultFallbackSource = fs.readFileSync(
+  scoringRewriteDefaultFallbackPath,
   "utf8",
 );
 
@@ -599,6 +609,27 @@ if (missingRewriteContrastFallbackExports.length > 0) {
     [
       "Scoring rewrite contrast fallback module is missing required exports:",
       ...missingRewriteContrastFallbackExports.map(
+        (declaration) => `  - ${declaration}`,
+      ),
+    ].join("\n"),
+  );
+}
+
+const requiredRewriteDefaultFallbackExports = [
+  "export function createDefaultFallbackRewrite(",
+];
+
+const missingRewriteDefaultFallbackExports =
+  requiredRewriteDefaultFallbackExports.filter(
+    (declaration) =>
+      !scoringRewriteDefaultFallbackSource.includes(declaration),
+  );
+
+if (missingRewriteDefaultFallbackExports.length > 0) {
+  throw new Error(
+    [
+      "Scoring rewrite default fallback module is missing required exports:",
+      ...missingRewriteDefaultFallbackExports.map(
         (declaration) => `  - ${declaration}`,
       ),
     ].join("\n"),
