@@ -11,6 +11,7 @@ import { createNumberSentenceRewrite } from "./scoring-rewrite-number-sentence";
 import { createConsequenceRewrite } from "./scoring-rewrite-consequence";
 import { createVisualDetailRewrite } from "./scoring-rewrite-visual-detail";
 import { createReversalRewrite } from "./scoring-rewrite-reversal";
+import { createFillerFallbackRewrite } from "./scoring-rewrite-filler-fallback";
 
 export function createHookRewrite(script: string): string {
   const allLines = script
@@ -92,18 +93,11 @@ export function createHookRewrite(script: string): string {
   if (reversalRewrite) return reversalRewrite;
 
   // ── Step 5: filler intro — anchor to best body line ───────────────────────
-  if (isFillerIntro && bodyLines.length >= 2) {
-    const bodyAnchor = bodyLines.find(l => {
-      const wc = l.split(/\s+/).length;
-      return wc >= 6 && wc <= 20;
-    });
-    if (bodyAnchor) {
-      const cleaned = bodyAnchor.replace(/[.!?]+$/, "").trim();
-      return `${capitalizeFirst(cleaned)} — and most people never realise it.`;
-    }
-    const firstBody = bodyLines[0]?.replace(/[.!?]+$/, "").trim() ?? "";
-    return `${capitalizeFirst(firstBody)} — and that is what makes it interesting.`;
-  }
+  const fillerFallbackRewrite = createFillerFallbackRewrite(
+    isFillerIntro,
+    bodyLines,
+  );
+  if (fillerFallbackRewrite) return fillerFallbackRewrite;
 
   // ── Step 6: existing contrast hook — reinforce with body payoff ───────────
   if (

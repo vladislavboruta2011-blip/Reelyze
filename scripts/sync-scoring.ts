@@ -58,6 +58,11 @@ const scoringRewriteReversalPath = path.join(
   "engine/scoring-rewrite-reversal.ts",
 );
 
+const scoringRewriteFillerFallbackPath = path.join(
+  projectRoot,
+  "engine/scoring-rewrite-filler-fallback.ts",
+);
+
 const scoringRewriteOpenersPath = path.join(
   projectRoot,
   "engine/scoring-rewrite-openers.ts",
@@ -225,6 +230,11 @@ const scoringRewriteVisualDetailSource = fs.readFileSync(
 
 const scoringRewriteReversalSource = fs.readFileSync(
   scoringRewriteReversalPath,
+  "utf8",
+);
+
+const scoringRewriteFillerFallbackSource = fs.readFileSync(
+  scoringRewriteFillerFallbackPath,
   "utf8",
 );
 
@@ -537,6 +547,27 @@ if (missingRewriteReversalExports.length > 0) {
     [
       "Scoring rewrite reversal module is missing required exports:",
       ...missingRewriteReversalExports.map(
+        (declaration) => `  - ${declaration}`,
+      ),
+    ].join("\n"),
+  );
+}
+
+const requiredRewriteFillerFallbackExports = [
+  "export function createFillerFallbackRewrite(",
+];
+
+const missingRewriteFillerFallbackExports =
+  requiredRewriteFillerFallbackExports.filter(
+    (declaration) =>
+      !scoringRewriteFillerFallbackSource.includes(declaration),
+  );
+
+if (missingRewriteFillerFallbackExports.length > 0) {
+  throw new Error(
+    [
+      "Scoring rewrite filler fallback module is missing required exports:",
+      ...missingRewriteFillerFallbackExports.map(
         (declaration) => `  - ${declaration}`,
       ),
     ].join("\n"),
