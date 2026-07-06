@@ -33,6 +33,11 @@ const scoringRewriteAnchorPath = path.join(
   "engine/scoring-rewrite-anchor.ts",
 );
 
+const scoringRewriteFormattingPath = path.join(
+  projectRoot,
+  "engine/scoring-rewrite-formatting.ts",
+);
+
 const scoringRewriteReasonPath = path.join(
   projectRoot,
   "engine/scoring-rewrite-reason.ts",
@@ -170,6 +175,11 @@ const scoringRewriteSource = fs.readFileSync(
 
 const scoringRewriteAnchorSource = fs.readFileSync(
   scoringRewriteAnchorPath,
+  "utf8",
+);
+
+const scoringRewriteFormattingSource = fs.readFileSync(
+  scoringRewriteFormattingPath,
   "utf8",
 );
 
@@ -372,6 +382,27 @@ if (missingRewriteAnchorExports.length > 0) {
     [
       "Scoring rewrite anchor module is missing required exports:",
       ...missingRewriteAnchorExports.map(
+        (declaration) => `  - ${declaration}`,
+      ),
+    ].join("\n"),
+  );
+}
+
+const requiredRewriteFormattingExports = [
+  "export function capitalizeFirst(",
+];
+
+const missingRewriteFormattingExports =
+  requiredRewriteFormattingExports.filter(
+    (declaration) =>
+      !scoringRewriteFormattingSource.includes(declaration),
+  );
+
+if (missingRewriteFormattingExports.length > 0) {
+  throw new Error(
+    [
+      "Scoring rewrite formatting module is missing required exports:",
+      ...missingRewriteFormattingExports.map(
         (declaration) => `  - ${declaration}`,
       ),
     ].join("\n"),
