@@ -28,6 +28,11 @@ const scoringRewritePath = path.join(
   "engine/scoring-rewrite.ts",
 );
 
+const scoringRewriteReasonPath = path.join(
+  projectRoot,
+  "engine/scoring-rewrite-reason.ts",
+);
+
 const scoringEvaluationPath = path.join(
   projectRoot,
   "engine/scoring-evaluation.ts",
@@ -155,6 +160,11 @@ const scoringStructureDetectorsSource = fs.readFileSync(
 
 const scoringRewriteSource = fs.readFileSync(
   scoringRewritePath,
+  "utf8",
+);
+
+const scoringRewriteReasonSource = fs.readFileSync(
+  scoringRewriteReasonPath,
   "utf8",
 );
 
@@ -318,7 +328,6 @@ if (missingScoringExports.length > 0) {
 
 const requiredRewriteExports = [
   "export function createHookRewrite(",
-  "export function getHookRewriteReason(",
 ];
 
 const missingRewriteExports =
@@ -332,6 +341,27 @@ if (missingRewriteExports.length > 0) {
     [
       "Scoring rewrite module is missing required exports:",
       ...missingRewriteExports.map(
+        (declaration) => `  - ${declaration}`,
+      ),
+    ].join("\n"),
+  );
+}
+
+const requiredRewriteReasonExports = [
+  "export function getHookRewriteReason(",
+];
+
+const missingRewriteReasonExports =
+  requiredRewriteReasonExports.filter(
+    (declaration) =>
+      !scoringRewriteReasonSource.includes(declaration),
+  );
+
+if (missingRewriteReasonExports.length > 0) {
+  throw new Error(
+    [
+      "Scoring rewrite reason module is missing required exports:",
+      ...missingRewriteReasonExports.map(
         (declaration) => `  - ${declaration}`,
       ),
     ].join("\n"),
