@@ -7,6 +7,7 @@
 import { lineHasRewriteHardAnchor } from "./scoring-rewrite-anchor";
 import { capitalizeFirst } from "./scoring-rewrite-formatting";
 import { isRewriteFillerIntro, isRewriteScenarioOpener } from "./scoring-rewrite-openers";
+import { createNumberSentenceRewrite } from "./scoring-rewrite-number-sentence";
 
 export function createHookRewrite(script: string): string {
   const allLines = script
@@ -69,18 +70,8 @@ export function createHookRewrite(script: string): string {
 
   // ── Step 1: specific number + measurement unit (universal — any niche) ────
   // Priority: any body sentence with a specific number + named unit.
-  const numberSentence = bodyLines.find(line => {
-    return /\d[\d,]*(?:\.\d+)?/.test(line) &&
-      /\b(feet|foot|miles|mile|mph|kph|km\/h|percent|%|seconds|minutes|hours|days|years|meters|kilograms|pounds|degrees|times|billion|million|thousand)\b/i.test(line);
-  });
-  if (numberSentence) {
-    const cleaned = numberSentence.replace(/[.!?]+$/, "").trim();
-    const wordCount = cleaned.split(/\s+/).length;
-    if (wordCount <= 20) {
-      return capitalizeFirst(cleaned) + ".";
-    }
-    return capitalizeFirst(cleaned.split(/\s+/).slice(0, 16).join(" ")) + ".";
-  }
+  const numberSentenceRewrite = createNumberSentenceRewrite(bodyLines);
+  if (numberSentenceRewrite) return numberSentenceRewrite;
 
   // ── Step 2: strong consequence / payoff in the last third (universal) ─────
   // Any line that states what changes, what is lost, or what the outcome is.
