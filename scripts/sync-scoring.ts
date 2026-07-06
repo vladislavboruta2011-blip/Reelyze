@@ -33,6 +33,11 @@ const scoringEvaluationPath = path.join(
   "engine/scoring-evaluation.ts",
 );
 
+const scoringOpeningWindowPath = path.join(
+  projectRoot,
+  "engine/scoring-opening-window.ts",
+);
+
 const scoringHookEvaluationPath = path.join(
   projectRoot,
   "engine/scoring-hook-evaluation.ts",
@@ -155,6 +160,11 @@ const scoringRewriteSource = fs.readFileSync(
 
 const scoringEvaluationSource = fs.readFileSync(
   scoringEvaluationPath,
+  "utf8",
+);
+
+const scoringOpeningWindowSource = fs.readFileSync(
+  scoringOpeningWindowPath,
   "utf8",
 );
 
@@ -329,10 +339,7 @@ if (missingRewriteExports.length > 0) {
 }
 
 const requiredEvaluationExports = [
-  "export interface OpeningWindowSignals",
   "export interface UniversalSignals",
-  "export function extractOpeningWindow(",
-  "export function scoreOpeningWindow(",
   "export function extractUniversalSignals(",
 ];
 
@@ -347,6 +354,31 @@ if (missingEvaluationExports.length > 0) {
     [
       "Scoring evaluation module is missing required exports:",
       ...missingEvaluationExports.map(
+        (declaration) => `  - ${declaration}`,
+      ),
+    ].join("\n"),
+  );
+}
+
+const requiredOpeningWindowExports = [
+  "export interface OpeningWindowSignals",
+  "export function extractOpeningWindow(",
+  "export function scoreOpeningWindow(",
+];
+
+const missingOpeningWindowExports =
+  requiredOpeningWindowExports.filter(
+    (declaration) =>
+      !scoringOpeningWindowSource.includes(
+        declaration,
+      ),
+  );
+
+if (missingOpeningWindowExports.length > 0) {
+  throw new Error(
+    [
+      "Scoring opening-window module is missing required exports:",
+      ...missingOpeningWindowExports.map(
         (declaration) => `  - ${declaration}`,
       ),
     ].join("\n"),
