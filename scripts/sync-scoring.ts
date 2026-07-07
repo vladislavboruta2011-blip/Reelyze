@@ -173,6 +173,11 @@ const scoringScriptTypeFixesPath = path.join(
   "engine/scoring-script-type-fixes.ts",
 );
 
+const scoringPrimaryWeaknessFixesPath = path.join(
+  projectRoot,
+  "engine/scoring-primary-weakness-fixes.ts",
+);
+
 const scoringRiskFinalizationPath = path.join(
   projectRoot,
   "engine/scoring-risk-finalization.ts",
@@ -370,6 +375,11 @@ const scoringFixBuildersSource = fs.readFileSync(
 
 const scoringScriptTypeFixesSource = fs.readFileSync(
   scoringScriptTypeFixesPath,
+  "utf8",
+);
+
+const scoringPrimaryWeaknessFixesSource = fs.readFileSync(
+  scoringPrimaryWeaknessFixesPath,
   "utf8",
 );
 
@@ -1095,35 +1105,58 @@ if (missingScriptTypeFixExports.length > 0) {
   );
 }
 
-const requiredFixBuilderExports = [
-  'export { buildScriptTypeFixes } from "./scoring-script-type-fixes";',
-  "export function buildPrimaryWeaknessFixes(",
-  "export function buildSupportingSignalFixes(",
-  "export function buildBodyAndLengthFixes(",
-  "export function buildMediumScoreFixes(",
-  "export function buildOptionalImprovementFixes(",
-  "export function buildPayoffFixes(",
-  "export function buildStrongEndingOpeningFixes(",
-];
+  const requiredPrimaryWeaknessFixExports = [
+    "export function buildPrimaryWeaknessFixes(",
+  ];
 
-const missingFixBuilderExports =
-  requiredFixBuilderExports.filter(
-    (declaration) =>
-      !scoringFixBuildersSource.includes(
-        declaration,
-      ),
-  );
+  const missingPrimaryWeaknessFixExports =
+    requiredPrimaryWeaknessFixExports.filter(
+      (declaration) =>
+        !scoringPrimaryWeaknessFixesSource.includes(
+          declaration,
+        ),
+    );
 
-if (missingFixBuilderExports.length > 0) {
-  throw new Error(
-    [
-      "Scoring fix-builders module is missing required exports:",
-      ...missingFixBuilderExports.map(
-        (declaration) => `  - ${declaration}`,
-      ),
-    ].join("\n"),
-  );
-}
+  if (missingPrimaryWeaknessFixExports.length > 0) {
+    throw new Error(
+      [
+        "Scoring primary-weakness fixes module is missing required exports:",
+        ...missingPrimaryWeaknessFixExports.map(
+          (declaration) => `  - ${declaration}`,
+        ),
+      ].join("\n"),
+    );
+  }
+
+  const requiredFixBuilderExports = [
+    'export { buildScriptTypeFixes } from "./scoring-script-type-fixes";',
+    'export { buildPrimaryWeaknessFixes } from "./scoring-primary-weakness-fixes";',
+    "export function buildSupportingSignalFixes(",
+    "export function buildBodyAndLengthFixes(",
+    "export function buildMediumScoreFixes(",
+    "export function buildOptionalImprovementFixes(",
+    "export function buildPayoffFixes(",
+    "export function buildStrongEndingOpeningFixes(",
+  ];
+
+  const missingFixBuilderExports =
+    requiredFixBuilderExports.filter(
+      (declaration) =>
+        !scoringFixBuildersSource.includes(
+          declaration,
+        ),
+    );
+
+  if (missingFixBuilderExports.length > 0) {
+    throw new Error(
+      [
+        "Scoring fix-builders module is missing required exports:",
+        ...missingFixBuilderExports.map(
+          (declaration) => `  - ${declaration}`,
+        ),
+      ].join("\n"),
+    );
+  }
 
 const requiredFeedbackMinimumsExports = [
   "export function enforceScoringFeedbackMinimums(",
