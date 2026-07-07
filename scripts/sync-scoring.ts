@@ -73,6 +73,11 @@ const scoringRewriteDefaultFallbackPath = path.join(
   "engine/scoring-rewrite-default-fallback.ts",
 );
 
+const scoringRewriteGenericGuardPath = path.join(
+  projectRoot,
+  "engine/scoring-rewrite-generic-guard.ts",
+);
+
 const scoringRewriteOpenersPath = path.join(
   projectRoot,
   "engine/scoring-rewrite-openers.ts",
@@ -255,6 +260,11 @@ const scoringRewriteContrastFallbackSource = fs.readFileSync(
 
 const scoringRewriteDefaultFallbackSource = fs.readFileSync(
   scoringRewriteDefaultFallbackPath,
+  "utf8",
+);
+
+const scoringRewriteGenericGuardSource = fs.readFileSync(
+  scoringRewriteGenericGuardPath,
   "utf8",
 );
 
@@ -630,6 +640,27 @@ if (missingRewriteDefaultFallbackExports.length > 0) {
     [
       "Scoring rewrite default fallback module is missing required exports:",
       ...missingRewriteDefaultFallbackExports.map(
+        (declaration) => `  - ${declaration}`,
+      ),
+    ].join("\n"),
+  );
+}
+
+const requiredRewriteGenericGuardExports = [
+  "export function createGenericGuardRewrite(",
+];
+
+const missingRewriteGenericGuardExports =
+  requiredRewriteGenericGuardExports.filter(
+    (declaration) =>
+      !scoringRewriteGenericGuardSource.includes(declaration),
+  );
+
+if (missingRewriteGenericGuardExports.length > 0) {
+  throw new Error(
+    [
+      "Scoring rewrite generic guard module is missing required exports:",
+      ...missingRewriteGenericGuardExports.map(
         (declaration) => `  - ${declaration}`,
       ),
     ].join("\n"),

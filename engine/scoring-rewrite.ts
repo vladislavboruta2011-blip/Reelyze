@@ -4,8 +4,8 @@
 
 
 
-import { lineHasRewriteHardAnchor } from "./scoring-rewrite-anchor";
 import { isRewriteFillerIntro, isRewriteScenarioOpener } from "./scoring-rewrite-openers";
+import { createGenericGuardRewrite } from "./scoring-rewrite-generic-guard";
 import { createNumberSentenceRewrite } from "./scoring-rewrite-number-sentence";
 import { createConsequenceRewrite } from "./scoring-rewrite-consequence";
 import { createVisualDetailRewrite } from "./scoring-rewrite-visual-detail";
@@ -27,14 +27,9 @@ export function createHookRewrite(script: string): string {
   // ── Detect filler intro ────────────────────────────────────────────────────
   const isFillerIntro = isRewriteFillerIntro(firstLower);
 
-// ── Generic script guard ──────────────────────────────────────────────────
-  // If the script has no concrete material, do not invent a fake hook.
-  // Return a diagnostic message instead, consistent with the API response.
-
-  const allConcrete = allLines.filter(line => lineHasRewriteHardAnchor(line));
-  if (allConcrete.length === 0 && allLines.length >= 3) {
-    return "This script needs one specific example, result, or consequence before the hook can feel strong.";
-  }
+  // ── Generic script guard ──────────────────────────────────────────────────
+  const genericGuardRewrite = createGenericGuardRewrite(allLines);
+  if (genericGuardRewrite) return genericGuardRewrite;
 
   // ── Step 0: scenario opener + final payoff combination ───────────────────
   // For "Imagine X / What if X" scripts, the strongest hook combines the opening
