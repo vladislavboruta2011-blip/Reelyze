@@ -193,6 +193,11 @@ const scoringPayoffFixesPath = path.join(
   "engine/scoring-payoff-fixes.ts",
 );
 
+const scoringStrongEndingOpeningFixesPath = path.join(
+  projectRoot,
+  "engine/scoring-strong-ending-opening-fixes.ts",
+);
+
 const scoringRiskFinalizationPath = path.join(
   projectRoot,
   "engine/scoring-risk-finalization.ts",
@@ -410,6 +415,11 @@ const scoringBodyLengthFixesSource = fs.readFileSync(
 
 const scoringPayoffFixesSource = fs.readFileSync(
   scoringPayoffFixesPath,
+  "utf8",
+);
+
+const scoringStrongEndingOpeningFixesSource = fs.readFileSync(
+  scoringStrongEndingOpeningFixesPath,
   "utf8",
 );
 
@@ -1227,6 +1237,29 @@ if (missingScriptTypeFixExports.length > 0) {
     );
   }
 
+  const requiredStrongEndingOpeningFixExports = [
+    "export function buildStrongEndingOpeningFixes(",
+  ];
+
+  const missingStrongEndingOpeningFixExports =
+    requiredStrongEndingOpeningFixExports.filter(
+      (declaration) =>
+        !scoringStrongEndingOpeningFixesSource.includes(
+          declaration,
+        ),
+    );
+
+  if (missingStrongEndingOpeningFixExports.length > 0) {
+    throw new Error(
+      [
+        "Scoring strong-ending-opening fixes module is missing required exports:",
+        ...missingStrongEndingOpeningFixExports.map(
+          (declaration) => `  - ${declaration}`,
+        ),
+      ].join("\n"),
+    );
+  }
+
   const requiredFixBuilderExports = [
     'export { buildScriptTypeFixes } from "./scoring-script-type-fixes";',
     'export { buildPrimaryWeaknessFixes } from "./scoring-primary-weakness-fixes";',
@@ -1235,7 +1268,7 @@ if (missingScriptTypeFixExports.length > 0) {
     "export function buildMediumScoreFixes(",
     "export function buildOptionalImprovementFixes(",
     'export { buildPayoffFixes } from "./scoring-payoff-fixes";',
-    "export function buildStrongEndingOpeningFixes(",
+    'export { buildStrongEndingOpeningFixes } from "./scoring-strong-ending-opening-fixes";',
   ];
 
   const missingFixBuilderExports =
