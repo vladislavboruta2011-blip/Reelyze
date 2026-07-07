@@ -78,6 +78,11 @@ const scoringRewriteGenericGuardPath = path.join(
   "engine/scoring-rewrite-generic-guard.ts",
 );
 
+const scoringRewriteScenarioOpenerPath = path.join(
+  projectRoot,
+  "engine/scoring-rewrite-scenario-opener.ts",
+);
+
 const scoringRewriteOpenersPath = path.join(
   projectRoot,
   "engine/scoring-rewrite-openers.ts",
@@ -265,6 +270,11 @@ const scoringRewriteDefaultFallbackSource = fs.readFileSync(
 
 const scoringRewriteGenericGuardSource = fs.readFileSync(
   scoringRewriteGenericGuardPath,
+  "utf8",
+);
+
+const scoringRewriteScenarioOpenerSource = fs.readFileSync(
+  scoringRewriteScenarioOpenerPath,
   "utf8",
 );
 
@@ -661,6 +671,27 @@ if (missingRewriteGenericGuardExports.length > 0) {
     [
       "Scoring rewrite generic guard module is missing required exports:",
       ...missingRewriteGenericGuardExports.map(
+        (declaration) => `  - ${declaration}`,
+      ),
+    ].join("\n"),
+  );
+}
+
+const requiredRewriteScenarioOpenerExports = [
+  "export function createScenarioOpenerRewrite(",
+];
+
+const missingRewriteScenarioOpenerExports =
+  requiredRewriteScenarioOpenerExports.filter(
+    (declaration) =>
+      !scoringRewriteScenarioOpenerSource.includes(declaration),
+  );
+
+if (missingRewriteScenarioOpenerExports.length > 0) {
+  throw new Error(
+    [
+      "Scoring rewrite scenario opener module is missing required exports:",
+      ...missingRewriteScenarioOpenerExports.map(
         (declaration) => `  - ${declaration}`,
       ),
     ].join("\n"),
