@@ -178,6 +178,11 @@ const scoringPrimaryWeaknessFixesPath = path.join(
   "engine/scoring-primary-weakness-fixes.ts",
 );
 
+const scoringSupportingSignalFixesPath = path.join(
+  projectRoot,
+  "engine/scoring-supporting-signal-fixes.ts",
+);
+
 const scoringRiskFinalizationPath = path.join(
   projectRoot,
   "engine/scoring-risk-finalization.ts",
@@ -380,6 +385,11 @@ const scoringScriptTypeFixesSource = fs.readFileSync(
 
 const scoringPrimaryWeaknessFixesSource = fs.readFileSync(
   scoringPrimaryWeaknessFixesPath,
+  "utf8",
+);
+
+const scoringSupportingSignalFixesSource = fs.readFileSync(
+  scoringSupportingSignalFixesPath,
   "utf8",
 );
 
@@ -1128,10 +1138,33 @@ if (missingScriptTypeFixExports.length > 0) {
     );
   }
 
+  const requiredSupportingSignalFixExports = [
+    "export function buildSupportingSignalFixes(",
+  ];
+
+  const missingSupportingSignalFixExports =
+    requiredSupportingSignalFixExports.filter(
+      (declaration) =>
+        !scoringSupportingSignalFixesSource.includes(
+          declaration,
+        ),
+    );
+
+  if (missingSupportingSignalFixExports.length > 0) {
+    throw new Error(
+      [
+        "Scoring supporting-signal fixes module is missing required exports:",
+        ...missingSupportingSignalFixExports.map(
+          (declaration) => `  - ${declaration}`,
+        ),
+      ].join("\n"),
+    );
+  }
+
   const requiredFixBuilderExports = [
     'export { buildScriptTypeFixes } from "./scoring-script-type-fixes";',
     'export { buildPrimaryWeaknessFixes } from "./scoring-primary-weakness-fixes";',
-    "export function buildSupportingSignalFixes(",
+    'export { buildSupportingSignalFixes } from "./scoring-supporting-signal-fixes";',
     "export function buildBodyAndLengthFixes(",
     "export function buildMediumScoreFixes(",
     "export function buildOptionalImprovementFixes(",
