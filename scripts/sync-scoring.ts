@@ -183,6 +183,11 @@ const scoringSupportingSignalFixesPath = path.join(
   "engine/scoring-supporting-signal-fixes.ts",
 );
 
+const scoringBodyLengthFixesPath = path.join(
+  projectRoot,
+  "engine/scoring-body-length-fixes.ts",
+);
+
 const scoringRiskFinalizationPath = path.join(
   projectRoot,
   "engine/scoring-risk-finalization.ts",
@@ -390,6 +395,11 @@ const scoringPrimaryWeaknessFixesSource = fs.readFileSync(
 
 const scoringSupportingSignalFixesSource = fs.readFileSync(
   scoringSupportingSignalFixesPath,
+  "utf8",
+);
+
+const scoringBodyLengthFixesSource = fs.readFileSync(
+  scoringBodyLengthFixesPath,
   "utf8",
 );
 
@@ -1161,11 +1171,34 @@ if (missingScriptTypeFixExports.length > 0) {
     );
   }
 
+  const requiredBodyLengthFixExports = [
+    "export function buildBodyAndLengthFixes(",
+  ];
+
+  const missingBodyLengthFixExports =
+    requiredBodyLengthFixExports.filter(
+      (declaration) =>
+        !scoringBodyLengthFixesSource.includes(
+          declaration,
+        ),
+    );
+
+  if (missingBodyLengthFixExports.length > 0) {
+    throw new Error(
+      [
+        "Scoring body-and-length fixes module is missing required exports:",
+        ...missingBodyLengthFixExports.map(
+          (declaration) => `  - ${declaration}`,
+        ),
+      ].join("\n"),
+    );
+  }
+
   const requiredFixBuilderExports = [
     'export { buildScriptTypeFixes } from "./scoring-script-type-fixes";',
     'export { buildPrimaryWeaknessFixes } from "./scoring-primary-weakness-fixes";',
     'export { buildSupportingSignalFixes } from "./scoring-supporting-signal-fixes";',
-    "export function buildBodyAndLengthFixes(",
+    'export { buildBodyAndLengthFixes } from "./scoring-body-length-fixes";',
     "export function buildMediumScoreFixes(",
     "export function buildOptionalImprovementFixes(",
     "export function buildPayoffFixes(",
