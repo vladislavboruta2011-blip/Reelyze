@@ -203,6 +203,11 @@ const scoringMediumScoreFixesPath = path.join(
   "engine/scoring-medium-score-fixes.ts",
 );
 
+const scoringOptionalImprovementFixesPath = path.join(
+  projectRoot,
+  "engine/scoring-optional-improvement-fixes.ts",
+);
+
 const scoringRiskFinalizationPath = path.join(
   projectRoot,
   "engine/scoring-risk-finalization.ts",
@@ -430,6 +435,11 @@ const scoringStrongEndingOpeningFixesSource = fs.readFileSync(
 
 const scoringMediumScoreFixesSource = fs.readFileSync(
   scoringMediumScoreFixesPath,
+  "utf8",
+);
+
+const scoringOptionalImprovementFixesSource = fs.readFileSync(
+  scoringOptionalImprovementFixesPath,
   "utf8",
 );
 
@@ -1293,13 +1303,36 @@ if (missingScriptTypeFixExports.length > 0) {
     );
   }
 
+  const requiredOptionalImprovementFixExports = [
+    "export function buildOptionalImprovementFixes(",
+  ];
+
+  const missingOptionalImprovementFixExports =
+    requiredOptionalImprovementFixExports.filter(
+      (declaration) =>
+        !scoringOptionalImprovementFixesSource.includes(
+          declaration,
+        ),
+    );
+
+  if (missingOptionalImprovementFixExports.length > 0) {
+    throw new Error(
+      [
+        "Scoring optional-improvement fixes module is missing required exports:",
+        ...missingOptionalImprovementFixExports.map(
+          (declaration) => `  - ${declaration}`,
+        ),
+      ].join("\n"),
+    );
+  }
+
   const requiredFixBuilderExports = [
     'export { buildScriptTypeFixes } from "./scoring-script-type-fixes";',
     'export { buildPrimaryWeaknessFixes } from "./scoring-primary-weakness-fixes";',
     'export { buildSupportingSignalFixes } from "./scoring-supporting-signal-fixes";',
     'export { buildBodyAndLengthFixes } from "./scoring-body-length-fixes";',
     'export { buildMediumScoreFixes } from "./scoring-medium-score-fixes";',
-    "export function buildOptionalImprovementFixes(",
+    'export { buildOptionalImprovementFixes } from "./scoring-optional-improvement-fixes";',
     'export { buildPayoffFixes } from "./scoring-payoff-fixes";',
     'export { buildStrongEndingOpeningFixes } from "./scoring-strong-ending-opening-fixes";',
   ];
