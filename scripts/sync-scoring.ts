@@ -198,6 +198,11 @@ const scoringStrongEndingOpeningFixesPath = path.join(
   "engine/scoring-strong-ending-opening-fixes.ts",
 );
 
+const scoringMediumScoreFixesPath = path.join(
+  projectRoot,
+  "engine/scoring-medium-score-fixes.ts",
+);
+
 const scoringRiskFinalizationPath = path.join(
   projectRoot,
   "engine/scoring-risk-finalization.ts",
@@ -420,6 +425,11 @@ const scoringPayoffFixesSource = fs.readFileSync(
 
 const scoringStrongEndingOpeningFixesSource = fs.readFileSync(
   scoringStrongEndingOpeningFixesPath,
+  "utf8",
+);
+
+const scoringMediumScoreFixesSource = fs.readFileSync(
+  scoringMediumScoreFixesPath,
   "utf8",
 );
 
@@ -1260,12 +1270,35 @@ if (missingScriptTypeFixExports.length > 0) {
     );
   }
 
+  const requiredMediumScoreFixExports = [
+    "export function buildMediumScoreFixes(",
+  ];
+
+  const missingMediumScoreFixExports =
+    requiredMediumScoreFixExports.filter(
+      (declaration) =>
+        !scoringMediumScoreFixesSource.includes(
+          declaration,
+        ),
+    );
+
+  if (missingMediumScoreFixExports.length > 0) {
+    throw new Error(
+      [
+        "Scoring medium-score fixes module is missing required exports:",
+        ...missingMediumScoreFixExports.map(
+          (declaration) => `  - ${declaration}`,
+        ),
+      ].join("\n"),
+    );
+  }
+
   const requiredFixBuilderExports = [
     'export { buildScriptTypeFixes } from "./scoring-script-type-fixes";',
     'export { buildPrimaryWeaknessFixes } from "./scoring-primary-weakness-fixes";',
     'export { buildSupportingSignalFixes } from "./scoring-supporting-signal-fixes";',
     'export { buildBodyAndLengthFixes } from "./scoring-body-length-fixes";',
-    "export function buildMediumScoreFixes(",
+    'export { buildMediumScoreFixes } from "./scoring-medium-score-fixes";',
     "export function buildOptionalImprovementFixes(",
     'export { buildPayoffFixes } from "./scoring-payoff-fixes";',
     'export { buildStrongEndingOpeningFixes } from "./scoring-strong-ending-opening-fixes";',
