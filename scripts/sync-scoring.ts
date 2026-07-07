@@ -168,6 +168,11 @@ const scoringFixBuildersPath = path.join(
   "engine/scoring-fix-builders.ts",
 );
 
+const scoringScriptTypeFixesPath = path.join(
+  projectRoot,
+  "engine/scoring-script-type-fixes.ts",
+);
+
 const scoringRiskFinalizationPath = path.join(
   projectRoot,
   "engine/scoring-risk-finalization.ts",
@@ -360,6 +365,11 @@ const scoringFixesSource = fs.readFileSync(
 
 const scoringFixBuildersSource = fs.readFileSync(
   scoringFixBuildersPath,
+  "utf8",
+);
+
+const scoringScriptTypeFixesSource = fs.readFileSync(
+  scoringScriptTypeFixesPath,
   "utf8",
 );
 
@@ -1062,8 +1072,31 @@ if (missingScoringFixExports.length > 0) {
   );
 }
 
-const requiredFixBuilderExports = [
+const requiredScriptTypeFixExports = [
   "export function buildScriptTypeFixes(",
+];
+
+const missingScriptTypeFixExports =
+  requiredScriptTypeFixExports.filter(
+    (declaration) =>
+      !scoringScriptTypeFixesSource.includes(
+        declaration,
+      ),
+  );
+
+if (missingScriptTypeFixExports.length > 0) {
+  throw new Error(
+    [
+      "Scoring script-type fixes module is missing required exports:",
+      ...missingScriptTypeFixExports.map(
+        (declaration) => `  - ${declaration}`,
+      ),
+    ].join("\n"),
+  );
+}
+
+const requiredFixBuilderExports = [
+  'export { buildScriptTypeFixes } from "./scoring-script-type-fixes";',
   "export function buildPrimaryWeaknessFixes(",
   "export function buildSupportingSignalFixes(",
   "export function buildBodyAndLengthFixes(",
