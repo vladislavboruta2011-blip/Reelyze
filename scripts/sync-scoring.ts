@@ -188,6 +188,11 @@ const scoringBodyLengthFixesPath = path.join(
   "engine/scoring-body-length-fixes.ts",
 );
 
+const scoringPayoffFixesPath = path.join(
+  projectRoot,
+  "engine/scoring-payoff-fixes.ts",
+);
+
 const scoringRiskFinalizationPath = path.join(
   projectRoot,
   "engine/scoring-risk-finalization.ts",
@@ -400,6 +405,11 @@ const scoringSupportingSignalFixesSource = fs.readFileSync(
 
 const scoringBodyLengthFixesSource = fs.readFileSync(
   scoringBodyLengthFixesPath,
+  "utf8",
+);
+
+const scoringPayoffFixesSource = fs.readFileSync(
+  scoringPayoffFixesPath,
   "utf8",
 );
 
@@ -1194,6 +1204,29 @@ if (missingScriptTypeFixExports.length > 0) {
     );
   }
 
+  const requiredPayoffFixExports = [
+    "export function buildPayoffFixes(",
+  ];
+
+  const missingPayoffFixExports =
+    requiredPayoffFixExports.filter(
+      (declaration) =>
+        !scoringPayoffFixesSource.includes(
+          declaration,
+        ),
+    );
+
+  if (missingPayoffFixExports.length > 0) {
+    throw new Error(
+      [
+        "Scoring payoff fixes module is missing required exports:",
+        ...missingPayoffFixExports.map(
+          (declaration) => `  - ${declaration}`,
+        ),
+      ].join("\n"),
+    );
+  }
+
   const requiredFixBuilderExports = [
     'export { buildScriptTypeFixes } from "./scoring-script-type-fixes";',
     'export { buildPrimaryWeaknessFixes } from "./scoring-primary-weakness-fixes";',
@@ -1201,7 +1234,7 @@ if (missingScriptTypeFixExports.length > 0) {
     'export { buildBodyAndLengthFixes } from "./scoring-body-length-fixes";',
     "export function buildMediumScoreFixes(",
     "export function buildOptionalImprovementFixes(",
-    "export function buildPayoffFixes(",
+    'export { buildPayoffFixes } from "./scoring-payoff-fixes";',
     "export function buildStrongEndingOpeningFixes(",
   ];
 

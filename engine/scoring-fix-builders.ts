@@ -18,38 +18,7 @@ export { buildSupportingSignalFixes } from "./scoring-supporting-signal-fixes";
 
 export { buildBodyAndLengthFixes } from "./scoring-body-length-fixes";
 
-export function buildPayoffFixes({
-  payoffStrength,
-  consequenceScore,
-  wordCount,
-  isGoodScript,
-  lastLineIsStrong,
-  primaryWeak,
-}: {
-  payoffStrength: number;
-  consequenceScore: number;
-  wordCount: number;
-  isGoodScript: boolean;
-  lastLineIsStrong: boolean;
-  primaryWeak: PrimaryWeakArea;
-}): string[] {
-  const fixes: string[] = [];
-
-  if (
-    payoffStrength < 28 &&
-    consequenceScore < 15 &&
-    wordCount >= 20 &&
-    !isGoodScript &&
-    !lastLineIsStrong &&
-    primaryWeak !== "payoff"
-  ) {
-    fixes.push(
-      "Make the final payoff more specific — state the result, consequence, or unresolved mystery clearly.",
-    );
-  }
-
-  return fixes;
-}
+export { buildPayoffFixes } from "./scoring-payoff-fixes";
 
 export function buildStrongEndingOpeningFixes({
   lastLineIsStrong,
