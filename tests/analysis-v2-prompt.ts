@@ -286,16 +286,16 @@ const requiredRules = [
     text: "do not split one supposed warning-payoff limitation into separate riskyParts for uncertainty and practical advice when both describe the same root issue",
   },
   {
-    name: "resolved survival can complete a narrative payoff",
-    text: "A final statement confirming that the affected people survived can be a meaningful payoff when the script has already shown injuries, escalating danger, or a narrowly avoided worse outcome.",
+    name: "resolved outcome can complete a narrative payoff",
+    text: "A final statement confirming that the central danger, search, failure, pursuit, or high-stakes sequence resolved can be a meaningful payoff when the script has already shown concrete stakes.",
   },
   {
     name: "resolved chronology does not require external consequences",
     text: "Do not require a later policy change, historical consequence, broader implication, security response, or separate explanation of significance when the chronology itself establishes why the resolved outcome matters.",
   },
   {
-    name: "survival payoff does not create a risky part by itself",
-    text: "Do not create a riskyPart solely because a resolved survival outcome does not add another external consequence.",
+    name: "resolved outcome does not create a risky part by itself",
+    text: "Do not create a riskyPart solely because a resolved outcome does not add another external consequence.",
   },
   {
     name: "unresolved mystery can be the intended payoff",

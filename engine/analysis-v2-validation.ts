@@ -345,16 +345,16 @@ function canonicalizeVerifiedFactualSuggestion(
   return null;
 }
 
-function hasResolvedSurvivalNarrative(
+function hasResolvedOutcomeNarrative(
   script: string
 ): boolean {
-  const hasEstablishedDanger =
-    /\b(?:gunman|shooting|shot|bullet|struck|wounded|injured|attack|crash|explosion|fire|trapped|collapsed|ricocheted|missed (?:his|her|their|the) heart|missing (?:his|her|their|the) heart)\b/i.test(
+  const hasEstablishedMeaningfulStakes =
+    /\b(?:danger|dangerous|risk|risky|stakes|threat|emergency|accident|attack|crash|explosion|fire|trapped|collapsed|injured|wounded|stranded|missing|disappeared|vanished|failed|failure|broke|lost|warning|alarm|pressure|leak|shutdown|evacuated|search|rescue|deadline|loss|cost|debt|bankrupt|lawsuit|ban|test|trial|final)\b/i.test(
       script
     );
 
-  const hasResolvedSurvivalOutcome =
-    /\b(?:survived|survive|made it out alive|escaped alive|recovered)\b/i.test(
+  const hasResolvedOutcome =
+    /\b(?:survived|survive|made it out alive|escaped alive|escaped|recovered|rescued|found|discovered|captured|caught|arrested|identified|returned|stopped|ended|solved|resolved|confirmed|completed|passed|won|reached|crossed)\b/i.test(
       script
     );
 
@@ -367,21 +367,21 @@ function hasResolvedSurvivalNarrative(
     );
 
   return (
-    hasEstablishedDanger &&
-    hasResolvedSurvivalOutcome &&
+    hasEstablishedMeaningfulStakes &&
+    hasResolvedOutcome &&
     !openingPromisesExternalAftermath
   );
 }
 
-function isResolvedSurvivalExcerpt(
+function isResolvedOutcomeExcerpt(
   excerpt: string
 ): boolean {
-  return /\b(?:survived|survive|made it out alive|escaped alive|recovered)\b/i.test(
+  return /\b(?:survived|survive|made it out alive|escaped alive|escaped|recovered|rescued|found|discovered|captured|caught|arrested|identified|returned|stopped|ended|solved|resolved|confirmed|completed|passed|won|reached|crossed)\b/i.test(
     excerpt
   );
 }
 
-function criticizesResolvedSurvivalForMissingExternalMeaning(
+function criticizesResolvedOutcomeForMissingExternalMeaning(
   reason: string
 ): boolean {
   return /\b(?:underwhelming|significance|consequence|broader implication|external implication|why (?:this|it) matters|limiting viewer reward|deeper implication)\b/i.test(
@@ -403,7 +403,7 @@ function requestsExternalNarrativeConsequence(
     /\bwhy\b.{0,120}\bmatters\b/i.test(
       normalized
     ) ||
-    /\b(?:contrast|example|implication)\b.{0,120}\b(?:survival|survived|wounded individuals?)\b/i.test(
+    /\b(?:contrast|example|implication)\b.{0,120}\b(?:outcome|resolution|ending|result|survival|escape|recovery|capture|discovery|found)\b/i.test(
       normalized
     )
   );
@@ -2412,13 +2412,13 @@ export function validateAnalysisV2Result(
     (fix) => !fix.optional
   );
 
-  const hasInvalidResolvedSurvivalPayoffCritique =
+  const hasInvalidResolvedOutcomePayoffCritique =
     raw.scriptType === "narrative_event" &&
-    hasResolvedSurvivalNarrative(script) &&
+    hasResolvedOutcomeNarrative(script) &&
     riskyParts.some(
       (part) =>
-        isResolvedSurvivalExcerpt(part.excerpt) &&
-        criticizesResolvedSurvivalForMissingExternalMeaning(
+        isResolvedOutcomeExcerpt(part.excerpt) &&
+        criticizesResolvedOutcomeForMissingExternalMeaning(
           part.reason
         )
     ) &&
@@ -2431,11 +2431,11 @@ export function validateAnalysisV2Result(
         )
     );
 
-  if (hasInvalidResolvedSurvivalPayoffCritique) {
+  if (hasInvalidResolvedOutcomePayoffCritique) {
     return {
       ok: false,
       reason:
-        "A resolved survival narrative cannot be treated as missing payoff solely because it lacks an external consequence or significance.",
+        "A resolved outcome narrative cannot be treated as missing payoff solely because it lacks an external consequence or significance.",
     };
   }
 

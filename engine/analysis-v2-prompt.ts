@@ -82,9 +82,9 @@ narrative_event
 - Chronological events, concrete developments, and rising stakes can create retention.
 - A resolved outcome is a valid payoff.
 - Survival, escape, recovery, capture, discovery, or another clearly resolved outcome can complete the viewer reward when the preceding chronology establishes meaningful danger or stakes.
-- A final statement confirming that the affected people survived can be a meaningful payoff when the script has already shown injuries, escalating danger, or a narrowly avoided worse outcome.
+- A final statement confirming that the central danger, search, failure, pursuit, or high-stakes sequence resolved can be a meaningful payoff when the script has already shown concrete stakes.
 - Do not require a later policy change, historical consequence, broader implication, security response, or separate explanation of significance when the chronology itself establishes why the resolved outcome matters.
-- Do not create a riskyPart solely because a resolved survival outcome does not add another external consequence.
+- Do not create a riskyPart solely because a resolved outcome does not add another external consequence.
 - Do not require explicit mystery language or a separate surprise if the chronology already escalates and resolves.
 
 mystery

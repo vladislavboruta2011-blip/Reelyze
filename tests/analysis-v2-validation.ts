@@ -555,10 +555,10 @@ const tests: TestCase[] = [
     },
   },
   {
-    name: "rejects an external-consequence fix for a resolved survival narrative",
+    name: "rejects an external-consequence fix for a resolved outcome narrative",
     run: () => {
-      const presidentScript =
-        "In 1981, a gunman opened fire outside a hotel in Washington. The first shot missed. Another struck a press secretary. A police officer and a Secret Service agent were also hit. One bullet ricocheted off the presidential car and entered the president's chest, missing his heart by inches. Every person who was wounded survived.";
+      const resolvedOutcomeScript =
+        "A research drone disappeared during a storm. Search teams followed its last signal into a canyon. The battery was almost dead, and the tracker stopped updating. After six hours, the drone was found intact.";
 
       const value = createMixedResult();
 
@@ -571,7 +571,7 @@ const tests: TestCase[] = [
       value.riskyParts = [
         {
           excerpt:
-            "Every person who was wounded survived.",
+            "After six hours, the drone was found intact.",
           reason:
             "The payoff is underwhelming because it lacks a broader consequence or explanation of significance.",
           severity: "medium",
@@ -581,36 +581,36 @@ const tests: TestCase[] = [
         {
           target: "payoff",
           suggestion:
-            "Add a verified consequence or implication that explains why this matters.",
+            "Add an external consequence or implication that explains why this matters.",
           optional: false,
         },
       ];
       value.scenes = [
         {
           excerpt:
-            "In 1981, a gunman opened fire outside a hotel in Washington.",
-          label: "Attack begins",
+            "A research drone disappeared during a storm.",
+          label: "Search begins",
           status: "strong",
         },
         {
           excerpt:
-            "One bullet ricocheted off the presidential car and entered the president's chest, missing his heart by inches.",
-          label: "Peak danger",
+            "The battery was almost dead, and the tracker stopped updating.",
+          label: "Signal almost fails",
           status: "strong",
         },
         {
           excerpt:
-            "Every person who was wounded survived.",
-          label: "Resolved survival outcome",
+            "After six hours, the drone was found intact.",
+          label: "Resolved outcome",
           status: "risky",
         },
       ];
       value.mainTakeaway =
-        "The chronology escalates clearly, but the survival outcome supposedly needs another consequence.";
+        "The chronology escalates clearly, but the resolved outcome supposedly needs another consequence.";
 
       const result = validateAnalysisV2Result(
         value,
-        presidentScript
+        resolvedOutcomeScript
       );
 
       assert.equal(result.ok, false);
@@ -623,15 +623,15 @@ const tests: TestCase[] = [
 
       assert.match(
         result.reason,
-        /resolved survival narrative cannot be treated as missing payoff/i
+        /resolved outcome narrative cannot be treated as missing payoff/i
       );
     },
   },
   {
-    name: "rejects a paraphrased significance fix for a resolved survival narrative",
+    name: "rejects a paraphrased significance fix for a resolved outcome narrative",
     run: () => {
-      const presidentScript =
-        "In 1981, a gunman opened fire outside a hotel in Washington. The first shot missed. Another struck a press secretary. A police officer and a Secret Service agent were also hit. One bullet ricocheted off the presidential car and entered the president's chest, missing his heart by inches. Every person who was wounded survived.";
+      const resolvedOutcomeScript =
+        "A research drone disappeared during a storm. Search teams followed its last signal into a canyon. The battery was almost dead, and the tracker stopped updating. After six hours, the drone was found intact.";
 
       const value = createMixedResult();
 
@@ -644,9 +644,9 @@ const tests: TestCase[] = [
       value.riskyParts = [
         {
           excerpt:
-            "Every person who was wounded survived.",
+            "After six hours, the drone was found intact.",
           reason:
-            "The script ends with a minimal payoff that lacks a clear explanation of the significance or consequence of this survival, limiting viewer reward.",
+            "The script ends with a minimal payoff that lacks a clear explanation of the significance or consequence of this resolved outcome, limiting viewer reward.",
           severity: "medium",
         },
       ];
@@ -654,36 +654,36 @@ const tests: TestCase[] = [
         {
           target: "payoff",
           suggestion:
-            "Add a contrast, example, or implication that strengthens why the survival of all wounded individuals matters in the context of the shooting.",
+            "Add a contrast, example, or implication that strengthens why this found result matters in the context of the search.",
           optional: false,
         },
       ];
       value.scenes = [
         {
           excerpt:
-            "In 1981, a gunman opened fire outside a hotel in Washington.",
-          label: "Attack begins",
+            "A research drone disappeared during a storm.",
+          label: "Search begins",
           status: "strong",
         },
         {
           excerpt:
-            "One bullet ricocheted off the presidential car and entered the president's chest, missing his heart by inches.",
-          label: "Peak danger",
+            "The battery was almost dead, and the tracker stopped updating.",
+          label: "Signal almost fails",
           status: "strong",
         },
         {
           excerpt:
-            "Every person who was wounded survived.",
-          label: "Resolved survival outcome",
+            "After six hours, the drone was found intact.",
+          label: "Resolved outcome",
           status: "risky",
         },
       ];
       value.mainTakeaway =
-        "The chronology escalates clearly, but the survival ending supposedly needs another implication.";
+        "The chronology escalates clearly, but the resolved ending supposedly needs another implication.";
 
       const result = validateAnalysisV2Result(
         value,
-        presidentScript
+        resolvedOutcomeScript
       );
 
       assert.equal(result.ok, false);
@@ -696,7 +696,7 @@ const tests: TestCase[] = [
 
       assert.match(
         result.reason,
-        /resolved survival narrative cannot be treated as missing payoff/i
+        /resolved outcome narrative cannot be treated as missing payoff/i
       );
     },
   },
@@ -1739,7 +1739,7 @@ const tests: TestCase[] = [
         {
           target: "payoff",
           suggestion:
-            "Add a verified consequence or implication that explains why this matters.",
+            "Add an external consequence or implication that explains why this matters.",
           optional: false,
         },
       ];

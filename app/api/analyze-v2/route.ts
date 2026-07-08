@@ -347,17 +347,17 @@ function buildAnalysisV2RetryUserPrompt(
     );
   } else if (
     validationReason.includes(
-      "resolved survival narrative"
+      "resolved outcome narrative"
     )
   ) {
     specificGuidance.push(
       "Specific correction:",
-      "The script already establishes concrete danger and ends with a resolved survival outcome.",
-      "Treat that survival outcome as a valid narrative payoff.",
-      "Do not criticize the survival sentence for lacking a separate external consequence, historical impact, policy change, security response, broader implication, or explanation of significance.",
-      "Remove the riskyPart and required payoff fix that target the resolved survival sentence.",
-      "Do not request verified factual material merely to extend the resolved outcome.",
-      "Reassess the score components using the chronology, escalating danger, narrow avoidance of a worse outcome, and final survival resolution.",
+      "The script already establishes concrete stakes and ends with a resolved outcome.",
+      "Treat that resolved outcome as a valid narrative payoff.",
+      "Do not criticize the resolved outcome for lacking a separate external consequence, historical impact, policy change, security response, broader implication, or explanation of significance.",
+      "Remove the riskyPart and required payoff fix that target the resolved outcome.",
+      "Do not request external factual material merely to extend the resolved outcome.",
+      "Reassess the score components using the chronology, rising stakes, narrow avoidance of a worse outcome, and final resolution.",
       "If no independent material problem remains, use a strong verdict with zero riskyParts and no required suggestedFixes."
     );
   } else if (
