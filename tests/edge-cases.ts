@@ -5,6 +5,7 @@ import {
   detectScriptStructures,
   estimateDuration,
 } from "../engine/scoring";
+import { detectScriptType } from "../engine/scoring-script-preprocessing";
 
 type CheckContext = {
   lines: string[];
@@ -13,6 +14,7 @@ type CheckContext = {
   overall: number;
   retention: number;
   structures: ReturnType<typeof detectScriptStructures>;
+  scriptType: ReturnType<typeof detectScriptType>;
   riskyParts: ReturnType<typeof analyzeScript>["riskyParts"];
   takeaway: string;
   fixes: string[];
@@ -43,6 +45,7 @@ function evaluate(script: string): CheckContext {
     overall: result.overall.score,
     retention: result.risk.score,
     structures,
+      scriptType: detectScriptType(script),
     riskyParts: result.riskyParts,
     takeaway: result.overall.description,
     fixes: result.fixes,
@@ -102,6 +105,30 @@ Flying is an important form of transportation.`,
         label: "weak continuation keeps retention risk high",
         test: ({ retention }) => retention >= 65,
         expected: "Retention risk ≥ 65",
+      },
+    ],
+  },
+  {
+    name: "Giveaway prize with non-catalog object",
+    script: `This creator is giving away a custom telescope to one subscriber.
+The first viewer who solves the final clue gets to keep it.
+Each clue removes half the remaining comments.
+At the end, one person receives the telescope.`,
+    checks: [
+      {
+        label: "non-catalog prize object is classified as giveaway",
+        test: ({ scriptType }) => scriptType === "giveaway_or_prize",
+        expected: 'scriptType = "giveaway_or_prize"',
+      },
+      {
+        label: "non-catalog prize stake receives giveaway hook floor",
+        test: ({ hook }) => hook >= 62,
+        expected: "Hook ≥ 62",
+      },
+      {
+        label: "non-catalog prize premise receives giveaway overall floor",
+        test: ({ overall }) => overall >= 58,
+        expected: "Overall ≥ 58",
       },
     ],
   },

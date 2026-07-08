@@ -1,3 +1,4 @@
+import { hasPrizeStake } from "./scoring-script-preprocessing";
 import type { RiskyPart } from "./scoring-result-helpers";
 import type { ScriptStructures } from "./scoring-structures";
 import { createTimeRange } from "./scoring-timing";
@@ -94,10 +95,8 @@ export function analyzeOpeningFeedback({
   const viralHasClearPremise =
     isViralOrGiveaway &&
     (
-      /\$[\d,]+|\b\d[\d,]* (dollars?|bucks|usd)\b/i.test(
-        normalizedText,
-      ) ||
-      /\b(iphone|ipad|ps5|xbox|car|giveaway|wherever|whatever|whichever).{0,40}(lands?|wins?|gets?|keep)\b/i.test(
+      hasPrizeStake(normalizedText) ||
+      /\b(wherever|whatever|whichever).{0,40}(lands?|wins?|gets?|keep)\b/i.test(
         normalizedText.toLowerCase(),
       ) ||
       /\b(bet|challenge|impossible|can you)\b/i.test(

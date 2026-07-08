@@ -10,6 +10,45 @@ type ScriptType =
   | "generic_advice"
   | "general";
 
+const NON_PRIZE_STAKE_NOUN_PATTERN =
+  "(?:advice|tips?|information|content|lesson|tutorial|knowledge|strategy|strategies|ideas?|reason|reasons|explanation|story|stories)";
+
+export function hasPrizeStake(text: string): boolean {
+  const lower = text.toLowerCase();
+
+  if (
+    /\$[\d,]+|\b\d[\d,]*\s+(?:dollars?|bucks|usd)\b/i.test(text) ||
+    /\b(?:cash|money|prize|reward|giveaway|jackpot|gift\s+card|scholarship)\b/i.test(
+      lower,
+    ) ||
+    /\b(?:bet|wager|gets?\s+to\s+keep|keeps?\s+it|takes?\s+home)\b/i.test(
+      lower,
+    )
+  ) {
+    return true;
+  }
+
+  const determinerPattern =
+    "(?:(?:a|an|the|this|that|one|every|any|free|custom|new|another|\\d+)\\s+)*";
+  const concreteThingPattern =
+    "[a-z0-9][a-z0-9'’-]*(?:\\s+[a-z0-9][a-z0-9'’-]*){0,5}";
+
+  const giveawayActionPattern = new RegExp(
+    `\\b(?:give\\s+away|giving\\s+away|gave\\s+away|hand(?:ed|ing)\\s+out|award(?:ed|ing)?|offer(?:ed|ing)?)\\s+${determinerPattern}(?!${NON_PRIZE_STAKE_NOUN_PATTERN}\\b)${concreteThingPattern}\\b`,
+    "i",
+  );
+
+  const recipientAwardPattern = new RegExp(
+    `\\b(?:subscriber|subscribers|winner|person|viewer|player|contestant|team|whoever)\\b.{0,80}\\b(?:wins?|gets?|keeps?|receives?|takes?\\s+home|walks?\\s+away\\s+with)\\b\\s+${determinerPattern}(?!${NON_PRIZE_STAKE_NOUN_PATTERN}\\b)${concreteThingPattern}\\b`,
+    "i",
+  );
+
+  return (
+    giveawayActionPattern.test(lower) ||
+    recipientAwardPattern.test(lower)
+  );
+}
+
 export function detectScriptType(text: string): ScriptType {
   const lower = text.toLowerCase();
 
@@ -59,20 +98,21 @@ export function detectScriptType(text: string): ScriptType {
 
   // Giveaway / prize: subscriber reward or prize drop
   const hasGiveawaySignal =
-    /\b(giveaway|give away|giving away|giving a|handed|handing out)\b/i.test(lower);
-  const hasPrizeObject =
-    /\b(iphone|ipad|ps5|xbox|car|truck|cash|money|\$[\d,]+|\d[\d,]* dollars?|laptop|macbook|drone|watch|airpods|tv|television)\b/i.test(lower);
+    /\b(giveaway|give away|giving away|gave away|handed out|handing out|awarded|offered)\b/i.test(
+      lower,
+    );
+  const hasPrizeStakeInScript = hasPrizeStake(lower);
   const hasRandomWinner =
     /\b(wherever|whatever|whichever|random|randomly|lands on|spins|points to|drops on|falls on)\b/i.test(lower) &&
     /\b(subscriber|person|winner|country|city|name)\b/i.test(lower);
   const hasPrizeCTA =
     /\b(subscribe|hit subscribe|smash subscribe)\b/i.test(lower) &&
-    hasPrizeObject;
+    hasPrizeStakeInScript;
 
   if (
-    (hasGiveawaySignal && hasPrizeObject) ||
+    (hasGiveawaySignal && hasPrizeStakeInScript) ||
     hasRandomWinner ||
-    (hasSubscriberChallenge && hasPrizeObject) ||
+    (hasSubscriberChallenge && hasPrizeStakeInScript) ||
     hasPrizeCTA
   ) {
     return "giveaway_or_prize";
