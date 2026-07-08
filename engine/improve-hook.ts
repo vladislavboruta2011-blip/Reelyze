@@ -289,50 +289,7 @@ function isConclusionHook(hook: string): boolean {
 
 function buildClearStandaloneFallbackHook(script: string): string {
   const lines = script.split(/[\n.!?]/).map(l => l.trim()).filter(Boolean);
-  const firstLine = lines[0] ?? "";
   const bodyLines = lines.slice(1);
-  const bodyText = bodyLines.join(" ");
-  const fullText = script.toLowerCase();
-
-  const namedSubjectMatch = firstLine.match(/\b[A-Z][a-z]{2,}(?:\s+[A-Z][a-z]{2,})?\b/);
-  const subject =
-    namedSubjectMatch?.[0] ??
-    firstLine.match(/^(.+?)\s+(is|are|was|were|does|do|can|could|will|would|has|have)\b/i)?.[1]?.trim() ??
-    "";
-
-  const hasBeforeJumpMechanism =
-    /\bbefore\b/i.test(bodyText) &&
-    /\bjump|jumps|jumping|ground|air\b/i.test(bodyText);
-
-  const isHeaderOrAirScript =
-    /\bheader|headers|heading|aerial|in the air\b/i.test(fullText);
-
-  if (subject.length > 0 && hasBeforeJumpMechanism && isHeaderOrAirScript) {
-    return `${subject} wins headers before he even leaves the ground.`;
-  }
-
-  const physicalMechanismLine = bodyLines.find(line => {
-    const ll = line.toLowerCase();
-
-    return (
-      /\b(ground|foot|feet|leg|legs|hip|hips|knee|knees|ankle|ankles|body|spring|force|power|speed|balance)\b/i.test(ll) &&
-      /\b(jump|jumps|jumping|power|force|explosive|upward|transfer|loads?|drives?)\b/i.test(ll)
-    );
-  });
-
-  if (subject.length > 0 && physicalMechanismLine) {
-    const ll = physicalMechanismLine.toLowerCase();
-
-    if (/\bspring\b/i.test(ll)) {
-      return `${subject}'s body loads like a spring before the jump.`;
-    }
-
-    if (/\bground\b|\bfoot\b|\bfeet\b/i.test(ll)) {
-      return `${subject}'s jump starts before he leaves the ground.`;
-    }
-
-    return `${subject}'s power comes from a detail most viewers miss.`;
-  }
 
   const visualLine = bodyLines.find(line => {
     const ll = line.toLowerCase();
