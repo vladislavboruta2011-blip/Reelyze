@@ -306,6 +306,66 @@ if (desktopFeedbackRequiresResults) {
 }
 
 
+const scriptCardStart = source.indexOf(
+  '<h2 className="text-[17px] font-semibold text-[#111827]">Your Script</h2>'
+);
+const savedTitleBlockIndex = source.indexOf("{savedTitle && (", scriptCardStart);
+const titleLabelIndex = source.indexOf(">Title</p>", savedTitleBlockIndex);
+const savedTitleValueIndex = source.indexOf("{savedTitle}</p>", savedTitleBlockIndex);
+const scriptLinesContentIndex = source.indexOf(
+  "<ScriptLinesContent",
+  scriptCardStart
+);
+
+if (
+  scriptCardStart >= 0 &&
+  savedTitleBlockIndex > scriptCardStart &&
+  titleLabelIndex > savedTitleBlockIndex &&
+  savedTitleValueIndex > titleLabelIndex &&
+  scriptLinesContentIndex > savedTitleValueIndex
+) {
+  console.log("✅ PASS — Results displays the saved title above the script lines");
+} else {
+  console.error(
+    "❌ FAIL — Results must display the saved video title/topic above the script lines"
+  );
+  failures += 1;
+}
+
+const hasDesktopShortsNotice = homeSource.includes(
+  "Works best for YouTube Shorts (15–60 seconds). More formats coming soon."
+);
+const hasMobileShortsNotice = homeSource.includes("Shorts only");
+
+if (hasDesktopShortsNotice && hasMobileShortsNotice) {
+  console.log("✅ PASS — New Analysis shows desktop and mobile Shorts-only guidance");
+} else {
+  console.error(
+    `❌ FAIL — New Analysis must show Shorts-only guidance on desktop and mobile (desktop: ${hasDesktopShortsNotice}, mobile: ${hasMobileShortsNotice})`
+  );
+  failures += 1;
+}
+
+const scriptLengthGuardCount =
+  homeSource.split("script.length > maxCharacters").length - 1;
+const scriptTooLongErrorCount =
+  homeSource.split("Script is too long.").length - 1;
+const silentScriptLimitCount =
+  homeSource.split("maxLength={maxCharacters}").length - 1;
+
+if (
+  scriptLengthGuardCount >= 2 &&
+  scriptTooLongErrorCount >= 2 &&
+  silentScriptLimitCount === 0
+) {
+  console.log("✅ PASS — Script length feedback blocks over-1000 scripts visibly");
+} else {
+  console.error(
+    `❌ FAIL — Script length must use visible blocking feedback instead of silent truncation (guards: ${scriptLengthGuardCount}, errors: ${scriptTooLongErrorCount}, maxLength: ${silentScriptLimitCount})`
+  );
+  failures += 1;
+}
+
 // ── Analysis V2 Improve Hook integration ─────────────────────────────────────
 
 const usesAnalysisV2HookDecision =
