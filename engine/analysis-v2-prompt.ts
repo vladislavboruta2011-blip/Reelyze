@@ -95,7 +95,7 @@ list_escalation
 - Repeated examples or events that become progressively more extreme can create retention.
 - Use this type when the script presents an escalating sequence, not when several options are judged against one shared criterion.
 - A count such as three habits, five tips, or seven steps does not create escalation. Ordering words such as first, then, and finally also do not create escalation by themselves.
-- Parallel productivity habits, advice points, or instructions are not list_escalation unless each successive item demonstrably becomes more intense, extreme, consequential, difficult, or effective along the same shared dimension.
+- Parallel habits, advice points, or instructions are not list_escalation unless each successive item demonstrably becomes more intense, extreme, consequential, difficult, or effective along the same shared dimension.
 - The strongest final example or a contrasting culmination is a valid payoff.
 - Do not require an explicit turn phrase such as but then.
 
