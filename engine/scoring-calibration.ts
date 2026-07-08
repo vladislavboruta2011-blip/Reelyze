@@ -1,4 +1,5 @@
 import { clampScore } from "./scoring-result-helpers";
+import { hasPrizeStake } from "./scoring-script-preprocessing";
 
 // Type-aware score floors and final score boundaries.
 // Keep signal extraction and feedback generation outside this module.
@@ -44,12 +45,7 @@ export function calibrateScoringScores({
     const firstLower = firstSentence.toLowerCase();
 
     const hasStakeInFirst =
-      /\$[\d,]+|\b\d[\d,]* (dollars?|bucks|usd)\b/i.test(
-        firstSentence,
-      ) ||
-      /\b(iphone|ipad|ps5|xbox|car|prize|giveaway|bet)\b/i.test(
-        firstLower,
-      ) ||
+      hasPrizeStake(firstSentence) ||
       /\b(can you|impossible|wherever|whatever|whichever)\b/i.test(
         firstLower,
       );
@@ -61,12 +57,7 @@ export function calibrateScoringScores({
     const normalizedLower = normalizedText.toLowerCase();
 
     const hasChallengePremise =
-      /\$[\d,]+|\b\d[\d,]* (dollars?|bucks|usd)\b/i.test(
-        normalizedText,
-      ) ||
-      /\b(iphone|ipad|ps5|xbox|car|prize|giveaway)\b/i.test(
-        normalizedLower,
-      ) ||
+      hasPrizeStake(normalizedText) ||
       /\b(wherever|whatever|whichever).{3,40}\b(subscriber|person|country|city|name)\b/i.test(
         normalizedLower,
       ) ||
