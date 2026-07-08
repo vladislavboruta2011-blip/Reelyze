@@ -1205,10 +1205,10 @@ const tests: TestCase[] = [
     },
   },
   {
-    name: "runAnalysisV2 corrects an external-consequence critique of resolved survival",
+    name: "runAnalysisV2 corrects an external-consequence critique of a resolved outcome",
     run: async () => {
-      const presidentScript =
-        "In 1981, a gunman opened fire outside a hotel in Washington. The first shot missed. Another struck a press secretary. A police officer and a Secret Service agent were also hit. One bullet ricocheted off the presidential car and entered the president's chest, missing his heart by inches. Every person who was wounded survived.";
+      const resolvedOutcomeScript =
+        "A research drone disappeared during a storm. Search teams followed its last signal into a canyon. The battery was almost dead, and the tracker stopped updating. After six hours, the drone was found intact.";
 
       let callCount = 0;
       const userPrompts: string[] = [];
@@ -1223,14 +1223,14 @@ const tests: TestCase[] = [
         },
         hookDecision: "keep",
         hookAssessment:
-          "The opening immediately establishes a concrete historical attack.",
+          "The opening immediately establishes a concrete search under pressure.",
         suggestedHook: null,
         riskyParts: [
           {
             excerpt:
-              "Every person who was wounded survived.",
+              "After six hours, the drone was found intact.",
             reason:
-              "The script ends with a minimal payoff that lacks a clear explanation of the significance or consequence of this survival, limiting viewer reward.",
+              "The script ends with a minimal payoff that lacks a clear explanation of the significance or consequence of this resolved outcome, limiting viewer reward.",
             severity: "medium",
           },
         ],
@@ -1238,32 +1238,32 @@ const tests: TestCase[] = [
           {
             target: "payoff",
             suggestion:
-              "Add a contrast, example, or implication that strengthens why the survival of all wounded individuals matters in the context of the shooting.",
+              "Add a contrast, example, or implication that strengthens why this found result matters in the context of the search.",
             optional: false,
           },
         ],
         scenes: [
           {
             excerpt:
-              "In 1981, a gunman opened fire outside a hotel in Washington.",
-            label: "Attack begins",
+              "A research drone disappeared during a storm.",
+            label: "Search begins",
             status: "strong",
           },
           {
             excerpt:
-              "One bullet ricocheted off the presidential car and entered the president's chest, missing his heart by inches.",
-            label: "Peak danger",
+              "The battery was almost dead, and the tracker stopped updating.",
+            label: "Signal almost fails",
             status: "strong",
           },
           {
             excerpt:
-              "Every person who was wounded survived.",
-            label: "Resolved survival outcome",
+              "After six hours, the drone was found intact.",
+            label: "Resolved outcome",
             status: "risky",
           },
         ],
         mainTakeaway:
-          "The chronology is clear, but the survival ending supposedly needs another consequence.",
+          "The chronology is clear, but the resolved ending supposedly needs another consequence.",
       };
 
       const correctedResult: Record<string, unknown> = {
@@ -1276,39 +1276,39 @@ const tests: TestCase[] = [
         },
         hookDecision: "keep",
         hookAssessment:
-          "The opening immediately establishes a concrete historical attack and the chronology escalates through increasingly serious danger.",
+          "The opening immediately establishes a concrete search under pressure and the chronology escalates through rising stakes.",
         suggestedHook: null,
         riskyParts: [],
         suggestedFixes: [
           {
             target: "clarity",
             suggestion:
-              "Optionally tighten one middle sentence so the escalation reaches the final survival outcome faster.",
+              "Optionally tighten one middle sentence so the escalation reaches the final resolved outcome faster.",
             optional: true,
           },
         ],
         scenes: [
           {
             excerpt:
-              "In 1981, a gunman opened fire outside a hotel in Washington.",
-            label: "Attack begins",
+              "A research drone disappeared during a storm.",
+            label: "Search begins",
             status: "strong",
           },
           {
             excerpt:
-              "One bullet ricocheted off the presidential car and entered the president's chest, missing his heart by inches.",
-            label: "Peak danger",
+              "The battery was almost dead, and the tracker stopped updating.",
+            label: "Signal almost fails",
             status: "strong",
           },
           {
             excerpt:
-              "Every person who was wounded survived.",
-            label: "Resolved survival payoff",
+              "After six hours, the drone was found intact.",
+            label: "Resolved outcome payoff",
             status: "strong",
           },
         ],
         mainTakeaway:
-          "The chronology escalates through concrete danger and resolves with the meaningful survival of everyone who was wounded.",
+          "The chronology escalates through concrete stakes and resolves with a meaningful found outcome.",
       };
 
       const modelCaller: AnalysisV2ModelCaller =
@@ -1327,8 +1327,8 @@ const tests: TestCase[] = [
         };
 
       const result = await runAnalysisV2(
-        presidentScript,
-        "The 1981 presidential shooting",
+        resolvedOutcomeScript,
+        "The missing research drone",
         modelCaller
       );
 
@@ -1340,7 +1340,7 @@ const tests: TestCase[] = [
 
       assert.match(
         retryPrompt,
-        /Treat that survival outcome as a valid narrative payoff/i
+        /Treat that resolved outcome as a valid narrative payoff/i
       );
       assert.match(
         retryPrompt,
@@ -1348,7 +1348,7 @@ const tests: TestCase[] = [
       );
       assert.match(
         retryPrompt,
-        /Do not request verified factual material merely to extend the resolved outcome/i
+        /Do not request external factual material merely to extend the resolved outcome/i
       );
 
       if (result.ok) {
