@@ -20,6 +20,7 @@ import {
 } from "./scoring-feedback-minimums";
 import type { RiskyPart } from "./scoring-result-helpers";
 import type { ScoringCalculationState } from "./scoring-score-calculation";
+import { determinePrimaryWeakArea } from "./scoring-primary-weak-area";
 import {
   analyzePayoffFeedback,
   analyzePayoffPlacementFeedback,
@@ -80,20 +81,18 @@ export function buildScoringFeedbackPipeline({
   const lower = text.toLowerCase();
   const wordCount = text.split(/\s+/).filter(Boolean).length;
 
-  type WeakArea = "hook" | "short" | "payoff" | "generic" | "middle" | "none";
-  let primaryWeak: WeakArea = "none";
-  if ((isVeryShort || charCount < 180) && !isStructurallyCompleteShort) {
-    primaryWeak = "short";
-  } else if (hookNeedsWork && effectiveHookScore < 45) {
-    primaryWeak = "hook";
-  } else if (signals.genericPenalty >= 20) {
-    primaryWeak = "generic";
-  } else if (payoffStrength < 28 && signals.consequenceScore < 15) {
-    primaryWeak = "payoff";
-  } else if (hookNeedsWork && effectiveHookScore < 65) {
-    primaryWeak = "hook";
-  }
-  // If hookIsAcceptable, never set primaryWeak to "hook"
+  const primaryWeak = determinePrimaryWeakArea({
+    isVeryShort,
+    charCount,
+    isStructurallyCompleteShort,
+    hookNeedsWork,
+    effectiveHookScore,
+    genericPenalty:
+      signals.genericPenalty,
+    payoffStrength,
+    consequenceScore:
+      signals.consequenceScore,
+  });
 
   const riskyParts: RiskyPart[] = [];
   const fixes: string[] = [];

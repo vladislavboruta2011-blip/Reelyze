@@ -208,6 +208,11 @@ const scoringOptionalImprovementFixesPath = path.join(
   "engine/scoring-optional-improvement-fixes.ts",
 );
 
+const scoringPrimaryWeakAreaPath = path.join(
+  projectRoot,
+  "engine/scoring-primary-weak-area.ts",
+);
+
 const scoringRiskFinalizationPath = path.join(
   projectRoot,
   "engine/scoring-risk-finalization.ts",
@@ -440,6 +445,11 @@ const scoringMediumScoreFixesSource = fs.readFileSync(
 
 const scoringOptionalImprovementFixesSource = fs.readFileSync(
   scoringOptionalImprovementFixesPath,
+  "utf8",
+);
+
+const scoringPrimaryWeakAreaSource = fs.readFileSync(
+  scoringPrimaryWeakAreaPath,
   "utf8",
 );
 
@@ -1320,6 +1330,30 @@ if (missingScriptTypeFixExports.length > 0) {
       [
         "Scoring optional-improvement fixes module is missing required exports:",
         ...missingOptionalImprovementFixExports.map(
+          (declaration) => `  - ${declaration}`,
+        ),
+      ].join("\n"),
+    );
+  }
+
+  const requiredPrimaryWeakAreaExports = [
+    "export type PrimaryWeakArea =",
+    "export function determinePrimaryWeakArea(",
+  ];
+
+  const missingPrimaryWeakAreaExports =
+    requiredPrimaryWeakAreaExports.filter(
+      (declaration) =>
+        !scoringPrimaryWeakAreaSource.includes(
+          declaration,
+        ),
+    );
+
+  if (missingPrimaryWeakAreaExports.length > 0) {
+    throw new Error(
+      [
+        "Scoring primary weak-area module is missing required exports:",
+        ...missingPrimaryWeakAreaExports.map(
           (declaration) => `  - ${declaration}`,
         ),
       ].join("\n"),
