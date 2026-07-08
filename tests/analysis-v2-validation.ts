@@ -2405,10 +2405,10 @@ const tests: TestCase[] = [
     },
   },
   {
-    name: "rejects keep when a specific hidden setting promise is not revealed",
+    name: "rejects keep when a specific hidden mechanism promise is not revealed",
     run: () => {
       const promiseScript =
-        "Your phone battery dies faster because of one hidden setting. Most people never turn it off. It runs quietly in the background. Once you understand it, your phone usage makes more sense.";
+        "The vault door failed because of one hidden mechanism. Most people never notice it. It runs silently during every test. Once you understand it, the failure makes more sense.";
 
       const value = createMixedResult();
 
@@ -2421,13 +2421,13 @@ const tests: TestCase[] = [
       };
       value.hookDecision = "keep";
       value.hookAssessment =
-        "The hook is clear and specific, promising a hidden phone setting that affects battery life.";
+        "The hook is clear and specific, promising a hidden mechanism behind the vault failure.";
       value.riskyParts = [
         {
           excerpt:
-            "Once you understand it, your phone usage makes more sense.",
+            "Once you understand it, the failure makes more sense.",
           reason:
-            "The payoff is vague because it never names the promised hidden setting.",
+            "The payoff is vague because it never names the promised hidden mechanism.",
           severity: "medium",
         },
       ];
@@ -2435,26 +2435,26 @@ const tests: TestCase[] = [
         {
           target: "payoff",
           suggestion:
-            "Name the hidden setting and explain how turning it off changes battery usage.",
+            "Name the hidden mechanism and explain how it causes the vault door to fail.",
           optional: false,
         },
       ];
       value.scenes = [
         {
           excerpt:
-            "Your phone battery dies faster because of one hidden setting.",
+            "The vault door failed because of one hidden mechanism.",
           label: "Specific promise",
           status: "risky",
         },
         {
           excerpt:
-            "Once you understand it, your phone usage makes more sense.",
+            "Once you understand it, the failure makes more sense.",
           label: "Unrevealed payoff",
           status: "risky",
         },
       ];
       value.mainTakeaway =
-        "The script makes a specific promise but does not reveal the hidden setting.";
+        "The script makes a specific promise but does not reveal the hidden mechanism.";
 
       const result = validateAnalysisV2Result(
         value,
@@ -2462,6 +2462,53 @@ const tests: TestCase[] = [
       );
 
       assert.equal(result.ok, false);
+    },
+  },
+  {
+    name: "allows keep when a specific hidden mechanism promise is revealed",
+    run: () => {
+      const revealedScript =
+        "The vault door failed because of one hidden mechanism. The hidden mechanism is thermal expansion in the lock. As the room heated up, the metal latch expanded just enough to jam the door.";
+
+      const value = createStrongResult();
+
+      value.scriptType = "explanation";
+      value.hookDecision = "keep";
+      value.hookAssessment =
+        "The hook promises a hidden mechanism and the script reveals it as thermal expansion in the lock.";
+      value.scenes = [
+        {
+          excerpt:
+            "The vault door failed because of one hidden mechanism.",
+          label: "Specific promise",
+          status: "strong",
+        },
+        {
+          excerpt:
+            "The hidden mechanism is thermal expansion in the lock.",
+          label: "Revealed mechanism",
+          status: "strong",
+        },
+        {
+          excerpt:
+            "As the room heated up, the metal latch expanded just enough to jam the door.",
+          label: "Mechanism explanation",
+          status: "strong",
+        },
+      ];
+      value.mainTakeaway =
+        "The script reveals the promised mechanism and explains how it causes the failure.";
+
+      const result = validateAnalysisV2Result(
+        value,
+        revealedScript
+      );
+
+      if (!result.ok) {
+        throw new Error(result.reason);
+      }
+
+      assert.equal(result.value.hookDecision, "keep");
     },
   },
   {

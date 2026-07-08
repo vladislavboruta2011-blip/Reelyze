@@ -1343,30 +1343,39 @@ function hasUnrevealedSpecificOpeningPromise(
     .slice(firstSentence.length)
     .toLowerCase();
 
-  const promisesSpecificHiddenThing =
-    /\b(?:one|a)\s+(?:hidden|secret)\s+(?:setting|cause|reason|mechanism)\b/.test(
-      firstSentence
-    );
+  const promisedThingPattern =
+    "(?:setting|cause|reason|mechanism|factor|detail|step|signal|method|rule|trigger|flaw|mistake|variable|ingredient|decision)";
+
+  const promisesSpecificHiddenThing = new RegExp(
+    `\\b(?:one|a|the)\\s+(?:hidden|secret|specific|exact)\\s+${promisedThingPattern}\\b`,
+    "i"
+  ).test(firstSentence);
 
   if (!promisesSpecificHiddenThing) {
     return false;
   }
 
-  const hasVagueNonReveal =
-    /\bonce you understand it\b/.test(rest) ||
-    /\bmakes more sense\b/.test(rest) ||
-    /\bruns quietly in the background\b/.test(rest) ||
-    /\bmost people never turn it off\b/.test(rest);
+  const hasVagueNonReveal = [
+    /\b(?:once|when|after)\s+you\s+understand\s+(?:it|this|that)\b/i,
+    /\b(?:it|this|that)\s+(?:finally\s+)?makes\s+(?:more\s+)?sense\b/i,
+    /\b(?:it|this|that)\s+(?:runs|works|happens|moves|changes|spreads|fails)\s+(?:quietly|silently|in the background|without anyone noticing)\b/i,
+    /\b(?:most people|almost nobody|no one)\s+(?:never|do not|don't|doesn't)\s+(?:notice|see|question|realize|understand|find|name|identify)(?:\s+(?:it|this|that))?\b/i,
+    new RegExp(
+      `\\b(?:the|that|this)\\s+(?:hidden|secret\\s+)?${promisedThingPattern}\\s+(?:is|was)?\\s*(?:never|not)\\s+(?:named|revealed|identified|explained)\\b`,
+      "i"
+    ),
+  ].some((pattern) => pattern.test(rest));
 
-  const namesConcreteSetting =
-    /\bbackground app refresh\b/.test(rest) ||
-    /\blocation services\b/.test(rest) ||
-    /\bpush notifications\b/.test(rest) ||
-    /\bauto brightness\b/.test(rest) ||
-    /\blow power mode\b/.test(rest) ||
-    /\bbattery saver\b/.test(rest);
+  const namesConcretePromisedThing = [
+    new RegExp(
+      `\\b(?:the|that|this|hidden|secret)\\s+${promisedThingPattern}\\s+(?:is|was|comes from|comes down to|turns out to be|is called|was called|is known as|is named)\\s+(?!something\\b|one\\s+thing\\b|it\\b|this\\b|that\\b)[a-z0-9][a-z0-9'’-]*(?:\\s+[a-z0-9][a-z0-9'’-]*){0,7}\\b`,
+      "i"
+    ),
+    /\b(?:the answer|the explanation)\s+(?:is|was|comes down to)\s+(?!something\b|one\s+thing\b|it\b|this\b|that\b)[a-z0-9][a-z0-9'’-]*(?:\s+[a-z0-9][a-z0-9'’-]*){0,7}\b/i,
+    /\b(?:it|this|that)\s+(?:is|was|turns out to be)\s+(?:called|known as|named)\s+(?!something\b|one\s+thing\b)[a-z0-9][a-z0-9'’-]*(?:\s+[a-z0-9][a-z0-9'’-]*){0,7}\b/i,
+  ].some((pattern) => pattern.test(rest));
 
-  return hasVagueNonReveal && !namesConcreteSetting;
+  return hasVagueNonReveal && !namesConcretePromisedThing;
 }
 
 export function validateAnalysisV2Input(
