@@ -399,7 +399,7 @@ function AnalyzerSection({
           Paste your script. Get instant feedback.
         </h2>
         <p className="mx-auto mt-5 max-w-[560px] text-[18px] leading-[1.75] text-[#6B7280]">
-          Works best for YouTube Shorts (15–60 seconds). More formats coming soon.
+          Works best for YouTube Shorts (15–60 seconds).
         </p>
       </div>
 

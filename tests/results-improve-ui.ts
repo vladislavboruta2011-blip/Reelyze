@@ -333,7 +333,7 @@ if (
 }
 
 const hasDesktopShortsNotice = homeSource.includes(
-  "Works best for YouTube Shorts (15–60 seconds). More formats coming soon."
+  "Works best for YouTube Shorts (15–60 seconds)."
 );
 const hasMobileShortsNotice = homeSource.includes("Shorts only");
 
