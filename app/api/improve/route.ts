@@ -461,7 +461,7 @@ Return only valid JSON matching the exact schema.`;
         {
           status: "error",
           improvedHook: "AI hook improvement is unavailable right now.",
-          reason: "Reelyze could not generate a valid hook improvement right now.",
+          reason: "Climpy could not generate a valid hook improvement right now.",
         } satisfies ImproveHookResult,
         { status: 502 }
       );
@@ -500,7 +500,7 @@ Return only valid JSON matching the exact schema.`;
       {
         status: "error",
         improvedHook: "AI hook improvement is unavailable right now.",
-        reason: "Reelyze could not generate a custom hook improvement for this script.",
+        reason: "Climpy could not generate a custom hook improvement for this script.",
       } satisfies ImproveHookResult,
       { status: 500 }
     );

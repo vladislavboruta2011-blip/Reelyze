@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const ADMIN_REALM = "Reelyze Admin";
+const ADMIN_REALM = "Climpy Admin";
 
 type AdminCredentials = {
   username: string;

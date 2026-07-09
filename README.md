@@ -1,6 +1,6 @@
-# Reelyze
+# Climpy
 
-Reelyze is an AI tool for analyzing YouTube Shorts scripts before publishing.
+Climpy is an AI tool for analyzing YouTube Shorts scripts before publishing.
 
 It helps creators improve their scripts by checking:
 
@@ -22,9 +22,9 @@ https://reelyze.vercel.app
 - OpenAI API
 - Vercel
 
-## What Reelyze Does
+## What Climpy Does
 
-Reelyze reviews a YouTube Shorts script and gives feedback before the video goes live.
+Climpy reviews a YouTube Shorts script and gives feedback before the video goes live.
 
 It focuses on:
 

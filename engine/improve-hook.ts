@@ -322,7 +322,7 @@ function buildClearStandaloneFallbackHook(script: string): string {
       : `${capitalizeFirstChar(words.slice(0, 16).join(" "))}.`;
   }
 
-  return "This script needs one sharper result or visual detail before Reelyze can write a stronger hook.";
+  return "This script needs one sharper result or visual detail before Climpy can write a stronger hook.";
 }
 
 const INCOMPLETE_ENDING_WORDS = new Set([
