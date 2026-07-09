@@ -106,7 +106,7 @@ function main(): void {
 
       const challenge = response.headers.get("www-authenticate");
 
-      if (!challenge?.startsWith('Basic realm="Reelyze Admin"')) {
+      if (!challenge?.startsWith('Basic realm="Climpy Admin"')) {
         throw new Error(
           "Unauthorized response should include a Basic Auth challenge."
         );

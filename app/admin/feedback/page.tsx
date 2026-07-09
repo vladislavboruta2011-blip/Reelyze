@@ -42,7 +42,7 @@ export default async function AdminFeedbackPage() {
       <div className="mx-auto max-w-[1180px]">
         <div className="mb-8">
           <p className="text-[13px] font-semibold uppercase tracking-[0.18em] text-[#EF4444]">
-            Reelyze Admin
+            Climpy Admin
           </p>
           <h1 className="mt-2 text-[34px] font-semibold tracking-[-0.03em]">
             Feedback
