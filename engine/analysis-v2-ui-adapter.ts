@@ -6,6 +6,7 @@ import type {
   AnalysisV2Verdict,
 } from "./analysis-v2-schema";
 import { validateAnalysisV2Result } from "./analysis-v2-validation";
+import { dedupeFixes } from "./scoring-fixes";
 
 export const ANALYSIS_V2_STORAGE_KEY = "reelyze-analysis-v2";
 
@@ -570,9 +571,11 @@ export function adaptAnalysisV2ForResults(
       title: getRiskTitle(part.severity),
       description: part.reason,
     })),
-    fixes: result.suggestedFixes.map(
-      (fix) => fix.suggestion
-    ),
+      fixes: dedupeFixes(
+        result.suggestedFixes.map(
+          (fix) => fix.suggestion
+        )
+      ),
     riskyLineIndexes: uniqueRiskyLineIndexes,
     warningLineIndexes: uniqueWarningLineIndexes,
     sceneSegments: createSceneSegments(result),

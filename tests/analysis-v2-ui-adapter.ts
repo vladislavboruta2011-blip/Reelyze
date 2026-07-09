@@ -211,6 +211,53 @@ const tests: TestCase[] = [
       );
     },
   },
+      {
+        name: "dedupes semantically overlapping suggested fixes for results UI",
+        run: () => {
+          const duplicatedFixResponse: AnalysisV2SuccessResponse = {
+            ...mixedResponse,
+            result: {
+              ...mixedResponse.result,
+              suggestedFixes: [
+                {
+                  target: "hook",
+                  suggestion:
+                    "Rewrite the opening around one specific visual consequence.",
+                  optional: false,
+                },
+                {
+                  target: "hook",
+                  suggestion:
+                    "Open with the specific visual consequence before explaining the setup.",
+                  optional: false,
+                },
+                {
+                  target: "payoff",
+                  suggestion:
+                    "End with a clearer payoff that rewards the viewer.",
+                  optional: false,
+                },
+              ],
+            },
+          };
+
+          const adapted = adaptAnalysisV2ForResults(
+            duplicatedFixResponse,
+            mixedScript,
+            [
+              "Start with a clear result.",
+              "This middle line is vague and repeats itself.",
+              "End with a specific payoff.",
+            ],
+            10
+          );
+
+          assert.deepEqual(adapted.fixes, [
+            "Rewrite the opening around one specific visual consequence.",
+            "End with a clearer payoff that rewards the viewer.",
+          ]);
+        },
+      },
     {
       name: "keeps score breakdown optional for legacy results",
       run: () => {
