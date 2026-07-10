@@ -246,12 +246,12 @@ const shouldShowHookAction = savedAnalysisV2
   : analysis.fixes.length > 0 && analysis.hook.score < 75;
 const hookActionLabel = savedAnalysisV2
   ? hookDecision === "diagnostic"
-    ? "Improve Script"
+    ? "Needs Details"
     : hookDecision === "refine"
       ? "Refine Hook"
       : "Improve Hook"
   : analysis.hook.score >= 70
-    ? "Refine Script"
+    ? "Refine Hook"
     : "Improve Hook";
 
 async function submitFeedback(
@@ -317,7 +317,7 @@ const hookModalTitle =
       : shouldShowHookAnalysis
         ? "Hook Analysis"
         : analysis.hook.score >= 70
-          ? "Refine Script"
+          ? "Refine Hook"
           : "Improved Hook";
 
 const hookModalDescription =
@@ -356,10 +356,10 @@ const hookCopyButtonLabel =
     ? "Copy Advice"
     : savedAnalysisV2
       ? hookDecision === "refine"
-        ? "Copy Version"
+        ? "Copy Hook"
         : "Copy Hook"
       : analysis.hook.score >= 70
-        ? "Copy Version"
+        ? "Copy Hook"
         : "Copy Hook";
 
   async function handleCopyHook() {
