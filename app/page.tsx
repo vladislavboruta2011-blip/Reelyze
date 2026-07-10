@@ -55,6 +55,28 @@ function TrustItem({ children }: { children: React.ReactNode }) {
   );
 }
 
+function HandUnderline({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="relative inline-flex flex-col items-start">
+      <span>{children}</span>
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 260 12"
+        preserveAspectRatio="none"
+        className="mt-[-3px] h-[10px] w-full text-[#7C3AED]"
+      >
+        <path
+          d="M3 7 C 28 2, 56 10, 88 6 S 148 3, 190 7 S 232 10, 257 5"
+          fill="none"
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeWidth="3"
+        />
+      </svg>
+    </span>
+  );
+}
+
 // ─── Desktop landing: background decoration ───────────────────────────────────
 
 function BackgroundDecor() {
@@ -140,7 +162,14 @@ function PreviewCard() {
       <div className="relative overflow-hidden rounded-[26px] border border-[#E5E7EB] bg-white p-5 shadow-[0_24px_90px_rgba(0,0,0,0.12)]">
         <div className="flex items-start justify-between gap-5">
           <div>
-            <h2 className="text-[24px] font-semibold tracking-[-0.03em] text-[#111827]">Script Review</h2>
+            <div className="flex flex-wrap items-center gap-3">
+              <h2 className="text-[24px] font-semibold tracking-[-0.03em] text-[#111827]">
+                Script Review
+              </h2>
+              <span className="rounded-full border border-[#DDD6FE] bg-[#F3E8FF] px-3 py-1 text-[12px] font-semibold text-[#7C3AED]">
+                AI review
+              </span>
+            </div>
             <p className="mt-2 text-[14px] text-[#6B7280]">Analyzed in 8 seconds</p>
           </div>
           <button className="rounded-[12px] border border-[#E5E7EB] bg-[#F3F4F6] px-4 py-2.5 text-[14px] font-semibold text-[#111827]">
@@ -322,7 +351,7 @@ function MiniFixPreview() {
 
 function FeatureCard({ icon, title, description, children }: { icon: React.ReactNode; title: string; description: string; children: React.ReactNode }) {
   return (
-    <div className="group rounded-[22px] border border-[#E5E7EB] bg-white p-6 transition hover:border-[#7C3AED]/30 hover:bg-[#FAF7FF]">
+    <div className="group rounded-[22px] border border-[#E5E7EB] bg-white p-6 shadow-[0_18px_60px_rgba(17,24,39,0.04)] transition duration-300 hover:-translate-y-1 hover:border-[#7C3AED]/30 hover:bg-[#FAF7FF] hover:shadow-[0_26px_80px_rgba(124,58,237,0.14)]">
       <div className="flex h-12 w-12 items-center justify-center rounded-[16px] border border-[#DDD6FE] bg-[#F3E8FF] text-[#7C3AED]">
         {icon}
       </div>
@@ -525,6 +554,279 @@ function AnalyzerSection({
 }
 
 
+function ComparisonSection() {
+  return (
+    <section className="relative z-10 mx-auto w-full max-w-[1280px] px-8 pb-28">
+      <div className="text-center">
+        <Badge>Why Climpy</Badge>
+        <h2 className="mx-auto mt-8 max-w-[860px] text-[56px] font-extrabold leading-[1.02] tracking-[-0.06em] text-[#111827]">
+          No prompt setup. Just a{" "}
+          <HandUnderline>Shorts script review</HandUnderline>.
+        </h2>
+        <p className="mx-auto mt-5 max-w-[620px] text-[18px] leading-[1.75] text-[#6B7280]">
+          Climpy is built for one job: checking if your Shorts script is actually ready to publish.
+        </p>
+      </div>
+
+      <div className="mt-14 grid grid-cols-1 items-start gap-6 lg:grid-cols-[0.8fr_1.2fr]">
+        <div className="h-fit rounded-[28px] border border-[#E5E7EB] bg-[#F9FAFB] p-7">
+          <p className="text-[13px] font-semibold uppercase tracking-[0.12em] text-[#9CA3AF]">
+            Without Climpy
+          </p>
+          <h3 className="mt-4 text-[28px] font-extrabold leading-[1.08] tracking-[-0.05em] text-[#111827]">
+            You&apos;re guessing what to fix.
+          </h3>
+          <p className="mt-4 text-[15px] leading-[1.7] text-[#6B7280]">
+            General AI tools can help, but for Shorts feedback you often still have to build the review yourself.
+          </p>
+
+          <div className="mt-7 space-y-4">
+            {[
+              "Define what makes a strong Shorts hook",
+              "Find where viewers may lose interest",
+              "Judge pacing and payoff on your own",
+              "Turn broad feedback into actual script fixes",
+            ].map((item) => (
+              <div key={item} className="flex items-start gap-3">
+                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#E5E7EB] text-[13px] font-bold text-[#9CA3AF]">
+                  ×
+                </span>
+                <p className="text-[15px] leading-[1.55] text-[#6B7280]">{item}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-[32px] border border-[#DDD6FE] bg-white p-8 shadow-[0_28px_90px_rgba(124,58,237,0.16)]">
+          <div className="flex items-start justify-between gap-6">
+            <div>
+              <p className="text-[13px] font-semibold uppercase tracking-[0.12em] text-[#7C3AED]">
+                Climpy
+              </p>
+              <h3 className="mt-4 text-[34px] font-extrabold leading-[1.02] tracking-[-0.055em] text-[#111827]">
+                Get a structured review in seconds.
+              </h3>
+            </div>
+
+            <div className="rounded-full border border-[#DDD6FE] bg-[#F3E8FF] px-4 py-2 text-[13px] font-semibold text-[#7C3AED]">
+              AI review
+            </div>
+          </div>
+
+          <div className="mt-8 grid grid-cols-3 gap-3">
+            {[
+              { label: "Hook Score", value: "74" },
+              { label: "Risk", value: "Med" },
+              { label: "Risky Part", value: "0:08–0:14" },
+            ].map((item) => (
+              <div key={item.label} className="rounded-[18px] border border-[#E9D5FF] bg-[#FAF5FF] p-4">
+                <p className="text-[12px] font-semibold text-[#7C3AED]">{item.label}</p>
+                <p className="mt-2 text-[24px] font-extrabold tracking-[-0.04em] text-[#111827]">
+                  {item.value}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-5 grid gap-4">
+            <div className="rounded-[18px] border border-[#E9D5FF] bg-white p-5">
+              <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
+                Main Issue
+              </p>
+              <p className="mt-2 text-[16px] font-semibold leading-[1.6] text-[#111827]">
+                The setup takes too long before the main promise appears.
+              </p>
+            </div>
+
+            <div className="rounded-[18px] border border-[#E9D5FF] bg-white p-5">
+              <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
+                Suggested Fix
+              </p>
+              <p className="mt-2 text-[16px] font-semibold leading-[1.6] text-[#111827]">
+                Move the main conflict into the first sentence and tighten the setup.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+
+
+function CommonQuestionsSection() {
+  const questions = [
+    {
+      question: "Is Climpy free to test?",
+      answer:
+        "Yes. Climpy is free to test right now. No signup is needed — just paste your Shorts script and get feedback in about 1 minute.",
+    },
+    {
+      question: "What does Climpy actually check?",
+      answer:
+        "Climpy reviews your script for hook strength, retention risk, risky parts, pacing problems, unclear payoff, and suggested fixes before publishing.",
+    },
+    {
+      question: "Do I need to upload a video?",
+      answer:
+        "No. Climpy works with script text. You can paste a script from Google Docs, Notion, Notes, your phone, or any other writing tool.",
+    },
+    {
+      question: "Does Climpy work for all videos?",
+      answer:
+        "Right now, Climpy works best for YouTube Shorts scripts, especially short videos around 15–60 seconds. We also plan to support long-form YouTube videos in the future.",
+    },
+    {
+      question: "What if I don’t agree with the feedback?",
+      answer:
+        "You don’t have to follow every suggestion. Climpy is a script reviewer that helps you spot possible weak parts before posting. After every analysis, you can also rate the result and tell us what you wanted Climpy to fix better.",
+    },
+    {
+      question: "Is my script stored or used anywhere else?",
+      answer:
+        "Your script is only used to generate the analysis. Climpy does not require an account, and your script is not shown publicly.",
+    },
+  ];
+
+  return (
+    <section
+      id="faqs"
+      className="relative z-10 mx-auto w-full max-w-[1280px] px-8 pb-28"
+    >
+      <div className="grid gap-10 lg:grid-cols-[0.9fr_1.35fr]">
+        <div>
+          <div className="mb-5 inline-flex rounded-full border border-[#DDD6FE] bg-[#F3E8FF] px-4 py-2 text-[12px] font-semibold uppercase tracking-[0.22em] text-[#7C3AED]">
+            FAQs
+          </div>
+
+          <h2 className="max-w-[430px] text-[48px] font-extrabold leading-[1.02] tracking-[-0.055em] text-[#111827]">
+            Frequently asked <HandUnderline>questions</HandUnderline>
+          </h2>
+
+          <p className="mt-5 max-w-[430px] text-[17px] leading-8 text-[#6B7280]">
+            Everything you need to know before testing Climpy with your first
+            Shorts script.
+          </p>
+        </div>
+
+        <div>
+          <div className="grid gap-4 md:grid-cols-2">
+            {questions.map((item) => (
+              <details
+                key={item.question}
+                className="group rounded-[28px] border border-[#E5E7EB] bg-white p-6 shadow-[0_22px_70px_rgba(17,24,39,0.06)] transition hover:border-[#DDD6FE]"
+              >
+                <summary className="flex cursor-pointer list-none items-start justify-between gap-4 text-left marker:hidden">
+                  <span className="text-[18px] font-bold leading-6 tracking-[-0.03em] text-[#111827]">
+                    {item.question}
+                  </span>
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-[#DDD6FE] bg-[#F3E8FF] text-xl font-light text-[#7C3AED] transition-transform group-open:rotate-45">
+                    +
+                  </span>
+                </summary>
+
+                <p className="mt-4 text-[15px] leading-7 text-[#6B7280]">
+                  {item.answer}
+                </p>
+              </details>
+            ))}
+          </div>
+
+          <div className="mt-5 flex items-center justify-between gap-6 rounded-[30px] border border-[#DDD6FE] bg-[#F3E8FF] p-6">
+            <div>
+              <h3 className="text-[22px] font-extrabold tracking-[-0.04em] text-[#111827]">
+                Ready to test your script?
+              </h3>
+              <p className="mt-2 text-[15px] leading-6 text-[#6B7280]">
+                Paste one real Shorts script and get a review in about 1 minute.
+              </p>
+            </div>
+
+            <a
+              href="#analyzer"
+              className="shrink-0 rounded-full bg-[#111827] px-6 py-3 text-[14px] font-semibold text-white transition hover:bg-[#1F2937]"
+            >
+              Analyze your script
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+
+
+function FooterSection() {
+  return (
+    <footer className="relative z-10 mx-auto w-full max-w-[1280px] px-8 pb-10">
+      <div className="overflow-hidden rounded-[34px] border border-[#E5E7EB] bg-[#111827] p-8 text-white shadow-[0_30px_100px_rgba(17,24,39,0.18)]">
+        <div className="grid gap-10 lg:grid-cols-[1.2fr_0.8fr_0.8fr]">
+          <div>
+            <div className="flex items-center gap-3">
+              <Image
+                src="/logo.png"
+                alt="Climpy"
+                width={44}
+                height={44}
+                className="h-11 w-11 object-contain"
+              />
+              <div>
+                <p className="text-[22px] font-extrabold tracking-[-0.06em]">
+                  Climpy
+                </p>
+                <p className="text-[13px] font-medium text-white/50">
+                  AI Shorts script checker
+                </p>
+              </div>
+            </div>
+
+            <p className="mt-6 max-w-[430px] text-[16px] leading-7 text-white/60">
+              Check your Shorts script before publishing. Spot weak hooks,
+              retention risks, unclear payoff, and easy fixes in about 1 minute.
+            </p>
+          </div>
+
+          <div>
+            <p className="text-[13px] font-semibold uppercase tracking-[0.18em] text-white/40">
+              Product
+            </p>
+            <div className="mt-5 grid gap-3 text-[15px] font-medium text-white/70">
+              <a href="#analyzer" className="transition hover:text-white">
+                Analyze script
+              </a>
+              <a href="#faqs" className="transition hover:text-white">
+                FAQs
+              </a>
+              <a href="#analyzer" className="transition hover:text-white">
+                Try Climpy
+              </a>
+            </div>
+          </div>
+
+          <div>
+            <p className="text-[13px] font-semibold uppercase tracking-[0.18em] text-white/40">
+              Built for
+            </p>
+            <div className="mt-5 grid gap-3 text-[15px] font-medium text-white/70">
+              <p>YouTube Shorts creators</p>
+              <p>Script testing</p>
+              <p>Faster pre-publish review</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-10 flex items-center justify-between border-t border-white/10 pt-6 text-[13px] font-medium text-white/40">
+          <p>© 2026 Climpy. Built for short-form creators.</p>
+          <p>Paste. Review. Improve. Publish.</p>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+
 // ─── Root page component ──────────────────────────────────────────────────────
 
 export default function HomePage() {
@@ -723,6 +1025,9 @@ export default function HomePage() {
             isAnalyzing={isAnalyzing}
             analyzeError={analyzeError}
           />
+          <ComparisonSection />
+          <CommonQuestionsSection />
+          <FooterSection />
         </div>
       </div>
 
