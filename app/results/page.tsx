@@ -93,6 +93,35 @@ function isValidImproveSuccessPayload(
   );
 }
 
+type ImproveScriptSuccessPayload = {
+  status: "improved" | "diagnostic";
+  improvedScript: string;
+  changes: string[];
+  reason: string;
+  missingMaterial?: string[];
+};
+
+function isValidImproveScriptSuccessPayload(
+  value: unknown
+): value is ImproveScriptSuccessPayload {
+  if (!value || typeof value !== "object") return false;
+
+  const payload = value as Record<string, unknown>;
+
+  return (
+    (payload.status === "improved" || payload.status === "diagnostic") &&
+    typeof payload.improvedScript === "string" &&
+    payload.improvedScript.trim().length > 0 &&
+    Array.isArray(payload.changes) &&
+    payload.changes.every((item) => typeof item === "string") &&
+    typeof payload.reason === "string" &&
+    payload.reason.trim().length > 0 &&
+    (payload.missingMaterial === undefined ||
+      (Array.isArray(payload.missingMaterial) &&
+        payload.missingMaterial.every((item) => typeof item === "string")))
+  );
+}
+
 export default function ResultsPage() {
  const [savedScript, setSavedScript] = useState("");
   const [savedTitle, setSavedTitle] = useState("");
@@ -109,6 +138,15 @@ export default function ResultsPage() {
   const [aiHookMode, setAiHookMode] = useState<"diagnostic" | "rewrite" | "">("");
   const [isImprovingHook, setIsImprovingHook] = useState(false);
   const [improveError, setImproveError] = useState("");
+  const [isScriptModalOpen, setIsScriptModalOpen] = useState(false);
+  const [improvedScript, setImprovedScript] = useState("");
+  const [improvedScriptReason, setImprovedScriptReason] = useState("");
+  const [improvedScriptChanges, setImprovedScriptChanges] = useState<string[]>([]);
+  const [improvedScriptMissingMaterial, setImprovedScriptMissingMaterial] =
+    useState<string[]>([]);
+  const [isImprovingScript, setIsImprovingScript] = useState(false);
+  const [improveScriptError, setImproveScriptError] = useState("");
+  const [copiedScript, setCopiedScript] = useState(false);
 const [mobileScriptOpen, setMobileScriptOpen] = useState(false);
   const [mobileSceneOpen, setMobileSceneOpen] = useState(false);
   const [mobileFixesOpen, setMobileFixesOpen] = useState(false);
@@ -480,6 +518,85 @@ const hookCopyButtonLabel =
     }
   }
 
+  async function handleImproveScript() {
+    if (isImprovingScript) return;
+
+    setCopiedScript(false);
+    setImproveScriptError("");
+    setImprovedScript("");
+    setImprovedScriptReason("");
+    setImprovedScriptChanges([]);
+    setImprovedScriptMissingMaterial([]);
+    setIsScriptModalOpen(true);
+    setIsImprovingScript(true);
+
+    try {
+      const response = await fetch("/api/improve-script", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          script: activeScript,
+          title: savedTitle,
+        }),
+      });
+
+      const data: unknown = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        const payload = data as { reason?: unknown };
+        const apiReason =
+          typeof payload.reason === "string" &&
+          payload.reason.trim().length > 0
+            ? payload.reason.trim()
+            : "Could not improve script. Please try again.";
+
+        setImproveScriptError(apiReason);
+        return;
+      }
+
+      if (!isValidImproveScriptSuccessPayload(data)) {
+        setImproveScriptError(
+          "Could not improve script. Please try again."
+        );
+        return;
+      }
+
+      setImprovedScript(data.improvedScript.trim());
+      setImprovedScriptReason(data.reason.trim());
+      setImprovedScriptChanges(
+        data.changes.map((item) => item.trim()).filter(Boolean)
+      );
+      setImprovedScriptMissingMaterial(
+        (data.missingMaterial ?? [])
+          .map((item) => item.trim())
+          .filter(Boolean)
+      );
+    } catch {
+      setImproveScriptError(
+        "Could not improve script. Please try again."
+      );
+    } finally {
+      setIsImprovingScript(false);
+    }
+  }
+
+  async function handleCopyImprovedScript() {
+    if (isImprovingScript || improveScriptError) return;
+
+    setCopiedScript(false);
+
+    try {
+      await navigator.clipboard.writeText(improvedScript);
+      setCopiedScript(true);
+
+      setTimeout(() => {
+        setCopiedScript(false);
+      }, 1500);
+    } catch {
+      setCopiedScript(false);
+    }
+  }
+
   async function handleShare() {
     if (!isStorageLoaded || storageError || !hasAnalyzedScript) return;
 
@@ -756,6 +873,14 @@ const hookCopyButtonLabel =
                         <h2 className="text-[17px] font-semibold text-[#111827]">Suggested Fixes</h2>
                         <span className="text-[12px] font-medium text-[#6B7280]">{pluralize(displayFixes.length, "suggestion", "suggestions")}</span>
                       </div>
+                      <button
+                        onClick={handleImproveScript}
+                        disabled={isImprovingScript}
+                        className="mb-3 mr-3 inline-flex h-[38px] items-center gap-2 rounded-[10px] border border-[#DDD6FE] bg-[#F3E8FF] px-4 text-[13px] font-semibold text-[#7C3AED] transition hover:bg-[#EDE9FE] disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <PencilLine size={15} />
+                        Improve Script
+                      </button>
                       {shouldShowHookAction && (
                         <button
                           onClick={handleImproveHook}
@@ -943,6 +1068,13 @@ const hookCopyButtonLabel =
                   <span className="text-[11px] font-medium text-[#6B7280]">{pluralize(displayFixes.length, "suggestion", "suggestions")}</span>
                 </div>
                 <div className="px-4 pb-4 flex flex-col gap-2.5">
+                  <button
+                    onClick={handleImproveScript}
+                    disabled={isImprovingScript}
+                    className="h-[42px] w-full rounded-[12px] border border-[#DDD6FE] bg-[#F3E8FF] text-[13px] font-semibold text-[#7C3AED] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Improve Script
+                  </button>
                   <SuggestedFixesContent
                     fixes={mobileFixesOpen ? displayFixes : displayFixes.slice(0, 3)}
                     compact
@@ -1172,6 +1304,85 @@ const hookCopyButtonLabel =
                 className="h-[44px] rounded-[12px] border border-[#E5E7EB] bg-[#F8F8FC] text-[13px] font-semibold text-[#111827] transition hover:bg-[#F3F4F6]"
               >
                 Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isScriptModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-[2px] px-[16px]">
+          <div className="relative w-full max-w-[680px] rounded-[20px] border border-[#E5E7EB] bg-white p-5 sm:p-7">
+            <button
+              onClick={() => setIsScriptModalOpen(false)}
+              className="absolute right-5 top-4 text-[22px] leading-none text-[#6B7280] transition hover:text-[#111827]"
+            >
+              x
+            </button>
+
+            <h2 className="pr-8 text-[20px] font-semibold text-[#111827] sm:text-[22px]">
+              {improvedScriptMissingMaterial.length > 0
+                ? "Script Needs More Material"
+                : "Improved Script"}
+            </h2>
+
+            <p className="mt-2 text-[13px] leading-5 text-[#6B7280] sm:text-[14px]">
+              Climpy rewrites the complete Short while preserving the facts
+              in your original script.
+            </p>
+
+            <div className="mt-5 max-h-[300px] overflow-y-auto whitespace-pre-wrap rounded-[14px] border border-[#E5E7EB] bg-[#F8F8FC] p-4 text-[13px] leading-6 text-[#111827] sm:text-[14px]">
+              {isImprovingScript
+                ? "Improving the full script..."
+                : improveScriptError
+                  ? "No improved script was generated."
+                  : improvedScript}
+            </div>
+
+            {improveScriptError ? (
+              <p className="mt-4 text-[13px] leading-5 text-[#7C3AED]">
+                {improveScriptError}
+              </p>
+            ) : (
+              <div className="mt-4 space-y-3">
+                {improvedScriptReason && (
+                  <p className="text-[13px] leading-5 text-[#6B7280]">
+                    {improvedScriptReason}
+                  </p>
+                )}
+
+                {improvedScriptChanges.length > 0 && (
+                  <ul className="space-y-1 text-[12px] leading-5 text-[#6B7280] sm:text-[13px]">
+                    {improvedScriptChanges.map((change) => (
+                      <li key={change}>• {change}</li>
+                    ))}
+                  </ul>
+                )}
+
+                {improvedScriptMissingMaterial.length > 0 && (
+                  <p className="text-[12px] leading-5 text-[#6B7280] sm:text-[13px]">
+                    Add: {improvedScriptMissingMaterial.join(", ")}.
+                  </p>
+                )}
+              </div>
+            )}
+
+            <div className="mt-6 flex gap-3">
+              <button
+                onClick={handleCopyImprovedScript}
+                disabled={
+                  isImprovingScript || Boolean(improveScriptError)
+                }
+                className="h-[42px] flex-1 rounded-[12px] bg-[#7C3AED] text-[13px] font-semibold text-white transition hover:bg-[#6D28D9] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {copiedScript ? "Copied!" : "Copy Script"}
+              </button>
+
+              <button
+                onClick={() => setIsScriptModalOpen(false)}
+                className="h-[42px] flex-1 rounded-[12px] border border-[#E5E7EB] bg-[#F8F8FC] text-[13px] font-semibold text-[#111827] transition hover:bg-[#F3F4F6]"
+              >
+                Close
               </button>
             </div>
           </div>

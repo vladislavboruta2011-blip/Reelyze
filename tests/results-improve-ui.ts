@@ -581,6 +581,124 @@ if (
 }
 
 
+const improveScriptFetchCount =
+  source.split('fetch("/api/improve-script"').length - 1;
+
+const improveScriptHandlerStart = source.indexOf(
+  "async function handleImproveScript"
+);
+const improveScriptHandlerEnd =
+  improveScriptHandlerStart >= 0
+    ? source.indexOf(
+        "async function handleCopyImprovedScript",
+        improveScriptHandlerStart
+      )
+    : -1;
+const improveScriptHandler =
+  improveScriptHandlerStart >= 0 &&
+  improveScriptHandlerEnd > improveScriptHandlerStart
+    ? source.slice(improveScriptHandlerStart, improveScriptHandlerEnd)
+    : "";
+
+const improveScriptJsonIndex =
+  improveScriptHandler.indexOf("await response.json()");
+const improveScriptOkIndex =
+  improveScriptHandler.indexOf("if (!response.ok)");
+
+const hasSeparateImproveScriptFlow =
+  improveScriptFetchCount === 1 &&
+  source.includes("function isValidImproveScriptSuccessPayload(") &&
+  source.includes("const [isScriptModalOpen, setIsScriptModalOpen]") &&
+  source.includes("const [improvedScript, setImprovedScript]") &&
+  source.includes("const [isImprovingScript, setIsImprovingScript]") &&
+  source.includes("const [improveScriptError, setImproveScriptError]") &&
+  source.includes("async function handleImproveScript()") &&
+  source.includes("async function handleCopyImprovedScript()") &&
+  source.includes("setIsScriptModalOpen(true)") &&
+  source.includes("{isScriptModalOpen &&") &&
+  source.split("Improve Script").length - 1 >= 2;
+
+if (hasSeparateImproveScriptFlow) {
+  console.log(
+    "✅ PASS — Improve Script uses a separate endpoint, state, handler, and modal"
+  );
+} else {
+  console.error(
+    "❌ FAIL — Improve Script must use its own endpoint, state, handler, and modal"
+  );
+  failures += 1;
+}
+
+if (
+  improveScriptJsonIndex >= 0 &&
+  improveScriptOkIndex >= 0 &&
+  improveScriptJsonIndex < improveScriptOkIndex
+) {
+  console.log(
+    "✅ PASS — Improve Script reads the API payload before response.ok handling"
+  );
+} else {
+  console.error(
+    "❌ FAIL — Improve Script must read the API payload before handling a non-OK response"
+  );
+  failures += 1;
+}
+
+const hasImproveScriptPayloadGuard =
+  source.includes("function isValidImproveScriptSuccessPayload(") &&
+  improveScriptHandler.includes(
+    "if (!isValidImproveScriptSuccessPayload(data))"
+  );
+
+if (hasImproveScriptPayloadGuard) {
+  console.log(
+    "✅ PASS — Improve Script validates successful API payloads before rendering"
+  );
+} else {
+  console.error(
+    "❌ FAIL — Improve Script must validate successful API payloads before rendering"
+  );
+  failures += 1;
+}
+
+const improveScriptCopyHandlerStart = source.indexOf(
+  "async function handleCopyImprovedScript"
+);
+const improveScriptCopyHandlerEnd =
+  improveScriptCopyHandlerStart >= 0
+    ? source.indexOf("async function handleShare", improveScriptCopyHandlerStart)
+    : -1;
+const improveScriptCopyHandler =
+  improveScriptCopyHandlerStart >= 0 &&
+  improveScriptCopyHandlerEnd > improveScriptCopyHandlerStart
+    ? source.slice(
+        improveScriptCopyHandlerStart,
+        improveScriptCopyHandlerEnd
+      )
+    : "";
+
+const copiesFullImprovedScript =
+  improveScriptCopyHandler.includes(
+    "await navigator.clipboard.writeText(improvedScript)"
+  ) &&
+  improveScriptCopyHandler.includes(
+    "if (isImprovingScript || improveScriptError) return;"
+  ) &&
+  improveScriptCopyHandler.includes("setCopiedScript(true)") &&
+  improveScriptCopyHandler.includes("catch");
+
+if (copiesFullImprovedScript) {
+  console.log(
+    "✅ PASS — Improve Script copies the complete validated rewrite safely"
+  );
+} else {
+  console.error(
+    "❌ FAIL — Improve Script copy action must safely copy the complete rewrite"
+  );
+  failures += 1;
+}
+
+
 if (failures > 0) {
   process.exitCode = 1;
 } else {
