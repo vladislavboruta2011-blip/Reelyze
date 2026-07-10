@@ -304,12 +304,21 @@ function isLightParaphraseWithoutEditorialImprovement(
   const retainedImprovedTokenRatio =
     retainedImprovedTokens / improvedTokens.length;
 
+  const replacesManyWordsWithoutEditorialChange =
+    improvedToOriginalLengthRatio >= 0.9 &&
+    retainedImprovedTokenRatio < 0.65;
+
+  const closelyCopiesEverySentence =
+    improvedToOriginalLengthRatio >= 0.8 &&
+    retainedImprovedTokenRatio >= 0.75 &&
+    bestMatches.every((match) => match.overlap >= 0.7);
+
   return (
     preservesSentenceOrder &&
     preservesFinalOutcome &&
     everySentenceRetainsOriginalMaterial &&
-    improvedToOriginalLengthRatio >= 0.9 &&
-    retainedImprovedTokenRatio < 0.65
+    (replacesManyWordsWithoutEditorialChange ||
+      closelyCopiesEverySentence)
   );
 }
 

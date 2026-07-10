@@ -347,6 +347,42 @@ const tests: TestCase[] = [
     },
   },
   {
+    name: "production Messi light paraphrase with unchanged progression and payoff should preserve the original",
+    run: () => {
+      const script = [
+        "If Messi had Ronaldo’s vertical jump, how high would he actually reach?",
+        "Messi is around 5 feet 7, while Ronaldo is around 6 feet 2.",
+        "So even with Ronaldo’s jump, Messi still wouldn’t reach as high as Ronaldo.",
+        "But he’d probably score far more headers and be jumping high enough to challenge almost any defender.",
+      ].join("\n");
+
+      const result = parseImproveScriptResponse(
+        JSON.stringify({
+          editorialDecision: {
+            strategy: "rewrite",
+            primaryProblem:
+              "The original opening is weak and does not immediately capture the viewer's interest.",
+            primaryProblemEvidence:
+              "If Messi had Ronaldo’s vertical jump, how high would he actually reach?",
+          },
+          improvedScript:
+            "What if Messi had Ronaldo’s incredible vertical jump? Messi stands at 5 feet 7, while Ronaldo towers at 6 feet 2. Even with Ronaldo’s jump, Messi wouldn’t reach as high as Ronaldo. However, he’d likely score many more headers, jumping high enough to challenge nearly any defender.",
+          changes: [
+            "Reframed the opening to immediately engage the viewer with a question about the scenario.",
+            "Streamlined the progression to create a smoother flow of ideas, connecting Messi's height, Ronaldo's jump, and the potential impact on Messi's game.",
+          ],
+          reason:
+            "The original script's opening was weak and did not immediately capture the viewer's interest. By posing a direct question, the rewrite engages the audience right away.",
+        }),
+        script
+      );
+
+      assert.equal(result.status, "preserve");
+      assert.equal(result.improvedScript, script);
+      assert.deepEqual(result.changes, []);
+    },
+  },
+  {
     name: "light paraphrase with unchanged progression and payoff should preserve the original",
     run: () => {
       const script = [
