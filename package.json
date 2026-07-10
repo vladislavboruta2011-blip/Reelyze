@@ -19,7 +19,7 @@
     "test:improve-hook": "tsx tests/improve-hook.ts",
     "test:api:feedback": "tsx tests/feedback-api.ts",
     "test:admin:proxy": "tsx tests/admin-proxy.ts",
-    "test": "npm run test:analysis-v2 && npm run test:improve-hook && npm run test:scoring && npm run test:api:improve && npm run test:api:feedback && npm run test:admin:proxy && npm run test:ui:improve",
+    "test": "npm run test:analysis-v2 && npm run test:improve-hook && npm run test:improve-script && npm run test:scoring && npm run test:api:improve && npm run test:api:improve-script && npm run test:api:feedback && npm run test:admin:proxy && npm run test:ui:improve",
     "test:ui:improve": "tsx tests/results-improve-ui.ts",
     "test:analysis-v2:validation": "tsx tests/analysis-v2-validation.ts",
     "test:analysis-v2:api": "tsx tests/analysis-v2-api.ts",
@@ -27,7 +27,9 @@
     "test:analysis-v2:benchmark:real": "tsx tests/analysis-v2-benchmark-real.ts",
     "test:analysis-v2:ui": "tsx tests/analysis-v2-ui-adapter.ts",
     "test:analysis-v2:integration": "tsx tests/analysis-v2-integration.ts",
-    "test:analysis-v2:prompt": "tsx tests/analysis-v2-prompt.ts"
+    "test:analysis-v2:prompt": "tsx tests/analysis-v2-prompt.ts",
+    "test:improve-script": "tsx tests/improve-script.ts",
+    "test:api:improve-script": "tsx tests/improve-script-api.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.108.2",

@@ -397,7 +397,7 @@ const hasDecisionSpecificActionLabels =
   source.includes(
     'hookDecision === "diagnostic"'
   ) &&
-  source.includes('"Improve Script"') &&
+  source.includes('"Needs Details"') &&
   source.includes(
     'hookDecision === "refine"'
   ) &&
@@ -494,7 +494,7 @@ const preservesLegacyHookActionLabel =
     "const hookActionLabel = savedAnalysisV2"
   ) &&
   source.includes(
-    ': analysis.hook.score >= 70\n    ? "Refine Script"\n    : "Improve Hook";'
+    ': analysis.hook.score >= 70\n    ? "Refine Hook"\n    : "Improve Hook";'
   );
 
 if (preservesLegacyHookActionLabel) {
@@ -503,7 +503,7 @@ if (preservesLegacyHookActionLabel) {
   );
 } else {
   console.error(
-    "❌ FAIL — Legacy fallback must still show Refine Script for hook scores from 70 to 74"
+    "❌ FAIL — Legacy fallback must still show Refine Hook for hook scores from 70 to 74"
   );
   failures += 1;
 }
