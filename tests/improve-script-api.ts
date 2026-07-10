@@ -125,6 +125,13 @@ async function main() {
                 message: {
                   role: "assistant",
                   content: JSON.stringify({
+                    editorialDecision: {
+                      strategy: "rewrite",
+                      primaryProblem:
+                        "The opening delays the concrete 12-second detail that explains the misleading result.",
+                      primaryProblemEvidence:
+                        "The valve stayed closed for 12 seconds before the pressure escaped.",
+                    },
                     improvedScript: [
                       "The test looked safe for 12 seconds.",
                       "But the valve was still holding pressure inside the chamber.",
@@ -174,6 +181,12 @@ async function main() {
           payload.status !== "improved" ||
           typeof payload.improvedScript !== "string" ||
           !payload.improvedScript.includes("12 seconds") ||
+          payload.editorialDecision?.strategy !== "rewrite" ||
+          typeof payload.editorialDecision?.primaryProblem !== "string" ||
+          payload.editorialDecision.primaryProblem.trim().length === 0 ||
+          typeof payload.editorialDecision?.primaryProblemEvidence !== "string" ||
+          payload.editorialDecision.primaryProblemEvidence.trim() !==
+            "The valve stayed closed for 12 seconds before the pressure escaped." ||
           !Array.isArray(payload.changes) ||
           typeof payload.reason !== "string"
         ) {
@@ -211,6 +224,129 @@ async function main() {
     return;
   }
 
+  const preserveLightParaphraseProbe = spawnSync(
+    "npx",
+    [
+      "tsx",
+      "-e",
+      `globalThis.fetch = async () =>
+        new Response(
+          JSON.stringify({
+            id: "chatcmpl-test",
+            object: "chat.completion",
+            created: 0,
+            model: "gpt-4o-mini",
+            choices: [
+              {
+                index: 0,
+                message: {
+                  role: "assistant",
+                  content: JSON.stringify({
+                    editorialDecision: {
+                      strategy: "rewrite",
+                      primaryProblem:
+                        "The script lacks a strong opening that immediately captures the viewer's attention and clearly connects to the title.",
+                      primaryProblemEvidence:
+                        "Most defenders watch the ball when Ronaldo jumps.",
+                    },
+                    improvedScript:
+                      "Ronaldo is a nightmare for defenders in the air. While they focus on the ball, he zeroes in on them. He waits for them to lose their balance, then strikes at the space above. This is how he manages to outjump defenders, even when they're closer to the ball.",
+                    changes: [
+                      "Reframed the opening to immediately highlight Ronaldo's aerial threat, making it more engaging.",
+                      "Streamlined the progression to enhance clarity and flow, ensuring each sentence builds on the last."
+                    ],
+                    reason:
+                      "The original script's opening was weak and needed a stronger connection to the title."
+                  }),
+                },
+                finish_reason: "stop",
+              },
+            ],
+            usage: {
+              prompt_tokens: 1,
+              completion_tokens: 1,
+              total_tokens: 2,
+            },
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+
+      import("./app/api/improve-script/route.ts").then(async ({ POST }) => {
+        const originalScript = [
+          "Most defenders watch the ball when Ronaldo jumps.",
+          "But Ronaldo watches the defender.",
+          "He waits until they lose balance, then attacks the space above them.",
+          "That is why he can reach the ball even when the defender is closer."
+        ].join("\\n");
+
+        const response = await POST(
+          new Request("http://localhost/api/improve-script", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              title: "Why Ronaldo Is So Dangerous in the Air",
+              script: originalScript,
+            }),
+          })
+        );
+
+        const payload = await response.json();
+
+        if (
+          response.status !== 200 ||
+          payload.status !== "preserve" ||
+          payload.improvedScript !== originalScript ||
+          !Array.isArray(payload.changes) ||
+          payload.changes.length !== 0 ||
+          !/meaningful editorial improvement|preserv/i.test(
+            payload.reason ?? ""
+          )
+        ) {
+          throw new Error(
+            "Expected light paraphrase to preserve the exact original script"
+          );
+        }
+
+        console.log("PRESERVE_LIGHT_PARAPHRASE_PASS");
+      }).catch((error) => {
+        console.error(error instanceof Error ? error.message : error);
+        process.exit(1);
+      });`,
+    ],
+    {
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        OPENAI_API_KEY: "test-key",
+      },
+      encoding: "utf8",
+    }
+  );
+
+  if (
+    preserveLightParaphraseProbe.status === 0 &&
+    preserveLightParaphraseProbe.stdout.includes(
+      "PRESERVE_LIGHT_PARAPHRASE_PASS"
+    )
+  ) {
+    console.log(
+      "✅ PASS — Light paraphrase preserves the exact original script"
+    );
+  } else {
+    console.error(
+      "❌ FAIL — Light paraphrase must preserve the exact original script"
+    );
+    console.error(
+      preserveLightParaphraseProbe.stderr.trim() ||
+        preserveLightParaphraseProbe.stdout.trim()
+    );
+    process.exitCode = 1;
+    return;
+  }
+
   const unsupportedNumberProbe = spawnSync(
     "npx",
     [
@@ -229,6 +365,13 @@ async function main() {
                 message: {
                   role: "assistant",
                   content: JSON.stringify({
+                    editorialDecision: {
+                      strategy: "rewrite",
+                      primaryProblem:
+                        "The opening delays the concrete timing detail.",
+                      primaryProblemEvidence:
+                        "The valve stayed closed for 12 seconds before the pressure escaped.",
+                    },
                     improvedScript:
                       "The test looked safe for 30 seconds. But the valve was still holding pressure.",
                     changes: ["Added a stronger number."],
@@ -412,6 +555,52 @@ async function main() {
     "app/api/improve-script/route.ts",
     "utf8"
   );
+
+  const universalEditorialPromptRequirements = {
+    evaluatesCompleteScript:
+      routeSource.includes("evaluate the complete script") ||
+      routeSource.includes("evaluate the full script"),
+    identifiesPrimaryProblem:
+      routeSource.includes("single biggest problem") ||
+      routeSource.includes("primary limiting problem"),
+    exposesObservableEditorialDecision:
+      routeSource.includes('"editorialDecision"') &&
+      routeSource.includes('"strategy": "rewrite"') &&
+      routeSource.includes('"primaryProblem"') &&
+      routeSource.includes('"primaryProblemEvidence"'),
+    requiresGroundedDecisionEvidence:
+      routeSource.includes("exact quote") &&
+      routeSource.includes("Original script") &&
+      routeSource.includes("primaryProblemEvidence"),
+    rejectsLightParaphrase:
+      routeSource.includes("sentence-by-sentence paraphrase") ||
+      routeSource.includes("light paraphrase"),
+    avoidsForcedStructure:
+      routeSource.includes("Do not force a twist") &&
+      routeSource.includes("Do not force") &&
+      routeSource.includes("sentence order"),
+    protectsSupportedMeaning:
+      routeSource.includes("supported claim") &&
+      routeSource.includes("strengthen"),
+    requiresStrongSupportedEnding:
+      routeSource.includes("strongest supported") &&
+      routeSource.includes("ending"),
+  };
+
+  if (
+    Object.values(universalEditorialPromptRequirements).every(Boolean)
+  ) {
+    console.log(
+      "✅ PASS — Route prompt includes universal editorial decision framework"
+    );
+  } else {
+    console.error(
+      "❌ FAIL — Route prompt includes universal editorial decision framework"
+    );
+    console.error(JSON.stringify(universalEditorialPromptRequirements));
+    process.exitCode = 1;
+    return;
+  }
 
   const hasBoundedRateLimitStorage =
     routeSource.includes("AI_RATE_LIMIT_MAX_ENTRIES") &&

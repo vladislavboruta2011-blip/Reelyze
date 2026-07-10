@@ -94,7 +94,7 @@ function isValidImproveSuccessPayload(
 }
 
 type ImproveScriptSuccessPayload = {
-  status: "improved" | "diagnostic";
+  status: "improved" | "diagnostic" | "preserve";
   improvedScript: string;
   changes: string[];
   reason: string;
@@ -109,7 +109,9 @@ function isValidImproveScriptSuccessPayload(
   const payload = value as Record<string, unknown>;
 
   return (
-    (payload.status === "improved" || payload.status === "diagnostic") &&
+    (payload.status === "improved" ||
+      payload.status === "diagnostic" ||
+      payload.status === "preserve") &&
     typeof payload.improvedScript === "string" &&
     payload.improvedScript.trim().length > 0 &&
     Array.isArray(payload.changes) &&
@@ -144,6 +146,8 @@ export default function ResultsPage() {
   const [improvedScriptChanges, setImprovedScriptChanges] = useState<string[]>([]);
   const [improvedScriptMissingMaterial, setImprovedScriptMissingMaterial] =
     useState<string[]>([]);
+  const [improveScriptStatus, setImproveScriptStatus] =
+    useState<ImproveScriptSuccessPayload["status"] | "">("");
   const [isImprovingScript, setIsImprovingScript] = useState(false);
   const [improveScriptError, setImproveScriptError] = useState("");
   const [copiedScript, setCopiedScript] = useState(false);
@@ -527,6 +531,7 @@ const hookCopyButtonLabel =
     setImprovedScriptReason("");
     setImprovedScriptChanges([]);
     setImprovedScriptMissingMaterial([]);
+    setImproveScriptStatus("");
     setIsScriptModalOpen(true);
     setIsImprovingScript(true);
 
@@ -561,6 +566,7 @@ const hookCopyButtonLabel =
         return;
       }
 
+      setImproveScriptStatus(data.status);
       setImprovedScript(data.improvedScript.trim());
       setImprovedScriptReason(data.reason.trim());
       setImprovedScriptChanges(
@@ -1323,12 +1329,15 @@ const hookCopyButtonLabel =
             <h2 className="pr-8 text-[20px] font-semibold text-[#111827] sm:text-[22px]">
               {improvedScriptMissingMaterial.length > 0
                 ? "Script Needs More Material"
-                : "Improved Script"}
+                : improveScriptStatus === "preserve"
+                  ? "Original Script Preserved"
+                  : "Improved Script"}
             </h2>
 
             <p className="mt-2 text-[13px] leading-5 text-[#6B7280] sm:text-[14px]">
-              Climpy rewrites the complete Short while preserving the facts
-              in your original script.
+              {improveScriptStatus === "preserve"
+                ? "Climpy kept your original because the generated rewrite did not make a meaningful editorial improvement."
+                : "Climpy rewrites the complete Short while preserving the facts in your original script."}
             </p>
 
             <div className="mt-5 max-h-[300px] overflow-y-auto whitespace-pre-wrap rounded-[14px] border border-[#E5E7EB] bg-[#F8F8FC] p-4 text-[13px] leading-6 text-[#111827] sm:text-[14px]">
@@ -1375,7 +1384,9 @@ const hookCopyButtonLabel =
                 }
                 className="h-[42px] flex-1 rounded-[12px] bg-[#7C3AED] text-[13px] font-semibold text-white transition hover:bg-[#6D28D9] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {copiedScript ? "Copied!" : "Copy Script"}
+                {copiedScript ? "Copied!" : improveScriptStatus === "preserve"
+                ? "Copy Original"
+                : "Copy Script"}
               </button>
 
               <button

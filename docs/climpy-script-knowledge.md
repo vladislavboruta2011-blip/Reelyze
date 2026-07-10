@@ -546,3 +546,284 @@ Near-term priority:
 4. Then design Compare Scripts.
 
 Do not build Compare Scripts before Improve Script unless user feedback shows competitor comparison is more urgent.
+
+---
+
+## 21. Improve Script editorial decision framework
+
+Improve Script should act as an editor, not as a paraphrasing tool.
+
+Its goal is not to make the script look different. Its goal is to make the strongest useful improvement possible using only the material supported by the title and original script.
+
+These rules are universal. They must not depend on a specific topic, niche, creator, person, story type, or script category.
+
+### 21.1 Core decision principle
+
+Before rewriting, Improve Script should evaluate the full script as one connected viewer experience.
+
+It should determine:
+
+1. What the script promises the viewer.
+2. What facts, claims, examples, consequences, visuals, and payoff material are actually supported.
+3. What single problem most limits the script.
+4. Whether that problem can be meaningfully solved using only the available material.
+5. Whether a rewrite would create real editorial value or only different wording.
+
+Improve Script should solve the most important limiting problem instead of applying the same set of changes to every script.
+
+### 21.2 Possible primary problems
+
+The main limiting problem may be:
+
+- weak core idea;
+- insufficient source material;
+- weak opening;
+- unclear promise;
+- predictable progression;
+- payoff revealed too early;
+- weak or predictable payoff;
+- summary-style ending;
+- repetitive explanation;
+- filler or slow setup;
+- unsupported claim;
+- already-strong execution.
+
+This list describes possible universal editorial diagnoses. It is not a set of fixed script templates.
+
+Improve Script should not assume that every script needs a new hook, reordered sentences, more suspense, or a twist.
+
+### 21.3 Available actions
+
+Improve Script should choose the action that is most honest and useful.
+
+#### A. Meaningful rewrite
+
+Return a full rewrite when:
+
+- the source material is sufficient;
+- the core idea is usable;
+- the main weakness is execution;
+- the script can become meaningfully stronger without inventing information.
+
+A meaningful rewrite may:
+
+- reframe the opening;
+- change the information order;
+- compress context;
+- remove filler or repetition;
+- improve progression;
+- delay or reposition supported payoff material;
+- strengthen sentence-level value;
+- improve natural spoken rhythm;
+- preserve strong original lines that already work.
+
+None of these changes is mandatory by itself.
+
+The correct rewrite is the version that best improves the full viewer experience while preserving the supported meaning.
+
+#### B. Diagnostic
+
+Return a diagnostic instead of a full rewrite when:
+
+- the core idea is too weak to support a strong script;
+- the script lacks enough concrete material;
+- a stronger opening, progression, or payoff would require invention;
+- the available material does not contain a rewarding ending;
+- the source itself is too weak or incomplete to support a meaningful rewrite;
+- meaningful improvement would require changing a supported claim.
+
+The diagnostic should identify the real limiting problem.
+
+It should explain what material or value is missing instead of giving generic advice such as:
+
+- make it more engaging;
+- improve the flow;
+- add more detail;
+- use stronger language.
+
+#### C. Preserve the original
+
+Return preserve when the generated rewrite does not create a meaningful editorial improvement over the original.
+
+This includes cases where:
+
+- the original already uses its available material effectively;
+- the candidate rewrite is only a light sentence-by-sentence paraphrase;
+- the candidate preserves the same weakness, progression, and payoff while mainly replacing words;
+- the proposed changes do not justify presenting the result as an improved script.
+
+The preserve response should:
+
+- return the exact trimmed original script;
+- return an empty changes list;
+- explain honestly that the generated rewrite was not a meaningful editorial improvement.
+
+Improve Script should not:
+
+- replace strong wording only to make the output look new;
+- change a strong information order without a reason;
+- weaken a strong ending;
+- describe minor wording edits as a major improvement.
+
+### 21.4 Definition of a successful rewrite
+
+A successful rewrite should:
+
+- preserve the original core idea;
+- preserve supported facts, people, numbers, measurements, comparisons, causes, outcomes, uncertainty, and scope;
+- solve the main editorial problem;
+- improve how the full script fulfills its promise;
+- make each sentence add information, tension, context, consequence, progression, or payoff;
+- remove unnecessary filler and repetition;
+- remain concise, natural, understandable, and easy to say aloud;
+- use the strongest supported material at the most effective moment;
+- provide a reason and change list tied to the actual script.
+
+A rewrite is not successful merely because:
+
+- different words were used;
+- sentence order changed;
+- the script became more dramatic;
+- the output sounds more polished;
+- the model claims that pacing or clarity improved.
+
+### 21.5 Light paraphrase rule
+
+Light sentence-by-sentence paraphrasing must not be presented as a successful Improve Script result.
+
+A likely light paraphrase:
+
+- keeps the same sentence functions in the same order;
+- replaces words mainly with synonyms;
+- preserves the same weak opening, progression, and ending;
+- does not solve the script's main limiting problem;
+- describes generic improvements without identifying concrete editorial decisions.
+
+Structural similarity is not automatically wrong.
+
+The original order, wording, or sentence structure may remain when they are already effective.
+
+The important question is not whether the rewrite looks different. The important question is whether it creates real editorial improvement.
+
+When a generated candidate is only a light paraphrase, Climpy should preserve the original rather than label the candidate as improved.
+
+A diagnostic remains appropriate when the source itself lacks enough supported material for a safe meaningful rewrite.
+
+### 21.6 Factual and claim preservation
+
+Improve Script must not invent or strengthen:
+
+- facts;
+- numbers or measurements;
+- people or events;
+- examples;
+- causes;
+- outcomes;
+- comparisons;
+- certainty;
+- consequences;
+- claims.
+
+A rewrite must not turn a supported claim into a stronger unsupported claim.
+
+For example, changing the ability to reach the ball into a claim about jumping higher than a defender changes the meaning and is not allowed unless the original material supports it.
+
+If the desired improvement requires unsupported information, Improve Script should return a diagnostic.
+
+### 21.7 Progression and sentence value
+
+Improve Script should treat the script as one connected sequence, not as isolated sentences.
+
+Each sentence should add at least one useful element:
+
+- new information;
+- context;
+- tension;
+- a consequence;
+- a question;
+- progression;
+- payoff.
+
+A sentence that only repeats, summarizes, or rephrases information the viewer already understood should usually be removed or replaced.
+
+Improve Script should not change the order merely to create visible difference.
+
+It should change the order only when another sequence delivers the supported material more effectively.
+
+### 21.8 Ending decision
+
+The ending should provide the strongest supported final value available in the source material.
+
+A strong ending may deliver:
+
+- a reveal;
+- a reversal;
+- an unexpected consequence;
+- a supported number;
+- a strong final image;
+- a punchline;
+- a fulfilled promise;
+- a final escalation.
+
+No specific ending type is mandatory.
+
+Improve Script must not invent a twist, reveal, consequence, number, or escalation.
+
+The ending should not merely summarize what the viewer already understood.
+
+Summary starters such as:
+
+- That is why...
+- That's how...
+- So this means...
+- In conclusion...
+- Which is why...
+
+are weak when the sentence only restates the preceding explanation.
+
+They are acceptable when the sentence immediately adds genuinely new supported information.
+
+If the source material does not contain a strong final reward, Improve Script should:
+
+1. place the strongest supported detail at the most effective moment; or
+2. return a diagnostic explaining that stronger payoff material is missing.
+
+### 21.9 Final editorial self-check
+
+Before returning a result, Improve Script should verify:
+
+- Did the result solve the biggest actual problem?
+- Is the complete script meaningfully stronger?
+- Did the edit improve the viewer experience rather than only replace words?
+- Were all supported facts and claims preserved?
+- Was any claim, comparison, cause, outcome, or certainty strengthened?
+- Does every sentence add value?
+- Is the ending the strongest supported final reward available?
+- Is a light paraphrase being presented as an improvement?
+- Would a diagnostic be more honest?
+
+### 21.10 MVP implementation principle
+
+For the MVP, use the simplest architecture that can reliably follow this framework.
+
+Do not add:
+
+- niche-specific rules;
+- topic-specific templates;
+- a required twist;
+- mandatory sentence reordering;
+- embeddings;
+- a separate model judge;
+- multiple AI calls;
+- automatic retries;
+- complex similarity scoring;
+
+unless tests and real user examples show that the simpler implementation is insufficient.
+
+The implementation order should be:
+
+1. store approved product knowledge;
+2. add regression tests for confirmed failure modes;
+3. update the Improve Script prompt and parsing behavior;
+4. manually test real scripts;
+5. add deterministic guards only for failures that remain proven.

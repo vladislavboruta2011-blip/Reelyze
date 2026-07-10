@@ -699,6 +699,56 @@ if (copiesFullImprovedScript) {
 }
 
 
+const supportsPreserveImproveScriptStatus =
+  source.includes(
+    'status: "improved" | "diagnostic" | "preserve";'
+  ) &&
+  source.includes(
+    'payload.status === "preserve"'
+  );
+
+const storesImproveScriptResultStatus =
+  source.includes(
+    "const [improveScriptStatus, setImproveScriptStatus]"
+  ) &&
+  improveScriptHandler.includes(
+    "setImproveScriptStatus(data.status)"
+  );
+
+const presentsPreservedOriginalHonestly =
+  source.includes('improveScriptStatus === "preserve"') &&
+  source.includes("Original Script Preserved") &&
+  source.includes(
+    "the generated rewrite did not make a meaningful editorial improvement"
+  ) &&
+  source.includes(
+    'copiedScript ? "Copied!" : improveScriptStatus === "preserve"'
+  ) &&
+  source.includes('"Copy Original"');
+
+if (
+  supportsPreserveImproveScriptStatus &&
+  storesImproveScriptResultStatus &&
+  presentsPreservedOriginalHonestly
+) {
+  console.log(
+    "✅ PASS — Improve Script presents preserved originals honestly"
+  );
+} else {
+  console.error(
+    "❌ FAIL — Preserve responses must be accepted, stored, and shown as the original rather than an improved rewrite"
+  );
+  console.error(
+    JSON.stringify({
+      supportsPreserveImproveScriptStatus,
+      storesImproveScriptResultStatus,
+      presentsPreservedOriginalHonestly,
+    })
+  );
+  failures += 1;
+}
+
+
 if (failures > 0) {
   process.exitCode = 1;
 } else {
