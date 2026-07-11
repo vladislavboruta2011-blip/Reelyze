@@ -189,6 +189,66 @@ const tests: TestCase[] = [
     },
   },
   {
+    name: "AI-selected preserve should return the exact original without inventing a rewrite problem",
+    run: () => {
+      const script = [
+        "An entire village vanished overnight.",
+        "The next morning, every house was still standing and every table was still set.",
+        "But not a single person was found.",
+        "To this day, nobody knows where they went.",
+      ].join("\n");
+
+      const result = parseImproveScriptResponse(
+        JSON.stringify({
+          editorialDecision: {
+            strategy: "preserve",
+          },
+        }),
+        script
+      );
+
+      assert.equal(result.status, "preserve");
+      assert.equal(result.improvedScript, script);
+      assert.deepEqual(result.changes, []);
+      assert.ok(result.reason.length > 0);
+      assert.equal(result.editorialDecision, undefined);
+    },
+  },
+  {
+    name: "AI-selected preserve should ignore conflicting generated fields",
+    run: () => {
+      const script = [
+        "An entire village vanished overnight.",
+        "The next morning, every house was still standing and every table was still set.",
+        "But not a single person was found.",
+        "To this day, nobody knows where they went.",
+      ].join("\n");
+
+      const result = parseImproveScriptResponse(
+        JSON.stringify({
+          editorialDecision: {
+            strategy: "preserve",
+          },
+          improvedScript:
+            "In 1924, a village disappeared under mysterious circumstances.",
+          changes: [
+            "Added historical context.",
+            "Reframed the opening.",
+          ],
+          reason:
+            "The rewrite adds context and creates a stronger introduction.",
+        }),
+        script
+      );
+
+      assert.equal(result.status, "preserve");
+      assert.equal(result.improvedScript, script);
+      assert.deepEqual(result.changes, []);
+      assert.doesNotMatch(result.reason, /historical context|stronger introduction/i);
+      assert.equal(result.editorialDecision, undefined);
+    },
+  },
+  {
     name: "rewrite with only casing punctuation and whitespace changes should be rejected",
     run: () => {
       const script = [

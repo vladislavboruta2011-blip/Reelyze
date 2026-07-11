@@ -1323,3 +1323,283 @@ The implementation order should be:
 3. update the Improve Script prompt and parsing behavior;
 4. manually test real scripts;
 5. add deterministic guards only for failures that remain proven.
+
+---
+
+## 22. Improve Script editorial decision model
+
+Improve Script should not begin from the assumption that every script needs to look different.
+
+Before rewriting, it should make an explicit editorial comparison between the original script and the proposed candidate.
+
+### 22.1 Decision sequence
+
+The editorial decision should follow this order:
+
+1. Identify the strongest existing assets in the original script.
+2. Identify the single most important weakness that still limits the viewer experience.
+3. Decide whether that weakness can be solved using only supported source material.
+4. Create a candidate that targets that weakness while preserving the strongest existing assets.
+5. Compare the candidate against the original.
+6. Reject the candidate if the improvement is uncertain, cosmetic, or achieved by weakening an existing strength.
+
+The goal is not to preserve every original sentence.
+
+The goal is to preserve the editorial value that already works.
+
+### 22.2 Strongest existing assets
+
+A strong existing asset may include:
+
+- immediate subject clarity;
+- an obvious central conflict;
+- a concrete curiosity object;
+- a clear consequence;
+- a strong visual situation;
+- a specific number or comparison;
+- an effective information order;
+- a fulfilled opening promise;
+- a strong final reward;
+- concise wording that reaches the point quickly.
+
+Improve Script should not trade one of these assets for added context, chronology, polish, or novelty unless the trade creates a clearly stronger viewer experience.
+
+### 22.3 Opening comparison rule
+
+A new opening is not better merely because it:
+
+- becomes a question;
+- adds a date or historical setup;
+- adds background context;
+- sounds more dramatic;
+- uses more conversational wording;
+- looks more different from the original.
+
+A question may be a real improvement when it reveals the central conflict, promise, or comparison more clearly.
+
+A chronology-first or context-first opening may be a real improvement when chronology or context is itself the strongest supported hook.
+
+The decision must depend on the editorial gain, not the surface format.
+
+### 22.4 Preservation test
+
+Before returning `improved`, Climpy should ask:
+
+- Did the candidate make the topic clearer sooner?
+- Did it create a stronger opening promise?
+- Did it improve progression or payoff?
+- Did it remove a real interruption, repetition, or delay?
+- Did it preserve the strongest existing asset?
+- Did it weaken immediacy in exchange for background?
+- Did it add only a wrapper around the same information?
+- Is the reason describing an observable change that actually appears in the candidate?
+
+If the candidate cannot demonstrate a meaningful net gain, preserve the original.
+
+### 22.5 Manual test findings
+
+Confirmed useful behavior:
+
+- Strong mystery execution can be preserved unchanged.
+- A question hook can be a meaningful improvement when it immediately reveals the central comparison.
+- A visualization-first opening can improve immediacy without inventing facts.
+- Explicit causal distortion must be rejected.
+- Approved refined hooks must remain the exact opening.
+
+Observed failure patterns requiring regression evidence:
+
+- generic question wrappers that add no new editorial value;
+- strong subject-first openings replaced by weaker context-first or chronology-first openings;
+- explanations that invent or exaggerate a problem to justify a rewrite;
+- inconsistent rewrite quality across repeated generations;
+- quantified opening promises not fulfilled by the body;
+- obvious entertainment hyperbole treated as literal factual claims;
+- soft causal strengthening not covered by explicit causal guards;
+- Analysis findings and Improve Script decisions contradicting each other.
+
+These patterns are evidence for future tests.
+
+They are not permission to add niche-specific keyword rules or broad bans on questions, dates, chronology, metaphors, or context.
+
+### 22.6 Internal editorial reasoning sequence
+
+Improve Script should follow a consistent internal editorial sequence before returning any result.
+
+This is not a script template. It is a universal decision process for evaluating one specific script.
+
+#### Step 1 — Understand the complete viewer experience
+
+Read the full script before judging individual lines.
+
+Determine:
+
+- what experience the script creates;
+- what the opening promises;
+- how the information progresses;
+- what final reward the viewer receives.
+
+Individual lines should not be judged outside the purpose and context of the complete script.
+
+#### Step 2 — Inventory what already works
+
+Identify the strongest existing editorial assets before searching for weaknesses.
+
+These may include:
+
+- immediate subject clarity;
+- a concrete detail or number;
+- a strong curiosity object;
+- a visual moment;
+- an effective contrast;
+- useful information order;
+- a clear consequence;
+- a fulfilled promise;
+- a strong ending.
+
+These assets become preservation constraints for any candidate rewrite.
+
+#### Step 3 — Prove one real limiting problem
+
+Identify the single issue that most limits the current script.
+
+The problem must be supported by exact evidence from the source.
+
+Do not select a diagnosis merely because it is a common script weakness.
+
+If no concrete limiting problem can be demonstrated, preservation is likely the honest decision.
+
+Prior analysis findings may be considered as editorial context, but they must be verified against the script rather than accepted as unquestionable truth.
+
+#### Step 4 — Distinguish wording problems from structural problems
+
+A wording problem means the supported information and order are already appropriate, but the delivery is unnecessarily vague, weak, repetitive, uncertain, or verbose.
+
+A structural problem means important material is missing, delayed, revealed too early, interrupted, or placed at an ineffective moment.
+
+Rewording cannot solve a structural problem.
+
+A surface change must not be treated as a meaningful solution when the underlying structure remains unchanged.
+
+#### Step 5 — Choose the strategy before generating text
+
+Choose among:
+
+- preserve;
+- meaningful rewrite;
+- diagnostic.
+
+Rewrite only when both conditions are true:
+
+1. a specific source-supported problem has been proven;
+2. available material supports a solution that can meaningfully change the viewer experience.
+
+If either condition is missing, preserve or return a diagnostic.
+
+#### Step 6 — Define what must not change
+
+Before creating a candidate, protect:
+
+- supported facts;
+- people;
+- numbers and measurements;
+- comparisons;
+- causal relations;
+- outcomes;
+- uncertainty and claim strength;
+- the strongest final reward;
+- all strong editorial assets identified earlier;
+- an approved refined hook when one exists.
+
+A more dramatic or polished candidate is invalid if it weakens or distorts these constraints.
+
+#### Step 7 — Change only what solves the identified problem
+
+Every meaningful change should trace back to the primary problem.
+
+A change that does not help solve that problem is unnecessary, even when it is harmless in isolation.
+
+Do not rewrite additional parts merely to make the output look more different.
+
+#### Step 8 — Re-read the candidate as an independent script
+
+Evaluate the candidate without relying on the intention behind the rewrite.
+
+Ask whether the resulting script itself works better, not whether the planned operation was technically performed.
+
+Adding a question, changing order, or increasing drama does not prove that the viewer experience improved.
+
+#### Step 9 — Compare informational value, not surface difference
+
+Compare the original and candidate by asking:
+
+- Does the viewer understand the topic sooner?
+- Is the central promise clearer?
+- Is an important relationship easier to follow?
+- Does the progression become more rewarding?
+- Does a stronger contrast or visual situation emerge?
+- Is useful material delivered at a better moment?
+
+A generic wrapper, punctuation change, synonym replacement, or sentence split is not meaningful improvement by itself.
+
+A new comparison framing or concrete visualization may be meaningful when it changes how the viewer understands or experiences the supported material.
+
+#### Step 10 — Check unsupported strengthening
+
+Verify that the candidate did not strengthen:
+
+- certainty;
+- causality;
+- consequences;
+- comparisons;
+- promises;
+- factual claims.
+
+A possible relationship must not become a confirmed one.
+
+Separate events must not become causally connected merely because the connection sounds more compelling.
+
+#### Step 11 — Re-check preserved strengths
+
+Return to the strongest assets identified before rewriting.
+
+Confirm that each one remains present and equally effective.
+
+If a strong asset was weakened or removed, the candidate must replace it with a clearly stronger supported asset.
+
+Difference alone is not sufficient justification.
+
+#### Step 12 — Resolve uncertainty in favor of the original
+
+If the candidate's net editorial gain remains uncertain, preserve the original.
+
+Improve Script should search for proof that rewriting is necessary, not for a reason to justify a generated alternative.
+
+An uncertain improvement should not be presented as a successful rewrite.
+
+#### Step 13 — Write the explanation after the final decision
+
+The explanation should describe the observable difference between the accepted result and the original.
+
+It should state:
+
+- what concrete problem was solved;
+- what information was moved, removed, clarified, or reframed;
+- how that change improves the viewer experience.
+
+It must not repeat the model's original intention, invent a weakness, or use generic claims such as improved pacing, clarity, or engagement without observable evidence.
+
+The overall reasoning sequence is:
+
+1. understand the complete script;
+2. preserve what already works;
+3. prove one real problem;
+4. determine whether the problem is structural or wording-level;
+5. choose the correct action;
+6. protect supported facts and strong assets;
+7. make only necessary changes;
+8. evaluate the candidate independently;
+9. compare informational value;
+10. reject unsupported strengthening;
+11. verify that strengths survived;
+12. preserve when improvement is uncertain;
+13. explain only the final observable editorial change.
