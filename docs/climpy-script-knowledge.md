@@ -255,7 +255,7 @@ Important: using a proven idea does not mean copying. It means identifying deman
 Product implication:
 - Climpy should not only judge wording; it should also judge premise appeal when possible.
 - Future Compare Scripts should compare idea strength and premise clarity.
-- Future Improve Script should not invent a better idea if the script lacks one; it should say the script needs stronger source material.
+- Improve Script should not invent a better idea if the script lacks one; it should say the script needs stronger source material.
 
 ---
 
@@ -271,7 +271,7 @@ Examples of visual-first logic:
 Product implication:
 - Climpy should reward hooks that can be easily shown on screen.
 - Climpy should flag openings that explain before showing the interesting visual.
-- Future Improve Script should move the strongest visual moment earlier when supported by the script.
+- Improve Script should move the strongest visual moment earlier when supported by the script.
 
 ---
 
@@ -378,57 +378,553 @@ Product implication:
 
 ---
 
-## 15. Improve Hook rules
+## 15. Improve Hook editorial decision framework
 
-Current Improve Hook behavior should preserve these principles:
+Improve Hook should act as an opening editor, not as a hook-template generator or paraphrasing tool.
 
-- Use the strongest concrete anchor from the script.
-- If the script contains an exact number with a unit, preserve it when it is the strongest anchor.
-- If the final payoff is stronger than the opening, consider moving the payoff forward.
-- The improved hook should be short, punchy, and easy to say.
-- The first 5 words should be understandable without previous context.
-- Do not start with vague pronouns unless the subject is named immediately.
-- Do not return a rewrite that is basically the same as the original.
-- Do not rewrite a strong hook unless the rewrite is clearly better.
-- Do not invent unsupported stakes, facts, outcomes, or drama.
-- If the script is too generic, ask for more concrete material instead of making things up.
+Its goal is not to make the opening look different. Its goal is to produce the strongest honest opening supported by the video title and original script, or to preserve the original when no meaningful improvement is available.
+
+These rules are universal. They must not depend on a specific topic, niche, creator, person, story type, or hook template.
+
+### 15.1 Scope
+
+Improve Hook edits only the first spoken line or opening beat.
+
+It may use:
+
+- the video title or topic;
+- the complete original script;
+- supported facts, comparisons, causes, consequences, questions, and payoff material from the script.
+
+It should not:
+
+- rewrite the body of the script;
+- repair a weak body by making the opening overpromise;
+- invent a visual, sound, edit, reaction, proof, or scene that was not provided;
+- claim that a hook creates a stronger visual merely because the wording sounds more dramatic.
+
+Climpy can evaluate whether supported wording creates a concrete mental image. It cannot assume what will actually appear on screen unless that information is present in the title or script.
+
+### 15.2 Core decision principle
+
+Before rewriting, Improve Hook should determine:
+
+1. What promise or expectation the title creates.
+2. What the current opening tells the viewer.
+3. What subject, situation, or outcome the viewer should understand immediately.
+4. What main question or expectation should remain open after the hook.
+5. What payoff or destination the complete script can honestly deliver.
+6. What single problem most limits the current opening.
+7. Whether that problem can be meaningfully solved using only supported material.
+8. Whether a candidate creates real editorial value or only different wording.
+
+Improve Hook should solve the most important limiting problem instead of applying the same formula to every opening.
+
+### 15.3 Possible primary problems
+
+The main limiting problem may be:
+
+- delayed topic introduction;
+- weak title confirmation;
+- unclear subject;
+- vague or overly broad framing;
+- an unresolved pronoun or reference;
+- no clear reason to continue;
+- multiple competing curiosity paths;
+- curiosity that is unrelated to the actual payoff;
+- a complete answer revealed before the viewer has a reason to continue;
+- unsupported stakes, certainty, drama, or escalation;
+- generic hype instead of concrete value;
+- awkward or difficult spoken wording;
+- dependence on visual context that Climpy has not been given;
+- already-strong execution.
+
+This list describes universal editorial diagnoses. It is not a set of mandatory hook templates.
+
+Improve Hook should not assume that every opening needs:
+
+- a question;
+- a contradiction;
+- a number;
+- a pattern interrupt;
+- a threat;
+- a twist;
+- a payoff-first structure;
+- shorter wording;
+- different wording.
+
+### 15.4 Available actions and current response contract
+
+Improve Hook should choose the action that is most honest and useful.
+
+#### A. Preserve the existing hook
+
+Preserve the original opening when:
+
+- it already confirms the topic clearly;
+- it creates an appropriate reason to continue;
+- it points toward the script's supported payoff;
+- a generated alternative is only cosmetic or equally effective;
+- the proposed change would weaken clarity, voice, accuracy, or curiosity;
+- no candidate creates enough editorial value to justify replacement.
+
+Under the current API contract, preservation is represented by:
+
+- `status: "good"`;
+- the exact trimmed original opening in `improvedHook`;
+- a specific reason explaining why the original already works.
+
+The current implementation may also return `mode: "rewrite"` for compatibility. That value must not be interpreted as evidence that the original was rewritten.
+
+Improve Hook should not replace a strong opening merely to make the output look new.
+
+#### B. Meaningful rewrite
+
+Return a rewritten hook when:
+
+- the source material is sufficient;
+- the script contains a usable promise and payoff;
+- the primary weakness is in the opening's execution;
+- the weakness can be solved without inventing or strengthening information;
+- the candidate creates a materially better first viewer experience.
+
+Under the current API contract, a successful rewrite is represented by:
+
+- `status: "improved"`;
+- `mode: "rewrite"`;
+- one best rewritten opening;
+- a reason tied to the actual editorial change.
+
+A meaningful rewrite may:
+
+- remove delay before the topic;
+- name an unclear subject;
+- replace vague suspense with specific supported curiosity;
+- bring forward a supported consequence, comparison, mechanism, or question;
+- clarify what the viewer is waiting to learn;
+- align the opening more closely with the title;
+- preserve strong original wording that already works.
+
+None of these changes is mandatory by itself.
+
+#### C. Diagnostic
+
+Return a diagnostic instead of a rewrite when:
+
+- the title and script do not contain enough concrete or useful material;
+- the body does not contain a payoff capable of supporting the promised curiosity;
+- a stronger opening would require a new fact, result, example, consequence, or visual;
+- the video's core idea is too broad or predictable to support a meaningful hook;
+- the source is too incomplete to identify one honest viewer question;
+- meaningful improvement would require changing a supported claim.
+
+Under the current API contract, a diagnostic is represented by:
+
+- `status: "improved"`;
+- `mode: "diagnostic"`;
+- diagnostic guidance in the existing response fields;
+- a reason identifying the missing material.
+
+The diagnostic should explain what is missing instead of giving generic advice such as:
+
+- make it more engaging;
+- create more curiosity;
+- add stronger words;
+- make the hook viral;
+- use a pattern interrupt.
+
+#### D. Error
+
+Use `status: "error"` only for request, provider, parsing, or other execution failures.
+
+An editorial diagnostic is not an error.
+
+### 15.5 Definition of a successful hook rewrite
+
+A successful hook rewrite should:
+
+- preserve the video's core idea;
+- preserve all supported facts and claims;
+- solve the opening's main editorial problem;
+- confirm the title or topic quickly;
+- make the subject and situation understandable;
+- create one clear, relevant reason to continue;
+- point toward a payoff the script can actually deliver;
+- remain concise, natural, understandable, and easy to say aloud;
+- preserve the creator's voice when it already works;
+- provide a reason tied to an observable change.
+
+A rewrite is not successful merely because:
+
+- different words were used;
+- fewer words were used;
+- more dramatic words were used;
+- a statement became a question;
+- a question became a statement;
+- a number was moved into the first line;
+- a contrast word was added;
+- the output received a higher model-generated score;
+- the model claims that clarity, curiosity, or pacing improved.
+
+### 15.6 Title alignment and click confirmation
+
+The title creates the viewer's initial expectation.
+
+The hook should quickly confirm that the viewer is watching the promised video.
+
+A strong opening may:
+
+- name the same subject or situation as the title;
+- make the title's central question more concrete;
+- add a supported consequence, condition, comparison, or implication;
+- clarify what remains unresolved.
+
+The hook should not:
+
+- introduce a different main promise;
+- delay the title topic behind generic suspense;
+- merely repeat the title without adding useful framing;
+- exaggerate the title beyond what the script supports.
+
+When no title is provided, Improve Hook should infer the core promise from the original script without inventing one.
+
+### 15.7 Topic clarity and the intended viewer question
+
+After the opening, the viewer should understand:
+
+- what or who the video is about;
+- what situation, change, problem, or outcome is being examined;
+- what main question or expectation remains unresolved.
+
+The hook does not need to contain a grammatical question.
+
+A statement can create a strong intended question when the next thing the viewer naturally wants to know is clear.
+
+Improve Hook should avoid openings where different viewers are likely to wonder about unrelated things because the subject or promise is ambiguous.
+
+It should also avoid vague suspense such as:
+
+- something crazy happened;
+- you will not believe this;
+- this changes everything;
+- the real secret is;
+- wait until you see what happened.
+
+These phrases do not create strong curiosity unless the supported subject and value are also clear.
+
+### 15.8 Honest curiosity, foreshadowing, and payoff alignment
+
+A Shorts opening has two connected jobs:
+
+1. earn immediate attention;
+2. establish an honest expectation that gives the viewer a reason to continue.
+
+Curiosity should be on-target. It should point toward the actual value or payoff of the script.
+
+Improve Hook may foreshadow:
+
+- a supported result;
+- an unanswered comparison;
+- a consequence;
+- a causal explanation;
+- a reversal;
+- a concrete outcome;
+- a scenario whose result remains unresolved.
+
+It should not promise:
+
+- a twist that does not exist;
+- stronger stakes than the script contains;
+- proof the script does not provide;
+- a result that is never delivered;
+- a mystery unrelated to the final payoff.
+
+Improve Hook should not automatically move the complete final payoff into the opening.
+
+It may bring forward enough supported material to clarify the value while preserving a reason to continue.
+
+The correct balance depends on what the script actually delivers.
+
+### 15.9 Choosing supported hook material
+
+Numbers, measurements, concrete objects, physical details, named references, comparisons, consequences, contradictions, causal mechanisms, and final-payoff material are all possible hook anchors.
+
+No anchor type should automatically outrank every other type.
+
+A specific number is valuable when it:
+
+- expresses the video's scale;
+- changes the viewer's understanding;
+- sharpens the central comparison;
+- creates or supports the main question;
+- contributes directly to the payoff.
+
+A number should not be forced into the hook merely because it exists somewhere in the script.
+
+The strongest anchor is the supported material that contributes most to:
+
+- topic clarity;
+- relevant curiosity;
+- title confirmation;
+- payoff alignment;
+- immediate viewer value.
+
+When a number or measurement is used, its value and unit must be preserved accurately.
+
+When the script contains a cause and a consequence, Improve Hook may combine them only when doing so:
+
+- remains clear and natural;
+- does not overstate causality;
+- does not reveal the entire answer too early;
+- is stronger than preserving the original opening.
+
+The original opening itself may already contain the strongest available material.
+
+### 15.10 Spoken wording and author voice
+
+The improved hook should sound natural when spoken aloud.
+
+It should generally be:
+
+- concise;
+- easy to understand on first hearing;
+- free from unnecessary setup;
+- specific enough to stand on its own;
+- consistent with the user's existing tone.
+
+No universal word count is mandatory.
+
+A five-word hook is not automatically stronger than a fifteen-word hook.
+
+Question hooks, statement hooks, scenario hooks, comparisons, consequences, and contradictions can all work when they fit the source material.
+
+Improve Hook should not replace natural wording with generic AI language such as:
+
+- incredible;
+- shocking;
+- insane;
+- game-changing;
+- towers over;
+- imagine this;
+- here is the secret;
+- what nobody tells you.
+
+These expressions may be used only when they are genuinely supported, natural to the author's voice, and editorially necessary. They should never serve as substitutes for real value.
+
+### 15.11 Light paraphrase and decorative rewrite rule
+
+Light paraphrasing must not be presented as a successful hook improvement.
+
+A likely cosmetic rewrite:
+
+- keeps the same subject, question, promise, and payoff relationship;
+- mainly replaces words with synonyms;
+- adds decorative adjectives or hype;
+- changes a direct question into `Imagine if...` without improving its function;
+- inserts `but`, `however`, or another contrast word without creating real contrast;
+- changes the tone from natural speech to generic AI polish;
+- describes improvements that are not visible in the text.
+
+Structural or lexical similarity is not automatically wrong.
+
+A meaningful clarification may retain most original words.
+
+Low word overlap is also not proof of improvement. A rewrite can replace nearly every word while preserving the same weakness.
+
+The correct question is:
+
+> Does this version create a materially better opening experience using only supported material?
+
+If not, preserve the original.
+
+### 15.12 Factual, claim, and scope preservation
+
+Improve Hook must not invent or strengthen:
+
+- facts;
+- numbers;
+- measurements;
+- people;
+- events;
+- comparisons;
+- causes;
+- outcomes;
+- consequences;
+- certainty;
+- timeframes;
+- frequency;
+- scale;
+- stakes;
+- claims.
+
+It must preserve distinctions such as:
+
+- could versus will;
+- might versus does;
+- today versus always;
+- one example versus every case;
+- a possibility versus a confirmed outcome.
+
+A stronger hook should be more effective, not less accurate.
+
+If the desired hook requires unsupported information, Improve Hook should return a diagnostic.
+
+### 15.13 Reason quality and observable editorial change
+
+The returned reason must be specific to the current title, original opening, script, and result.
+
+It should identify:
+
+1. the original opening's real weakness or existing strength;
+2. the supported material relevant to the decision;
+3. the observable editorial operation that was performed;
+4. why that operation improves the viewer experience.
+
+Valid observable operations may include:
+
+- removed generic delay before the topic;
+- named the previously unclear subject;
+- introduced a supported consequence earlier;
+- replaced vague suspense with one specific unresolved question;
+- aligned the opening with the title;
+- preserved the original because the candidate added no meaningful value;
+- returned a diagnostic because the required payoff material was missing.
+
+The reason must not make a claim contradicted by the text.
+
+For example, it must not say:
+
+- a question was added when the original was already a question;
+- the progression changed when only synonyms changed;
+- the payoff became clearer when the same payoff remained in the same role;
+- the visual became stronger when no visual information was provided;
+- the hook became more specific when specific material was removed.
+
+Generic reasons such as `improved clarity and curiosity` are insufficient.
+
+### 15.14 Scores, thresholds, and deterministic guards
+
+A hook score may assist the decision, but it must not determine the result by itself.
+
+A numeric threshold is not a substitute for evaluating:
+
+- title alignment;
+- topic clarity;
+- intended viewer question;
+- payoff alignment;
+- factual safety;
+- meaningful editorial change.
+
+Deterministic validation is appropriate for failures that can be verified reliably, such as:
+
+- malformed response contracts;
+- unsupported numbers;
+- changed measurements;
+- exact original preservation;
+- forbidden claim strengthening;
+- obvious missing diagnostic material;
+- repeated confirmed failure modes.
+
+Deterministic validation should not assume universally that:
+
+- one anchor category is always strongest;
+- a specific lexical-overlap percentage proves success or failure;
+- every strong hook contains a number;
+- every rewrite must use different words;
+- every question hook is stronger or weaker than a statement hook.
+
+The prompt, response parser, tests, and guards should work together. No single regex or threshold should act as the complete editorial judge.
+
+### 15.15 Final editorial self-check
+
+Before returning a result, Improve Hook should verify:
+
+- Does the opening confirm the title or core topic?
+- Is the subject understandable immediately?
+- Is there one clear and relevant reason to continue?
+- Is the curiosity connected to the script's real payoff?
+- Was the complete answer revealed too early?
+- Was any fact, comparison, cause, result, certainty, scope, or timeframe changed?
+- Does the rewrite preserve the creator's natural voice?
+- Is the candidate meaningfully better rather than merely different?
+- Does the reason describe an observable change that actually occurred?
+- Would preserving the original be more honest?
+- Would a diagnostic be more useful?
+
+### 15.16 MVP implementation principle
+
+For the MVP, use the simplest architecture that can reliably follow this framework.
+
+Do not add:
+
+- niche-specific hook rules;
+- topic-specific templates;
+- a mandatory hook formula;
+- a required number;
+- a required contradiction;
+- a required question;
+- a required twist;
+- a separate model judge;
+- multiple AI calls;
+- embeddings;
+- complex similarity scoring;
+
+unless tests and real user examples prove that the simpler implementation is insufficient.
+
+The implementation order should be:
+
+1. store approved product knowledge;
+2. create regression cases for confirmed failures;
+3. update the Improve Hook prompt and decision structure;
+4. update parsing and deterministic guards only where necessary;
+5. manually test real hooks in production;
+6. add further guards only for failures that remain proven.
 
 ---
 
-## 16. Future Improve Script feature
+## 16. Improve Hook and Improve Script responsibilities
 
-Improve Script should be different from Improve Hook.
+Improve Hook and Improve Script solve related but different editorial problems.
+
+### Improve Hook
 
 Improve Hook:
-- rewrites only the first line/opening.
+
+- receives the title or topic when available;
+- receives the complete script as supporting context;
+- evaluates the current opening against the full script;
+- edits only the first spoken line or opening beat;
+- preserves the body;
+- may preserve, rewrite, or return a diagnostic under the current response contract.
+
+Improve Hook should not hide a weak script body behind an overpromising opening.
+
+If the body cannot fulfill a stronger hook, the correct action is preservation or diagnostic guidance.
+
+### Improve Script
 
 Improve Script:
-- rewrites the full Shorts script while preserving the original facts and idea.
 
-Improve Script should:
-- keep the user's core idea;
-- preserve real facts, numbers, people, claims, and payoff;
-- move the strongest visual/concrete anchor earlier;
-- cut filler;
-- improve pacing;
-- add clearer transitions only when supported;
-- strengthen curiosity loops;
-- improve payoff delivery;
-- make the script easier to say out loud;
-- avoid adding unsupported new facts.
+- evaluates the complete script as one connected viewer experience;
+- may preserve or change the opening;
+- may change information order, compression, progression, transitions, and payoff delivery;
+- must preserve the supported core idea, facts, claims, and author voice;
+- may return a meaningful rewrite, diagnostic, or preservation result.
 
-Improve Script should return:
-1. Improved script
-2. What changed
-3. Why it is stronger
-4. Missing material, if the script is too broad
+### Shared principles
 
-Improve Script should not:
-- invent fake statistics;
-- invent a stronger payoff;
-- add claims the user did not provide;
-- turn a weak idea into a fake viral concept;
-- copy a competitor's script.
+Both functions must:
+
+- create real editorial value rather than cosmetic difference;
+- preserve supported facts, claims, scope, certainty, and meaning;
+- avoid niche-specific templates;
+- avoid unsupported invention;
+- preserve already-strong material;
+- return reasons tied to observable editorial decisions.
+
+Improve Hook should not attempt to perform the full job of Improve Script.
+
+Improve Script should not assume that the hook must change when another part of the script is the real limiting problem.
 
 ---
 

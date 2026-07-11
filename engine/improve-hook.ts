@@ -67,10 +67,52 @@ function isGenericAdviceLine(line: string): boolean {
 // ── Absolute early guard: does the script contain ANY concrete anchor? ───────
 // "Concrete anchor" = number, measurement, named reference, concrete object/event,
 // causal/consequence connector, or specific physical/situational detail.
+function splitScriptSentences(script: string): string[] {
+  const sentences: string[] = [];
+  let current = "";
+
+  for (let index = 0; index < script.length; index += 1) {
+    const character = script[index];
+    const previous = script[index - 1] ?? "";
+    const next = script[index + 1] ?? "";
+
+    const isDecimalPoint =
+      character === "." &&
+      /\d/.test(previous) &&
+      /\d/.test(next);
+
+    const isSentenceBoundary =
+      character === "\n" ||
+      character === "?" ||
+      character === "!" ||
+      (character === "." && !isDecimalPoint);
+
+    if (isSentenceBoundary) {
+      const sentence = current.trim();
+
+      if (sentence.length > 0) {
+        sentences.push(sentence);
+      }
+
+      current = "";
+      continue;
+    }
+
+    current += character;
+  }
+
+  const finalSentence = current.trim();
+
+  if (finalSentence.length > 0) {
+    sentences.push(finalSentence);
+  }
+
+  return sentences;
+}
+
 // Pure structural detection — works for any niche, no hardcoded topics/phrases.
 export function hasAnyConcreteAnchor(script: string): boolean {
-  const lines = script
-    .split(/[\n.!?]/)
+  const lines = splitScriptSentences(script)
     .map(l => l.trim())
     .filter(l => l.split(/\s+/).filter(Boolean).length >= 1);
 
@@ -135,6 +177,215 @@ const GENERIC_DIAGNOSTIC_HOOK =
   "This script needs one specific example, result, or consequence before the hook can feel strong.";
 
 // Builds the universal diagnostic response when no concrete anchor exists.
+type MeasurableTitleClaim = {
+  label: string;
+  target: string | null;
+  supportPattern: RegExp;
+};
+
+const SCRIPT_EVIDENCE_SUPPORT_PATTERN =
+  /\b(?:study|studies|research|researchers?|scientists?|experiment|trial|participants?|sample|data|findings?|published|journal)\b/i;
+
+const TITLE_CLAIM_TARGET_STOPWORDS = new Set([
+  "a", "an", "the", "your", "their", "its",
+  "more", "less", "higher", "lower",
+]);
+
+function escapeTitleClaimRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function extractEvidenceTitleClaim(title: string): string | null {
+  const evidenceMatch =
+    title.match(
+      /\b(?:the|a|this|new)\s+(study|research|experiment|trial)\b(?=[^.!?]{0,50}\b(?:shows?|proves?|finds?|found|reveals?|confirms?)\b)/i
+    ) ??
+    title.match(
+      /\b(study|research|experiment|trial)\s+(?:that\s+)?(?:shows?|proves?|finds?|found|reveals?|confirms?)\b/i
+    );
+
+  if (evidenceMatch) {
+    return evidenceMatch[1].toLowerCase();
+  }
+
+  if (
+    /\b(?:scientists?|researchers?)\s+(?:showed?|found|proved?|discovered?)\b/i.test(
+      title
+    )
+  ) {
+    return "research";
+  }
+
+  return null;
+}
+
+function normalizeTitleClaimTarget(
+  target: string | undefined
+): string | null {
+  if (!target) return null;
+
+  const normalized =
+    target.toLowerCase().replace(/[^a-z0-9'-]/g, "");
+
+  if (
+    normalized.length === 0 ||
+    TITLE_CLAIM_TARGET_STOPWORDS.has(normalized)
+  ) {
+    return null;
+  }
+
+  return normalized;
+}
+
+function extractMeasurableTitleClaim(
+  title: string
+): MeasurableTitleClaim | null {
+  const multiplierMatch = title.match(
+    /\b(double(?:s|d|ing)?|twice|2x|two\s+times|triple(?:s|d|ing)?|3x|three\s+times)\b(?:\s+(?:the|your|a|an|their|its))?\s+([A-Za-z][A-Za-z'-]*)?/i
+  );
+
+  if (multiplierMatch) {
+    const rawMultiplier =
+      multiplierMatch[1].toLowerCase();
+
+    const isDoubleClaim =
+      /^(?:double|doubles|doubled|doubling|twice|2x|two\s+times)$/.test(
+        rawMultiplier
+      );
+
+    return {
+      label: isDoubleClaim ? "double" : "triple",
+      target: normalizeTitleClaimTarget(
+        multiplierMatch[2]
+      ),
+      supportPattern: isDoubleClaim
+        ? /\b(?:double(?:s|d|ing)?|twice|2x|two\s+times)\b/i
+        : /\b(?:triple(?:s|d|ing)?|3x|three\s+times)\b/i,
+    };
+  }
+
+  const percentageMatch = title.match(
+    /\b(\d+(?:\.\d+)?)\s*(?:%|percent\b)(?:\s+(?:more|less|higher|lower))?(?:\s+(?:the|your|a|an|their|its))?\s+([A-Za-z][A-Za-z'-]*)?/i
+  );
+
+  if (!percentageMatch) return null;
+
+  const percentage = percentageMatch[1];
+
+  return {
+    label: `${percentage}%`,
+    target: normalizeTitleClaimTarget(
+      percentageMatch[2]
+    ),
+    supportPattern: new RegExp(
+      `\\b${escapeTitleClaimRegExp(percentage)}\\s*(?:%|percent\\b)`,
+      "i"
+    ),
+  };
+}
+
+function scriptSupportsMeasurableTitleClaim(
+  claim: MeasurableTitleClaim,
+  script: string
+): boolean {
+  if (!claim.supportPattern.test(script)) {
+    return false;
+  }
+
+  if (!claim.target) {
+    return true;
+  }
+
+  return new RegExp(
+    `\\b${escapeTitleClaimRegExp(claim.target)}\\b`,
+    "i"
+  ).test(script);
+}
+
+function formatEvidencePromise(label: string): string {
+  return label === "research"
+    ? "research evidence"
+    : `a ${label}`;
+}
+
+function formatMeasuredPromise(label: string): string {
+  if (label === "double") {
+    return "a doubling effect";
+  }
+
+  if (label === "triple") {
+    return "a tripling effect";
+  }
+
+  return `a ${label} effect`;
+}
+
+export function buildUnsupportedTitleClaimResponse(
+  title: string,
+  script: string
+): ImproveHookResult | null {
+  if (title.trim().length === 0) {
+    return null;
+  }
+
+  const evidenceClaim =
+    extractEvidenceTitleClaim(title);
+
+  const measurableClaim =
+    extractMeasurableTitleClaim(title);
+
+  const missingEvidenceClaim =
+    evidenceClaim !== null &&
+    !SCRIPT_EVIDENCE_SUPPORT_PATTERN.test(script);
+
+  const missingMeasurableClaim =
+    measurableClaim !== null &&
+    !scriptSupportsMeasurableTitleClaim(
+      measurableClaim,
+      script
+    );
+
+  if (
+    !missingEvidenceClaim &&
+    !missingMeasurableClaim
+  ) {
+    return null;
+  }
+
+  let reason: string;
+
+  if (
+    missingEvidenceClaim &&
+    missingMeasurableClaim &&
+    evidenceClaim &&
+    measurableClaim
+  ) {
+    reason =
+      `The title promises ${formatEvidencePromise(evidenceClaim)} and ` +
+      `${formatMeasuredPromise(measurableClaim.label)}, but the script ` +
+      "supports neither. Add the missing evidence and measured result before rewriting the hook.";
+  } else if (
+    missingEvidenceClaim &&
+    evidenceClaim
+  ) {
+    reason =
+      `The title promises ${formatEvidencePromise(evidenceClaim)}, but the script ` +
+      "does not provide that evidence. Add the missing proof before rewriting the hook.";
+  } else {
+    reason =
+      `The title promises ${formatMeasuredPromise(measurableClaim!.label)}, but the script ` +
+      "does not support that measured result. Add the missing result before rewriting the hook.";
+  }
+
+  return {
+    status: "improved",
+    improvedHook:
+      "Add the missing proof before rewriting the hook.",
+    reason,
+    mode: "diagnostic",
+  };
+}
+
 export function buildEarlyDiagnosticResponse(): ImproveHookResult {
   return {
     status: "improved",
@@ -269,6 +520,243 @@ function isUnclearStandaloneHook(hook: string): boolean {
   );
 }
 
+const GROUNDING_STOPWORDS = new Set([
+  "a", "an", "the", "and", "or", "but", "if", "when", "after", "before",
+  "from", "to", "in", "on", "at", "by", "with", "for", "of", "as",
+  "is", "are", "was", "were", "be", "been", "being",
+  "this", "that", "these", "those", "it", "he", "she", "they",
+  "him", "her", "them", "his", "hers", "their", "your", "our",
+  "you", "we", "i",
+]);
+
+const UNSUPPORTED_SUBJECT_STARTERS = new Set([
+  "The", "This", "That", "These", "Those",
+  "He", "She", "They", "It",
+  "If", "When", "Why", "How", "What",
+  "Could", "Would", "Can", "Will", "Should",
+  "May", "Might", "Must",
+]);
+
+function normalizeGroundingToken(token: string): string {
+  const cleaned = token.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+  if (cleaned.length >= 6 && cleaned.endsWith("ing")) {
+    return cleaned.slice(0, -3);
+  }
+
+  if (cleaned.length >= 5 && cleaned.endsWith("ed")) {
+    return cleaned.slice(0, -2);
+  }
+
+  if (cleaned.length >= 5 && cleaned.endsWith("es")) {
+    return cleaned.slice(0, -2);
+  }
+
+  if (cleaned.length >= 4 && cleaned.endsWith("s")) {
+    return cleaned.slice(0, -1);
+  }
+
+  return cleaned;
+}
+
+function tokenizeGroundedContent(value: string): string[] {
+  return value
+    .split(/\s+/)
+    .map(normalizeGroundingToken)
+    .filter(
+      token =>
+        token.length > 0 &&
+        !GROUNDING_STOPWORDS.has(token)
+    );
+}
+
+function candidateUsesOnlySupportedContent(
+  candidate: string,
+  script: string
+): boolean {
+  const scriptTokens = new Set(tokenizeGroundedContent(script));
+  const candidateTokens = tokenizeGroundedContent(candidate);
+
+  return (
+    candidateTokens.length >= 3 &&
+    candidateTokens.every(token => scriptTokens.has(token))
+  );
+}
+
+function isGroundedSubjectClarification(
+  original: string,
+  candidate: string,
+  script: string
+): boolean {
+  if (
+    !isUnclearStandaloneHook(original) ||
+    isUnclearStandaloneHook(candidate)
+  ) {
+    return false;
+  }
+
+  const subjectMatch =
+    candidate.trim().match(/^([A-Z][A-Za-z'-]{2,})\b/);
+
+  if (!subjectMatch) return false;
+
+  const subject = subjectMatch[1];
+
+  if (UNSUPPORTED_SUBJECT_STARTERS.has(subject)) {
+    return false;
+  }
+
+  const scriptWords = new Set(
+    script
+      .split(/[^A-Za-z0-9'-]+/)
+      .map(word => word.toLowerCase())
+      .filter(Boolean)
+  );
+
+  const subjectIsSupported =
+    scriptWords.has(subject.toLowerCase());
+
+  return (
+    subjectIsSupported &&
+    candidateUsesOnlySupportedContent(candidate, script)
+  );
+}
+
+function findNearestNamedReferenceBefore(
+  value: string,
+  endIndex: number
+): string | null {
+  const prefix = value.slice(0, endIndex);
+  const matches = Array.from(
+    prefix.matchAll(/\b([A-Z][A-Za-z'-]{2,})\b/g)
+  );
+
+  const supportedNames = matches
+    .map(match =>
+      match[1].replace(/['’]s$/i, "")
+    )
+    .filter(name =>
+      !UNSUPPORTED_SUBJECT_STARTERS.has(name)
+    );
+
+  return supportedNames.at(-1) ?? null;
+}
+
+function escapeReferenceRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function isGroundedReferenceClarification(
+  original: string,
+  candidate: string,
+  script: string
+): boolean {
+  const ambiguousReference =
+    /\b(his|her|their|its)\s+([A-Za-z][A-Za-z'-]*)\b/i.exec(
+      original
+    );
+
+  if (
+    !ambiguousReference ||
+    ambiguousReference.index === undefined
+  ) {
+    return false;
+  }
+
+  const referencedNoun = ambiguousReference[2];
+
+  const nearestNamedReference =
+    findNearestNamedReferenceBefore(
+      original,
+      ambiguousReference.index
+    );
+
+  if (!nearestNamedReference) return false;
+
+  const ambiguousPhrasePattern = new RegExp(
+    `\\b(?:his|her|their|its)\\s+${escapeReferenceRegExp(referencedNoun)}\\b`,
+    "i"
+  );
+
+  const clarifiedPhrasePattern = new RegExp(
+    `\\b${escapeReferenceRegExp(nearestNamedReference)}(?:['’]s)\\s+${escapeReferenceRegExp(referencedNoun)}\\b`,
+    "i"
+  );
+
+  return (
+    ambiguousPhrasePattern.test(original) &&
+    !ambiguousPhrasePattern.test(candidate) &&
+    clarifiedPhrasePattern.test(candidate) &&
+    candidateUsesOnlySupportedContent(candidate, script)
+  );
+}
+
+const CAUSAL_GROUNDING_TOKENS = new Set([
+  "cause", "lead", "result", "trigger",
+  "force", "allow", "prevent", "enable",
+]);
+
+function tokensAppearInOrder(
+  candidateTokens: string[],
+  sourceTokens: string[]
+): boolean {
+  let sourceIndex = 0;
+
+  for (const candidateToken of candidateTokens) {
+    while (
+      sourceIndex < sourceTokens.length &&
+      sourceTokens[sourceIndex] !== candidateToken
+    ) {
+      sourceIndex += 1;
+    }
+
+    if (sourceIndex >= sourceTokens.length) {
+      return false;
+    }
+
+    sourceIndex += 1;
+  }
+
+  return true;
+}
+
+function isGroundedCausalMechanismRewrite(
+  candidate: string,
+  script: string
+): boolean {
+  const candidateTokens = tokenizeGroundedContent(candidate);
+
+  const hasCausalOperation =
+    candidateTokens.some(token =>
+      CAUSAL_GROUNDING_TOKENS.has(token)
+    );
+
+  if (
+    candidateTokens.length < 5 ||
+    !hasCausalOperation ||
+    !candidateUsesOnlySupportedContent(candidate, script)
+  ) {
+    return false;
+  }
+
+  const scriptSentences = splitScriptSentences(script);
+
+  return scriptSentences.some((sentence, index) => {
+    const adjacentWindow = [
+      sentence,
+      scriptSentences[index + 1] ?? "",
+    ].join(" ");
+
+    const sourceTokens =
+      tokenizeGroundedContent(adjacentWindow);
+
+    return tokensAppearInOrder(
+      candidateTokens,
+      sourceTokens
+    );
+  });
+}
+
 function isWeakBeliefContrastHook(hook: string): boolean {
   const lower = hook.toLowerCase().trimStart();
 
@@ -288,7 +776,7 @@ function isConclusionHook(hook: string): boolean {
 }
 
 function buildClearStandaloneFallbackHook(script: string): string {
-  const lines = script.split(/[\n.!?]/).map(l => l.trim()).filter(Boolean);
+  const lines = splitScriptSentences(script).map(l => l.trim()).filter(Boolean);
   const bodyLines = lines.slice(1);
 
   const visualLine = bodyLines.find(line => {
@@ -353,7 +841,7 @@ function buildAnchorHook(
 ): string | null {
   if (!anchor) return null;
 
-  const lines = script.split(/[\n.!?]/).map(l => l.trim()).filter(Boolean);
+  const lines = splitScriptSentences(script).map(l => l.trim()).filter(Boolean);
   const bodyLines = lines.slice(1);
 
   if (anchor.type === "exactNumberWithUnit") {
@@ -415,7 +903,7 @@ if (anchor.type === "concreteVisualDetail") {
 
 function buildSpecificReason(original: string, improved: string, script: string): string {
   const origLower = original.toLowerCase();
-  const lines = script.split(/[\n.!?]/).map(l => l.trim()).filter(Boolean);
+  const lines = splitScriptSentences(script).map(l => l.trim()).filter(Boolean);
   const bodyLines = lines.slice(1);
 
   // ── Detect the original hook's primary failure mode (structural) ──────────
@@ -686,8 +1174,7 @@ export function isVeryGenericScript(script: string): {
   isGeneric: boolean;
   mainTopicWord: string;
 } {
-  const lines = script
-    .split(/[\n.!?]/)
+  const lines = splitScriptSentences(script)
     .map(l => l.trim())
     .filter(l => l.split(/\s+/).filter(Boolean).length >= 3); // only real lines
 
@@ -753,7 +1240,7 @@ export function buildGenericScriptResponse(): ImproveHookResult {
 }
 
 function extractAnchorFromScript(script: string): { type: string; value: string } | null {
-  const lines = script.split(/[\n.!?]/).map(l => l.trim()).filter(Boolean);
+  const lines = splitScriptSentences(script).map(l => l.trim()).filter(Boolean);
   const bodyLines = lines.slice(1);
   const bodyText = bodyLines.join(" ");
 
@@ -821,7 +1308,7 @@ function hookDistortsAnchor(hook: string, script: string, anchor: { type: string
   if (anchor.type !== "exactNumberWithUnit" && anchor.type !== "concreteVisualDetail") return false;
 
   const hookLower = hook.toLowerCase();
-  const lines = script.split(/[\n.!?]/).map(l => l.trim()).filter(Boolean);
+  const lines = splitScriptSentences(script).map(l => l.trim()).filter(Boolean);
   const bodyLines = lines.slice(1);
 
   // Find the source line for the anchor
@@ -857,7 +1344,7 @@ function hookDistortsAnchor(hook: string, script: string, anchor: { type: string
 }
 
 function buildFallbackHookFromScript(script: string): string {
-  const lines = script.split(/[\n.!?]/).map(l => l.trim()).filter(Boolean);
+  const lines = splitScriptSentences(script).map(l => l.trim()).filter(Boolean);
   const firstLine = lines[0] ?? "";
   const bodyLines = lines.slice(1);
 
@@ -980,8 +1467,45 @@ function buildFallbackHookFromScript(script: string): string {
   return `${capitalizeFirstChar(shortSubject)} — but not for the reason most people think.`;
 }
 
+function extractOpeningHook(script: string): string {
+  const trimmed = script.trim();
+
+  if (trimmed.length === 0) return "";
+
+  const firstNonEmptyLine =
+    trimmed
+      .split(/\n/)
+      .map(line => line.trim())
+      .find(Boolean) ?? trimmed;
+
+  const firstSentence =
+    firstNonEmptyLine.match(/^.*?[.!?](?=\s|$)/);
+
+  return (firstSentence?.[0] ?? firstNonEmptyLine).trim();
+}
+
+function isGroundedStandaloneOpening(hook: string): boolean {
+  const trimmed = hook.trim();
+
+  const isDirectQuestion = trimmed.endsWith("?");
+
+  const hasPremiseConsequenceStructure =
+    /^(if|when)\b.+,\s+.+\b(would|could|will|can)\b/i.test(trimmed);
+
+  return (
+    (isDirectQuestion || hasPremiseConsequenceStructure) &&
+    lineHasHardAnchor(trimmed) &&
+    !isBannedOpener(trimmed) &&
+    !isExplanatorySummaryHook(trimmed) &&
+    !isUnclearStandaloneHook(trimmed) &&
+    !isWeakBeliefContrastHook(trimmed) &&
+    !isConclusionHook(trimmed) &&
+    !endsWithIncompletePhrase(trimmed)
+  );
+}
+
 export function parseHookResponse(raw: string, script: string): ImproveHookResult {
-  const firstLine = script.split(/[\n.!?]/)[0]?.trim() ?? script.trim();
+  const firstLine = extractOpeningHook(script);
 
   // Pre-extract anchor from the script so we can validate the AI's choice
   const scriptAnchor = extractAnchorFromScript(script);
@@ -1058,21 +1582,62 @@ export function parseHookResponse(raw: string, script: string): ImproveHookResul
         ? parsed.improvedHook.trim()
         : "";
 
+    const aiPrimaryImprovedHook = improvedHook;
+
+    const improvedHookIsGroundedSubjectClarification =
+      isGroundedSubjectClarification(
+        firstLine,
+        improvedHook,
+        script
+      );
+
+    const improvedHookIsGroundedReferenceClarification =
+      isGroundedReferenceClarification(
+        firstLine,
+        improvedHook,
+        script
+      );
+
+    const improvedHookHasGroundedClarification =
+      improvedHookIsGroundedSubjectClarification ||
+      improvedHookIsGroundedReferenceClarification;
+
+    const improvedHookIsGroundedCausalMechanism =
+      isGroundedCausalMechanismRewrite(
+        improvedHook,
+        script
+      );
+
+    const improvedHookHasGroundedQualityOperation =
+      improvedHookHasGroundedClarification ||
+      improvedHookIsGroundedCausalMechanism;
+
     // ── Validation layer ──────────────────────────────────────────────────
-        const basicValidationFails =
+    const basicValidationFails =
       improvedHook.length === 0 ||
-           isBannedOpener(improvedHook) ||
-            isExplanatorySummaryHook(improvedHook) ||
+      isBannedOpener(improvedHook) ||
+      isExplanatorySummaryHook(improvedHook) ||
       isUnclearStandaloneHook(improvedHook) ||
-           isWeakBeliefContrastHook(improvedHook) ||
+      isWeakBeliefContrastHook(improvedHook) ||
       isConclusionHook(improvedHook) ||
-      isTooSimilar(improvedHook, firstLine) ||
-      !isHookQualityAcceptable(improvedHook) ||
+      (
+        isTooSimilar(improvedHook, firstLine) &&
+        !improvedHookHasGroundedClarification
+      ) ||
+      (
+        !isHookQualityAcceptable(improvedHook) &&
+        !improvedHookHasGroundedQualityOperation
+      ) ||
       endsWithIncompletePhrase(improvedHook);
 
-    // Anchor validation — did the hook use the strongest material without distorting it?
+    // A verified grounded editorial operation may solve the actual opening
+    // problem without being forced to use a secondary body anchor.
     const anchorValidationFails =
-      (scriptAnchor !== null && !hookContainsAnchor(improvedHook, scriptAnchor)) ||
+      (
+        scriptAnchor !== null &&
+        !hookContainsAnchor(improvedHook, scriptAnchor) &&
+        !improvedHookHasGroundedQualityOperation
+      ) ||
       hookDistortsAnchor(improvedHook, script, scriptAnchor);
 
     if (basicValidationFails || anchorValidationFails) {
@@ -1085,8 +1650,35 @@ export function parseHookResponse(raw: string, script: string): ImproveHookResul
           typeof (opt as Record<string, unknown>).text === "string"
         ) {
           const candidate = ((opt as Record<string, unknown>).text as string).trim();
-          const candidateAnchorValid = !scriptAnchor || hookContainsAnchor(candidate, scriptAnchor);
-          const candidateDistorts = hookDistortsAnchor(candidate, script, scriptAnchor);
+          const candidateIsGroundedSubjectClarification =
+            isGroundedSubjectClarification(
+              firstLine,
+              candidate,
+              script
+            );
+          const candidateIsGroundedReferenceClarification =
+            isGroundedReferenceClarification(
+              firstLine,
+              candidate,
+              script
+            );
+          const candidateHasGroundedClarification =
+            candidateIsGroundedSubjectClarification ||
+            candidateIsGroundedReferenceClarification;
+          const candidateIsGroundedCausalMechanism =
+            isGroundedCausalMechanismRewrite(
+              candidate,
+              script
+            );
+          const candidateHasGroundedQualityOperation =
+            candidateHasGroundedClarification ||
+            candidateIsGroundedCausalMechanism;
+          const candidateAnchorValid =
+            !scriptAnchor ||
+            hookContainsAnchor(candidate, scriptAnchor) ||
+            candidateHasGroundedQualityOperation;
+          const candidateDistorts =
+            hookDistortsAnchor(candidate, script, scriptAnchor);
 
           if (
             candidate.length > 0 &&
@@ -1095,8 +1687,14 @@ export function parseHookResponse(raw: string, script: string): ImproveHookResul
             !isUnclearStandaloneHook(candidate) &&
                         !isWeakBeliefContrastHook(candidate) &&
             !isConclusionHook(candidate) &&
-            !isTooSimilar(candidate, firstLine) &&
-            isHookQualityAcceptable(candidate) &&
+            (
+              !isTooSimilar(candidate, firstLine) ||
+              candidateHasGroundedClarification
+            ) &&
+            (
+              isHookQualityAcceptable(candidate) ||
+              candidateHasGroundedQualityOperation
+            ) &&
             !endsWithIncompletePhrase(candidate) &&
             candidateAnchorValid &&
             !candidateDistorts
@@ -1108,22 +1706,81 @@ export function parseHookResponse(raw: string, script: string): ImproveHookResul
       }
     }
 
-    // If still failing, build a deterministic hook from the anchor
-        if (
+    const finalCandidateIsGroundedSubjectClarification =
+      isGroundedSubjectClarification(
+        firstLine,
+        improvedHook,
+        script
+      );
+
+    const finalCandidateIsGroundedReferenceClarification =
+      isGroundedReferenceClarification(
+        firstLine,
+        improvedHook,
+        script
+      );
+
+    const finalCandidateHasGroundedClarification =
+      finalCandidateIsGroundedSubjectClarification ||
+      finalCandidateIsGroundedReferenceClarification;
+
+    const finalCandidateIsGroundedCausalMechanism =
+      isGroundedCausalMechanismRewrite(
+        improvedHook,
+        script
+      );
+
+    const finalCandidateHasGroundedQualityOperation =
+      finalCandidateHasGroundedClarification ||
+      finalCandidateIsGroundedCausalMechanism;
+
+    const candidateStillFails =
       improvedHook.length === 0 ||
-            isBannedOpener(improvedHook) ||
-            isExplanatorySummaryHook(improvedHook) ||
+      isBannedOpener(improvedHook) ||
+      isExplanatorySummaryHook(improvedHook) ||
       isUnclearStandaloneHook(improvedHook) ||
-            isWeakBeliefContrastHook(improvedHook) ||
+      isWeakBeliefContrastHook(improvedHook) ||
       isConclusionHook(improvedHook) ||
-      isTooSimilar(improvedHook, firstLine) ||
-      !isHookQualityAcceptable(improvedHook) ||
+      (
+        isTooSimilar(improvedHook, firstLine) &&
+        !finalCandidateHasGroundedClarification
+      ) ||
+      (
+        !isHookQualityAcceptable(improvedHook) &&
+        !finalCandidateHasGroundedQualityOperation
+      ) ||
       endsWithIncompletePhrase(improvedHook) ||
-      (scriptAnchor !== null && !hookContainsAnchor(improvedHook, scriptAnchor))
+      (
+        scriptAnchor !== null &&
+        !hookContainsAnchor(improvedHook, scriptAnchor) &&
+        !finalCandidateHasGroundedQualityOperation
+      );
+
+    // When every generated candidate fails but the original is already a
+    // grounded standalone opening with a clear editorial structure, preserve
+    // it instead of manufacturing an anchor-first fallback.
+    if (
+      candidateStillFails &&
+      isGroundedStandaloneOpening(firstLine)
     ) {
-      improvedHook = buildAnchorHook(script, scriptAnchor) ?? buildFallbackHookFromScript(script);
+      const preserveReason = firstLine.trim().endsWith("?")
+        ? "The original already states the specific scenario as a clear standalone question. The proposed rewrite does not add a stronger supported angle, so replacing it would only change the wording."
+        : "The original already connects a specific premise to a concrete supported consequence. The proposed rewrite removes useful specificity without adding a stronger supported angle, so preserving the opening is the more honest edit.";
+
+      return {
+        status: "good",
+        improvedHook: firstLine,
+        reason: preserveReason,
+        mode: "rewrite",
+      };
     }
 
+    // Otherwise, build a grounded fallback from supported script material.
+    if (candidateStillFails) {
+      improvedHook =
+        buildAnchorHook(script, scriptAnchor) ??
+        buildFallbackHookFromScript(script);
+    }
     const rawReason = typeof parsed.reason === "string" ? parsed.reason.trim() : "";
     const rawReasonLower = rawReason.toLowerCase();
 
@@ -1146,12 +1803,16 @@ export function parseHookResponse(raw: string, script: string): ImproveHookResul
     const firstLineHasConcrete = lineHasHardAnchor(firstLine);
     const shouldSuppressPraise = isPraisingOriginal && !firstLineHasConcrete;
 
+    const returnedHookDiffersFromAIPrimary =
+      improvedHook !== aiPrimaryImprovedHook;
+
     const isGenericReason =
       rawReason.length === 0 ||
       rawReason === "The hook was adjusted to improve clarity, curiosity, or payoff connection." ||
       (rawReasonLower.includes("creates curiosity") && rawReason.length < 80) ||
       rawReasonLower.startsWith("this hook is stronger because it starts with") ||
-      shouldSuppressPraise;
+      shouldSuppressPraise ||
+      returnedHookDiffersFromAIPrimary;
 
     const reason = isGenericReason
       ? buildSpecificReason(firstLine, improvedHook, script)
@@ -1160,7 +1821,7 @@ export function parseHookResponse(raw: string, script: string): ImproveHookResul
     // Final guard: if the script has no hard anchor material, the modal must
     // return diagnostic guidance — not a rearrangement of generic lines.
     // Uses lineHasHardAnchor (stricter than scoreLineSignals).
-    const allScriptLines = script.split(/[\n.!?]/).map(l => l.trim()).filter(Boolean);
+    const allScriptLines = splitScriptSentences(script).map(l => l.trim()).filter(Boolean);
     const scriptHasConcrete = allScriptLines.some(line => lineHasHardAnchor(line));
 
     // Secondary check: if the improved hook itself contains no hard anchor,
