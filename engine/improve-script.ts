@@ -10,6 +10,12 @@ export type ImproveScriptEditorialDecision = {
   primaryProblemEvidence: string;
 };
 
+type ParsedImproveScriptEditorialDecision =
+  | ImproveScriptEditorialDecision
+  | {
+      strategy: "preserve";
+    };
+
 export type ImproveScriptResult = {
   status: "improved" | "diagnostic" | "preserve" | "error";
   improvedScript: string;
@@ -67,12 +73,19 @@ function normalizeStringList(
 function parseEditorialDecision(
   value: unknown,
   originalScript: string
-): ImproveScriptEditorialDecision {
+): ParsedImproveScriptEditorialDecision {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new UnusableAIResponseError();
   }
 
   const decision = value as Record<string, unknown>;
+
+  if (decision.strategy === "preserve") {
+    return {
+      strategy: "preserve",
+    };
+  }
+
   const primaryProblem =
     typeof decision.primaryProblem === "string"
       ? decision.primaryProblem.trim()
@@ -578,6 +591,13 @@ export function parseImproveScriptResponse(
     parsed.editorialDecision,
     script
   );
+
+  if (editorialDecision.strategy === "preserve") {
+    return boundImproveScriptResult(
+      buildImproveScriptPreserveResponse(script)
+    );
+  }
+
   const improvedScript =
     typeof parsed.improvedScript === "string"
       ? parsed.improvedScript.trim()
