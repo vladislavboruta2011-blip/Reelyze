@@ -72,8 +72,49 @@ async function main() {
           );
         }
 
+        const unsupportedTitleRequest = new Request(
+          "http://localhost/api/improve",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              title:
+                "The Study That Proves Cold Showers Double Focus",
+              script: [
+                "Cold showers can make people feel more awake.",
+                "Some people use them before work.",
+                "They may help someone feel ready to begin.",
+              ].join("\\n"),
+            }),
+          }
+        );
+
+        const unsupportedTitleResponse =
+          await POST(unsupportedTitleRequest);
+        const unsupportedTitlePayload =
+          await unsupportedTitleResponse.json();
+
+        if (
+          unsupportedTitleResponse.status !== 200 ||
+          unsupportedTitlePayload.mode !== "diagnostic" ||
+          typeof unsupportedTitlePayload.reason !== "string" ||
+          !/study/i.test(unsupportedTitlePayload.reason) ||
+          !/(double|doubling|2x)/i.test(
+            unsupportedTitlePayload.reason
+          ) ||
+          typeof unsupportedTitlePayload.improvedHook !== "string" ||
+          /(study|double|doubling|2x)/i.test(
+            unsupportedTitlePayload.improvedHook
+          )
+        ) {
+          throw new Error(
+            "Expected unsupported title evidence and measurable-effect claims to return deterministic diagnostic guidance"
+          );
+        }
+
         console.log("NO_KEY_DETERMINISTIC_PASS");
         console.log("NO_KEY_AI_REQUIRED_PASS");
+        console.log("UNSUPPORTED_TITLE_CLAIM_DIAGNOSTIC_PASS");
       }).catch((error) => {
         console.error(error instanceof Error ? error.message : error);
         process.exit(1);
@@ -91,10 +132,14 @@ async function main() {
   if (
     noKeyProbe.status === 0 &&
     noKeyProbe.stdout.includes("NO_KEY_DETERMINISTIC_PASS") &&
-    noKeyProbe.stdout.includes("NO_KEY_AI_REQUIRED_PASS")
+    noKeyProbe.stdout.includes("NO_KEY_AI_REQUIRED_PASS") &&
+    noKeyProbe.stdout.includes(
+      "UNSUPPORTED_TITLE_CLAIM_DIAGNOSTIC_PASS"
+    )
   ) {
     console.log("✅ PASS — Deterministic guard works without OPENAI_API_KEY");
     console.log("✅ PASS — AI-dependent request returns safe 503 without OPENAI_API_KEY");
+    console.log("✅ PASS — Unsupported title claims return deterministic diagnostic guidance");
   } else {
     console.error("❌ FAIL — Deterministic guard works without OPENAI_API_KEY");
     console.error(noKeyProbe.stderr.trim() || noKeyProbe.stdout.trim());
