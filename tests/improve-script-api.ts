@@ -573,6 +573,123 @@ async function main() {
     return;
   }
 
+  const causalDistortionProbe = spawnSync(
+    "npx",
+    [
+      "tsx",
+      "-e",
+      `globalThis.fetch = async () =>
+        new Response(
+          JSON.stringify({
+            id: "chatcmpl-test",
+            object: "chat.completion",
+            created: 0,
+            model: "gpt-4o-mini",
+            choices: [
+              {
+                index: 0,
+                message: {
+                  role: "assistant",
+                  content: JSON.stringify({
+                    editorialDecision: {
+                      strategy: "rewrite",
+                      primaryProblem:
+                        "The generic opening delays the concrete valve event.",
+                      primaryProblemEvidence:
+                        "Before we start, you need to understand one important thing.",
+                    },
+                    improvedScript: [
+                      "The valve that changed the final test stayed closed for 12 seconds.",
+                      "That delay forced it open, changing the result."
+                    ].join("\\n"),
+                    changes: [
+                      "Removed the generic introductory sentence.",
+                      "Connected the delay directly to the valve opening."
+                    ],
+                    reason:
+                      "The rewrite makes the cause and result more immediate."
+                  }),
+                },
+                finish_reason: "stop",
+              },
+            ],
+            usage: {
+              prompt_tokens: 1,
+              completion_tokens: 1,
+              total_tokens: 2,
+            },
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+
+      import("./app/api/improve-script/route.ts").then(async ({ POST }) => {
+        const response = await POST(
+          new Request("http://localhost/api/improve-script", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              title: "The Valve That Changed the Final Test",
+              script:
+                "Before we start, you need to understand one important thing. The valve stayed closed for 12 seconds before pressure forced it open. That delay changed the final test result.",
+            }),
+          })
+        );
+
+        const payload = await response.json();
+
+        if (
+          response.status !== 200 ||
+          payload.status !== "diagnostic" ||
+          /delay forced it open/i.test(payload.improvedScript ?? "") ||
+          !/cause|caused|supported event|original script/i.test(
+            payload.reason ?? ""
+          )
+        ) {
+          throw new Error(
+            "Expected causal distortion to fall back to diagnostic"
+          );
+        }
+
+        console.log("CAUSAL_DISTORTION_GUARD_PASS");
+      }).catch((error) => {
+        console.error(error instanceof Error ? error.message : error);
+        process.exit(1);
+      });`,
+    ],
+    {
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        OPENAI_API_KEY: "test-key",
+      },
+      encoding: "utf8",
+    }
+  );
+
+  if (
+    causalDistortionProbe.status === 0 &&
+    causalDistortionProbe.stdout.includes(
+      "CAUSAL_DISTORTION_GUARD_PASS"
+    )
+  ) {
+    console.log(
+      "✅ PASS — Causal distortion from AI falls back to diagnostic"
+    );
+  } else {
+    console.error(
+      "❌ FAIL — Causal-distortion API guard"
+    );
+    console.error(
+      causalDistortionProbe.stderr.trim() ||
+        causalDistortionProbe.stdout.trim()
+    );
+    process.exitCode = 1;
+    return;
+  }
+
   const unusableOutputProbe = spawnSync(
     "npx",
     [
@@ -669,6 +786,127 @@ async function main() {
     console.error(
       unusableOutputProbe.stderr.trim() ||
         unusableOutputProbe.stdout.trim()
+    );
+    process.exitCode = 1;
+    return;
+  }
+
+  const refinedHookPromptProbe = spawnSync(
+    "npx",
+    [
+      "tsx",
+      "-e",
+      `let providerRequestBody = "";
+
+      globalThis.fetch = async (_input, init) => {
+        providerRequestBody =
+          typeof init?.body === "string" ? init.body : "";
+
+        return new Response(
+          JSON.stringify({
+            id: "chatcmpl-test",
+            object: "chat.completion",
+            created: 0,
+            model: "gpt-4o-mini",
+            choices: [
+              {
+                index: 0,
+                message: {
+                  role: "assistant",
+                  content: JSON.stringify({
+                    editorialDecision: {
+                      strategy: "rewrite",
+                      primaryProblem:
+                        "The generic first sentence delays the concrete valve event.",
+                      primaryProblemEvidence:
+                        "Before we start, you need to understand one important thing.",
+                    },
+                    improvedScript:
+                      "The valve stayed closed for 12 seconds before pressure forced it open. That delay changed the final test result.",
+                    changes: [
+                      "Removed the generic introductory sentence.",
+                      "Kept the approved refined hook as the opening."
+                    ],
+                    reason:
+                      "The rewrite begins with the approved concrete hook and removes unsupported filler."
+                  }),
+                },
+                finish_reason: "stop",
+              },
+            ],
+            usage: {
+              prompt_tokens: 1,
+              completion_tokens: 1,
+              total_tokens: 2,
+            },
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      };
+
+      import("./app/api/improve-script/route.ts").then(async ({ POST }) => {
+        const refinedHook =
+          "The valve stayed closed for 12 seconds before pressure forced it open.";
+
+        const response = await POST(
+          new Request("http://localhost/api/improve-script", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              title: "The Valve That Changed the Final Test",
+              script:
+                "Before we start, you need to understand one important thing. The valve stayed closed for 12 seconds before pressure forced it open. That delay changed the final test result.",
+              refinedHook,
+            }),
+          })
+        );
+
+        const payload = await response.json();
+
+        if (
+          response.status !== 200 ||
+          payload.status !== "improved" ||
+          !providerRequestBody.includes(refinedHook) ||
+          !/approved refined hook|refined hook/i.test(providerRequestBody)
+        ) {
+          throw new Error(
+            "Expected Improve Script to include the approved refined hook in the AI prompt"
+          );
+        }
+
+        console.log("REFINED_HOOK_PROMPT_PASS");
+      }).catch((error) => {
+        console.error(error instanceof Error ? error.message : error);
+        process.exit(1);
+      });`,
+    ],
+    {
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        OPENAI_API_KEY: "test-key",
+      },
+      encoding: "utf8",
+    }
+  );
+
+  if (
+    refinedHookPromptProbe.status === 0 &&
+    refinedHookPromptProbe.stdout.includes("REFINED_HOOK_PROMPT_PASS")
+  ) {
+    console.log(
+      "✅ PASS — Improve Script API forwards the approved refined hook to the AI prompt"
+    );
+  } else {
+    console.error(
+      "❌ FAIL — Improve Script API must forward the approved refined hook to the AI prompt"
+    );
+    console.error(
+      refinedHookPromptProbe.stderr.trim() ||
+        refinedHookPromptProbe.stdout.trim()
     );
     process.exitCode = 1;
     return;
@@ -842,6 +1080,28 @@ async function main() {
         },
         expectedStatus: 400,
         expectedReason: /title|string|invalid/i,
+      },
+      {
+        name: "Non-string refined hook is rejected",
+        body: {
+          script:
+            "The valve stayed closed for 12 seconds before pressure escaped.",
+          title: "Pressure test",
+          refinedHook: 123,
+        },
+        expectedStatus: 400,
+        expectedReason: /refined hook|string|invalid/i,
+      },
+      {
+        name: "Refined hook over 1000 characters is rejected",
+        body: {
+          script:
+            "The valve stayed closed for 12 seconds before pressure escaped.",
+          title: "Pressure test",
+          refinedHook: "x".repeat(1001),
+        },
+        expectedStatus: 400,
+        expectedReason: /refined hook|1000|too long|character/i,
       },
     ];
 

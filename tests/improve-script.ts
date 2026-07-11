@@ -305,6 +305,94 @@ const tests: TestCase[] = [
     },
   },
   {
+    name: "rewrite that changes the supported cause should fall back to diagnostic",
+    run: () => {
+      const script = [
+        "Before we start, you need to understand one important thing.",
+        "The valve stayed closed for 12 seconds before pressure forced it open.",
+        "That delay changed the final test result.",
+      ].join("\n");
+
+      const result = parseImproveScriptResponse(
+        JSON.stringify({
+          editorialDecision: {
+            strategy: "rewrite",
+            primaryProblem:
+              "The generic opening delays the concrete valve event.",
+            primaryProblemEvidence:
+              "Before we start, you need to understand one important thing.",
+          },
+          improvedScript: [
+            "The valve that changed the final test stayed closed for 12 seconds.",
+            "That delay forced it open, changing the result.",
+          ].join("\n"),
+          changes: [
+            "Removed the generic introductory sentence.",
+            "Connected the delay directly to the valve opening.",
+          ],
+          reason:
+            "The rewrite makes the cause and result more immediate.",
+        }),
+        script
+      );
+
+      assert.equal(result.status, "diagnostic");
+      assert.doesNotMatch(
+        result.improvedScript,
+        /delay forced it open/i
+      );
+      assert.match(
+        result.reason,
+        /cause|causal|meaning|supported|original/i
+      );
+    },
+  },
+
+  {
+    name: "rewrite cannot hide a changed cause behind a different causal connector",
+    run: () => {
+      const script = [
+        "Before we start, you need to understand one important thing.",
+        "The valve stayed closed for 12 seconds before pressure forced it open.",
+        "That delay changed the final test result.",
+      ].join("\n");
+
+      const result = parseImproveScriptResponse(
+        JSON.stringify({
+          editorialDecision: {
+            strategy: "rewrite",
+            primaryProblem:
+              "The generic opening delays the concrete valve event.",
+            primaryProblemEvidence:
+              "Before we start, you need to understand one important thing.",
+          },
+          improvedScript: [
+            "The valve stayed closed for 12 seconds.",
+            "That delay caused it to open and changed the final result.",
+          ].join("\n"),
+          changes: [
+            "Removed the generic introductory sentence.",
+            "Connected the delay directly to the opening event.",
+          ],
+          reason:
+            "The rewrite presents the event and consequence more directly.",
+        }),
+        script
+      );
+
+      assert.equal(result.status, "diagnostic");
+      assert.doesNotMatch(
+        result.improvedScript,
+        /delay caused it to open/i
+      );
+      assert.match(
+        result.reason,
+        /cause|caused|supported event|original script/i
+      );
+    },
+  },
+
+  {
     name: "meaningful causal clarification with low token retention should remain improved",
     run: () => {
       const script = [
@@ -457,6 +545,48 @@ const tests: TestCase[] = [
       assert.ok(result.changes.length >= 2);
     },
   },
+  {
+    name: "rewrite that replaces an approved refined hook should be rejected",
+    run: () => {
+      const script = [
+        "Before we start, you need to understand one important thing.",
+        "The valve stayed closed for 12 seconds before pressure forced it open.",
+        "That delay changed the final test result.",
+      ].join("\n");
+
+      const refinedHook =
+        "The valve stayed closed for 12 seconds before pressure forced it open.";
+
+      assert.throws(
+        () =>
+          parseImproveScriptResponse(
+            JSON.stringify({
+              editorialDecision: {
+                strategy: "rewrite",
+                primaryProblem:
+                  "The generic first sentence delays the concrete valve event.",
+                primaryProblemEvidence:
+                  "Before we start, you need to understand one important thing.",
+              },
+              improvedScript: [
+                "The final test changed after the valve stayed closed for 12 seconds.",
+                "Pressure eventually forced it open.",
+              ].join("\n"),
+              changes: [
+                "Removed the generic introductory sentence.",
+                "Moved the final test consequence into the opening.",
+              ],
+              reason:
+                "The rewrite removes the generic setup and presents the supported event immediately.",
+            }),
+            script,
+            refinedHook
+          ),
+        UnusableAIResponseError
+      );
+    },
+  },
+
   {
     name: "rewrite with unsupported new number should fall back to diagnostic",
     run: () => {

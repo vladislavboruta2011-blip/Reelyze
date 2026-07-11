@@ -542,6 +542,10 @@ const hookCopyButtonLabel =
         body: JSON.stringify({
           script: activeScript,
           title: savedTitle,
+          refinedHook:
+            aiHookMode === "rewrite" && aiHook.trim().length > 0
+              ? aiHook.trim()
+              : undefined,
         }),
       });
 
