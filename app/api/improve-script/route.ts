@@ -205,10 +205,25 @@ export async function POST(req: Request): Promise<Response> {
       );
     }
 
+    if (
+      "refinedHook" in requestBody &&
+      typeof requestBody.refinedHook !== "string"
+    ) {
+      return Response.json(
+        buildErrorResponse("Refined hook must be a string."),
+        { status: 400 }
+      );
+    }
+
     const script = (requestBody.script as string).trim();
     const title =
       typeof requestBody.title === "string"
         ? requestBody.title.trim()
+        : "";
+
+    const refinedHook =
+      typeof requestBody.refinedHook === "string"
+        ? requestBody.refinedHook.trim()
         : "";
 
     if (script.length === 0) {
@@ -231,6 +246,15 @@ export async function POST(req: Request): Promise<Response> {
       return Response.json(
         buildErrorResponse(
           "Title is too long. Keep it to 200 characters or less."
+        ),
+        { status: 400 }
+      );
+    }
+
+    if (refinedHook.length > 1000) {
+      return Response.json(
+        buildErrorResponse(
+          "Refined hook is too long. Keep it to 1,000 characters or less."
         ),
         { status: 400 }
       );
@@ -288,6 +312,13 @@ Possible problems may include a weak opening, unclear promise, predictable progr
 These are examples, not fixed templates. Judge each script on its own material.
 
 Improve the complete script, not only the first line.
+
+Approved refined hook integration:
+- When an Approved refined hook is provided, treat it as the already-selected opening for this rewrite.
+- Begin the improvedScript with that exact refined hook.
+- Do not rewrite, weaken, contradict, replace, or remove it.
+- Improve the remaining script around that opening using only supported source material.
+- The refined hook is not a new factual source. Every claim in it and in the rewrite must still be supported by the original script or title.
 
 A meaningful improvement may:
 - reframe the opening;
@@ -377,7 +408,7 @@ Do not use generic claims such as "improved pacing, clarity, and engagement."`;
 
     const userPrompt = `Improve this complete YouTube Shorts script.
 
-${title ? `Video title / topic:\n${title}\n\n` : ""}Original script:
+${title ? `Video title / topic:\n${title}\n\n` : ""}${refinedHook ? `Approved refined hook — keep this exact opening in improvedScript:\n${refinedHook}\n\n` : ""}Original script:
 ${script}
 
 Rewrite the full script using only the material above.
@@ -401,7 +432,11 @@ Return only valid JSON matching the required schema.`;
     });
 
     const raw = response.choices[0]?.message?.content?.trim() ?? "";
-    const result = parseImproveScriptResponse(raw, script);
+    const result = parseImproveScriptResponse(
+      raw,
+      script,
+      refinedHook
+    );
 
     return Response.json(boundImproveScriptResult(result));
   } catch (error) {

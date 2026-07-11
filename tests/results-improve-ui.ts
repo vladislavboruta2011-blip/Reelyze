@@ -20,6 +20,41 @@ if (fetchCount === 1) {
   );
   failures += 1;
 }
+const refinedHookHandlerStart = source.indexOf(
+  "async function handleImproveScript"
+);
+const refinedHookHandlerEnd =
+  refinedHookHandlerStart >= 0
+    ? source.indexOf(
+        "async function handleCopyImprovedScript",
+        refinedHookHandlerStart
+      )
+    : -1;
+const refinedHookHandler =
+  refinedHookHandlerStart >= 0 &&
+  refinedHookHandlerEnd > refinedHookHandlerStart
+    ? source.slice(
+        refinedHookHandlerStart,
+        refinedHookHandlerEnd
+      )
+    : "";
+
+const forwardsSuccessfulRefinedHook =
+  refinedHookHandler.includes("refinedHook:") &&
+  refinedHookHandler.includes('aiHookMode === "rewrite"') &&
+  refinedHookHandler.includes("aiHook.trim()");
+
+if (forwardsSuccessfulRefinedHook) {
+  console.log(
+    "✅ PASS — Improve Script receives a successful refined hook"
+  );
+} else {
+  console.error(
+    "❌ FAIL — Improve Script must forward a non-empty refined hook only after a successful hook rewrite"
+  );
+  failures += 1;
+}
+
 
 const handlerStart = source.indexOf("async function handleImproveHook");
 const handlerEnd =
