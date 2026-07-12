@@ -785,14 +785,71 @@ if (
 
 
 
+const forwardsValidatedAnalysisToImproveScript =
+  refinedHookHandler.includes("analysisResult:") &&
+  (
+    refinedHookHandler.includes("savedAnalysisV2?.result") ||
+    refinedHookHandler.includes("savedAnalysisV2.result")
+  ) &&
+  refinedHookHandler.includes("body: JSON.stringify({");
+
+if (forwardsValidatedAnalysisToImproveScript) {
+  console.log(
+    "✅ PASS — Results forwards the validated Analysis V2 result to Improve Script"
+  );
+} else {
+  console.error(
+    "❌ FAIL — Results must forward the validated Analysis V2 result to Improve Script"
+  );
+  failures += 1;
+}
+
+const improveScriptFingerprintStart = source.indexOf(
+  "function createImproveScriptFingerprint("
+);
+const improveScriptFingerprintEnd =
+  improveScriptFingerprintStart >= 0
+    ? source.indexOf(
+        "\nfunction isValidImproveScriptSuccessPayload",
+        improveScriptFingerprintStart
+      )
+    : -1;
+const improveScriptFingerprintSource =
+  improveScriptFingerprintStart >= 0 &&
+  improveScriptFingerprintEnd > improveScriptFingerprintStart
+    ? source.slice(
+        improveScriptFingerprintStart,
+        improveScriptFingerprintEnd
+      )
+    : "";
+
+const invalidatesImproveScriptCacheWithAnalysis =
+  source.includes('const IMPROVE_SCRIPT_CACHE_VERSION = "2";') &&
+  improveScriptFingerprintSource.includes("analysisResult") &&
+  refinedHookHandler.includes("analysisResult") &&
+  refinedHookHandler.includes("createImproveScriptFingerprint({");
+
+if (invalidatesImproveScriptCacheWithAnalysis) {
+  console.log(
+    "✅ PASS — Improve Script cache is invalidated when the validated analysis changes"
+  );
+} else {
+  console.error(
+    "❌ FAIL — Improve Script cache fingerprint must include the validated analysis and use a new pipeline version"
+  );
+  failures += 1;
+}
+
+
 const hasVersionedImproveScriptCacheContract =
-  source.includes('const IMPROVE_SCRIPT_CACHE_VERSION = "1";') &&
+  source.includes('const IMPROVE_SCRIPT_CACHE_VERSION = "2";') &&
   source.includes("const IMPROVE_SCRIPT_CACHE_STORAGE_KEY") &&
   source.includes("function createImproveScriptFingerprint(") &&
   source.includes("version: IMPROVE_SCRIPT_CACHE_VERSION") &&
   source.includes("script: script.trim()") &&
   source.includes("title: title.trim()") &&
-  source.includes("refinedHook: refinedHook.trim()");
+  source.includes("refinedHook: refinedHook.trim()") &&
+  improveScriptFingerprintSource.includes("analysisResult");
 
 if (hasVersionedImproveScriptCacheContract) {
   console.log(
@@ -800,7 +857,7 @@ if (hasVersionedImproveScriptCacheContract) {
   );
 } else {
   console.error(
-    "❌ FAIL — Improve Script cache must be versioned by script, title, refined hook, and pipeline version"
+    "❌ FAIL — Improve Script cache must be versioned by script, title, refined hook, validated analysis, and pipeline version"
   );
   failures += 1;
 }

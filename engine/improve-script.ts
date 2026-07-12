@@ -638,12 +638,16 @@ export function boundImproveScriptResult(
 export function parseImproveScriptResponse(
   raw: string,
   originalScript: string,
-  refinedHook = ""
+  refinedHook = "",
+  skipLegacyDiagnostic = false
 ): ImproveScriptResult {
   const script = originalScript.trim();
   const approvedRefinedHook = refinedHook.trim();
 
-  if (shouldDiagnoseImproveScript(script)) {
+  if (
+    !skipLegacyDiagnostic &&
+    shouldDiagnoseImproveScript(script)
+  ) {
     return buildImproveScriptDiagnosticResponse();
   }
 
