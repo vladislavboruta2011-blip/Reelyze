@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { Inter } from "next/font/google";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   AnalysisV2SuccessResponse,
 } from "../../engine/analysis-v2-schema";
@@ -63,6 +63,9 @@ const inter = Inter({
 
 const MAX_SCRIPT_CHARACTERS = 1000;
 const MAX_TITLE_CHARACTERS = 200;
+const IMPROVE_SCRIPT_CACHE_VERSION = "1";
+const IMPROVE_SCRIPT_CACHE_STORAGE_KEY =
+  "climpy-improve-script-cache";
 
 const fallbackScript =
   "What if one small change could make viewers watch until the end? But the real problem is not editing speed. It is that the first line gives viewers no reason to stay.";
@@ -101,6 +104,28 @@ type ImproveScriptSuccessPayload = {
   missingMaterial?: string[];
 };
 
+type StoredImproveScriptCache = {
+  fingerprint: string;
+  result: ImproveScriptSuccessPayload;
+};
+
+function createImproveScriptFingerprint({
+  script,
+  title,
+  refinedHook,
+}: {
+  script: string;
+  title: string;
+  refinedHook: string;
+}): string {
+  return JSON.stringify({
+    version: IMPROVE_SCRIPT_CACHE_VERSION,
+    script: script.trim(),
+    title: title.trim(),
+    refinedHook: refinedHook.trim(),
+  });
+}
+
 function isValidImproveScriptSuccessPayload(
   value: unknown
 ): value is ImproveScriptSuccessPayload {
@@ -122,6 +147,39 @@ function isValidImproveScriptSuccessPayload(
       (Array.isArray(payload.missingMaterial) &&
         payload.missingMaterial.every((item) => typeof item === "string")))
   );
+}
+
+function parseStoredImproveScriptCache(
+  value: string
+): StoredImproveScriptCache | null {
+  try {
+    const parsed: unknown = JSON.parse(value);
+
+    if (
+      !parsed ||
+      typeof parsed !== "object" ||
+      Array.isArray(parsed)
+    ) {
+      return null;
+    }
+
+    const cache = parsed as Record<string, unknown>;
+
+    if (
+      typeof cache.fingerprint !== "string" ||
+      cache.fingerprint.length === 0 ||
+      !isValidImproveScriptSuccessPayload(cache.result)
+    ) {
+      return null;
+    }
+
+    return {
+      fingerprint: cache.fingerprint,
+      result: cache.result,
+    };
+  } catch {
+    return null;
+  }
 }
 
 export default function ResultsPage() {
@@ -151,6 +209,12 @@ export default function ResultsPage() {
   const [isImprovingScript, setIsImprovingScript] = useState(false);
   const [improveScriptError, setImproveScriptError] = useState("");
   const [copiedScript, setCopiedScript] = useState(false);
+  const improveScriptRequestRef = useRef<{
+    fingerprint: string;
+    requestId: number;
+  } | null>(null);
+  const latestImproveScriptFingerprintRef = useRef("");
+  const improveScriptRequestIdRef = useRef(0);
 const [mobileScriptOpen, setMobileScriptOpen] = useState(false);
   const [mobileSceneOpen, setMobileSceneOpen] = useState(false);
   const [mobileFixesOpen, setMobileFixesOpen] = useState(false);
@@ -523,17 +587,86 @@ const hookCopyButtonLabel =
   }
 
   async function handleImproveScript() {
-    if (isImprovingScript) return;
+    function applyImproveScriptResult(
+      data: ImproveScriptSuccessPayload
+    ) {
+      setImproveScriptStatus(data.status);
+      setImprovedScript(data.improvedScript.trim());
+      setImprovedScriptReason(data.reason.trim());
+      setImprovedScriptChanges(
+        data.changes.map((item) => item.trim()).filter(Boolean)
+      );
+      setImprovedScriptMissingMaterial(
+        (data.missingMaterial ?? [])
+          .map((item) => item.trim())
+          .filter(Boolean)
+      );
+    }
+
+    const refinedHook =
+      aiHookMode === "rewrite" && aiHook.trim().length > 0
+        ? aiHook.trim()
+        : "";
+
+    const improveScriptFingerprint =
+      createImproveScriptFingerprint({
+        script: activeScript,
+        title: savedTitle,
+        refinedHook,
+      });
 
     setCopiedScript(false);
     setImproveScriptError("");
+    setIsScriptModalOpen(true);
+
+    latestImproveScriptFingerprintRef.current =
+      improveScriptFingerprint;
+
+    let cachedImproveScript: StoredImproveScriptCache | null =
+      null;
+
+    try {
+      const storedImproveScript =
+        sessionStorage.getItem(IMPROVE_SCRIPT_CACHE_STORAGE_KEY);
+
+      if (storedImproveScript !== null) {
+        cachedImproveScript =
+          parseStoredImproveScriptCache(storedImproveScript);
+      }
+    } catch {
+      // Cache availability must not block Improve Script.
+    }
+
+    if (
+      cachedImproveScript !== null &&
+      cachedImproveScript.fingerprint === improveScriptFingerprint
+    ) {
+      setIsImprovingScript(false);
+      applyImproveScriptResult(cachedImproveScript.result);
+      return;
+    }
+
+    if (
+      improveScriptRequestRef.current?.fingerprint === improveScriptFingerprint
+    ) {
+      return;
+    }
+
     setImprovedScript("");
     setImprovedScriptReason("");
     setImprovedScriptChanges([]);
     setImprovedScriptMissingMaterial([]);
     setImproveScriptStatus("");
-    setIsScriptModalOpen(true);
     setIsImprovingScript(true);
+
+    const requestId =
+      improveScriptRequestIdRef.current + 1;
+
+    improveScriptRequestIdRef.current = requestId;
+    improveScriptRequestRef.current = {
+      fingerprint: improveScriptFingerprint,
+      requestId,
+    };
 
     try {
       const response = await fetch("/api/improve-script", {
@@ -542,14 +675,18 @@ const hookCopyButtonLabel =
         body: JSON.stringify({
           script: activeScript,
           title: savedTitle,
-          refinedHook:
-            aiHookMode === "rewrite" && aiHook.trim().length > 0
-              ? aiHook.trim()
-              : undefined,
+          refinedHook: refinedHook || undefined,
         }),
       });
 
-      const data: unknown = await response.json().catch(() => ({}));
+      const data: unknown =
+        await response.json().catch(() => ({}));
+
+      if (
+        latestImproveScriptFingerprintRef.current !== improveScriptFingerprint
+      ) {
+        return;
+      }
 
       if (!response.ok) {
         const payload = data as { reason?: unknown };
@@ -570,23 +707,47 @@ const hookCopyButtonLabel =
         return;
       }
 
-      setImproveScriptStatus(data.status);
-      setImprovedScript(data.improvedScript.trim());
-      setImprovedScriptReason(data.reason.trim());
-      setImprovedScriptChanges(
-        data.changes.map((item) => item.trim()).filter(Boolean)
-      );
-      setImprovedScriptMissingMaterial(
-        (data.missingMaterial ?? [])
-          .map((item) => item.trim())
-          .filter(Boolean)
-      );
+      if (
+        latestImproveScriptFingerprintRef.current !== improveScriptFingerprint
+      ) {
+        return;
+      }
+
+      try {
+        sessionStorage.setItem(
+          IMPROVE_SCRIPT_CACHE_STORAGE_KEY,
+          JSON.stringify({
+            fingerprint: improveScriptFingerprint,
+            result: data,
+          })
+        );
+      } catch {
+        // The validated result remains usable without storage.
+      }
+
+      applyImproveScriptResult(data);
     } catch {
+      if (
+        latestImproveScriptFingerprintRef.current !== improveScriptFingerprint
+      ) {
+        return;
+      }
+
       setImproveScriptError(
         "Could not improve script. Please try again."
       );
     } finally {
-      setIsImprovingScript(false);
+      if (
+        improveScriptRequestRef.current?.requestId === requestId
+      ) {
+        improveScriptRequestRef.current = null;
+      }
+
+      if (
+        latestImproveScriptFingerprintRef.current === improveScriptFingerprint
+      ) {
+        setIsImprovingScript(false);
+      }
     }
   }
 
