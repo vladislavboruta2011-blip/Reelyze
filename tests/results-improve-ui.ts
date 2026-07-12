@@ -784,6 +784,103 @@ if (
 }
 
 
+
+const hasVersionedImproveScriptCacheContract =
+  source.includes('const IMPROVE_SCRIPT_CACHE_VERSION = "1";') &&
+  source.includes("const IMPROVE_SCRIPT_CACHE_STORAGE_KEY") &&
+  source.includes("function createImproveScriptFingerprint(") &&
+  source.includes("version: IMPROVE_SCRIPT_CACHE_VERSION") &&
+  source.includes("script: script.trim()") &&
+  source.includes("title: title.trim()") &&
+  source.includes("refinedHook: refinedHook.trim()");
+
+if (hasVersionedImproveScriptCacheContract) {
+  console.log(
+    "✅ PASS — Improve Script cache fingerprint includes every invalidation input"
+  );
+} else {
+  console.error(
+    "❌ FAIL — Improve Script cache must be versioned by script, title, refined hook, and pipeline version"
+  );
+  failures += 1;
+}
+
+const improveScriptCacheReadIndex = improveScriptHandler.indexOf(
+  "sessionStorage.getItem(IMPROVE_SCRIPT_CACHE_STORAGE_KEY)"
+);
+const improveScriptFetchIndex = improveScriptHandler.indexOf(
+  'fetch("/api/improve-script"'
+);
+const reusesValidatedImproveScriptCache =
+  source.includes("function parseStoredImproveScriptCache(") &&
+  source.includes("function applyImproveScriptResult(") &&
+  improveScriptCacheReadIndex >= 0 &&
+  improveScriptFetchIndex >= 0 &&
+  improveScriptCacheReadIndex < improveScriptFetchIndex &&
+  improveScriptHandler.includes(
+    "cachedImproveScript.fingerprint === improveScriptFingerprint"
+  ) &&
+  improveScriptHandler.includes(
+    "applyImproveScriptResult(cachedImproveScript.result)"
+  );
+
+if (reusesValidatedImproveScriptCache) {
+  console.log(
+    "✅ PASS — Repeated Improve Script clicks reuse the validated cached result before fetch"
+  );
+} else {
+  console.error(
+    "❌ FAIL — Improve Script must open the matching validated cache entry without another API request"
+  );
+  failures += 1;
+}
+
+const improveScriptValidationIndex = improveScriptHandler.indexOf(
+  "if (!isValidImproveScriptSuccessPayload(data))"
+);
+const improveScriptCacheWriteIndex = improveScriptHandler.indexOf(
+  "sessionStorage.setItem("
+);
+const cachesOnlyValidatedImproveScriptResults =
+  improveScriptValidationIndex >= 0 &&
+  improveScriptCacheWriteIndex > improveScriptValidationIndex &&
+  improveScriptHandler.includes("IMPROVE_SCRIPT_CACHE_STORAGE_KEY") &&
+  improveScriptHandler.includes("fingerprint: improveScriptFingerprint") &&
+  improveScriptHandler.includes("result: data");
+
+if (cachesOnlyValidatedImproveScriptResults) {
+  console.log(
+    "✅ PASS — Improve Script caches complete results only after payload validation"
+  );
+} else {
+  console.error(
+    "❌ FAIL — Improve Script must not cache API errors, malformed payloads, or incomplete result fields"
+  );
+  failures += 1;
+}
+
+const hasImproveScriptRequestDeduplication =
+  source.includes("const improveScriptRequestRef = useRef") &&
+  improveScriptHandler.includes(
+    "improveScriptRequestRef.current?.fingerprint === improveScriptFingerprint"
+  ) &&
+  improveScriptHandler.includes(
+    "latestImproveScriptFingerprintRef.current !== improveScriptFingerprint"
+  ) &&
+  improveScriptHandler.includes("requestId");
+
+if (hasImproveScriptRequestDeduplication) {
+  console.log(
+    "✅ PASS — Improve Script deduplicates identical requests and ignores stale responses"
+  );
+} else {
+  console.error(
+    "❌ FAIL — Improve Script needs a synchronous in-flight lock and stale-response protection"
+  );
+  failures += 1;
+}
+
+
 if (failures > 0) {
   process.exitCode = 1;
 } else {
