@@ -127,10 +127,16 @@ async function main() {
                   content: JSON.stringify({
                     editorialDecision: {
                       strategy: "rewrite",
+                      primaryProblemScope: "whole_script",
                       primaryProblem:
                         "The opening delays the concrete 12-second detail that explains the misleading result.",
                       primaryProblemEvidence:
                         "The valve stayed closed for 12 seconds before the pressure escaped.",
+                    },
+                    candidateAudit: {
+                      resolvedPrimaryProblem: true,
+                      candidateMateriallyBetter: true,
+                      regressionIntroduced: false,
                     },
                     improvedScript: [
                       "The test looked safe for 12 seconds.",
@@ -244,10 +250,16 @@ async function main() {
                   content: JSON.stringify({
                     editorialDecision: {
                       strategy: "rewrite",
+                      primaryProblemScope: "whole_script",
                       primaryProblem:
                         "The script lacks a strong opening that immediately captures the viewer's attention and clearly connects to the title.",
                       primaryProblemEvidence:
                         "Most defenders watch the ball when Ronaldo jumps.",
+                    },
+                    candidateAudit: {
+                      resolvedPrimaryProblem: true,
+                      candidateMateriallyBetter: true,
+                      regressionIntroduced: false,
                     },
                     improvedScript:
                       "Ronaldo is a nightmare for defenders in the air. While they focus on the ball, he zeroes in on them. He waits for them to lose their balance, then strikes at the space above. This is how he manages to outjump defenders, even when they're closer to the ball.",
@@ -367,10 +379,16 @@ async function main() {
                   content: JSON.stringify({
                     editorialDecision: {
                       strategy: "rewrite",
+                      primaryProblemScope: "whole_script",
                       primaryProblem:
                         "The original opening is weak and does not immediately capture the viewer's interest.",
                       primaryProblemEvidence:
                         "If Messi had Ronaldo’s vertical jump, how high would he actually reach?",
+                    },
+                    candidateAudit: {
+                      resolvedPrimaryProblem: true,
+                      candidateMateriallyBetter: true,
+                      regressionIntroduced: false,
                     },
                     improvedScript:
                       "What if Messi had Ronaldo’s incredible vertical jump? Messi stands at 5 feet 7, while Ronaldo towers at 6 feet 2. Even with Ronaldo’s jump, Messi wouldn’t reach as high as Ronaldo. However, he’d likely score many more headers, jumping high enough to challenge nearly any defender.",
@@ -490,10 +508,16 @@ async function main() {
                   content: JSON.stringify({
                     editorialDecision: {
                       strategy: "rewrite",
+                      primaryProblemScope: "whole_script",
                       primaryProblem:
                         "The opening delays the concrete timing detail.",
                       primaryProblemEvidence:
                         "The valve stayed closed for 12 seconds before the pressure escaped.",
+                    },
+                    candidateAudit: {
+                      resolvedPrimaryProblem: true,
+                      candidateMateriallyBetter: true,
+                      regressionIntroduced: false,
                     },
                     improvedScript:
                       "The test looked safe for 30 seconds. But the valve was still holding pressure.",
@@ -593,10 +617,16 @@ async function main() {
                   content: JSON.stringify({
                     editorialDecision: {
                       strategy: "rewrite",
+                      primaryProblemScope: "whole_script",
                       primaryProblem:
                         "The generic opening delays the concrete valve event.",
                       primaryProblemEvidence:
                         "Before we start, you need to understand one important thing.",
+                    },
+                    candidateAudit: {
+                      resolvedPrimaryProblem: true,
+                      candidateMateriallyBetter: true,
+                      regressionIntroduced: false,
                     },
                     improvedScript: [
                       "The valve that changed the final test stayed closed for 12 seconds.",
@@ -816,10 +846,16 @@ async function main() {
                   content: JSON.stringify({
                     editorialDecision: {
                       strategy: "rewrite",
+                      primaryProblemScope: "whole_script",
                       primaryProblem:
                         "The generic first sentence delays the concrete valve event.",
                       primaryProblemEvidence:
                         "Before we start, you need to understand one important thing.",
+                    },
+                    candidateAudit: {
+                      resolvedPrimaryProblem: true,
+                      candidateMateriallyBetter: true,
+                      regressionIntroduced: false,
                     },
                     improvedScript:
                       "The valve stayed closed for 12 seconds before pressure forced it open. That delay changed the final test result.",
@@ -929,6 +965,11 @@ async function main() {
       routeSource.includes('"strategy": "rewrite"') &&
       routeSource.includes('"primaryProblem"') &&
       routeSource.includes('"primaryProblemEvidence"'),
+    exposesObservableCandidateAudit:
+      routeSource.includes('"candidateAudit"') &&
+      routeSource.includes('"resolvedPrimaryProblem"') &&
+      routeSource.includes('"candidateMateriallyBetter"') &&
+      routeSource.includes('"regressionIntroduced"'),
     requiresGroundedDecisionEvidence:
       routeSource.includes("exact quote") &&
       routeSource.includes("Original script") &&
@@ -959,6 +1000,28 @@ async function main() {
       "❌ FAIL — Route prompt includes universal editorial decision framework"
     );
     console.error(JSON.stringify(universalEditorialPromptRequirements));
+    process.exitCode = 1;
+    return;
+  }
+
+  const supportsEditorialPreserveDecision =
+    routeSource.includes('"strategy": "preserve"') &&
+    /preserve (?:the )?(?:original|script)/i.test(routeSource) &&
+    /meaningful (?:editorial )?improvement/i.test(routeSource) &&
+    (
+      routeSource.includes("do not require") ||
+      routeSource.includes("does not require") ||
+      routeSource.includes("without requiring")
+    );
+
+  if (supportsEditorialPreserveDecision) {
+    console.log(
+      "✅ PASS — Improve Script prompt allows an honest preserve decision"
+    );
+  } else {
+    console.error(
+      "❌ FAIL — Improve Script prompt must allow an honest preserve decision"
+    );
     process.exitCode = 1;
     return;
   }

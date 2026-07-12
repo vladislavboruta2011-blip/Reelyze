@@ -304,12 +304,25 @@ Before writing, internally evaluate the complete script as one connected viewer 
 Determine:
 1. What the script promises the viewer.
 2. What material and supported claims are actually available.
-3. What single biggest problem most limits the script.
-4. Which editorial changes would solve that primary limiting problem.
-5. Whether each proposed change creates real value or only different wording.
+3. What existing wording, structure, ordering, opening, progression, or payoff already works.
+4. Whether one specific source-supported problem meaningfully limits the script.
+5. Where that primary problem is located: "hook", "body", "payoff", or "whole_script".
+6. Whether the available material supports a rewrite that solves that problem without weakening an existing strength.
+7. Whether the honest strategy is "rewrite" or "preserve".
+
+Choose "preserve" when no concrete limiting problem can be proven, when the original already uses its material effectively, or when a candidate would not create a meaningful editorial improvement.
+Do not require or invent a primary problem, evidence, changes, or rewritten script for a preserve decision.
 
 Possible problems may include a weak opening, unclear promise, predictable progression, early payoff, weak ending, repetition, filler, unsupported meaning, or already-strong execution.
 These are examples, not fixed templates. Judge each script on its own material.
+
+Primary problem scope:
+- Use "hook" only when the opening itself is the primary limiting problem.
+- Use "body" when the opening already works and the main problem is in the middle progression.
+- Use "payoff" when the opening and progression work but the ending fails to deliver the strongest supported reward.
+- Use "whole_script" only when the diagnosed problem genuinely affects the complete structure rather than one isolated section.
+- When scope is "body" or "payoff" and no Approved refined hook is provided, copy the original first complete sentence exactly as the opening of improvedScript.
+- Do not label a body or payoff problem as "whole_script" merely to gain permission to rewrite a strong opening.
 
 Improve the complete script, not only the first line.
 
@@ -380,16 +393,32 @@ Before returning the result, internally verify:
 - Is the ending the strongest supported final reward available?
 - Am I presenting a light paraphrase as a successful improvement?
 
+Candidate comparison:
+- After drafting a candidate, compare the complete candidate directly against the complete Original script.
+- Set "resolvedPrimaryProblem" to true only when the candidate clearly fixes the diagnosed primary problem.
+- Set "candidateMateriallyBetter" to true only when the improvement is substantial enough to justify replacing the original, not merely different wording.
+- Set "regressionIntroduced" to true when the candidate weakens any existing strength, including the hook, clarity, specificity, supported meaning, certainty, progression, or payoff.
+- A rewrite is acceptable only when resolvedPrimaryProblem is true, candidateMateriallyBetter is true, and regressionIntroduced is false.
+- If any of those conditions is not satisfied, return the preserve response shape instead of presenting the candidate as an improvement.
+
 Keep the script concise, natural, immediately understandable, easy to say aloud, and suitable for a YouTube Short.
 
 Return only valid JSON, with no markdown or code fences.
 
-Return exactly this shape:
+Choose exactly one response shape.
+
+For a meaningful rewrite:
 {
   "editorialDecision": {
     "strategy": "rewrite",
+    "primaryProblemScope": "<hook | body | payoff | whole_script>",
     "primaryProblem": "<the single biggest editorial problem that the rewrite is intended to solve>",
     "primaryProblemEvidence": "<an exact quote from the Original script that demonstrates the primary problem>"
+  },
+  "candidateAudit": {
+    "resolvedPrimaryProblem": true,
+    "candidateMateriallyBetter": true,
+    "regressionIntroduced": false
   },
   "improvedScript": "<the complete rewritten script>",
   "changes": [
@@ -399,19 +428,32 @@ Return exactly this shape:
   "reason": "<specific explanation of the primary problem, the editorial decisions made, and why the complete rewrite is stronger without changing supported meaning>"
 }
 
-The "editorialDecision" must describe the decision made before writing the rewrite.
-Its "primaryProblem" must be specific to this script rather than a generic quality label.
-Its "primaryProblemEvidence" must be an exact quote copied from the Original script, not a paraphrase, inference, or invented example.
+For an already-strong script or an uncertain improvement:
+{
+  "editorialDecision": {
+    "strategy": "preserve"
+  }
+}
+
+The "editorialDecision" must describe the decision made before generating a rewrite.
+For "rewrite", "primaryProblemScope" must be exactly "hook", "body", "payoff", or "whole_script".
+For "rewrite", "primaryProblem" must be specific to this script rather than a generic quality label.
+For "rewrite", "primaryProblemEvidence" must be an exact quote copied from the Original script, not a paraphrase, inference, or invented example.
 Choose the shortest exact quote that clearly demonstrates the stated primary problem.
-Every item in "changes" must describe a concrete editorial decision made in this script.
+For "rewrite", "candidateAudit" is required and must contain all three boolean fields.
+An accepted rewrite must use resolvedPrimaryProblem=true, candidateMateriallyBetter=true, and regressionIntroduced=false.
+If that exact audit result is not honest, return the preserve response shape instead.
+Every rewrite item in "changes" must describe a concrete editorial decision made in this script.
+For "preserve", do not require or invent a primary problem, evidence, candidate audit, changes, reason, or improvedScript.
 Do not use generic claims such as "improved pacing, clarity, and engagement."`;
 
-    const userPrompt = `Improve this complete YouTube Shorts script.
+    const userPrompt = `Evaluate this complete YouTube Shorts script and choose the honest editorial strategy.
 
-${title ? `Video title / topic:\n${title}\n\n` : ""}${refinedHook ? `Approved refined hook — keep this exact opening in improvedScript:\n${refinedHook}\n\n` : ""}Original script:
+${title ? `Video title / topic:\n${title}\n\n` : ""}${refinedHook ? `Approved refined hook — keep this exact opening if strategy is rewrite:\n${refinedHook}\n\n` : ""}Original script:
 ${script}
 
-Rewrite the full script using only the material above.
+Choose preserve when the original is already strong or when a rewrite would not create a meaningful editorial improvement.
+Choose rewrite only when one specific supported problem can be solved using the material above.
 Do not invent any new facts, numbers, measurements, examples, causes, or outcomes.
 Return only valid JSON matching the required schema.`;
 
