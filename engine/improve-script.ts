@@ -4,10 +4,23 @@ import {
   isVeryGenericScript,
 } from "./improve-hook";
 
+export type ImproveScriptPrimaryProblemScope =
+  | "hook"
+  | "body"
+  | "payoff"
+  | "whole_script";
+
 export type ImproveScriptEditorialDecision = {
   strategy: "rewrite";
+  primaryProblemScope: ImproveScriptPrimaryProblemScope;
   primaryProblem: string;
   primaryProblemEvidence: string;
+};
+
+type ImproveScriptCandidateAudit = {
+  resolvedPrimaryProblem: boolean;
+  candidateMateriallyBetter: boolean;
+  regressionIntroduced: boolean;
 };
 
 type ParsedImproveScriptEditorialDecision =
@@ -86,6 +99,13 @@ function parseEditorialDecision(
     };
   }
 
+  const primaryProblemScope =
+    decision.primaryProblemScope === "hook" ||
+    decision.primaryProblemScope === "body" ||
+    decision.primaryProblemScope === "payoff" ||
+    decision.primaryProblemScope === "whole_script"
+      ? decision.primaryProblemScope
+      : null;
   const primaryProblem =
     typeof decision.primaryProblem === "string"
       ? decision.primaryProblem.trim()
@@ -97,6 +117,7 @@ function parseEditorialDecision(
 
   if (
     decision.strategy !== "rewrite" ||
+    !primaryProblemScope ||
     !primaryProblem ||
     !primaryProblemEvidence
   ) {
@@ -117,6 +138,7 @@ function parseEditorialDecision(
 
   return {
     strategy: "rewrite",
+    primaryProblemScope,
     primaryProblem: truncateText(
       primaryProblem,
       MAX_PRIMARY_PROBLEM_LENGTH
@@ -125,6 +147,30 @@ function parseEditorialDecision(
       primaryProblemEvidence,
       MAX_PRIMARY_PROBLEM_EVIDENCE_LENGTH
     ),
+  };
+}
+
+function parseCandidateAudit(
+  value: unknown
+): ImproveScriptCandidateAudit {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new UnusableAIResponseError();
+  }
+
+  const audit = value as Record<string, unknown>;
+
+  if (
+    typeof audit.resolvedPrimaryProblem !== "boolean" ||
+    typeof audit.candidateMateriallyBetter !== "boolean" ||
+    typeof audit.regressionIntroduced !== "boolean"
+  ) {
+    throw new UnusableAIResponseError();
+  }
+
+  return {
+    resolvedPrimaryProblem: audit.resolvedPrimaryProblem,
+    candidateMateriallyBetter: audit.candidateMateriallyBetter,
+    regressionIntroduced: audit.regressionIntroduced,
   };
 }
 
@@ -191,6 +237,19 @@ function splitScriptSentences(value: string): string[] {
   )
     .map((sentence) => sentence.trim())
     .filter((sentence) => sentence.length > 0);
+}
+
+function preservesOriginalOpeningExactly(
+  originalScript: string,
+  improvedScript: string
+): boolean {
+  const originalOpening = splitScriptSentences(originalScript)[0] ?? "";
+  const improvedOpening = splitScriptSentences(improvedScript)[0] ?? "";
+
+  return (
+    originalOpening.length > 0 &&
+    improvedOpening === originalOpening
+  );
 }
 
 function tokenizeScriptForComparison(value: string): string[] {
@@ -550,6 +609,8 @@ export function boundImproveScriptResult(
       ? {
           editorialDecision: {
             strategy: result.editorialDecision.strategy,
+            primaryProblemScope:
+              result.editorialDecision.primaryProblemScope,
             primaryProblem: truncateText(
               result.editorialDecision.primaryProblem,
               MAX_PRIMARY_PROBLEM_LENGTH
@@ -607,11 +668,36 @@ export function parseImproveScriptResponse(
     throw new UnusableAIResponseError();
   }
 
+  const candidateAudit = parseCandidateAudit(
+    parsed.candidateAudit
+  );
+
+  if (
+    !candidateAudit.resolvedPrimaryProblem ||
+    !candidateAudit.candidateMateriallyBetter ||
+    candidateAudit.regressionIntroduced
+  ) {
+    return boundImproveScriptResult(
+      buildImproveScriptPreserveResponse(script)
+    );
+  }
+
   if (
     approvedRefinedHook &&
     !improvedScript.startsWith(approvedRefinedHook)
   ) {
     throw new UnusableAIResponseError();
+  }
+
+  if (
+    !approvedRefinedHook &&
+    (editorialDecision.primaryProblemScope === "body" ||
+      editorialDecision.primaryProblemScope === "payoff") &&
+    !preservesOriginalOpeningExactly(script, improvedScript)
+  ) {
+    return boundImproveScriptResult(
+      buildImproveScriptPreserveResponse(script)
+    );
   }
 
   if (hasOnlySurfaceChanges(script, improvedScript)) {

@@ -55,10 +55,16 @@ const tests: TestCase[] = [
         JSON.stringify({
           editorialDecision: {
             strategy: "rewrite",
+            primaryProblemScope: "whole_script",
             primaryProblem:
               "The opening delays the concrete detail that explains the misleading result.",
             primaryProblemEvidence:
               "The valve stayed closed for 12 seconds before the pressure escaped.",
+          },
+          candidateAudit: {
+            resolvedPrimaryProblem: true,
+            candidateMateriallyBetter: true,
+            regressionIntroduced: false,
           },
           improvedScript: [
             "The test looked safe for 12 seconds.",
@@ -78,6 +84,7 @@ const tests: TestCase[] = [
       assert.equal(result.status, "improved");
       assert.deepEqual(result.editorialDecision, {
         strategy: "rewrite",
+        primaryProblemScope: "whole_script",
         primaryProblem:
           "The opening delays the concrete detail that explains the misleading result.",
         primaryProblemEvidence:
@@ -100,8 +107,14 @@ const tests: TestCase[] = [
             JSON.stringify({
               editorialDecision: {
                 strategy: "rewrite",
+                primaryProblemScope: "whole_script",
                 primaryProblem:
                   "The opening delays the concrete timing detail.",
+              },
+              candidateAudit: {
+                resolvedPrimaryProblem: true,
+                candidateMateriallyBetter: true,
+                regressionIntroduced: false,
               },
               improvedScript: [
                 "The test looked safe for 12 seconds.",
@@ -135,10 +148,16 @@ const tests: TestCase[] = [
             JSON.stringify({
               editorialDecision: {
                 strategy: "rewrite",
+                primaryProblemScope: "whole_script",
                 primaryProblem:
                   "The opening delays the concrete timing detail.",
                 primaryProblemEvidence:
                   "The chamber cracked before the test began.",
+              },
+              candidateAudit: {
+                resolvedPrimaryProblem: true,
+                candidateMateriallyBetter: true,
+                regressionIntroduced: false,
               },
               improvedScript: [
                 "The test looked safe for 12 seconds.",
@@ -262,10 +281,16 @@ const tests: TestCase[] = [
             JSON.stringify({
               editorialDecision: {
                 strategy: "rewrite",
+                primaryProblemScope: "whole_script",
                 primaryProblem:
                   "The script needs a more immediate presentation of its concrete result.",
                 primaryProblemEvidence:
                   "The valve stayed closed for 12 seconds.",
+              },
+              candidateAudit: {
+                resolvedPrimaryProblem: true,
+                candidateMateriallyBetter: true,
+                regressionIntroduced: false,
               },
               improvedScript:
                 "the valve stayed closed for 12 seconds — THAT DELAY CHANGED THE FINAL READING!",
@@ -295,10 +320,16 @@ const tests: TestCase[] = [
         JSON.stringify({
           editorialDecision: {
             strategy: "rewrite",
+            primaryProblemScope: "whole_script",
             primaryProblem:
               "The original repeats transitions and explains simple consequences with unnecessary wording.",
             primaryProblemEvidence:
               "The doors locked automatically after that happened.",
+          },
+          candidateAudit: {
+            resolvedPrimaryProblem: true,
+            candidateMateriallyBetter: true,
+            regressionIntroduced: false,
           },
           improvedScript: [
             "Smoke reached the sensor before the alarm sounded.",
@@ -337,10 +368,16 @@ const tests: TestCase[] = [
         JSON.stringify({
           editorialDecision: {
             strategy: "rewrite",
+            primaryProblemScope: "whole_script",
             primaryProblem:
               "Repeated ambiguous pronouns make the lock, exit, and door difficult to distinguish.",
             primaryProblemEvidence:
               "It triggered the lock before the workers reached it.",
+          },
+          candidateAudit: {
+            resolvedPrimaryProblem: true,
+            candidateMateriallyBetter: true,
+            regressionIntroduced: false,
           },
           improvedScript: [
             "Smoke near the exit triggered the door lock.",
@@ -377,10 +414,16 @@ const tests: TestCase[] = [
         JSON.stringify({
           editorialDecision: {
             strategy: "rewrite",
+            primaryProblemScope: "whole_script",
             primaryProblem:
               "The generic opening delays the concrete valve event.",
             primaryProblemEvidence:
               "Before we start, you need to understand one important thing.",
+          },
+          candidateAudit: {
+            resolvedPrimaryProblem: true,
+            candidateMateriallyBetter: true,
+            regressionIntroduced: false,
           },
           improvedScript: [
             "The valve that changed the final test stayed closed for 12 seconds.",
@@ -421,10 +464,16 @@ const tests: TestCase[] = [
         JSON.stringify({
           editorialDecision: {
             strategy: "rewrite",
+            primaryProblemScope: "whole_script",
             primaryProblem:
               "The generic opening delays the concrete valve event.",
             primaryProblemEvidence:
               "Before we start, you need to understand one important thing.",
+          },
+          candidateAudit: {
+            resolvedPrimaryProblem: true,
+            candidateMateriallyBetter: true,
+            regressionIntroduced: false,
           },
           improvedScript: [
             "The valve stayed closed for 12 seconds.",
@@ -466,10 +515,16 @@ const tests: TestCase[] = [
         JSON.stringify({
           editorialDecision: {
             strategy: "rewrite",
+            primaryProblemScope: "whole_script",
             primaryProblem:
               "The original repeats mechanical actions instead of expressing each cause and immediate effect directly.",
             primaryProblemEvidence:
               "The movement of the lever made the latch slide out of its slot.",
+          },
+          candidateAudit: {
+            resolvedPrimaryProblem: true,
+            candidateMateriallyBetter: true,
+            regressionIntroduced: false,
           },
           improvedScript: [
             "As the cable tightened, it pulled the lever backward with it.",
@@ -508,10 +563,16 @@ const tests: TestCase[] = [
         JSON.stringify({
           editorialDecision: {
             strategy: "rewrite",
+            primaryProblemScope: "whole_script",
             primaryProblem:
               "The original opening is weak and does not immediately capture the viewer's interest.",
             primaryProblemEvidence:
               "If Messi had Ronaldo’s vertical jump, how high would he actually reach?",
+          },
+          candidateAudit: {
+            resolvedPrimaryProblem: true,
+            candidateMateriallyBetter: true,
+            regressionIntroduced: false,
           },
           improvedScript:
             "What if Messi had Ronaldo’s incredible vertical jump? Messi stands at 5 feet 7, while Ronaldo towers at 6 feet 2. Even with Ronaldo’s jump, Messi wouldn’t reach as high as Ronaldo. However, he’d likely score many more headers, jumping high enough to challenge nearly any defender.",
@@ -544,10 +605,16 @@ const tests: TestCase[] = [
         JSON.stringify({
           editorialDecision: {
             strategy: "rewrite",
+            primaryProblemScope: "whole_script",
             primaryProblem:
               "The script lacks a strong opening that immediately captures the viewer's attention and clearly connects to the title.",
             primaryProblemEvidence:
               "Most defenders watch the ball when Ronaldo jumps.",
+          },
+          candidateAudit: {
+            resolvedPrimaryProblem: true,
+            candidateMateriallyBetter: true,
+            regressionIntroduced: false,
           },
           improvedScript:
             "Ronaldo is a nightmare for defenders in the air. While they focus on the ball, he zeroes in on them. He waits for them to lose their balance, then strikes at the space above. This is how he manages to outjump defenders, even when they're closer to the ball.",
@@ -565,6 +632,172 @@ const tests: TestCase[] = [
       assert.equal(result.improvedScript, script);
     },
   },
+    {
+      name: "candidate audit vetoes rewrites that do not prove a material improvement",
+      run: () => {
+        const script = [
+          "Most people miss what actually changed the test.",
+          "The valve stayed closed for 12 seconds before the pressure escaped.",
+          "That delay made the final reading look safer than it really was.",
+        ].join("\n");
+
+        const baseResponse = {
+          editorialDecision: {
+            strategy: "rewrite",
+            primaryProblemScope: "hook",
+            primaryProblem:
+              "The opening delays the concrete timing detail.",
+            primaryProblemEvidence:
+              "The valve stayed closed for 12 seconds before the pressure escaped.",
+          },
+          candidateAudit: {
+            resolvedPrimaryProblem: true,
+            candidateMateriallyBetter: true,
+            regressionIntroduced: false,
+          },
+          improvedScript: [
+            "The test looked safe for 12 seconds.",
+            "But the valve was still holding pressure inside the chamber.",
+            "When it finally opened, the final reading changed.",
+          ].join("\n"),
+          changes: [
+            "Moved the supported 12-second detail into the opening.",
+            "Connected the delayed pressure release to the final reading.",
+          ],
+          reason:
+            "The rewrite presents the supported timing detail earlier and makes the result easier to follow.",
+        };
+
+        const audits = [
+          {
+            resolvedPrimaryProblem: false,
+            candidateMateriallyBetter: true,
+            regressionIntroduced: false,
+          },
+          {
+            resolvedPrimaryProblem: true,
+            candidateMateriallyBetter: false,
+            regressionIntroduced: false,
+          },
+          {
+            resolvedPrimaryProblem: true,
+            candidateMateriallyBetter: true,
+            regressionIntroduced: true,
+          },
+        ];
+
+        const results = audits.map((candidateAudit) =>
+          parseImproveScriptResponse(
+            JSON.stringify({
+              ...baseResponse,
+              candidateAudit,
+            }),
+            script
+          )
+        );
+
+        assert.deepEqual(
+          results.map((result) => result.status),
+          ["preserve", "preserve", "preserve"]
+        );
+        assert.deepEqual(
+          results.map((result) => result.improvedScript),
+          [script, script, script]
+        );
+      },
+    },
+    {
+      name: "body-scoped rewrite that changes a protected original hook should preserve the original",
+      run: () => {
+        const script = [
+          "Haaland is NOT HUMAN and I can PROVE IT.",
+          "In one match, he reached 8 feet 2 inches and met the cross above the defender.",
+          "The next sentence repeats that he was above the defender without adding new evidence.",
+          "The ending repeats the 8-foot-2 measurement instead of explaining why it mattered.",
+        ].join("\n");
+
+        const result = parseImproveScriptResponse(
+          JSON.stringify({
+            editorialDecision: {
+              strategy: "rewrite",
+              primaryProblemScope: "body",
+              primaryProblem:
+                "The body repeats the same jump evidence instead of progressing toward the promised proof.",
+              primaryProblemEvidence:
+                "The next sentence repeats that he was above the defender without adding new evidence.",
+            },
+            candidateAudit: {
+              resolvedPrimaryProblem: true,
+              candidateMateriallyBetter: true,
+              regressionIntroduced: false,
+            },
+            improvedScript: [
+              "Is Haaland even human?",
+              "In one match, he reached 8 feet 2 inches and met the cross above the defender.",
+              "That measurement becomes the final proof instead of being repeated across the body.",
+            ].join("\n"),
+            changes: [
+              "Removed the repeated body explanation.",
+              "Kept the supported 8-foot-2 measurement as the final proof.",
+            ],
+            reason:
+              "The rewrite removes repetition from the body while preserving the supported measurement and result.",
+          }),
+          script
+        );
+
+        assert.equal(result.status, "preserve");
+        assert.equal(result.improvedScript, script);
+        assert.deepEqual(result.changes, []);
+      },
+    },
+    {
+      name: "body-scoped rewrite that preserves the original hook can remain improved",
+      run: () => {
+        const script = [
+          "Haaland is NOT HUMAN and I can PROVE IT.",
+          "In one match, he reached 8 feet 2 inches and met the cross above the defender.",
+          "The next sentence repeats that he was above the defender without adding new evidence.",
+          "The ending repeats the same jump instead of completing the proof.",
+        ].join("\n");
+
+        const result = parseImproveScriptResponse(
+          JSON.stringify({
+            editorialDecision: {
+              strategy: "rewrite",
+              primaryProblemScope: "body",
+              primaryProblem:
+                "The body repeats the same jump evidence instead of progressing toward the promised proof.",
+              primaryProblemEvidence:
+                "The next sentence repeats that he was above the defender without adding new evidence.",
+            },
+            candidateAudit: {
+              resolvedPrimaryProblem: true,
+              candidateMateriallyBetter: true,
+              regressionIntroduced: false,
+            },
+            improvedScript: [
+              "Haaland is NOT HUMAN and I can PROVE IT.",
+              "In one match, he reached 8 feet 2 inches and met the cross above the defender.",
+              "That was the proof promised in the opening.",
+            ].join("\n"),
+            changes: [
+              "Removed the repeated body explanation.",
+              "Delivered the supported measurement as the proof.",
+            ],
+            reason:
+              "The rewrite preserves the original hook while removing repetition from the body.",
+          }),
+          script
+        );
+
+        assert.equal(result.status, "improved");
+        assert.equal(
+          result.improvedScript.split("\n")[0],
+          "Haaland is NOT HUMAN and I can PROVE IT."
+        );
+      },
+    },
   {
     name: "grounded concrete script can return an improved full script",
     run: () => {
@@ -578,10 +811,16 @@ const tests: TestCase[] = [
         JSON.stringify({
             editorialDecision: {
               strategy: "rewrite",
+              primaryProblemScope: "whole_script",
               primaryProblem:
                 "The opening delays the concrete detail that explains the misleading result.",
               primaryProblemEvidence:
                 "The valve stayed closed for 12 seconds before the pressure escaped.",
+            },
+            candidateAudit: {
+              resolvedPrimaryProblem: true,
+              candidateMateriallyBetter: true,
+              regressionIntroduced: false,
             },
           improvedScript: [
             "The test looked safe for 12 seconds.",
@@ -623,10 +862,16 @@ const tests: TestCase[] = [
             JSON.stringify({
               editorialDecision: {
                 strategy: "rewrite",
+                primaryProblemScope: "whole_script",
                 primaryProblem:
                   "The generic first sentence delays the concrete valve event.",
                 primaryProblemEvidence:
                   "Before we start, you need to understand one important thing.",
+              },
+              candidateAudit: {
+                resolvedPrimaryProblem: true,
+                candidateMateriallyBetter: true,
+                regressionIntroduced: false,
               },
               improvedScript: [
                 "The final test changed after the valve stayed closed for 12 seconds.",
@@ -660,10 +905,16 @@ const tests: TestCase[] = [
         JSON.stringify({
             editorialDecision: {
               strategy: "rewrite",
+              primaryProblemScope: "whole_script",
               primaryProblem:
                 "The opening delays the concrete timing detail.",
               primaryProblemEvidence:
                 "The valve stayed closed for 12 seconds before the pressure escaped.",
+            },
+            candidateAudit: {
+              resolvedPrimaryProblem: true,
+              candidateMateriallyBetter: true,
+              regressionIntroduced: false,
             },
           improvedScript: [
             "The test looked safe for 30 seconds.",
