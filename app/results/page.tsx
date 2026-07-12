@@ -63,7 +63,7 @@ const inter = Inter({
 
 const MAX_SCRIPT_CHARACTERS = 1000;
 const MAX_TITLE_CHARACTERS = 200;
-const IMPROVE_SCRIPT_CACHE_VERSION = "1";
+const IMPROVE_SCRIPT_CACHE_VERSION = "2";
 const IMPROVE_SCRIPT_CACHE_STORAGE_KEY =
   "climpy-improve-script-cache";
 
@@ -113,16 +113,19 @@ function createImproveScriptFingerprint({
   script,
   title,
   refinedHook,
+  analysisResult,
 }: {
   script: string;
   title: string;
   refinedHook: string;
+  analysisResult: AnalysisV2SuccessResponse["result"] | null;
 }): string {
   return JSON.stringify({
     version: IMPROVE_SCRIPT_CACHE_VERSION,
     script: script.trim(),
     title: title.trim(),
     refinedHook: refinedHook.trim(),
+    analysisResult,
   });
 }
 
@@ -607,12 +610,14 @@ const hookCopyButtonLabel =
       aiHookMode === "rewrite" && aiHook.trim().length > 0
         ? aiHook.trim()
         : "";
+    const analysisResult = savedAnalysisV2?.result ?? null;
 
     const improveScriptFingerprint =
       createImproveScriptFingerprint({
         script: activeScript,
         title: savedTitle,
         refinedHook,
+        analysisResult,
       });
 
     setCopiedScript(false);
@@ -676,6 +681,7 @@ const hookCopyButtonLabel =
           script: activeScript,
           title: savedTitle,
           refinedHook: refinedHook || undefined,
+          analysisResult: analysisResult ?? undefined,
         }),
       });
 

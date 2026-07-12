@@ -1,11 +1,18 @@
 import OpenAI from "openai";
 
+import type {
+  AnalysisV2Result,
+} from "../../../engine/analysis-v2-schema";
+import {
+  validateAnalysisV2Result,
+} from "../../../engine/analysis-v2-validation";
 import {
   UnusableAIResponseError,
 } from "../../../engine/improve-hook";
 import {
   boundImproveScriptResult,
   buildImproveScriptDiagnosticResponse,
+  buildImproveScriptPreserveResponse,
   parseImproveScriptResponse,
   shouldDiagnoseImproveScript,
   type ImproveScriptResult,
@@ -36,6 +43,55 @@ function buildErrorResponse(reason: string): ImproveScriptResult {
     changes: [],
     reason,
   };
+}
+
+function isAnalysisConfirmedComplete(
+  analysisResult: AnalysisV2Result
+): boolean {
+  return (
+    analysisResult.verdict === "strong" &&
+    analysisResult.hookDecision === "keep" &&
+    analysisResult.riskyParts.length === 0 &&
+    analysisResult.suggestedFixes.every(
+      (fix) => fix.optional
+    )
+  );
+}
+
+function hasValidatedActionableIssue(
+  analysisResult: AnalysisV2Result
+): boolean {
+  return (
+    analysisResult.hookDecision !== "diagnostic" &&
+    analysisResult.riskyParts.length > 0 &&
+    analysisResult.suggestedFixes.some(
+      (fix) => !fix.optional
+    )
+  );
+}
+
+function buildValidatedAnalysisContext(
+  analysisResult: AnalysisV2Result
+): string {
+  return JSON.stringify(
+    {
+      verdict: analysisResult.verdict,
+      mainTakeaway: analysisResult.mainTakeaway,
+      hookDecision: analysisResult.hookDecision,
+      hookAssessment: analysisResult.hookAssessment,
+      riskyParts: analysisResult.riskyParts,
+      requiredSuggestedFixes:
+        analysisResult.suggestedFixes.filter(
+          (fix) => !fix.optional
+        ),
+      optionalSuggestedFixes:
+        analysisResult.suggestedFixes.filter(
+          (fix) => fix.optional
+        ),
+    },
+    null,
+    2
+  );
 }
 
 function getClientIdentifier(req: Request): string {
@@ -225,6 +281,8 @@ export async function POST(req: Request): Promise<Response> {
       typeof requestBody.refinedHook === "string"
         ? requestBody.refinedHook.trim()
         : "";
+    const hasAnalysisResult =
+      "analysisResult" in requestBody;
 
     if (script.length === 0) {
       return Response.json(
@@ -260,7 +318,46 @@ export async function POST(req: Request): Promise<Response> {
       );
     }
 
-    if (shouldDiagnoseImproveScript(script)) {
+    let analysisResult: AnalysisV2Result | null = null;
+
+    if (hasAnalysisResult) {
+      const validation = validateAnalysisV2Result(
+        requestBody.analysisResult,
+        script
+      );
+
+      if (!validation.ok) {
+        return Response.json(
+          buildErrorResponse(
+            "Analysis result is invalid or does not match the submitted script."
+          ),
+          { status: 400 }
+        );
+      }
+
+      analysisResult = validation.value;
+    }
+
+    if (
+      analysisResult !== null &&
+      refinedHook.length === 0 &&
+      isAnalysisConfirmedComplete(analysisResult)
+    ) {
+      return Response.json(
+        boundImproveScriptResult(
+          buildImproveScriptPreserveResponse(script)
+        )
+      );
+    }
+
+    const bypassLegacyDiagnostic =
+      analysisResult !== null &&
+      hasValidatedActionableIssue(analysisResult);
+
+    if (
+      !bypassLegacyDiagnostic &&
+      shouldDiagnoseImproveScript(script)
+    ) {
       return Response.json(buildImproveScriptDiagnosticResponse());
     }
 
@@ -293,9 +390,13 @@ export async function POST(req: Request): Promise<Response> {
 
     const systemPrompt = `You are an expert YouTube Shorts script editor for Climpy.
 
-Your task is to make the strongest useful improvement possible using only the video title and original script.
+Your task is to make the strongest useful improvement possible using only the video title, original script, approved refined hook, and validated analysis context when provided.
 
 Use only information already present in the original script or title.
+A validated analysis context is a grounded editorial hypothesis, not permission to invent facts and not an unconditional order to rewrite.
+When it identifies a required issue, evaluate that exact issue before considering a different diagnosis.
+Either resolve the issue through a materially better grounded rewrite or preserve only when no safe candidate honestly improves the complete script.
+Do not silently ignore a validated required issue and restart the editorial diagnosis from zero.
 Do not invent or strengthen facts, numbers, measurements, people, events, examples, causes, outcomes, comparisons, certainty, consequences, or supported claims.
 Preserve the original topic, core idea, scope, uncertainty, meaning, and payoff material.
 
@@ -447,13 +548,19 @@ Every rewrite item in "changes" must describe a concrete editorial decision made
 For "preserve", do not require or invent a primary problem, evidence, candidate audit, changes, reason, or improvedScript.
 Do not use generic claims such as "improved pacing, clarity, and engagement."`;
 
+    const validatedAnalysisContext =
+      analysisResult !== null
+        ? buildValidatedAnalysisContext(analysisResult)
+        : "";
+
     const userPrompt = `Evaluate this complete YouTube Shorts script and choose the honest editorial strategy.
 
-${title ? `Video title / topic:\n${title}\n\n` : ""}${refinedHook ? `Approved refined hook — keep this exact opening if strategy is rewrite:\n${refinedHook}\n\n` : ""}Original script:
+${title ? `Video title / topic:\n${title}\n\n` : ""}${refinedHook ? `Approved refined hook — keep this exact opening if strategy is rewrite:\n${refinedHook}\n\n` : ""}${validatedAnalysisContext ? `Validated Analysis V2 context — explicitly evaluate this grounded editorial hypothesis:\n${validatedAnalysisContext}\n\n` : ""}Original script:
 ${script}
 
 Choose preserve when the original is already strong or when a rewrite would not create a meaningful editorial improvement.
 Choose rewrite only when one specific supported problem can be solved using the material above.
+When validated analysis contains a required issue, evaluate that issue directly instead of independently replacing it with an unrelated diagnosis.
 Do not invent any new facts, numbers, measurements, examples, causes, or outcomes.
 Return only valid JSON matching the required schema.`;
 
@@ -477,7 +584,8 @@ Return only valid JSON matching the required schema.`;
     const result = parseImproveScriptResponse(
       raw,
       script,
-      refinedHook
+      refinedHook,
+      bypassLegacyDiagnostic
     );
 
     return Response.json(boundImproveScriptResult(result));

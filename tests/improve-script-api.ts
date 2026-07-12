@@ -948,6 +948,486 @@ async function main() {
     return;
   }
 
+  const strongAnalysisBlocksFalseDiagnosticProbe = spawnSync(
+    "npx",
+    [
+      "tsx",
+      "-e",
+      `import("./app/api/improve-script/route.ts").then(async ({ POST }) => {
+        globalThis.fetch = async () => {
+          throw new Error(
+            "Strong validated analysis should preserve before any external AI request"
+          );
+        };
+
+        const script = [
+          "Want a smooth knee slide?",
+          "Build speed before dropping down.",
+          "Keep your chest upright and bring both knees down together.",
+          "Lean back slightly as your momentum carries you forward.",
+          "This keeps the slide smooth instead of making you tip over."
+        ].join(" ");
+
+        const analysisResult = {
+          scriptType: "how_to",
+          verdict: "strong",
+          scores: {
+            overall: 84,
+            hook: 82,
+            retentionRisk: 20
+          },
+          hookDecision: "keep",
+          hookAssessment:
+            "The opening immediately states the practical result the viewer will learn.",
+          riskyParts: [],
+          suggestedFixes: [],
+          scenes: [
+            {
+              excerpt: "Want a smooth knee slide?",
+              label: "Clear practical promise",
+              status: "strong"
+            },
+            {
+              excerpt: "Build speed before dropping down.",
+              label: "Preparation",
+              status: "strong"
+            },
+            {
+              excerpt:
+                "Keep your chest upright and bring both knees down together.",
+              label: "Core movement",
+              status: "strong"
+            },
+            {
+              excerpt:
+                "Lean back slightly as your momentum carries you forward.",
+              label: "Controlled slide",
+              status: "strong"
+            },
+            {
+              excerpt:
+                "This keeps the slide smooth instead of making you tip over.",
+              label: "Resolved result",
+              status: "strong"
+            }
+          ],
+          mainTakeaway:
+            "The script gives a clear sequence, explains the movement, and delivers the promised practical result."
+        };
+
+        const response = await POST(
+          new Request("http://localhost/api/improve-script", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              title: "How to do a smooth knee slide",
+              script,
+              analysisResult
+            })
+          })
+        );
+
+        const payload = await response.json();
+
+        if (
+          response.status !== 200 ||
+          payload.status !== "preserve" ||
+          payload.improvedScript !== script ||
+          !Array.isArray(payload.changes) ||
+          payload.changes.length !== 0
+        ) {
+          throw new Error(
+            "Expected validated strong complete analysis to prevent a false diagnostic"
+          );
+        }
+
+        console.log("STRONG_ANALYSIS_PRESERVE_PASS");
+      }).catch((error) => {
+        console.error(error instanceof Error ? error.message : error);
+        process.exit(1);
+      });`,
+    ],
+    {
+      cwd: process.cwd(),
+      env: envWithoutOpenAIKey,
+      encoding: "utf8",
+    }
+  );
+
+  if (
+    strongAnalysisBlocksFalseDiagnosticProbe.status === 0 &&
+    strongAnalysisBlocksFalseDiagnosticProbe.stdout.includes(
+      "STRONG_ANALYSIS_PRESERVE_PASS"
+    )
+  ) {
+    console.log(
+      "✅ PASS — Validated strong complete analysis prevents a false Improve Script diagnostic"
+    );
+  } else {
+    console.error(
+      "❌ FAIL — Validated strong complete analysis must prevent a false Improve Script diagnostic"
+    );
+    console.error(
+      strongAnalysisBlocksFalseDiagnosticProbe.stderr.trim() ||
+        strongAnalysisBlocksFalseDiagnosticProbe.stdout.trim()
+    );
+    process.exitCode = 1;
+    return;
+  }
+
+  const validatedMixedAnalysisBypassesGenericHeuristicProbe =
+    spawnSync(
+      "npx",
+      [
+        "tsx",
+        "-e",
+        `let providerCalls = 0;
+
+        globalThis.fetch = async () => {
+          providerCalls += 1;
+
+          return new Response(
+            JSON.stringify({
+              id: "chatcmpl-mixed-analysis-heuristic-test",
+              object: "chat.completion",
+              created: 0,
+              model: "gpt-4o-mini",
+              choices: [
+                {
+                  index: 0,
+                  message: {
+                    role: "assistant",
+                    content: JSON.stringify({
+                      editorialDecision: {
+                        strategy: "preserve"
+                      }
+                    })
+                  },
+                  finish_reason: "stop"
+                }
+              ]
+            }),
+            {
+              status: 200,
+              headers: {
+                "Content-Type": "application/json"
+              }
+            }
+          );
+        };
+
+        import("./app/api/improve-script/route.ts").then(
+          async ({ POST }) => {
+            const script = [
+              "Want a smoother knee slide?",
+              "Build speed before dropping down.",
+              "Keep your chest upright and bring both knees down together.",
+              "Lean back slightly as your momentum carries you forward.",
+              "This keeps the slide smooth instead of making you tip over."
+            ].join(" ");
+
+            const riskyExcerpt =
+              "Lean back slightly as your momentum carries you forward.";
+
+            const analysisResult = {
+              scriptType: "how_to",
+              verdict: "mixed",
+              scores: {
+                overall: 74,
+                hook: 82,
+                retentionRisk: 38
+              },
+              hookDecision: "keep",
+              hookAssessment:
+                "The opening immediately promises a clear practical result.",
+              riskyParts: [
+                {
+                  excerpt: riskyExcerpt,
+                  reason:
+                    "The timing of the lean-back instruction is not connected clearly to the moment the knees come down.",
+                  severity: "medium"
+                }
+              ],
+              suggestedFixes: [
+                {
+                  target: "clarity",
+                  suggestion:
+                    "Place the lean-back instruction immediately after bringing both knees down so the movement reads as one clear sequence.",
+                  optional: false
+                }
+              ],
+              scenes: [
+                {
+                  excerpt: "Want a smoother knee slide?",
+                  label: "Direct practical promise",
+                  status: "strong"
+                },
+                {
+                  excerpt: "Build speed before dropping down.",
+                  label: "Preparation",
+                  status: "strong"
+                },
+                {
+                  excerpt:
+                    "Keep your chest upright and bring both knees down together.",
+                  label: "Core movement",
+                  status: "strong"
+                },
+                {
+                  excerpt: riskyExcerpt,
+                  label: "Unclear instruction timing",
+                  status: "risky"
+                },
+                {
+                  excerpt:
+                    "This keeps the slide smooth instead of making you tip over.",
+                  label: "Practical result",
+                  status: "strong"
+                }
+              ],
+              mainTakeaway:
+                "The script has a clear promise and useful sequence, but one instruction should be repositioned so its timing is easier to follow."
+            };
+
+            const response = await POST(
+              new Request(
+                "http://localhost/api/improve-script",
+                {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json"
+                  },
+                  body: JSON.stringify({
+                    title: "How to do a smooth knee slide",
+                    script,
+                    analysisResult
+                  })
+                }
+              )
+            );
+
+            const payload = await response.json();
+
+            if (
+              response.status !== 200 ||
+              payload.status !== "preserve" ||
+              providerCalls !== 1
+            ) {
+              throw new Error(
+                "Expected validated mixed analysis with a concrete required fix to reach the editorial model instead of being replaced by the generic diagnostic"
+              );
+            }
+
+            console.log(
+              "MIXED_ANALYSIS_HEURISTIC_BYPASS_PASS"
+            );
+          }
+        ).catch((error) => {
+          console.error(
+            error instanceof Error ? error.message : error
+          );
+          process.exit(1);
+        });`,
+      ],
+      {
+        cwd: process.cwd(),
+        env: process.env,
+        encoding: "utf8",
+      }
+    );
+
+  if (
+    validatedMixedAnalysisBypassesGenericHeuristicProbe.status === 0 &&
+    validatedMixedAnalysisBypassesGenericHeuristicProbe.stdout.includes(
+      "MIXED_ANALYSIS_HEURISTIC_BYPASS_PASS"
+    )
+  ) {
+    console.log(
+      "✅ PASS — Validated mixed analysis bypasses the legacy generic diagnostic heuristic"
+    );
+  } else {
+    console.error(
+      "❌ FAIL — A validated mixed analysis with a concrete required fix must not be replaced by the legacy generic diagnostic"
+    );
+    console.error(
+      validatedMixedAnalysisBypassesGenericHeuristicProbe.stderr.trim() ||
+        validatedMixedAnalysisBypassesGenericHeuristicProbe.stdout.trim()
+    );
+    process.exitCode = 1;
+    return;
+  }
+
+  const requiredAnalysisIssuePromptProbe = spawnSync(
+    "npx",
+    [
+      "tsx",
+      "-e",
+      `let providerRequestBody = "";
+
+      globalThis.fetch = async (_input, init) => {
+        providerRequestBody =
+          typeof init?.body === "string" ? init.body : "";
+
+        return new Response(
+          JSON.stringify({
+            id: "chatcmpl-analysis-context-test",
+            object: "chat.completion",
+            created: 0,
+            model: "gpt-4o-mini",
+            choices: [
+              {
+                index: 0,
+                message: {
+                  role: "assistant",
+                  content: JSON.stringify({
+                    editorialDecision: {
+                      strategy: "preserve"
+                    }
+                  })
+                },
+                finish_reason: "stop"
+              }
+            ]
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" }
+          }
+        );
+      };
+
+      import("./app/api/improve-script/route.ts").then(async ({ POST }) => {
+        const script = [
+          "These are three overlooked productivity habits that almost nobody talks about.",
+          "Put your phone in another room because notifications pull your attention away.",
+          "Write down one priority because a long task list splits your focus.",
+          "Then work for 25 minutes because a short timer makes starting feel easier."
+        ].join(" ");
+
+        const riskyExcerpt =
+          "These are three overlooked productivity habits that almost nobody talks about.";
+
+        const requiredFix =
+          "Remove or soften the claim that the habits are overlooked or that almost nobody talks about them.";
+
+        const analysisResult = {
+          scriptType: "how_to",
+          verdict: "mixed",
+          scores: {
+            overall: 70,
+            hook: 75,
+            retentionRisk: 40
+          },
+          hookDecision: "refine",
+          hookAssessment:
+            "The opening makes an unsupported novelty claim because the habits are presented as overlooked even though the script gives familiar advice.",
+          suggestedHook:
+            "These are three productivity habits that can make focusing easier.",
+          riskyParts: [
+            {
+              excerpt: riskyExcerpt,
+              reason:
+                "The novelty claim is not supported by the familiar habits that follow.",
+              severity: "medium"
+            }
+          ],
+          suggestedFixes: [
+            {
+              target: "hook",
+              suggestion: requiredFix,
+              optional: false
+            }
+          ],
+          scenes: [
+            {
+              excerpt: riskyExcerpt,
+              label: "Unsupported novelty claim",
+              status: "risky"
+            },
+            {
+              excerpt:
+                "Put your phone in another room because notifications pull your attention away.",
+              label: "First habit",
+              status: "strong"
+            },
+            {
+              excerpt:
+                "Write down one priority because a long task list splits your focus.",
+              label: "Second habit",
+              status: "strong"
+            },
+            {
+              excerpt:
+                "Then work for 25 minutes because a short timer makes starting feel easier.",
+              label: "Third habit",
+              status: "strong"
+            }
+          ],
+          mainTakeaway:
+            "The advice is clear, but the opening overstates its novelty and should be softened."
+        };
+
+        const response = await POST(
+          new Request("http://localhost/api/improve-script", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              title: "Three overlooked productivity habits",
+              script,
+              analysisResult
+            })
+          })
+        );
+
+        const payload = await response.json();
+
+        if (
+          response.status !== 200 ||
+          payload.status !== "preserve" ||
+          !providerRequestBody.includes(requiredFix) ||
+          !providerRequestBody.includes(
+            "The advice is clear, but the opening overstates its novelty and should be softened."
+          )
+        ) {
+          throw new Error(
+            "Expected the validated required issue in the Improve Script provider prompt"
+          );
+        }
+
+        console.log("ANALYSIS_ISSUE_PROMPT_PASS");
+      }).catch((error) => {
+        console.error(error instanceof Error ? error.message : error);
+        process.exit(1);
+      });`,
+    ],
+    {
+      cwd: process.cwd(),
+      env: process.env,
+      encoding: "utf8",
+    }
+  );
+
+  if (
+    requiredAnalysisIssuePromptProbe.status === 0 &&
+    requiredAnalysisIssuePromptProbe.stdout.includes(
+      "ANALYSIS_ISSUE_PROMPT_PASS"
+    )
+  ) {
+    console.log(
+      "✅ PASS — Improve Script prompt receives the validated required analysis issue"
+    );
+  } else {
+    console.error(
+      "❌ FAIL — Improve Script prompt must receive the validated required analysis issue"
+    );
+    console.error(
+      requiredAnalysisIssuePromptProbe.stderr.trim() ||
+        requiredAnalysisIssuePromptProbe.stdout.trim()
+    );
+    process.exitCode = 1;
+    return;
+  }
+
   const routeSource = readFileSync(
     "app/api/improve-script/route.ts",
     "utf8"
