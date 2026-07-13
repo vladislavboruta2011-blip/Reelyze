@@ -417,6 +417,11 @@ function AnalyzerSection({
   isAnalyzing: boolean;
   analyzeError: string;
 }) {
+  const scriptCharactersOverLimit = Math.max(
+    0,
+    script.length - maxCharacters
+  );
+
   return (
     <section className="relative z-10 mx-auto w-full max-w-[1280px] px-8 pb-24" id="analyzer">
       <div className="mx-auto max-w-[840px] text-center mb-14">
@@ -430,6 +435,48 @@ function AnalyzerSection({
         <p className="mx-auto mt-5 max-w-[560px] text-[18px] leading-[1.75] text-[#6B7280]">
           Works best for YouTube Shorts (15–60 seconds).
         </p>
+
+          <div
+            aria-label="How to use Climpy"
+            className="mx-auto mt-8 grid max-w-[760px] grid-cols-3 gap-3 text-left"
+          >
+            {[
+              {
+                number: "1",
+                title: "Paste your script",
+                description: "Add only the words that will be spoken in the Short.",
+              },
+              {
+                number: "2",
+                title: "Run the analysis",
+                description: "Click Analyze Script and wait for your results.",
+              },
+              {
+                number: "3",
+                title: "Review the fixes",
+                description: "See weak spots and specific ways to improve them.",
+              },
+            ].map((step) => (
+              <div
+                key={step.number}
+                className="rounded-[16px] border border-[#E5E7EB] bg-white px-4 py-4"
+              >
+                <div className="flex items-start gap-3">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#F3E8FF] text-[12px] font-bold text-[#7C3AED]">
+                    {step.number}
+                  </span>
+                  <div>
+                    <p className="text-[14px] font-semibold text-[#111827]">
+                      {step.title}
+                    </p>
+                    <p className="mt-1 text-[12px] leading-[1.55] text-[#6B7280]">
+                      {step.description}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
       </div>
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_380px]">
@@ -481,9 +528,17 @@ function AnalyzerSection({
                 {script.length} / {maxCharacters}
               </span>
             </div>
-            <p className="mb-4 text-[13px] text-[#6B7280]">Paste your YouTube Shorts script below.</p>
+            <p className="mb-4 text-[13px] leading-[1.6] text-[#6B7280]">
+              Paste only the words that will be spoken in your Short. Do not paste the video description or a list of ideas.
+            </p>
 
-            <div className="relative rounded-[14px] border border-[#E5E7EB] bg-[#F8F8FC]">
+            <div
+              className={`relative rounded-[14px] border bg-[#F8F8FC] ${
+                scriptCharactersOverLimit > 0
+                  ? "border-[#7C3AED]"
+                  : "border-[#E5E7EB]"
+              }`}
+            >
               <textarea
                 value={script}
                 onChange={handleScriptChange}
@@ -497,6 +552,16 @@ function AnalyzerSection({
                 </p>
               )}
             </div>
+
+            {scriptCharactersOverLimit > 0 && (
+              <p className="mt-3 text-[13px] font-medium leading-[1.6] text-[#7C3AED]">
+                Your script is {scriptCharactersOverLimit}{" "}
+                {scriptCharactersOverLimit === 1
+                  ? "character"
+                  : "characters"}{" "}
+                over the current limit. Shorten it to enable Analyze Script.
+              </p>
+            )}
           </div>
 
           {/* Analyze button + error */}
@@ -516,7 +581,7 @@ function AnalyzerSection({
               )}
             </button>
 
-            {analyzeError && (
+            {analyzeError && scriptCharactersOverLimit === 0 && (
               <p className="text-[13px] text-[#7C3AED]">{analyzeError}</p>
             )}
 
@@ -837,6 +902,10 @@ export default function HomePage() {
   const [analyzeError, setAnalyzeError] = useState("");
 
   const maxCharacters = 1000;
+  const scriptCharactersOverLimit = Math.max(
+    0,
+    script.length - maxCharacters
+  );
 
   function handleScriptChange(event: React.ChangeEvent<HTMLTextAreaElement>) {
     const val = event.target.value;
@@ -1166,6 +1235,29 @@ export default function HomePage() {
               <p className="mt-2 text-[13px] leading-[21px] text-[#8F8F99]">
                 Get a hook score, retention risk, risky timestamps, and specific fixes.
               </p>
+
+              <div
+                aria-label="How to use Climpy"
+                className="mt-4 space-y-2"
+              >
+                {[
+                  "Paste the words spoken in your Short.",
+                  "Tap Analyze Script.",
+                  "Review weak spots and specific fixes.",
+                ].map((step, index) => (
+                  <div
+                    key={step}
+                    className="flex items-center gap-2.5 rounded-[13px] border border-[#E5E7EB] bg-[#F8F8FC] px-3 py-2.5"
+                  >
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#F3E8FF] text-[10px] font-bold text-[#7C3AED]">
+                      {index + 1}
+                    </span>
+                    <p className="text-[12px] font-medium leading-[18px] text-[#6B7280]">
+                      {step}
+                    </p>
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* Title input */}
@@ -1217,7 +1309,17 @@ export default function HomePage() {
                 </p>
               </div>
 
-              <div className="overflow-hidden rounded-[14px] border border-[#E5E7EB] bg-[#FAFAFA]">
+              <p className="mb-3 text-[12px] leading-[18px] text-[#6B7280]">
+                Paste only the words that will be spoken in your Short.
+              </p>
+
+              <div
+                className={`overflow-hidden rounded-[14px] border bg-[#FAFAFA] ${
+                  scriptCharactersOverLimit > 0
+                    ? "border-[#7C3AED]"
+                    : "border-[#E5E7EB]"
+                }`}
+              >
                 <textarea
                   value={script}
                   onChange={handleScriptChange}
@@ -1227,9 +1329,13 @@ export default function HomePage() {
                 />
               </div>
 
-              {script.length > maxCharacters && (
+              {scriptCharactersOverLimit > 0 && (
                 <p className="mt-3 text-[11px] font-medium leading-[18px] text-[#7C3AED]">
-                  Script is too long. Shorten it to 1,000 characters or less.
+                  Your script is {scriptCharactersOverLimit}{" "}
+                  {scriptCharactersOverLimit === 1
+                    ? "character"
+                    : "characters"}{" "}
+                  over the current limit. Shorten it to enable Analyze Script.
                 </p>
               )}
 
