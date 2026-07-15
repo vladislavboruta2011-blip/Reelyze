@@ -1007,6 +1007,94 @@ if (hasImproveScriptRequestDeduplication) {
   failures += 1;
 }
 
+const submitFeedbackStart = source.indexOf(
+  "async function submitFeedback"
+);
+const submitFeedbackEnd =
+  submitFeedbackStart >= 0
+    ? source.indexOf("\n}", submitFeedbackStart)
+    : -1;
+const submitFeedbackHandler =
+  submitFeedbackStart >= 0 && submitFeedbackEnd > submitFeedbackStart
+    ? source.slice(submitFeedbackStart, submitFeedbackEnd)
+    : "";
+
+const feedbackRequestIncludesLocale =
+  source.split('fetch("/api/feedback"').length - 1 === 1 &&
+  submitFeedbackHandler.includes("locale,");
+
+if (feedbackRequestIncludesLocale) {
+  console.log(
+    "✅ PASS — Feedback submission uses one shared API request path and includes locale"
+  );
+} else {
+  console.error(
+    "❌ FAIL — Feedback submission must forward the UI locale to /api/feedback for diagnostics"
+  );
+  failures += 1;
+}
+
+// Reason values sent to the feedback API must be the stable, untranslated
+// canonical strings (e.g. "Useful fixes") — never the localized RU/EN
+// button label shown to the user. FeedbackReasonOptions must keep these
+// two concerns (value vs label) separate.
+const feedbackReasonValuesAreCanonicalNotLocalized =
+  uiComponentsSource.includes(
+    "const FEEDBACK_REASON_VALUES = {"
+  ) &&
+  uiComponentsSource.includes('accurateScore: "Accurate score"') &&
+  uiComponentsSource.includes('usefulFixes: "Useful fixes"') &&
+  uiComponentsSource.includes("value: FEEDBACK_REASON_VALUES[key]") &&
+  uiComponentsSource.includes(
+    "label: messages.results.feedback.helpfulReasonLabels[key]"
+  ) &&
+  uiComponentsSource.includes("onClick={() => onSelect(value)}");
+
+if (feedbackReasonValuesAreCanonicalNotLocalized) {
+  console.log(
+    "✅ PASS — Feedback reason options send stable canonical values, not localized labels"
+  );
+} else {
+  console.error(
+    "❌ FAIL — Feedback reason options must send FEEDBACK_REASON_VALUES, not the localized label, to onSelect"
+  );
+  failures += 1;
+}
+
+// The success/error contract: a non-ok response and a thrown network error
+// must both fall back to the same localized generic message, and success
+// must resolve true. Neither branch may surface the raw response body or a
+// caught exception's message to the user.
+const setFeedbackSubmitErrorCalls =
+  submitFeedbackHandler.match(/setFeedbackSubmitError\([^)]*\)/g) ?? [];
+const allSetFeedbackSubmitErrorCallsAreSafe =
+  setFeedbackSubmitErrorCalls.length > 0 &&
+  setFeedbackSubmitErrorCalls.every(
+    (call) =>
+      call === "setFeedbackSubmitError(results.feedback.submitError)" ||
+      call === 'setFeedbackSubmitError("")'
+  );
+
+const feedbackContractIsSafe =
+  /if\s*\(!response\.ok\)\s*{\s*setFeedbackSubmitError\(results\.feedback\.submitError\);\s*return false;\s*}/.test(
+    submitFeedbackHandler
+  ) &&
+  submitFeedbackHandler.includes("return true;") &&
+  /catch\s*{\s*setFeedbackSubmitError\(results\.feedback\.submitError\);\s*return false;\s*}/.test(
+    submitFeedbackHandler
+  ) &&
+  allSetFeedbackSubmitErrorCallsAreSafe;
+
+if (submitFeedbackHandler && feedbackContractIsSafe) {
+  console.log(
+    "✅ PASS — Feedback submission resolves true on success and falls back to the same localized generic error on a non-ok response or a thrown exception, never surfacing raw API/error text"
+  );
+} else {
+  console.error(
+    "❌ FAIL — Feedback submission must resolve true on success, and use the same localized generic error (never raw response/exception text) for both a non-ok response and a thrown exception"
+  );
+  failures += 1;
+}
 
 if (failures > 0) {
   process.exitCode = 1;

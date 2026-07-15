@@ -1,3 +1,4 @@
+import { normalizeApiLocale, type Locale } from "@/lib/i18n";
 import { supabase } from "@/lib/supabase";
 
 export const runtime = "nodejs";
@@ -15,6 +16,10 @@ type FeedbackPayload = {
   retentionRisk: number | null;
   mainTakeaway: string | null;
   currentPath: string | null;
+  // Diagnostic-only — the "feedback" table has no locale column (see
+  // app/api/admin/feedback/route.ts's explicit select list), so this is
+  // never persisted to Supabase, only used for safe structured logging.
+  locale: Locale;
 };
 
 const MAX_BODY_BYTES = 8 * 1024;
@@ -185,6 +190,10 @@ function parseFeedbackPayload(
       "currentPath",
       MAX_PATH_LENGTH
     ),
+    // normalizeApiLocale's default availableLocales is LAUNCHED_LOCALES
+    // ("en" | "ru"), so this is always one of Locale's launched values —
+    // missing/invalid input safely defaults to "en", never rejects.
+    locale: normalizeApiLocale(rawPayload.locale),
   };
 }
 
@@ -260,18 +269,21 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
+  // Structural/categorical fields only — never the script, title,
+  // mainTakeaway, or the free-form "text" feedback itself (those are
+  // arbitrary user/AI-authored content). They are safely persisted to
+  // Supabase above for the admin dashboard, but must not appear in
+  // runtime logs.
   console.info("Reelyze feedback received", {
     rating: feedback.rating,
     reason: feedback.reason,
-    text: feedback.text,
-    title: feedback.title,
+    hasCustomText: feedback.text !== null,
+    locale: feedback.locale,
     scores: {
       overall: feedback.overallScore,
       hook: feedback.hookScore,
       retentionRisk: feedback.retentionRisk,
     },
-    mainTakeaway: feedback.mainTakeaway,
-    scriptPreview: createScriptPreview(feedback.script),
     currentPath: feedback.currentPath,
     createdAt,
   });
