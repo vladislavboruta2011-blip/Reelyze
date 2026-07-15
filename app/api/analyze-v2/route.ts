@@ -8,6 +8,7 @@ import {
 import {
   ANALYSIS_V2_LIMITS,
   type AnalysisV2ErrorResponse,
+  type AnalysisV2Locale,
   type AnalysisV2SuccessResponse,
 } from "@/engine/analysis-v2-schema";
 import {
@@ -17,6 +18,12 @@ import {
   validateAnalysisV2Input,
   validateAnalysisV2ModelResult,
 } from "@/engine/analysis-v2-validation";
+import {
+  delay,
+  getUpstreamErrorStatus,
+  isTransientUpstreamError,
+} from "@/lib/ai-transient-retry";
+import { normalizeApiLocale } from "@/lib/i18n";
 
 const ANALYSIS_V2_MODEL =
   process.env.ANALYSIS_V2_MODEL?.trim() ||
@@ -25,6 +32,30 @@ const ANALYSIS_V2_TIMEOUT_MS = 20_000;
 const ANALYSIS_V2_RATE_LIMIT_MAX_REQUESTS = 10;
 const ANALYSIS_V2_RATE_LIMIT_WINDOW_MS = 60_000;
 const ANALYSIS_V2_RATE_LIMIT_MAX_ENTRIES = 10_000;
+
+// Diagnostic-only headers: never read by any scoring, validation, or
+// caching logic — a rejected/failed response must never be cached.
+export const ANALYSIS_V2_REQUEST_ID_HEADER =
+  "X-Analysis-V2-Request-Id";
+export const ANALYSIS_V2_RETRY_COUNT_HEADER =
+  "X-Analysis-V2-Retry-Count";
+
+function buildAnalysisV2ResponseHeaders(
+  requestId: string,
+  status: number,
+  retryCount = 0
+): Record<string, string> {
+  const headers: Record<string, string> = {
+    [ANALYSIS_V2_REQUEST_ID_HEADER]: requestId,
+    [ANALYSIS_V2_RETRY_COUNT_HEADER]: String(retryCount),
+  };
+
+  if (status < 200 || status >= 300) {
+    headers["Cache-Control"] = "no-store";
+  }
+
+  return headers;
+}
 
 type RateLimitEntry = {
   count: number;
@@ -46,11 +77,16 @@ export type AnalysisV2RunResult =
       ok: true;
       status: 200;
       response: AnalysisV2SuccessResponse;
+      // Count of transient (network/timeout/429/5xx) model-call retries
+      // actually performed while producing this result. Purely diagnostic —
+      // never influences scoring, verdict, or validation.
+      retryCount: number;
     }
   | {
       ok: false;
       status: 400 | 502 | 503;
       response: AnalysisV2ErrorResponse;
+      retryCount: number;
     };
 
 const rateLimitEntries = new Map<string, RateLimitEntry>();
@@ -74,6 +110,64 @@ class EmptyModelResponseError extends Error {
     super("Empty model response.");
     this.name = "EmptyModelResponseError";
   }
+}
+
+// A single bounded retry for transient upstream failures only — this is
+// independent from the validation-correction loop in runAnalysisV2, which
+// already retries up to twice more for malformed/schema-invalid *content*.
+// This retry exists solely for infrastructure hiccups (dropped connection,
+// timeout, rate limit, upstream 5xx) and never runs concurrently with itself.
+const ANALYSIS_V2_TRANSIENT_RETRY_DELAY_MS = 250;
+
+function classifyAnalysisV2ModelError(
+  error: unknown,
+  retryCount: number
+): Extract<AnalysisV2RunResult, { ok: false }> {
+  if (error instanceof MissingApiKeyError) {
+    return {
+      ok: false,
+      status: 503,
+      response: {
+        status: "error",
+        reason:
+          "Analysis V2 is temporarily unavailable.",
+      },
+      retryCount,
+    };
+  }
+
+  const upstreamStatus = getUpstreamErrorStatus(error);
+
+  if (
+    upstreamStatus === 401 ||
+    upstreamStatus === 403 ||
+    upstreamStatus === 429 ||
+    (upstreamStatus !== undefined &&
+      upstreamStatus >= 500) ||
+    error instanceof OpenAI.APIConnectionError
+  ) {
+    return {
+      ok: false,
+      status: 503,
+      response: {
+        status: "error",
+        reason:
+          "Analysis V2 is temporarily unavailable.",
+      },
+      retryCount,
+    };
+  }
+
+  return {
+    ok: false,
+    status: 503,
+    response: {
+      status: "error",
+      reason:
+        "Analysis V2 could not complete this request.",
+    },
+    retryCount,
+  };
 }
 
 function getClientIdentifier(request: Request): string {
@@ -330,6 +424,58 @@ function buildAnalysisV2RetryUserPrompt(
       '"Add a concrete example, mechanism, named situation, number, or observable result before rewriting the hook."'
     );
   } else if (
+    validationReason
+      .toLowerCase()
+      .includes("generic first-sentence filler")
+  ) {
+    specificGuidance.push(
+      "Specific correction:",
+      'The opening sentence only announces that a story or topic is coming (for example "Here is a story about...", "This is a story about...", "Today I want to tell you...", or "Let me tell you about...") instead of stating the concrete premise itself.',
+      "Treat this generic framing opener as a material hook problem, not a clear or strong opening, regardless of the topic or niche.",
+      "Do not use hookDecision keep.",
+      "Do not use verdict strong.",
+      "Lower the hook score enough that it no longer falls in the Strong range.",
+      "Include a grounded riskyPart whose excerpt is the exact generic opening sentence quoted verbatim from the script.",
+      "Include a non-optional hook-target suggestedFix that asks to remove the generic framing sentence and open directly with the concrete fact already present later in the script.",
+      "Use hookDecision refine or rewrite, not keep.",
+      "The corrected suggestedHook and suggestedFix do not need to be phrased as a question — a plain declarative rewrite is acceptable.",
+      "Keep every other score component, scene, and fix aligned with the concrete facts already present in the rest of the script; do not lower components that are already strong and unrelated to the opening."
+    );
+  } else if (
+    validationReason.includes(
+      "deferred to the next sentence"
+    ) ||
+    validationReason.includes(
+      "split across two sentences"
+    )
+  ) {
+    specificGuidance.push(
+      "Specific correction:",
+      "The opening sentence states a concrete, specific cause or event but not its own consequence or stakes — the consequence only appears in the next sentence.",
+      "This is a different weakness from generic filler: the opening is already concrete, but the cause and its consequence are split across two sentences instead of being compressed into one.",
+      "Do not penalize this script as generic filler — the opening is already concrete and specific, it only needs its consequence pulled forward into the same sentence.",
+      "You must apply every one of these four corrections together in the same response, not just one of them:",
+      "1) Do not give scoreComponents.hook.immediacy or scoreComponents.hook.deliveryAlignment the maximum value of 25 while this split remains.",
+      "2) riskyParts must include exactly one entry whose excerpt field is the first sentence of the submitted script copied character-for-character, including its final period — not paraphrased, not shortened, not reworded.",
+      "3) suggestedFixes must include at least one entry with target \"hook\" and optional false, whose suggestion asks to compress the cause and its consequence into one opening sentence.",
+      "4) hookDecision must be refine or rewrite, never keep.",
+      "The corrected suggestedHook and suggestedFix do not need to be phrased as a question — a plain declarative rewrite that states both the cause and the consequence together is acceptable.",
+      "Keep every other score component, scene, and fix aligned with the concrete facts already present in the rest of the script."
+    );
+  } else if (
+    validationReason.includes(
+      "cannot coexist with a Strong hook score"
+    )
+  ) {
+    specificGuidance.push(
+      "Specific correction:",
+      "hookDecision is refine or rewrite, and a grounded opening riskyPart with a non-optional hook fix are both already present — but the four hook components still sum to a Strong hook score.",
+      "A refine or rewrite decision backed by a real opening problem must not still read as a Strong hook.",
+      "Lower one or more of scoreComponents.hook.immediacy, specificity, viewerPull, or deliveryAlignment — whichever the opening problem actually affects — so the four components summed together no longer reach the Strong range.",
+      "Do not remove the riskyPart, the non-optional hook fix, or change hookDecision away from refine/rewrite to avoid this — the score must move, not the decision or the evidence.",
+      "Recalculate the derived hook total from the four components after lowering them, and keep every unrelated score component, scene, and fix aligned with the concrete facts already present in the rest of the script."
+    );
+  } else if (
     validationReason.includes(
       "complete causal explanation in an unpunctuated script"
     )
@@ -429,6 +575,18 @@ function isAnalysisV2FinalTargetedRetryReason(
     ) ||
     validationReason.includes(
       "A strong result must use keep or refine"
+    ) ||
+    validationReason
+      .toLowerCase()
+      .includes("generic first-sentence filler") ||
+    validationReason.includes(
+      "deferred to the next sentence"
+    ) ||
+    validationReason.includes(
+      "split across two sentences"
+    ) ||
+    validationReason.includes(
+      "cannot coexist with a Strong hook score"
     )
   );
 }
@@ -474,6 +632,53 @@ function buildAnalysisV2FinalTargetedRetryUserPrompt(
       "Include a grounded riskyPart copied from the opening promise.",
       "Include a non-optional fix that asks the creator to reveal the promised item or remove the promise.",
       "Do not invent the missing setting, cause, reason, mechanism, entity, or fact in suggestedHook or suggestedFixes."
+    );
+  } else if (
+    validationReason
+      .toLowerCase()
+      .includes("generic first-sentence filler")
+  ) {
+    specificGuidance.push(
+      'The opening sentence only announces that a story or topic is coming (for example "Here is a story about...", "This is a story about...", "Today I want to tell you...", or "Let me tell you about...") instead of stating the concrete premise itself.',
+      "This is a material hook problem regardless of the script's topic or niche.",
+      "Do not use hookDecision keep. Do not use verdict strong.",
+      "Lower the hook score enough that it no longer falls in the Strong range.",
+      "Include a grounded riskyPart whose excerpt is the exact generic opening sentence quoted verbatim from the script.",
+      "Include a non-optional hook-target suggestedFix that asks to remove the generic framing sentence and open directly with the concrete fact already present later in the script.",
+      "Use hookDecision refine or rewrite.",
+      "The corrected suggestedHook and suggestedFix do not need to be phrased as a question — a plain declarative rewrite is acceptable.",
+      "Do not lower unrelated score components, scenes, or facts that are already concrete and strong elsewhere in the script.",
+      "Recalculate the derived overall and hook scores from the score components after making this correction so the mixed verdict range and the below-Strong hook score are both satisfied together."
+    );
+  } else if (
+    validationReason.includes(
+      "deferred to the next sentence"
+    ) ||
+    validationReason.includes(
+      "split across two sentences"
+    )
+  ) {
+    specificGuidance.push(
+      "The opening sentence states a concrete cause or event but its own consequence only appears in the next sentence — this is not generic filler, the opening is already concrete and specific.",
+      "Apply every one of these four corrections together in the same final response, not just one of them:",
+      "1) scoreComponents.hook.immediacy and scoreComponents.hook.deliveryAlignment must not be 25 while the cause and its consequence remain split across two sentences.",
+      "2) riskyParts must include exactly one entry whose excerpt field is the first sentence of the submitted script copied character-for-character, including its final period — not paraphrased, not shortened, not reworded.",
+      "3) suggestedFixes must include at least one entry with target \"hook\" and optional false, whose suggestion asks to compress the cause and its consequence into one opening sentence.",
+      "4) hookDecision must be refine or rewrite, never keep.",
+      "The corrected suggestedHook and suggestedFix do not need to be phrased as a question — a plain declarative rewrite stating both the cause and the consequence together is acceptable.",
+      "Do not lower unrelated score components, scenes, or facts that are already concrete and strong elsewhere in the script."
+    );
+  } else if (
+    validationReason.includes(
+      "cannot coexist with a Strong hook score"
+    )
+  ) {
+    specificGuidance.push(
+      "hookDecision is refine or rewrite, and a grounded opening riskyPart with a non-optional hook fix are both already present — but the four hook components still sum to a Strong hook score.",
+      "A refine or rewrite decision backed by a real opening problem must not still read as a Strong hook.",
+      "Lower one or more of scoreComponents.hook.immediacy, specificity, viewerPull, or deliveryAlignment — whichever the opening problem actually affects — so the four components summed together no longer reach the Strong range.",
+      "Do not remove the riskyPart, the non-optional hook fix, or change hookDecision away from refine/rewrite to avoid this — the score must move, not the decision or the evidence.",
+      "Recalculate the derived hook total from the four components immediately before returning the final JSON, and keep every unrelated score component, scene, and fix aligned with the concrete facts already present in the rest of the script."
     );
   } else if (
     validationReason.includes(
@@ -552,7 +757,8 @@ export async function runAnalysisV2(
   script: unknown,
   title: unknown,
   modelCaller: AnalysisV2ModelCaller =
-    defaultAnalysisV2ModelCaller
+    defaultAnalysisV2ModelCaller,
+  locale: AnalysisV2Locale = "en"
 ): Promise<AnalysisV2RunResult> {
   const inputValidation =
     validateAnalysisV2Input(script, title);
@@ -565,17 +771,19 @@ export async function runAnalysisV2(
         status: "error",
         reason: inputValidation.reason,
       },
+      retryCount: 0,
     };
   }
 
   const systemPrompt =
-    buildAnalysisV2SystemPrompt();
+    buildAnalysisV2SystemPrompt(locale);
   const userPrompt = buildAnalysisV2UserPrompt(
     inputValidation.script,
     inputValidation.title
   );
 
   let currentUserPrompt = userPrompt;
+  let transientRetryCount = 0;
 
   for (let attempt = 0; attempt < 3; attempt += 1) {
     let modelOutput: AnalysisV2ModelOutput;
@@ -586,55 +794,33 @@ export async function runAnalysisV2(
         currentUserPrompt
       );
     } catch (error) {
-      if (error instanceof MissingApiKeyError) {
-        return {
-          ok: false,
-          status: 503,
-          response: {
-            status: "error",
-            reason:
-              "Analysis V2 is temporarily unavailable.",
-          },
-        };
-      }
-
-      const upstreamStatus =
-        typeof error === "object" &&
-        error !== null &&
-        "status" in error &&
-        typeof (error as { status?: unknown }).status ===
-          "number"
-          ? (error as { status: number }).status
-          : undefined;
-
       if (
-        upstreamStatus === 401 ||
-        upstreamStatus === 403 ||
-        upstreamStatus === 429 ||
-        (upstreamStatus !== undefined &&
-          upstreamStatus >= 500) ||
-        error instanceof OpenAI.APIConnectionError
+        error instanceof MissingApiKeyError ||
+        !isTransientUpstreamError(error)
       ) {
-        return {
-          ok: false,
-          status: 503,
-          response: {
-            status: "error",
-            reason:
-              "Analysis V2 is temporarily unavailable.",
-          },
-        };
+        return classifyAnalysisV2ModelError(
+          error,
+          transientRetryCount
+        );
       }
 
-      return {
-        ok: false,
-        status: 503,
-        response: {
-          status: "error",
-          reason:
-            "Analysis V2 could not complete this request.",
-        },
-      };
+      // Exactly one bounded retry, sequential (awaited before continuing),
+      // only for transient infrastructure failures — never for validation
+      // or contract errors, which are handled separately below.
+      await delay(ANALYSIS_V2_TRANSIENT_RETRY_DELAY_MS);
+      transientRetryCount += 1;
+
+      try {
+        modelOutput = await modelCaller(
+          systemPrompt,
+          currentUserPrompt
+        );
+      } catch (retryError) {
+        return classifyAnalysisV2ModelError(
+          retryError,
+          transientRetryCount
+        );
+      }
     }
 
     const parsed = parseAnalysisV2Json(
@@ -650,13 +836,15 @@ export async function runAnalysisV2(
           reason:
             "Analysis V2 returned an unusable response.",
         },
+        retryCount: transientRetryCount,
       };
     }
 
     const resultValidation =
       validateAnalysisV2ModelResult(
         parsed,
-        inputValidation.script
+        inputValidation.script,
+        locale
       );
 
     if (!resultValidation.ok) {
@@ -666,14 +854,16 @@ export async function runAnalysisV2(
       ) {
         const repairedModelResult =
           repairAnalysisV2MainTakeawayForScoreBreakdown(
-            parsed
+            parsed,
+            locale
           );
 
         if (repairedModelResult !== null) {
           const repairedValidation =
             validateAnalysisV2ModelResult(
               repairedModelResult,
-              inputValidation.script
+              inputValidation.script,
+              locale
             );
 
           if (repairedValidation.ok) {
@@ -684,7 +874,9 @@ export async function runAnalysisV2(
                 status: "ok",
                 result: repairedValidation.value,
                 modelUsed: modelOutput.modelUsed,
+                locale,
               },
+              retryCount: transientRetryCount,
             };
           }
         }
@@ -718,14 +910,16 @@ export async function runAnalysisV2(
         const normalizedModelResult =
           normalizeAnalysisV2CompleteCausalExplanationModelResult(
             parsed,
-            inputValidation.script
+            inputValidation.script,
+            locale
           );
 
         if (normalizedModelResult !== null) {
           const normalizedValidation =
             validateAnalysisV2ModelResult(
               normalizedModelResult,
-              inputValidation.script
+              inputValidation.script,
+              locale
             );
 
           if (normalizedValidation.ok) {
@@ -738,7 +932,9 @@ export async function runAnalysisV2(
                   normalizedValidation.value,
                 modelUsed:
                   modelOutput.modelUsed,
+                locale,
               },
+              retryCount: transientRetryCount,
             };
           }
         }
@@ -759,6 +955,7 @@ export async function runAnalysisV2(
           reason:
             "Analysis V2 returned an invalid analysis.",
         },
+        retryCount: transientRetryCount,
       };
     }
 
@@ -769,7 +966,9 @@ export async function runAnalysisV2(
         status: "ok",
         result: resultValidation.value,
         modelUsed: modelOutput.modelUsed,
+        locale,
       },
+      retryCount: transientRetryCount,
     };
   }
 
@@ -781,12 +980,18 @@ export async function runAnalysisV2(
       reason:
         "Analysis V2 returned an invalid analysis.",
     },
+    retryCount: transientRetryCount,
   };
 }
 
 export async function POST(
   request: Request
 ): Promise<Response> {
+  // Diagnostic-only correlation id for this request. Never used for
+  // scoring, caching keys, or rate limiting — purely so a rejected
+  // response can be traced back to a specific server-side attempt.
+  const requestId = crypto.randomUUID();
+
   const contentType =
     request.headers
       .get("content-type")
@@ -803,6 +1008,10 @@ export async function POST(
       } satisfies AnalysisV2ErrorResponse,
       {
         status: 415,
+        headers: buildAnalysisV2ResponseHeaders(
+          requestId,
+          415
+        ),
       }
     );
   }
@@ -822,6 +1031,10 @@ export async function POST(
         } satisfies AnalysisV2ErrorResponse,
         {
           status: 413,
+          headers: buildAnalysisV2ResponseHeaders(
+            requestId,
+            413
+          ),
         }
       );
     }
@@ -833,6 +1046,10 @@ export async function POST(
       } satisfies AnalysisV2ErrorResponse,
       {
         status: 400,
+        headers: buildAnalysisV2ResponseHeaders(
+          requestId,
+          400
+        ),
       }
     );
   }
@@ -849,6 +1066,10 @@ export async function POST(
       } satisfies AnalysisV2ErrorResponse,
       {
         status: 400,
+        headers: buildAnalysisV2ResponseHeaders(
+          requestId,
+          400
+        ),
       }
     );
   }
@@ -869,6 +1090,10 @@ export async function POST(
       } satisfies AnalysisV2ErrorResponse,
       {
         status: 400,
+        headers: buildAnalysisV2ResponseHeaders(
+          requestId,
+          400
+        ),
       }
     );
   }
@@ -887,6 +1112,10 @@ export async function POST(
       {
         status: 429,
         headers: {
+          ...buildAnalysisV2ResponseHeaders(
+            requestId,
+            429
+          ),
           "Retry-After": String(
             rateLimit.retryAfterSeconds
           ),
@@ -895,12 +1124,25 @@ export async function POST(
     );
   }
 
+  // normalizeApiLocale's default availableLocales is LAUNCHED_LOCALES ("en" | "ru"),
+  // so this is always one of AnalysisV2Locale's two values at runtime.
+  const locale = normalizeApiLocale(
+    record.locale
+  ) as AnalysisV2Locale;
+
   const result = await runAnalysisV2(
     inputValidation.script,
-    inputValidation.title
+    inputValidation.title,
+    undefined,
+    locale
   );
 
   return Response.json(result.response, {
     status: result.status,
+    headers: buildAnalysisV2ResponseHeaders(
+      requestId,
+      result.status,
+      result.retryCount
+    ),
   });
 }

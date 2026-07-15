@@ -1,3 +1,8 @@
+// Deliberately decoupled from lib/i18n.ts's Locale (which also covers
+// unlaunched locales) — the engine stays self-contained and only needs the
+// two locales Analysis V2 actually writes explanations in.
+export type AnalysisV2Locale = "en" | "ru";
+
 export const ANALYSIS_V2_SCRIPT_TYPES = [
   "explanation",
   "how_to",
@@ -145,6 +150,11 @@ export type AnalysisV2SuccessResponse = {
   status: "ok";
   result: AnalysisV2Result;
   modelUsed: string;
+  // The UI locale the explanations were generated in. Persisted alongside
+  // the result so /results can tell whether a saved analysis matches the
+  // current UI locale without re-running the AI. Optional — old saved
+  // analyses have no locale field and must be treated as "en".
+  locale?: AnalysisV2Locale;
 };
 
 export type AnalysisV2ErrorResponse = {
@@ -155,6 +165,13 @@ export type AnalysisV2ErrorResponse = {
 export type AnalysisV2Response =
   | AnalysisV2SuccessResponse
   | AnalysisV2ErrorResponse;
+
+// The single source of truth for what counts as a "Strong" hook score —
+// shared between the UI label (engine/analysis-v2-ui-adapter.ts) and the
+// editorial validation rule that blocks a Strong-looking hook score for a
+// generic/filler opening (engine/analysis-v2-validation.ts). Kept as one
+// exported number instead of two independently hardcoded 80s.
+export const ANALYSIS_V2_HOOK_STRONG_THRESHOLD = 80;
 
 export const ANALYSIS_V2_LIMITS = {
   maxScriptCharacters: 1000,

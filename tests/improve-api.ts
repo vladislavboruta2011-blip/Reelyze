@@ -973,6 +973,33 @@ async function main() {
     return;
   }
 
+  const isLocaleAware =
+    routeSource.includes(
+      "function buildImproveLanguageInstructions("
+    ) &&
+    routeSource.includes(
+      "${buildImproveLanguageInstructions(locale)}"
+    ) &&
+    routeSource.includes(
+      'Write "diagnosis", "reason", and every "hookOptions[].whyItWorks" in ${languageName}.'
+    ) &&
+    routeSource.includes(
+      "improvedHook, originalHook, and hookOptions[].text must stay in the script's original language"
+    ) &&
+    routeSource.includes("normalizeApiLocale(");
+
+  if (isLocaleAware) {
+    console.log(
+      "✅ PASS — Improve API prompt is locale-aware without touching hook-quality rules or improvedHook language"
+    );
+  } else {
+    console.error(
+      "❌ FAIL — Improve API prompt must localize explanations while keeping improvedHook in the script's language"
+    );
+    process.exitCode = 1;
+    return;
+  }
+
   const originalFetch = globalThis.fetch;
 
   globalThis.fetch = (async () => {

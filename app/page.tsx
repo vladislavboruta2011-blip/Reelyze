@@ -5,10 +5,16 @@ import { Inter } from "next/font/google";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { LanguageSwitcher } from "./language-switcher";
+import { useMessages } from "./use-messages";
+import { useLocale } from "./locale-provider";
 import {
   ANALYSIS_V2_STORAGE_KEY,
+  checkAnalysisV2ResponseContract,
   isAnalysisV2SuccessResponse,
+  type AnalysisV2ResponseContractReason,
 } from "../engine/analysis-v2-ui-adapter";
+import { logAnalysisV2UnexpectedResponse } from "../engine/analysis-v2-diagnostics";
 import {
   ArrowRight,
   BarChart3,
@@ -95,6 +101,8 @@ function BackgroundDecor() {
 // ─── Desktop landing: navbar ──────────────────────────────────────────────────
 
 function Navbar() {
+  const messages = useMessages();
+
   return (
     <header className="relative z-10 mx-auto flex h-[96px] w-full max-w-[1280px] items-center justify-between px-8">
       <Link href="/" className="flex items-center gap-3">
@@ -103,8 +111,12 @@ function Navbar() {
       </Link>
 
       <nav className="hidden items-center gap-9 text-[15px] font-medium text-[#6B7280] md:flex">
-        <a href="#features" className="transition hover:text-[#111827]">Features</a>
-        <a href="#how-it-works" className="transition hover:text-[#111827]">How it works</a>
+        <a href="#features" className="transition hover:text-[#111827]">
+          {messages.landing.nav.features}
+        </a>
+        <a href="#how-it-works" className="transition hover:text-[#111827]">
+          {messages.landing.nav.howItWorks}
+        </a>
         <a
           href="#analyzer"
           onClick={(e) => {
@@ -113,20 +125,23 @@ function Navbar() {
           }}
           className="transition hover:text-[#111827]"
         >
-          Analyze
+          {messages.landing.nav.analyze}
         </a>
       </nav>
 
-      <a
-        href="#analyzer"
-        onClick={(e) => {
-          e.preventDefault();
-          document.getElementById("analyzer")?.scrollIntoView({ behavior: "smooth" });
-        }}
-        className="hidden rounded-full border border-white/10 bg-white/[0.04] px-5 py-2.5 text-[14px] font-semibold text-[#111827] transition hover:border-[#7C3AED]/50 hover:bg-[#7C3AED]/10 md:inline-flex"
-      >
-        Start free
-      </a>
+      <div className="hidden items-center gap-3 md:flex">
+        <LanguageSwitcher />
+        <a
+          href="#analyzer"
+          onClick={(e) => {
+            e.preventDefault();
+            document.getElementById("analyzer")?.scrollIntoView({ behavior: "smooth" });
+          }}
+          className="inline-flex rounded-full border border-white/10 bg-white/[0.04] px-5 py-2.5 text-[14px] font-semibold text-[#111827] transition hover:border-[#7C3AED]/50 hover:bg-[#7C3AED]/10"
+        >
+          {messages.landing.nav.startFree}
+        </a>
+      </div>
     </header>
   );
 }
@@ -156,6 +171,8 @@ function ScriptLine({ time, children, active, warning }: { time: string; childre
 }
 
 function PreviewCard() {
+  const messages = useMessages();
+
   return (
     <div className="relative">
       <div className="absolute -inset-6 rounded-[34px] bg-[#7C3AED]/10 blur-[70px]" />
@@ -164,35 +181,35 @@ function PreviewCard() {
           <div>
             <div className="flex flex-wrap items-center gap-3">
               <h2 className="text-[24px] font-semibold tracking-[-0.03em] text-[#111827]">
-                Script Review
+                {messages.landing.desktopPreview.title}
               </h2>
               <span className="rounded-full border border-[#DDD6FE] bg-[#F3E8FF] px-3 py-1 text-[12px] font-semibold text-[#7C3AED]">
-                AI review
+                {messages.landing.desktopPreview.aiReview}
               </span>
             </div>
-            <p className="mt-2 text-[14px] text-[#6B7280]">Analyzed in 8 seconds</p>
+            <p className="mt-2 text-[14px] text-[#6B7280]">{messages.landing.desktopPreview.analyzedIn}</p>
           </div>
           <button className="rounded-[12px] border border-[#E5E7EB] bg-[#F3F4F6] px-4 py-2.5 text-[14px] font-semibold text-[#111827]">
-            Re-analyze
+            {messages.landing.desktopPreview.reanalyze}
           </button>
         </div>
 
         <div className="mt-8 grid grid-cols-3 gap-4">
-          <MetricCard label="Overall" value="82" tone="green" />
-          <MetricCard label="Hook" value="91" tone="red" />
-          <MetricCard label="Risk" value="Med" tone="orange" />
+          <MetricCard label={messages.landing.desktopPreview.scores.overall} value="82" tone="green" />
+          <MetricCard label={messages.landing.desktopPreview.scores.hook} value="91" tone="red" />
+          <MetricCard label={messages.landing.desktopPreview.scores.risk} value={messages.landing.desktopPreview.scores.medium} tone="orange" />
         </div>
 
         <div className="mt-7 rounded-[20px] border border-[#E5E7EB] bg-[#F8F8FC] p-5">
           <div className="mb-5 flex items-center justify-between">
-            <p className="text-[15px] font-semibold text-[#111827]">Your Script</p>
+            <p className="text-[15px] font-semibold text-[#111827]">{messages.landing.desktopPreview.scriptLabel}</p>
             <p className="text-[13px] text-[#6B7280]">0:00–0:28</p>
           </div>
           <div className="space-y-3">
-            <ScriptLine time="0:00" active>If your first 3 seconds feel slow, most viewers are already gone.</ScriptLine>
-            <ScriptLine time="0:05">Climpy finds the exact moment where retention starts dropping.</ScriptLine>
-            <ScriptLine time="0:12" warning>This line needs a stronger visual payoff.</ScriptLine>
-            <ScriptLine time="0:18">Then it gives you clearer fixes before you upload.</ScriptLine>
+            <ScriptLine time="0:00" active>{messages.landing.desktopPreview.scriptLines.opening}</ScriptLine>
+            <ScriptLine time="0:05">{messages.landing.desktopPreview.scriptLines.retention}</ScriptLine>
+            <ScriptLine time="0:12" warning>{messages.landing.desktopPreview.scriptLines.payoff}</ScriptLine>
+            <ScriptLine time="0:18">{messages.landing.desktopPreview.scriptLines.fixes}</ScriptLine>
           </div>
         </div>
 
@@ -200,15 +217,15 @@ function PreviewCard() {
           <div className="flex items-start gap-3">
             <Target className="mt-0.5 h-4 w-4 shrink-0 text-[#7C3AED]" />
             <div>
-              <p className="text-[13px] font-semibold text-[#7C3AED]">Main Takeaway</p>
-              <p className="mt-1 text-[13px] leading-[1.5] text-[#4B5563]">Strong hook, but the middle section needs a clearer payoff.</p>
+              <p className="text-[13px] font-semibold text-[#7C3AED]">{messages.landing.desktopPreview.mainTakeawayLabel}</p>
+              <p className="mt-1 text-[13px] leading-[1.5] text-[#4B5563]">{messages.landing.desktopPreview.mainTakeaway}</p>
             </div>
           </div>
         </div>
 
         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-[1fr_1.1fr]">
           <div className="rounded-[18px] border border-[#E5E7EB] bg-[#F8F8FC] p-5">
-            <p className="text-[14px] font-semibold text-[#111827]">Retention Curve</p>
+            <p className="text-[14px] font-semibold text-[#111827]">{messages.landing.desktopPreview.retentionCurve}</p>
             <div className="mt-5 flex h-[90px] items-end gap-2">
               {[70, 82, 76, 58, 64, 48, 54, 42, 46, 38].map((height, i) => (
                 <div key={i} className="w-full rounded-t-[6px] bg-gradient-to-t from-[#7C3AED] to-[#A855F7]"
@@ -219,10 +236,10 @@ function PreviewCard() {
           <div className="rounded-[18px] border border-[#DDD6FE] bg-[#F3E8FF] p-5">
             <div className="flex items-center gap-2 text-[#7C3AED]">
               <Lightbulb className="h-5 w-5" />
-              <p className="text-[14px] font-semibold">Suggested Fix</p>
+              <p className="text-[14px] font-semibold">{messages.landing.desktopPreview.suggestedFixLabel}</p>
             </div>
             <p className="mt-4 text-[15px] leading-[1.65] text-[#5B21B6]">
-              Add a sharper contrast in the first line. Make the viewer feel what they lose if they scroll.
+              {messages.landing.desktopPreview.suggestedFix}
             </p>
           </div>
         </div>
@@ -234,24 +251,28 @@ function PreviewCard() {
 // ─── Desktop landing: hero section ───────────────────────────────────────────
 
 function HeroSection() {
+  const messages = useMessages();
+
   return (
     <section className="relative z-10 mx-auto grid w-full max-w-[1280px] grid-cols-1 items-center gap-14 px-8 pb-18 pt-16 lg:grid-cols-[1fr_580px] lg:gap-16 lg:pb-20 lg:pt-16">
       <div className="max-w-[700px]">
         <Badge>
           <Sparkles className="h-4 w-4 text-[#7C3AED]" />
-          Made for creators
+          {messages.landing.hero.desktopBadge}
         </Badge>
 
         <h1 className="mt-8 max-w-[760px] text-[56px] font-extrabold leading-[0.98] tracking-[-0.06em] text-[#111827] md:text-[76px] lg:text-[84px]">
-          Analyze your scripts before{" "}
-          <span className="text-[#7C3AED]">you upload.</span>
+          {messages.landing.hero.desktopHeadlinePrefix}{" "}
+            <span className="text-[#7C3AED]">
+              {messages.landing.hero.desktopHeadlineHighlight}
+            </span>
         </h1>
 
         <p className="mt-8 max-w-[560px] text-[20px] leading-[1.75] text-[#6B7280]">
-          Climpy helps creators improve hooks, pacing, and retention before the video goes live.
+          {messages.landing.hero.desktopDescription}
         </p>
 
-                <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
           <a
             href="#analyzer"
             onClick={(e) => {
@@ -260,7 +281,7 @@ function HeroSection() {
             }}
             className="inline-flex h-[54px] items-center justify-center gap-2.5 rounded-[12px] bg-[#6D28D9] px-7 text-[17px] font-semibold text-white shadow-[0_0_40px_rgba(109,40,217,0.30)] transition hover:bg-[#7C3AED]"
           >
-            Start Analyzing
+            {messages.landing.hero.primaryAction}
             <ArrowRight className="h-4 w-4" />
           </a>
 
@@ -273,14 +294,20 @@ function HeroSection() {
             className="inline-flex h-[54px] items-center justify-center gap-2.5 rounded-[12px] border border-[#E5E7EB] bg-white px-6 text-[16px] font-semibold text-[#111827] transition hover:border-white/15 hover:bg-[#F3F4F6]"
           >
             <Play className="h-4 w-4" style={{ fill: "white" }} />
-            See How It Works
+            {messages.landing.hero.secondaryAction}
           </a>
         </div>
 
         <div className="mt-9 flex flex-wrap gap-4 text-[14px] text-[#6B7280]">
-          <TrustItem>Find weak lines</TrustItem>
-          <TrustItem>Improve pacing</TrustItem>
-          <TrustItem>Fix before upload</TrustItem>
+            <TrustItem>
+              {messages.landing.hero.trustFindWeakLines}
+            </TrustItem>
+            <TrustItem>
+              {messages.landing.hero.trustImprovePacing}
+            </TrustItem>
+            <TrustItem>
+              {messages.landing.hero.trustFixBeforeUpload}
+            </TrustItem>
         </div>
       </div>
 
@@ -292,26 +319,30 @@ function HeroSection() {
 // ─── Desktop landing: features / value section ────────────────────────────────
 
 function MiniHookPreview() {
+  const messages = useMessages();
+
   return (
     <div className="rounded-[20px] border border-[#E5E7EB] bg-[#F8F8FC] p-5">
       <div className="flex items-center justify-between">
-        <p className="text-[14px] text-[#6B7280]">Hook Score</p>
+        <p className="text-[14px] text-[#6B7280]">{messages.landing.value.hook.previewLabel}</p>
         <p className="text-[24px] font-bold text-[#7C3AED]">91</p>
       </div>
       <div className="mt-5 h-2 overflow-hidden rounded-full bg-[#E5E7EB]">
         <div className="h-full w-[91%] rounded-full bg-[#7C3AED]" />
       </div>
       <p className="mt-5 text-[14px] leading-[1.55] text-[#6B7280]">
-        Strong contrast, clear tension, and a reason to keep watching.
+        {messages.landing.value.hook.previewDescription}
       </p>
     </div>
   );
 }
 
 function MiniRetentionPreview() {
+  const messages = useMessages();
+
   return (
     <div className="rounded-[20px] border border-[#E5E7EB] bg-[#F8F8FC] p-5">
-      <p className="text-[14px] text-[#6B7280]">Risk Timeline</p>
+      <p className="text-[14px] text-[#6B7280]">{messages.landing.value.retention.previewLabel}</p>
       <div className="mt-5 flex gap-2">
         <div className="h-3 flex-1 rounded-full bg-[#22C55E]" />
         <div className="h-3 flex-1 rounded-full bg-[#FF9A1F]" />
@@ -319,13 +350,13 @@ function MiniRetentionPreview() {
       </div>
       <div className="mt-5 space-y-3 text-[14px]">
         <div className="flex justify-between text-[#6B7280]">
-          <span>0:00–0:08</span><span className="text-[#22C55E]">Strong</span>
+          <span>0:00–0:08</span><span className="text-[#22C55E]">{messages.landing.value.retention.strong}</span>
         </div>
         <div className="flex justify-between text-[#6B7280]">
-          <span>0:09–0:18</span><span className="text-[#FF9A1F]">Medium</span>
+          <span>0:09–0:18</span><span className="text-[#FF9A1F]">{messages.landing.value.retention.medium}</span>
         </div>
         <div className="flex justify-between text-[#6B7280]">
-          <span>0:19–0:28</span><span className="text-[#7C3AED]">Risky</span>
+          <span>0:19–0:28</span><span className="text-[#7C3AED]">{messages.landing.value.retention.risky}</span>
         </div>
       </div>
     </div>
@@ -333,17 +364,19 @@ function MiniRetentionPreview() {
 }
 
 function MiniFixPreview() {
+  const messages = useMessages();
+
   return (
     <div className="rounded-[20px] border border-[#DDD6FE] bg-[#F3E8FF] p-5">
       <div className="flex items-center gap-2 text-[#7C3AED]">
         <ShieldCheck className="h-5 w-5" />
-        <p className="text-[14px] font-semibold">Fix suggestion</p>
+        <p className="text-[14px] font-semibold">{messages.landing.value.fixes.previewLabel}</p>
       </div>
       <p className="mt-5 text-[14px] leading-[1.7] text-[#5B21B6]">
-        Replace the generic setup with a specific visual outcome in the first sentence.
+        {messages.landing.value.fixes.previewDescription}
       </p>
       <button className="mt-5 rounded-[12px] bg-[#6D28D9] px-4 py-2.5 text-[14px] font-semibold text-white">
-        Improve Hook
+        {messages.landing.value.fixes.action}
       </button>
     </div>
   );
@@ -363,30 +396,32 @@ function FeatureCard({ icon, title, description, children }: { icon: React.React
 }
 
 function ValueSection() {
+  const messages = useMessages();
+
   return (
     <section id="features" className="relative z-10 mx-auto w-full max-w-[1280px] px-8 pb-16 pt-4">
       <div className="mx-auto max-w-[840px] text-center">
         <Badge>
           <Target className="h-4 w-4 text-[#7C3AED]" />
-          Before you publish
+          {messages.landing.value.badge}
         </Badge>
                 <h2 className="mt-8 text-[48px] font-extrabold leading-[1.02] tracking-[-0.055em] text-[#111827] md:text-[70px] lg:text-[78px]">
-          Built to find what viewers{" "}
-          <span className="text-[#7C3AED]">skip.</span>
+          {messages.landing.value.headingPrefix}{" "}
+          <span className="text-[#7C3AED]">{messages.landing.value.headingHighlight}</span>
         </h2>
         <p className="mx-auto mt-7 max-w-[700px] text-[20px] leading-[1.75] text-[#6B7280]">
-          Climpy turns your script into clear feedback: what works, what feels slow, and what to improve before you post.
+          {messages.landing.value.description}
         </p>
       </div>
 
       <div id="how-it-works" className="mt-14 grid grid-cols-1 gap-6 md:grid-cols-3">
-        <FeatureCard icon={<BarChart3 className="h-6 w-6" />} title="Hook Analysis" description="Find out if your first line creates curiosity or feels too generic.">
+        <FeatureCard icon={<BarChart3 className="h-6 w-6" />} title={messages.landing.value.hook.title} description={messages.landing.value.hook.description}>
           <MiniHookPreview />
         </FeatureCard>
-        <FeatureCard icon={<Clock3 className="h-6 w-6" />} title="Retention Feedback" description="See where the script slows down, repeats itself, or loses payoff.">
+        <FeatureCard icon={<Clock3 className="h-6 w-6" />} title={messages.landing.value.retention.title} description={messages.landing.value.retention.description}>
           <MiniRetentionPreview />
         </FeatureCard>
-        <FeatureCard icon={<TrendingUp className="h-6 w-6" />} title="Retention Fixes" description="Get specific changes you can make before recording or editing.">
+        <FeatureCard icon={<TrendingUp className="h-6 w-6" />} title={messages.landing.value.fixes.title} description={messages.landing.value.fixes.description}>
           <MiniFixPreview />
         </FeatureCard>
       </div>
@@ -417,20 +452,69 @@ function AnalyzerSection({
   isAnalyzing: boolean;
   analyzeError: string;
 }) {
+  const messages = useMessages();
+
+  const scriptCharactersOverLimit = Math.max(
+    0,
+    script.length - maxCharacters
+  );
+
   return (
     <section className="relative z-10 mx-auto w-full max-w-[1280px] px-8 pb-24" id="analyzer">
       <div className="mx-auto max-w-[840px] text-center mb-14">
         <Badge>
           <Sparkles className="h-4 w-4 text-[#7C3AED]" />
-          Try it now
-        </Badge>
+            {messages.landing.analyzer.eyebrow}
+          </Badge>
         <h2 className="mt-8 text-[48px] font-extrabold leading-[1.02] tracking-[-0.055em] text-[#111827]">
-          Paste your script. Get instant feedback.
+          {messages.landing.analyzer.heading}
         </h2>
         <p className="mx-auto mt-5 max-w-[560px] text-[18px] leading-[1.75] text-[#6B7280]">
-          Works best for YouTube Shorts (15–60 seconds).
+          {messages.landing.analyzer.supportingText}
         </p>
-      </div>
+
+          <div
+            aria-label={messages.landing.analyzer.instructionsLabel}
+            className="mx-auto mt-8 grid max-w-[760px] grid-cols-3 gap-3 text-left"
+          >
+            {[
+              {
+                number: "1",
+                title: messages.landing.analyzer.steps.paste.title,
+                description: messages.landing.analyzer.steps.paste.desktopDescription,
+              },
+              {
+                number: "2",
+                title: messages.landing.analyzer.steps.analyze.title,
+                description: messages.landing.analyzer.steps.analyze.desktopDescription,
+              },
+              {
+                number: "3",
+                title: messages.landing.analyzer.steps.review.title,
+                description: messages.landing.analyzer.steps.review.desktopDescription,
+              },
+            ].map((step) => (
+              <div
+                key={step.number}
+                className="rounded-[16px] border border-[#E5E7EB] bg-white px-4 py-4"
+              >
+                <div className="flex items-start gap-3">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#F3E8FF] text-[12px] font-bold text-[#7C3AED]">
+                    {step.number}
+                  </span>
+                  <div>
+                    <p className="text-[14px] font-semibold text-[#111827]">
+                      {step.title}
+                    </p>
+                    <p className="mt-1 text-[12px] leading-[1.55] text-[#6B7280]">
+                      {step.description}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_380px]">
         {/* Left: inputs */}
@@ -439,7 +523,10 @@ function AnalyzerSection({
           <div className="rounded-[20px] border border-[#E5E7EB] bg-white p-6">
             <div className="mb-3 flex items-center justify-between gap-3">
               <label className="text-[15px] font-semibold text-[#111827]">
-                Video title <span className="text-[#6B7280] font-normal">(optional)</span>
+                  {messages.landing.analyzer.videoTitle}{" "}
+                  <span className="text-[#6B7280] font-normal">
+                    {messages.landing.analyzer.optionalDesktop}
+                  </span>
               </label>
               <span
                 className={`shrink-0 text-[13px] font-medium ${
@@ -451,7 +538,9 @@ function AnalyzerSection({
                 {title.length} / {MAX_TITLE_CHARACTERS}
               </span>
             </div>
-            <p className="mb-4 text-[13px] text-[#6B7280]">Helps Climpy understand context.</p>
+              <p className="mb-4 text-[13px] text-[#6B7280]">
+                {messages.landing.analyzer.titleHelp}
+              </p>
             <div
               className={`flex h-[44px] items-center rounded-[12px] border bg-[#F8F8FC] px-4 ${
                 title.length > MAX_TITLE_CHARACTERS
@@ -462,13 +551,13 @@ function AnalyzerSection({
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="Add your video title or topic"
+                placeholder={messages.landing.analyzer.titlePlaceholder}
                 className="h-full w-full bg-transparent text-[14px] text-[#6B7280] outline-none placeholder:text-[#6B7280]"
               />
             </div>
             {title.length > MAX_TITLE_CHARACTERS && (
               <p className="mt-3 text-[13px] font-medium text-[#7C3AED]">
-                Title is too long. Please shorten it to 200 characters or less.
+                {messages.landing.analyzer.titleTooLong}
               </p>
             )}
           </div>
@@ -476,27 +565,41 @@ function AnalyzerSection({
           {/* Script textarea */}
           <div className="rounded-[20px] border border-[#E5E7EB] bg-white p-6">
             <div className="mb-3 flex items-center justify-between">
-              <label className="text-[15px] font-semibold text-[#111827]">Your Script</label>
+              <label className="text-[15px] font-semibold text-[#111827]">{messages.landing.analyzer.scriptLabel}</label>
               <span className={`text-[13px] font-medium ${script.length > maxCharacters ? "text-[#7C3AED]" : "text-[#6B7280]"}`}>
                 {script.length} / {maxCharacters}
               </span>
             </div>
-            <p className="mb-4 text-[13px] text-[#6B7280]">Paste your YouTube Shorts script below.</p>
+            <p className="mb-4 text-[13px] leading-[1.6] text-[#6B7280]">
+              {messages.landing.analyzer.scriptHelpDesktop}
+            </p>
 
-            <div className="relative rounded-[14px] border border-[#E5E7EB] bg-[#F8F8FC]">
+            <div
+              className={`relative rounded-[14px] border bg-[#F8F8FC] ${
+                scriptCharactersOverLimit > 0
+                  ? "border-[#7C3AED]"
+                  : "border-[#E5E7EB]"
+              }`}
+            >
               <textarea
                 value={script}
                 onChange={handleScriptChange}
-                placeholder="Paste your script here..."
+                placeholder={messages.landing.analyzer.scriptPlaceholderDesktop}
                 rows={12}
                 className="w-full resize-none rounded-[14px] bg-transparent px-5 py-4 text-[14px] leading-[1.7] text-[#6B7280] outline-none placeholder:text-[#6B7280]"
               />
               {script.length === 0 && (
                 <p className="pointer-events-none absolute left-5 top-[52px] text-[13px] text-[#9CA3AF]">
-                  You can copy it from Google Docs, Notion, or any other tool.
+                  {messages.landing.analyzer.copyHint}
                 </p>
               )}
             </div>
+
+            {scriptCharactersOverLimit > 0 && (
+              <p className="mt-3 text-[13px] font-medium leading-[1.6] text-[#7C3AED]">
+                {messages.landing.analyzer.scriptOverLimit(scriptCharactersOverLimit)}
+              </p>
+            )}
           </div>
 
           {/* Analyze button + error */}
@@ -511,32 +614,35 @@ function AnalyzerSection({
               }
               className="inline-flex h-[60px] w-full items-center justify-center gap-3 rounded-[14px] text-[18px] font-semibold text-white transition disabled:cursor-not-allowed disabled:bg-[#EDE9FE] disabled:text-[#A78BFA] disabled:opacity-70 disabled:shadow-none enabled:bg-[#6D28D9] enabled:shadow-[0_0_54px_rgba(109,40,217,0.28)] enabled:hover:bg-[#7C3AED]"
             >
-              {isAnalyzing ? "Analyzing..." : (
-                <>Analyze Script <ArrowRight className="h-5 w-5" /></>
-              )}
+                {isAnalyzing ? messages.landing.analyzer.analyzing : (
+                  <>
+                    {messages.landing.analyzer.analyzeScript}
+                    <ArrowRight className="h-5 w-5" />
+                  </>
+                )}
             </button>
 
-            {analyzeError && (
+            {analyzeError && scriptCharactersOverLimit === 0 && (
               <p className="text-[13px] text-[#7C3AED]">{analyzeError}</p>
             )}
 
             <div className="flex items-center gap-2 text-[13px] text-[#6B7280]">
               <Lock className="h-3.5 w-3.5 shrink-0" />
-              <span>Your script is only used to generate this analysis.</span>
+              <span>{messages.landing.analyzer.privacy}</span>
             </div>
           </div>
         </div>
 
         {/* Right: what you get */}
         <div className="rounded-[20px] border border-[#E5E7EB] bg-white p-6 h-fit">
-          <p className="text-[17px] font-semibold text-[#111827] mb-5">What you&apos;ll get</p>
+          <p className="text-[17px] font-semibold text-[#111827] mb-5">{messages.landing.analyzer.whatYouWillGet}</p>
           <div className="flex flex-col gap-4">
             {[
-              { icon: <BarChart3 className="h-5 w-5" />, title: "Overall Score", desc: "See how strong your script is before posting." },
-              { icon: <Target className="h-5 w-5" />, title: "Hook Analysis", desc: "Find out if your opening stops the scroll." },
-              { icon: <TrendingUp className="h-5 w-5" />, title: "Retention Risk", desc: "Spot moments where viewers may lose interest." },
-              { icon: <Lightbulb className="h-5 w-5" />, title: "Risky Timestamps", desc: "Get specific lines and moments to improve." },
-              { icon: <ShieldCheck className="h-5 w-5" />, title: "Suggested Fixes", desc: "Receive clear fixes for hooks, pacing, and payoff." },
+              { icon: <BarChart3 className="h-5 w-5" />, ...messages.landing.analyzer.whatYouWillGetItems.overallScore },
+              { icon: <Target className="h-5 w-5" />, ...messages.landing.analyzer.whatYouWillGetItems.hookAnalysis },
+              { icon: <TrendingUp className="h-5 w-5" />, ...messages.landing.analyzer.whatYouWillGetItems.retentionRisk },
+              { icon: <Lightbulb className="h-5 w-5" />, ...messages.landing.analyzer.whatYouWillGetItems.riskyTimestamps },
+              { icon: <ShieldCheck className="h-5 w-5" />, ...messages.landing.analyzer.whatYouWillGetItems.suggestedFixes },
             ].map((item) => (
               <div key={item.title} className="flex items-start gap-3 rounded-[14px] border border-[#E5E7EB] bg-[#F8F8FC] px-4 py-3.5">
                 <div className="mt-0.5 shrink-0 text-[#7C3AED]">{item.icon}</div>
@@ -555,37 +661,39 @@ function AnalyzerSection({
 
 
 function ComparisonSection() {
+  const messages = useMessages();
+
   return (
     <section className="relative z-10 mx-auto w-full max-w-[1280px] px-8 pb-28">
       <div className="text-center">
-        <Badge>Why Climpy</Badge>
+        <Badge>{messages.landing.comparison.badge}</Badge>
         <h2 className="mx-auto mt-8 max-w-[860px] text-[56px] font-extrabold leading-[1.02] tracking-[-0.06em] text-[#111827]">
-          No prompt setup. Just a{" "}
-          <HandUnderline>Shorts script review</HandUnderline>.
+          {messages.landing.comparison.headingPrefix}{" "}
+          <HandUnderline>{messages.landing.comparison.headingHighlight}</HandUnderline>.
         </h2>
         <p className="mx-auto mt-5 max-w-[620px] text-[18px] leading-[1.75] text-[#6B7280]">
-          Climpy is built for one job: checking if your Shorts script is actually ready to publish.
+          {messages.landing.comparison.description}
         </p>
       </div>
 
       <div className="mt-14 grid grid-cols-1 items-start gap-6 lg:grid-cols-[0.8fr_1.2fr]">
         <div className="h-fit rounded-[28px] border border-[#E5E7EB] bg-[#F9FAFB] p-7">
           <p className="text-[13px] font-semibold uppercase tracking-[0.12em] text-[#9CA3AF]">
-            Without Climpy
+            {messages.landing.comparison.withoutLabel}
           </p>
           <h3 className="mt-4 text-[28px] font-extrabold leading-[1.08] tracking-[-0.05em] text-[#111827]">
-            You&apos;re guessing what to fix.
+            {messages.landing.comparison.withoutHeading}
           </h3>
           <p className="mt-4 text-[15px] leading-[1.7] text-[#6B7280]">
-            General AI tools can help, but for Shorts feedback you often still have to build the review yourself.
+            {messages.landing.comparison.withoutDescription}
           </p>
 
           <div className="mt-7 space-y-4">
             {[
-              "Define what makes a strong Shorts hook",
-              "Find where viewers may lose interest",
-              "Judge pacing and payoff on your own",
-              "Turn broad feedback into actual script fixes",
+              messages.landing.comparison.withoutItems[0],
+              messages.landing.comparison.withoutItems[1],
+              messages.landing.comparison.withoutItems[2],
+              messages.landing.comparison.withoutItems[3],
             ].map((item) => (
               <div key={item} className="flex items-start gap-3">
                 <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#E5E7EB] text-[13px] font-bold text-[#9CA3AF]">
@@ -604,20 +712,20 @@ function ComparisonSection() {
                 Climpy
               </p>
               <h3 className="mt-4 text-[34px] font-extrabold leading-[1.02] tracking-[-0.055em] text-[#111827]">
-                Get a structured review in seconds.
+                {messages.landing.comparison.withHeading}
               </h3>
             </div>
 
             <div className="rounded-full border border-[#DDD6FE] bg-[#F3E8FF] px-4 py-2 text-[13px] font-semibold text-[#7C3AED]">
-              AI review
+              {messages.landing.comparison.aiReview}
             </div>
           </div>
 
           <div className="mt-8 grid grid-cols-3 gap-3">
             {[
-              { label: "Hook Score", value: "74" },
-              { label: "Risk", value: "Med" },
-              { label: "Risky Part", value: "0:08–0:14" },
+              { label: messages.landing.comparison.scores.hookScore, value: "74" },
+              { label: messages.landing.comparison.scores.risk, value: messages.landing.comparison.scores.medium },
+              { label: messages.landing.comparison.scores.riskyPart, value: "0:08–0:14" },
             ].map((item) => (
               <div key={item.label} className="rounded-[18px] border border-[#E9D5FF] bg-[#FAF5FF] p-4">
                 <p className="text-[12px] font-semibold text-[#7C3AED]">{item.label}</p>
@@ -631,19 +739,19 @@ function ComparisonSection() {
           <div className="mt-5 grid gap-4">
             <div className="rounded-[18px] border border-[#E9D5FF] bg-white p-5">
               <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
-                Main Issue
+                {messages.landing.comparison.mainIssueLabel}
               </p>
               <p className="mt-2 text-[16px] font-semibold leading-[1.6] text-[#111827]">
-                The setup takes too long before the main promise appears.
+                {messages.landing.comparison.mainIssue}
               </p>
             </div>
 
             <div className="rounded-[18px] border border-[#E9D5FF] bg-white p-5">
               <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
-                Suggested Fix
+                {messages.landing.comparison.suggestedFixLabel}
               </p>
               <p className="mt-2 text-[16px] font-semibold leading-[1.6] text-[#111827]">
-                Move the main conflict into the first sentence and tighten the setup.
+                {messages.landing.comparison.suggestedFix}
               </p>
             </div>
           </div>
@@ -656,38 +764,9 @@ function ComparisonSection() {
 
 
 function CommonQuestionsSection() {
-  const questions = [
-    {
-      question: "Is Climpy free to test?",
-      answer:
-        "Yes. Climpy is free to test right now. No signup is needed — just paste your Shorts script and get feedback in about 1 minute.",
-    },
-    {
-      question: "What does Climpy actually check?",
-      answer:
-        "Climpy reviews your script for hook strength, retention risk, risky parts, pacing problems, unclear payoff, and suggested fixes before publishing.",
-    },
-    {
-      question: "Do I need to upload a video?",
-      answer:
-        "No. Climpy works with script text. You can paste a script from Google Docs, Notion, Notes, your phone, or any other writing tool.",
-    },
-    {
-      question: "Does Climpy work for all videos?",
-      answer:
-        "Right now, Climpy works best for YouTube Shorts scripts, especially short videos around 15–60 seconds. We also plan to support long-form YouTube videos in the future.",
-    },
-    {
-      question: "What if I don’t agree with the feedback?",
-      answer:
-        "You don’t have to follow every suggestion. Climpy is a script reviewer that helps you spot possible weak parts before posting. After every analysis, you can also rate the result and tell us what you wanted Climpy to fix better.",
-    },
-    {
-      question: "Is my script stored or used anywhere else?",
-      answer:
-        "Your script is only used to generate the analysis. Climpy does not require an account, and your script is not shown publicly.",
-    },
-  ];
+  const messages = useMessages();
+
+  const questions = messages.landing.faq.questions;
 
   return (
     <section
@@ -697,16 +776,15 @@ function CommonQuestionsSection() {
       <div className="grid gap-10 lg:grid-cols-[0.9fr_1.35fr]">
         <div>
           <div className="mb-5 inline-flex rounded-full border border-[#DDD6FE] bg-[#F3E8FF] px-4 py-2 text-[12px] font-semibold uppercase tracking-[0.22em] text-[#7C3AED]">
-            FAQs
+            {messages.landing.faq.badge}
           </div>
 
           <h2 className="max-w-[430px] text-[48px] font-extrabold leading-[1.02] tracking-[-0.055em] text-[#111827]">
-            Frequently asked <HandUnderline>questions</HandUnderline>
+            {messages.landing.faq.headingPrefix}{" "}<HandUnderline>{messages.landing.faq.headingHighlight}</HandUnderline>
           </h2>
 
           <p className="mt-5 max-w-[430px] text-[17px] leading-8 text-[#6B7280]">
-            Everything you need to know before testing Climpy with your first
-            Shorts script.
+            {messages.landing.faq.description}
           </p>
         </div>
 
@@ -736,10 +814,10 @@ function CommonQuestionsSection() {
           <div className="mt-5 flex items-center justify-between gap-6 rounded-[30px] border border-[#DDD6FE] bg-[#F3E8FF] p-6">
             <div>
               <h3 className="text-[22px] font-extrabold tracking-[-0.04em] text-[#111827]">
-                Ready to test your script?
+                {messages.landing.faq.ctaHeading}
               </h3>
               <p className="mt-2 text-[15px] leading-6 text-[#6B7280]">
-                Paste one real Shorts script and get a review in about 1 minute.
+                {messages.landing.faq.ctaDescription}
               </p>
             </div>
 
@@ -747,7 +825,7 @@ function CommonQuestionsSection() {
               href="#analyzer"
               className="shrink-0 rounded-full bg-[#111827] px-6 py-3 text-[14px] font-semibold text-white transition hover:bg-[#1F2937]"
             >
-              Analyze your script
+              {messages.landing.faq.ctaAction}
             </a>
           </div>
         </div>
@@ -759,6 +837,9 @@ function CommonQuestionsSection() {
 
 
 function FooterSection() {
+  const messages = useMessages();
+  const footer = messages.landing.footer;
+
   return (
     <footer className="relative z-10 mx-auto w-full max-w-[1280px] px-8 pb-10">
       <div className="overflow-hidden rounded-[34px] border border-[#E5E7EB] bg-[#111827] p-8 text-white shadow-[0_30px_100px_rgba(17,24,39,0.18)]">
@@ -777,49 +858,48 @@ function FooterSection() {
                   Climpy
                 </p>
                 <p className="text-[13px] font-medium text-white/50">
-                  AI Shorts script checker
+                  {footer.tagline}
                 </p>
               </div>
             </div>
 
             <p className="mt-6 max-w-[430px] text-[16px] leading-7 text-white/60">
-              Check your Shorts script before publishing. Spot weak hooks,
-              retention risks, unclear payoff, and easy fixes in about 1 minute.
+              {footer.description}
             </p>
           </div>
 
           <div>
             <p className="text-[13px] font-semibold uppercase tracking-[0.18em] text-white/40">
-              Product
+              {footer.productHeading}
             </p>
             <div className="mt-5 grid gap-3 text-[15px] font-medium text-white/70">
               <a href="#analyzer" className="transition hover:text-white">
-                Analyze script
+                {footer.analyzeScript}
               </a>
               <a href="#faqs" className="transition hover:text-white">
-                FAQs
+                {footer.faqs}
               </a>
               <a href="#analyzer" className="transition hover:text-white">
-                Try Climpy
+                {footer.tryClimpy}
               </a>
             </div>
           </div>
 
           <div>
             <p className="text-[13px] font-semibold uppercase tracking-[0.18em] text-white/40">
-              Built for
+              {footer.builtForHeading}
             </p>
             <div className="mt-5 grid gap-3 text-[15px] font-medium text-white/70">
-              <p>YouTube Shorts creators</p>
-              <p>Script testing</p>
-              <p>Faster pre-publish review</p>
+              {footer.builtForItems.map((item) => (
+                <p key={item}>{item}</p>
+              ))}
             </div>
           </div>
         </div>
 
         <div className="mt-10 flex items-center justify-between border-t border-white/10 pt-6 text-[13px] font-medium text-white/40">
-          <p>© 2026 Climpy. Built for short-form creators.</p>
-          <p>Paste. Review. Improve. Publish.</p>
+          <p>{footer.copyright}</p>
+          <p>{footer.processTagline}</p>
         </div>
       </div>
     </footer>
@@ -831,12 +911,18 @@ function FooterSection() {
 
 export default function HomePage() {
   const router = useRouter();
+  const { locale } = useLocale();
+  const messages = useMessages();
   const [script, setScript] = useState("");
   const [title, setTitle] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analyzeError, setAnalyzeError] = useState("");
 
   const maxCharacters = 1000;
+  const scriptCharactersOverLimit = Math.max(
+    0,
+    script.length - maxCharacters
+  );
 
   function handleScriptChange(event: React.ChangeEvent<HTMLTextAreaElement>) {
     const val = event.target.value;
@@ -844,7 +930,7 @@ export default function HomePage() {
 
     if (val.length > maxCharacters) {
       setAnalyzeError(
-        "Script is too long. Please shorten it to 1,000 characters or less."
+        messages.landing.errors.scriptTooLong
       );
     } else if (analyzeError) {
       setAnalyzeError("");
@@ -856,20 +942,20 @@ export default function HomePage() {
     const cleanedTitle = title.trim();
 
     if (cleanedScript.length === 0) {
-      setAnalyzeError("Please paste your script before analyzing.");
+      setAnalyzeError(messages.landing.errors.emptyScript);
       return;
     }
 
     if (script.length > maxCharacters) {
       setAnalyzeError(
-        "Script is too long. Please shorten it to 1,000 characters or less."
+        messages.landing.errors.scriptTooLong
       );
       return;
     }
 
     if (cleanedTitle.length > MAX_TITLE_CHARACTERS) {
       setAnalyzeError(
-        "Title is too long. Please shorten it to 200 characters or less."
+        messages.landing.errors.titleTooLong
       );
       return;
     }
@@ -915,6 +1001,7 @@ export default function HomePage() {
           body: JSON.stringify({
             script: cleanedScript,
             title: cleanedTitle,
+            locale,
           }),
         });
 
@@ -924,20 +1011,18 @@ export default function HomePage() {
           payload = await response.json();
         } catch {
           throw new Error(
-            "The analysis returned an invalid response. Please try again."
+            messages.landing.errors.invalidResponse
           );
         }
 
         if (!response.ok) {
-          const reason =
-            typeof payload === "object" &&
-            payload !== null &&
-            "reason" in payload &&
-            typeof payload.reason === "string"
-              ? payload.reason
-              : "Analysis failed. Please try again.";
-
-          throw new Error(reason);
+          // The API's `reason` is a technical/debug message and must not be
+          // shown raw — it never goes through the message catalog and would
+          // leak English into a Russian UI. Always show the localized
+          // fallback instead.
+          throw new Error(
+            messages.landing.errors.analysisFailed
+          );
         }
 
         if (
@@ -946,8 +1031,49 @@ export default function HomePage() {
             cleanedScript
           )
         ) {
+          const contractCheck =
+            checkAnalysisV2ResponseContract(
+              payload,
+              cleanedScript
+            );
+
+          // contractCheck.valid should be unreachable here (it re-derives
+          // the same verdict as the guard above), kept only for the
+          // discriminated-union type.
+          const contractReason: AnalysisV2ResponseContractReason =
+            contractCheck.valid
+              ? "invalid-success-shape"
+              : contractCheck.reason;
+
+          const rawRetryCount = response.headers.get(
+            "x-analysis-v2-retry-count"
+          );
+          const parsedRetryCount =
+            rawRetryCount !== null
+              ? Number(rawRetryCount)
+              : NaN;
+
+          logAnalysisV2UnexpectedResponse({
+            endpoint: "/api/analyze-v2",
+            httpStatus: response.status,
+            contentType: response.headers.get(
+              "content-type"
+            ),
+            uiLocale: locale,
+            reason: contractReason,
+            payload,
+            requestId: response.headers.get(
+              "x-analysis-v2-request-id"
+            ),
+            retryCount: Number.isFinite(
+              parsedRetryCount
+            )
+              ? parsedRetryCount
+              : null,
+          });
+
           throw new Error(
-            "The analysis returned an unexpected response. Please try again."
+            messages.landing.errors.unexpectedResponse
           );
         }
 
@@ -996,7 +1122,7 @@ export default function HomePage() {
         setAnalyzeError(
           caughtError instanceof Error
             ? caughtError.message
-            : "Something went wrong. Please try again."
+            : messages.landing.errors.generic
         );
       }
     })();
@@ -1056,29 +1182,34 @@ export default function HomePage() {
 </span>
             </Link>
 
-            <Link
-              href="/results"
-              className="inline-flex h-[34px] items-center justify-center rounded-full border border-[#E5E7EB] bg-white/80 px-4 text-[12px] font-semibold text-[#6B7280]"
-            >
-              Results
-            </Link>
+            <div className="flex items-center gap-2">
+              <LanguageSwitcher />
+              <Link
+                href="/results"
+                className="inline-flex h-[34px] items-center justify-center rounded-full border border-[#E5E7EB] bg-white/80 px-4 text-[12px] font-semibold text-[#6B7280]"
+              >
+                {messages.landing.nav.results}
+              </Link>
+            </div>
           </div>
 
           {/* Hero */}
           <section className="pt-12">
             <div className="inline-flex h-[30px] items-center rounded-full border border-[#DDD6FE] bg-[#F3E8FF] px-3.5">
               <span className="text-[11px] font-semibold text-[#7C3AED]">
-                YouTube Shorts script analyzer
+                {messages.landing.hero.mobileBadge}
               </span>
             </div>
 
             <h1 className="mt-5 max-w-[370px] text-[41px] font-bold leading-[43px] tracking-[-0.065em] text-[#111827]">
-              Fix weak scripts before{" "}
-              <span className="text-[#7C3AED]">viewers scroll.</span>
+              {messages.landing.hero.mobileHeadlinePrefix}{" "}
+              <span className="text-[#7C3AED]">
+                {messages.landing.hero.mobileHeadlineHighlight}
+              </span>
             </h1>
 
             <p className="mt-4 max-w-[350px] text-[15px] font-medium leading-[24px] text-[#6B7280]">
-              Climpy reviews your hook, pacing, risky moments, and payoff before you upload your Short.
+              {messages.landing.hero.mobileDescription}
             </p>
 
             <a
@@ -1089,16 +1220,16 @@ export default function HomePage() {
               }}
               className="mt-6 inline-flex h-[54px] w-full items-center justify-center gap-2 rounded-[15px] bg-[#6D28D9] text-[15px] font-bold text-white shadow-[0_0_40px_rgba(109,40,217,0.28)] transition hover:bg-[#7C3AED] active:scale-[0.99]"
             >
-              Start Analyzing
+              {messages.landing.hero.primaryAction}
               <ArrowRight className="h-4 w-4" />
             </a>
 
             <div className="mt-4 flex items-center gap-3 text-[11px] font-medium text-[#6B7280]">
-              <span>Shorts-first</span>
+              <span>{messages.landing.hero.shortsFirst}</span>
               <span className="h-1 w-1 rounded-full bg-[#3A3A42]" />
-              <span>1,000 characters</span>
+              <span>{messages.landing.hero.characterLimit}</span>
               <span className="h-1 w-1 rounded-full bg-[#3A3A42]" />
-              <span>No upload needed</span>
+              <span>{messages.landing.hero.noUploadNeeded}</span>
             </div>
           </section>
 
@@ -1106,44 +1237,44 @@ export default function HomePage() {
           <section className="mt-8 overflow-hidden rounded-[24px] border border-[#E5E7EB] bg-white/95 p-4 shadow-[0_22px_70px_rgba(0,0,0,0.10)]">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[15px] font-bold tracking-[-0.02em] text-[#111827]">Script Review</p>
-                <p className="mt-1 text-[11px] text-[#6B7280]">Preview result</p>
+                <p className="text-[15px] font-bold tracking-[-0.02em] text-[#111827]">{messages.landing.mobile.previewTitle}</p>
+                <p className="mt-1 text-[11px] text-[#6B7280]">{messages.landing.mobile.previewLabel}</p>
               </div>
 
               <div className="rounded-full border border-[#DDD6FE] bg-[#F3E8FF] px-3 py-1.5">
-                <span className="text-[11px] font-semibold text-[#7C3AED]">AI feedback</span>
+                <span className="text-[11px] font-semibold text-[#7C3AED]">{messages.landing.mobile.aiFeedback}</span>
               </div>
             </div>
 
             <div className="mt-4 grid grid-cols-3 gap-2">
               <div className="rounded-[15px] border border-[#E5E7EB] bg-[#F8F8FC] p-3">
-                <p className="text-[10px] font-medium text-[#6B7280]">Overall</p>
+                <p className="text-[10px] font-medium text-[#6B7280]">{messages.landing.mobile.previewScores.overall}</p>
                 <p className="mt-2 text-[24px] font-semibold leading-none text-[#111827]">82</p>
               </div>
 
               <div className="rounded-[15px] border border-[#DDD6FE] bg-[#F3E8FF] p-3">
-                <p className="text-[10px] font-medium text-[#7E22CE]">Hook</p>
+                <p className="text-[10px] font-medium text-[#7E22CE]">{messages.landing.mobile.previewScores.hook}</p>
                 <p className="mt-2 text-[24px] font-semibold leading-none text-[#7C3AED]">91</p>
               </div>
 
               <div className="rounded-[15px] border border-[#E5E7EB] bg-[#F8F8FC] p-3">
-                <p className="text-[10px] font-medium text-[#6B7280]">Risk</p>
-                <p className="mt-2 text-[20px] font-semibold leading-none text-[#FF9A1F]">Med</p>
+                <p className="text-[10px] font-medium text-[#6B7280]">{messages.landing.mobile.previewScores.risk}</p>
+                <p className="mt-2 text-[20px] font-semibold leading-none text-[#FF9A1F]">{messages.landing.mobile.previewScores.medium}</p>
               </div>
             </div>
 
             <div className="mt-4 space-y-2">
               <div className="rounded-[14px] border border-[#DDD6FE] bg-[#F3E8FF] px-3.5 py-3">
-                <p className="text-[11px] font-semibold text-[#7C3AED]">0:00 Hook issue</p>
+                <p className="text-[11px] font-semibold text-[#7C3AED]">{messages.landing.mobile.previewHookIssue}</p>
                 <p className="mt-1 text-[12px] leading-[18px] text-[#5B21B6]">
-                  Opening needs a clearer reason to keep watching.
+                  {messages.landing.mobile.previewHookIssueDescription}
                 </p>
               </div>
 
               <div className="rounded-[14px] border border-[#E5E7EB] bg-[#F8F8FC] px-3.5 py-3">
-                <p className="text-[11px] font-semibold text-[#6B7280]">Suggested fix</p>
+                <p className="text-[11px] font-semibold text-[#6B7280]">{messages.landing.mobile.previewSuggestedFix}</p>
                 <p className="mt-1 text-[12px] leading-[18px] text-[#6B7280]">
-                  Add a sharper contrast or specific outcome in the first line.
+                  {messages.landing.mobile.previewSuggestedFixDescription}
                 </p>
               </div>
             </div>
@@ -1156,24 +1287,47 @@ export default function HomePage() {
           >
             <div className="mb-5">
               <div className="mb-3 inline-flex h-[28px] items-center rounded-full border border-[#DDD6FE] bg-[#F3E8FF] px-3">
-                <span className="text-[10px] font-semibold text-[#7C3AED]">New analysis</span>
+                <span className="text-[10px] font-semibold text-[#7C3AED]">{messages.landing.mobile.newAnalysis}</span>
               </div>
 
               <h2 className="text-[27px] font-bold leading-[32px] tracking-[-0.055em] text-[#111827]">
-                Paste your script.
+                {messages.landing.mobile.newAnalysisHeading}
               </h2>
 
               <p className="mt-2 text-[13px] leading-[21px] text-[#8F8F99]">
-                Get a hook score, retention risk, risky timestamps, and specific fixes.
+                {messages.landing.mobile.newAnalysisDescription}
               </p>
+
+              <div
+                aria-label={messages.landing.analyzer.instructionsLabel}
+                className="mt-4 space-y-2"
+              >
+                {[
+                  messages.landing.analyzer.steps.paste.mobileDescription,
+                  messages.landing.analyzer.steps.analyze.mobileDescription,
+                  messages.landing.analyzer.steps.review.mobileDescription,
+                ].map((step, index) => (
+                  <div
+                    key={step}
+                    className="flex items-center gap-2.5 rounded-[13px] border border-[#E5E7EB] bg-[#F8F8FC] px-3 py-2.5"
+                  >
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#F3E8FF] text-[10px] font-bold text-[#7C3AED]">
+                      {index + 1}
+                    </span>
+                    <p className="text-[12px] font-medium leading-[18px] text-[#6B7280]">
+                      {step}
+                    </p>
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* Title input */}
             <div className="rounded-[18px] border border-[#E5E7EB] bg-[#F8F8FC] p-4">
               <div className="mb-2 flex items-center justify-between gap-3">
                 <div className="flex items-baseline gap-2">
-                  <p className="text-[14px] font-semibold text-[#111827]">Video title</p>
-                  <p className="text-[11px] font-medium text-[#6B7280]">Optional</p>
+                  <p className="text-[14px] font-semibold text-[#111827]">{messages.landing.analyzer.videoTitle}</p>
+                  <p className="text-[11px] font-medium text-[#6B7280]">{messages.landing.analyzer.optionalMobile}</p>
                 </div>
                 <p
                   className={`shrink-0 text-[11px] font-medium ${
@@ -1196,14 +1350,14 @@ export default function HomePage() {
                 <input
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Add your video title or topic"
+                  placeholder={messages.landing.analyzer.titlePlaceholder}
                   className="h-full w-full bg-transparent text-[13px] text-[#6B7280] outline-none placeholder:text-[#9CA3AF]"
                 />
               </div>
 
               {title.length > MAX_TITLE_CHARACTERS && (
                 <p className="mt-3 text-[11px] font-medium leading-[18px] text-[#7C3AED]">
-                  Title is too long. Please shorten it to 200 characters or less.
+                  {messages.landing.analyzer.titleTooLong}
                 </p>
               )}
             </div>
@@ -1211,36 +1365,46 @@ export default function HomePage() {
             {/* Script input */}
             <div className="mt-3 rounded-[18px] border border-[#E5E7EB] bg-[#F8F8FC] p-4">
               <div className="mb-2 flex items-center justify-between gap-3">
-                <p className="text-[14px] font-semibold text-[#111827]">Your Script</p>
+                <p className="text-[14px] font-semibold text-[#111827]">{messages.landing.analyzer.scriptLabel}</p>
                 <p className={`shrink-0 text-[11px] font-medium ${script.length > maxCharacters ? "text-[#7C3AED]" : "text-[#6B7280]"}`}>
                   {script.length} / {maxCharacters}
                 </p>
               </div>
 
-              <div className="overflow-hidden rounded-[14px] border border-[#E5E7EB] bg-[#FAFAFA]">
+              <p className="mb-3 text-[12px] leading-[18px] text-[#6B7280]">
+                {messages.landing.analyzer.scriptHelpMobile}
+              </p>
+
+              <div
+                className={`overflow-hidden rounded-[14px] border bg-[#FAFAFA] ${
+                  scriptCharactersOverLimit > 0
+                    ? "border-[#7C3AED]"
+                    : "border-[#E5E7EB]"
+                }`}
+              >
                 <textarea
                   value={script}
                   onChange={handleScriptChange}
-                  placeholder="Paste your script here."
+                  placeholder={messages.landing.analyzer.scriptPlaceholderMobile}
                   rows={7}
                   className="w-full resize-none rounded-[14px] bg-transparent px-3.5 py-3 text-[13px] leading-[22px] text-[#6B7280] outline-none placeholder:text-[#9CA3AF]"
                 />
               </div>
 
-              {script.length > maxCharacters && (
+              {scriptCharactersOverLimit > 0 && (
                 <p className="mt-3 text-[11px] font-medium leading-[18px] text-[#7C3AED]">
-                  Script is too long. Shorten it to 1,000 characters or less.
+                  {messages.landing.analyzer.scriptOverLimit(scriptCharactersOverLimit)}
                 </p>
               )}
 
               <div className="mt-3 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-1.5">
                   <Clock size={13} className="text-[#6B7280]" />
-                  <p className="text-[12px] text-[#6B7280]">~{formatMobileDuration(script)} estimated</p>
+                  <p className="text-[12px] text-[#6B7280]">{messages.landing.mobile.estimatedDuration(formatMobileDuration(script))}</p>
                 </div>
 
                 <p className="rounded-full border border-[#E5E7EB] bg-white px-2.5 py-1 text-[11px] font-medium text-[#6B7280]">
-                  Shorts only
+                  {messages.landing.analyzer.shortsOnly}
                 </p>
               </div>
             </div>
@@ -1256,10 +1420,10 @@ export default function HomePage() {
               className="mt-4 inline-flex h-[54px] w-full items-center justify-center gap-2 rounded-[15px] text-[15px] font-semibold transition disabled:cursor-not-allowed disabled:bg-[#EDE9FE] disabled:text-[#A78BFA] disabled:opacity-70 disabled:shadow-none enabled:bg-[#6D28D9] enabled:text-white enabled:shadow-[0_0_34px_rgba(109,40,217,0.30)] enabled:hover:bg-[#7C3AED] active:scale-[0.99]"
             >
               {isAnalyzing ? (
-                "Analyzing..."
+                messages.landing.analyzer.analyzing
               ) : (
                 <>
-                  Analyze Script
+                  {messages.landing.analyzer.analyzeScript}
                   <ArrowRight className="h-4 w-4" />
                 </>
               )}
@@ -1274,21 +1438,21 @@ export default function HomePage() {
             <div className="mt-3 flex items-start gap-2 rounded-[13px] border border-[#E5E7EB] bg-[#F8F8FC] px-3.5 py-3">
               <Lock size={13} className="mt-0.5 shrink-0 text-[#6B7280]" />
               <p className="text-[12px] leading-[18px] text-[#6B7280]">
-                Your script is only used to generate this analysis.
+                {messages.landing.analyzer.privacy}
               </p>
             </div>
           </section>
 
           {/* What Climpy checks */}
           <section className="mt-8">
-            <p className="mb-3 text-[16px] font-semibold text-[#111827]">What Climpy checks</p>
+            <p className="mb-3 text-[16px] font-semibold text-[#111827]">{messages.landing.mobile.checksHeading}</p>
 
             <div className="grid grid-cols-1 gap-2.5">
               {[
-                { icon: <Target size={16} />, title: "Hook strength", desc: "Scores your opening line." },
-                { icon: <BarChart3 size={16} />, title: "Retention risk", desc: "Finds where viewers may drop." },
-                { icon: <Lightbulb size={16} />, title: "Payoff quality", desc: "Checks if the ending feels worth it." },
-                { icon: <ShieldCheck size={16} />, title: "Suggested fixes", desc: "Gives specific improvements." },
+                { icon: <Target size={16} />, ...messages.landing.mobile.checks.hookStrength },
+                { icon: <BarChart3 size={16} />, ...messages.landing.mobile.checks.retentionRisk },
+                { icon: <Lightbulb size={16} />, ...messages.landing.mobile.checks.payoffQuality },
+                { icon: <ShieldCheck size={16} />, ...messages.landing.mobile.checks.suggestedFixes },
               ].map((item) => (
                 <div key={item.title} className="flex min-h-[58px] items-center gap-3 rounded-[16px] border border-[#E5E7EB] bg-white/90 px-3.5">
                   <div className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[11px] border border-[#DDD6FE] bg-[#F3E8FF] text-[#7C3AED]">
@@ -1307,11 +1471,11 @@ export default function HomePage() {
           {/* Bottom CTA */}
           <section className="mt-8 rounded-[24px] border border-[#DDD6FE] bg-[#F3E8FF] p-5">
             <h2 className="text-[23px] font-bold leading-[29px] tracking-[-0.055em] text-[#111827]">
-              Improve the script before recording.
+              {messages.landing.mobile.improveBeforeRecording}
             </h2>
 
             <p className="mt-2 text-[13px] leading-[21px] text-[#7E22CE]">
-              Paste your next Short idea and see where viewers may lose interest.
+              {messages.landing.mobile.nextIdea}
             </p>
 
             <a
@@ -1322,7 +1486,7 @@ export default function HomePage() {
               }}
               className="mt-5 inline-flex h-[48px] w-full items-center justify-center gap-2 rounded-[14px] bg-[#6D28D9] text-[14px] font-semibold text-white transition hover:bg-[#7C3AED]"
             >
-              Try Climpy
+              {messages.landing.mobile.tryClimpy}
               <ArrowRight className="h-4 w-4" />
             </a>
           </section>

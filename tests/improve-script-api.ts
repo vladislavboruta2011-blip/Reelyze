@@ -820,6 +820,470 @@ async function main() {
     process.exitCode = 1;
     return;
   }
+  // ── Reliability hardening regression tests ──────────────────────────────
+  // Exercises the actual root cause (a mismatched/malformed rewrite
+  // permanently returning 502 with zero retry) and its nearest neighbors.
+  // Runs in-process (module state, including the rate limiter, is shared
+  // across these cases, so each uses a distinct X-Forwarded-For).
+  {
+    const {
+      POST: improveScriptPOST,
+      IMPROVE_SCRIPT_REQUEST_ID_HEADER,
+      IMPROVE_SCRIPT_RETRY_COUNT_HEADER,
+    } = await import("../app/api/improve-script/route");
+
+    const originalFetch = globalThis.fetch;
+    const script =
+      "Last month, a small bakery raised the price of every pastry by 40%. Within one week, customer visits dropped by half.";
+
+    function chatCompletionResponse(
+      content: string,
+      status = 200
+    ): Response {
+      return new Response(
+        JSON.stringify({
+          id: "chatcmpl-reliability-test",
+          object: "chat.completion",
+          created: 0,
+          model: "gpt-4o-mini",
+          choices: [
+            {
+              index: 0,
+              message: { role: "assistant", content },
+              finish_reason: "stop",
+            },
+          ],
+        }),
+        {
+          status,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    function upstreamErrorResponse(status: number): Response {
+      return new Response(
+        JSON.stringify({
+          error: {
+            message: "Upstream failure",
+            type: "server_error",
+          },
+        }),
+        {
+          status,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    const validRewriteContent = JSON.stringify({
+      editorialDecision: {
+        strategy: "rewrite",
+        primaryProblemScope: "hook",
+        primaryProblem:
+          "The cause and its consequence are split across two sentences.",
+        primaryProblemEvidence:
+          "Last month, a small bakery raised the price of every pastry by 40%.",
+      },
+      candidateAudit: {
+        resolvedPrimaryProblem: true,
+        candidateMateriallyBetter: true,
+        regressionIntroduced: false,
+      },
+      improvedScript:
+        "Last month, a small bakery raised the price of every pastry by 40%, causing customer visits to drop by half within one week.",
+      changes: [
+        "Combined the cause and consequence into one opening sentence.",
+      ],
+      reason:
+        "The rewrite compresses the opening for immediate impact.",
+    });
+
+    async function callImproveScript(
+      overrides: Record<string, unknown>,
+      forwardedFor: string
+    ): Promise<{
+      status: number;
+      payload: Record<string, unknown>;
+      headers: Headers;
+    }> {
+      const response = await improveScriptPOST(
+        new Request("http://localhost/api/improve-script", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Forwarded-For": forwardedFor,
+          },
+          body: JSON.stringify({
+            script,
+            title: "",
+            ...overrides,
+          }),
+        })
+      );
+
+      const payload = (await response.json()) as Record<
+        string,
+        unknown
+      >;
+
+      return {
+        status: response.status,
+        payload,
+        headers: response.headers,
+      };
+    }
+
+    try {
+      // 1) First transient upstream failure, second attempt succeeds.
+      {
+        let callCount = 0;
+
+        globalThis.fetch = (async () => {
+          callCount += 1;
+
+          return callCount === 1
+            ? upstreamErrorResponse(503)
+            : chatCompletionResponse(validRewriteContent);
+        }) as typeof fetch;
+
+        const { status, payload, headers } =
+          await callImproveScript({}, "203.0.113.101");
+
+        if (
+          status !== 200 ||
+          payload.status !== "improved" ||
+          callCount !== 2 ||
+          headers.get(IMPROVE_SCRIPT_RETRY_COUNT_HEADER) !==
+            "1"
+        ) {
+          throw new Error(
+            "Expected a transient upstream failure to recover on the bounded retry: " +
+              JSON.stringify({ status, callCount, payload })
+          );
+        }
+
+        console.log(
+          "✅ PASS — First transient upstream failure recovers on the bounded retry"
+        );
+      }
+
+      // 2) Two consecutive transient failures return a controlled,
+      //    localized error (not a raw exception, not a silent success).
+      {
+        let callCount = 0;
+
+        globalThis.fetch = (async () => {
+          callCount += 1;
+          return upstreamErrorResponse(503);
+        }) as typeof fetch;
+
+        const { status, payload, headers } =
+          await callImproveScript({}, "203.0.113.102");
+
+        if (
+          status !== 503 ||
+          payload.status !== "error" ||
+          callCount !== 2 ||
+          headers.get(IMPROVE_SCRIPT_RETRY_COUNT_HEADER) !==
+            "1" ||
+          /openai|provider|raw|json|parse/i.test(
+            String(payload.reason)
+          )
+        ) {
+          throw new Error(
+            "Expected two consecutive transient failures to return a controlled 503: " +
+              JSON.stringify({ status, callCount, payload })
+          );
+        }
+
+        console.log(
+          "✅ PASS — Two consecutive transient failures return a controlled localized error"
+        );
+      }
+
+      // 3) HTTP 400 validation rejection never reaches the model at all.
+      {
+        let callCount = 0;
+
+        globalThis.fetch = (async () => {
+          callCount += 1;
+          throw new Error(
+            "Unexpected model call for a validation rejection"
+          );
+        }) as typeof fetch;
+
+        const { status } = await callImproveScript(
+          { script: "" },
+          "203.0.113.103"
+        );
+
+        if (status !== 400 || callCount !== 0) {
+          throw new Error(
+            "Expected a 400 validation rejection without any model call: " +
+              JSON.stringify({ status, callCount })
+          );
+        }
+
+        console.log(
+          "✅ PASS — HTTP 400 validation rejection is never retried"
+        );
+      }
+
+      // 4) Malformed/non-JSON model response, both attempts fail →
+      //    controlled error, not an internal 500 or a raw leak.
+      {
+        let callCount = 0;
+
+        globalThis.fetch = (async () => {
+          callCount += 1;
+          return chatCompletionResponse(
+            "not valid json at all"
+          );
+        }) as typeof fetch;
+
+        const { status, payload, headers } =
+          await callImproveScript({}, "203.0.113.104");
+
+        if (
+          status !== 502 ||
+          payload.status !== "error" ||
+          callCount !== 2 ||
+          headers.get(IMPROVE_SCRIPT_RETRY_COUNT_HEADER) !==
+            "1" ||
+          /openai|provider|raw|json|parse/i.test(
+            String(payload.reason)
+          )
+        ) {
+          throw new Error(
+            "Expected a malformed model response to be retried once, then fail safely: " +
+              JSON.stringify({ status, callCount, payload })
+          );
+        }
+
+        console.log(
+          "✅ PASS — Malformed/non-JSON model response retries once, then returns a safe controlled error"
+        );
+      }
+
+      // 5) Malformed model response on the first attempt, valid JSON on the
+      //    bounded retry — the repair succeeds.
+      {
+        let callCount = 0;
+
+        globalThis.fetch = (async () => {
+          callCount += 1;
+
+          return callCount === 1
+            ? chatCompletionResponse("{not json")
+            : chatCompletionResponse(validRewriteContent);
+        }) as typeof fetch;
+
+        const { status, payload, headers } =
+          await callImproveScript({}, "203.0.113.105");
+
+        if (
+          status !== 200 ||
+          payload.status !== "improved" ||
+          callCount !== 2 ||
+          headers.get(IMPROVE_SCRIPT_RETRY_COUNT_HEADER) !==
+            "1"
+        ) {
+          throw new Error(
+            "Expected the bounded repair retry to succeed after one malformed attempt: " +
+              JSON.stringify({ status, callCount, payload })
+          );
+        }
+
+        console.log(
+          "✅ PASS — Bounded repair retry succeeds after one malformed model response"
+        );
+      }
+
+      // 6) Refined-hook alignment rejection — the actual reported bug —
+      //    returns preserve, not a different question-style hook and not a
+      //    generic failure.
+      {
+        const refinedHook =
+          "A small bakery raised the price of every pastry by 40%, and within one week, customer visits dropped by half.";
+
+        const mismatchedContent = JSON.stringify({
+          editorialDecision: {
+            strategy: "rewrite",
+            primaryProblemScope: "hook",
+            primaryProblem:
+              "The generic opening delays the concrete price-increase event.",
+            primaryProblemEvidence: script,
+          },
+          candidateAudit: {
+            resolvedPrimaryProblem: true,
+            candidateMateriallyBetter: true,
+            regressionIntroduced: false,
+          },
+          improvedScript:
+            "Did you know a bakery once raised its prices by 40 percent?",
+          changes: [
+            "Rewrote the opening as a question hook.",
+          ],
+          reason:
+            "The rewrite opens with a question to draw in the viewer.",
+        });
+
+        globalThis.fetch = (async () =>
+          chatCompletionResponse(
+            mismatchedContent
+          )) as typeof fetch;
+
+        const { status, payload } = await callImproveScript(
+          { refinedHook },
+          "203.0.113.106"
+        );
+
+        if (
+          status !== 200 ||
+          payload.status !== "preserve" ||
+          payload.improvedScript !== script ||
+          String(payload.improvedScript).includes(
+            "Did you know"
+          )
+        ) {
+          throw new Error(
+            "Expected a refined-hook misalignment to preserve the original, not surface a different question hook or a generic failure: " +
+              JSON.stringify({ status, payload })
+          );
+        }
+
+        console.log(
+          "✅ PASS — Refined-hook alignment rejection preserves the original instead of returning a different question hook or a generic failure"
+        );
+      }
+
+      // 7) ru locale: the same misalignment reaches the identical preserve
+      //    outcome, and improvedScript stays in English (the script's own
+      //    language), regardless of the UI locale.
+      {
+        const refinedHook =
+          "A small bakery raised the price of every pastry by 40%, and within one week, customer visits dropped by half.";
+
+        const mismatchedContent = JSON.stringify({
+          editorialDecision: {
+            strategy: "rewrite",
+            primaryProblemScope: "hook",
+            primaryProblem:
+              "The generic opening delays the concrete price-increase event.",
+            primaryProblemEvidence: script,
+          },
+          candidateAudit: {
+            resolvedPrimaryProblem: true,
+            candidateMateriallyBetter: true,
+            regressionIntroduced: false,
+          },
+          improvedScript:
+            "А вы знали, что пекарня подняла цены на 40%?",
+          changes: ["Переписал начало как вопрос."],
+          reason:
+            "Переписанный вариант начинается с вопроса.",
+        });
+
+        globalThis.fetch = (async () =>
+          chatCompletionResponse(
+            mismatchedContent
+          )) as typeof fetch;
+
+        const { status, payload } = await callImproveScript(
+          { refinedHook, locale: "ru" },
+          "203.0.113.107"
+        );
+
+        if (
+          status !== 200 ||
+          payload.status !== "preserve" ||
+          payload.improvedScript !== script
+        ) {
+          throw new Error(
+            "Expected the ru locale to reach the identical preserve outcome and keep improvedScript in English: " +
+              JSON.stringify({ status, payload })
+          );
+        }
+
+        console.log(
+          "✅ PASS — ru locale: refined-hook misalignment preserves the same English original script"
+        );
+      }
+
+      // 8) A failed response is marked non-cacheable and carries a request id.
+      {
+        globalThis.fetch = (async () =>
+          upstreamErrorResponse(500)) as typeof fetch;
+
+        const { status, headers } = await callImproveScript(
+          {},
+          "203.0.113.108"
+        );
+
+        if (
+          status !== 503 ||
+          headers.get("Cache-Control") !== "no-store" ||
+          !headers.get(IMPROVE_SCRIPT_REQUEST_ID_HEADER)
+        ) {
+          throw new Error(
+            "Expected a failed response to be marked non-cacheable and carry a request id"
+          );
+        }
+
+        console.log(
+          "✅ PASS — Failed Improve Script response is marked non-cacheable and carries a request id"
+        );
+      }
+
+      // 9) Structured failure logging excludes the submitted script and
+      //    title while still including real diagnostic fields.
+      {
+        const originalConsoleError = console.error;
+        const loggedCalls: unknown[][] = [];
+
+        console.error = (...args: unknown[]) => {
+          loggedCalls.push(args);
+        };
+
+        const secretTitle =
+          "UNIQUE_SECRET_TITLE_TOKEN_775511";
+
+        try {
+          globalThis.fetch = (async () =>
+            chatCompletionResponse(
+              "not valid json at all"
+            )) as typeof fetch;
+
+          await callImproveScript(
+            { title: secretTitle },
+            "203.0.113.109"
+          );
+        } finally {
+          console.error = originalConsoleError;
+        }
+
+        const serialized = JSON.stringify(loggedCalls);
+
+        if (
+          serialized.includes(script) ||
+          serialized.includes(secretTitle) ||
+          !serialized.includes("requestId") ||
+          !serialized.includes("failureStage")
+        ) {
+          throw new Error(
+            "Expected structured failure logs to exclude the script/title while still including diagnostic fields"
+          );
+        }
+
+        console.log(
+          "✅ PASS — Structured failure log excludes script/title while keeping diagnostic fields"
+        );
+      }
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  }
 
   const refinedHookPromptProbe = spawnSync(
     "npx",
@@ -1257,6 +1721,191 @@ async function main() {
     return;
   }
 
+  // Regression test for a real reported bug: a genuinely valid ru
+  // AnalysisV2 result with an overall score below 80 was rejected here
+  // with a 400 ("Analysis result is invalid or does not match the
+  // submitted script") because this route validated the submitted
+  // analysisResult without the request's own locale, silently defaulting
+  // to "en". The below-80 mainTakeaway check is locale-gated, so a
+  // correct Russian mainTakeaway failed to match the English-only term
+  // tables. The mixed-analysis probe above never exercises this because
+  // it never sends `locale: "ru"`.
+  const ruBelowEightyAnalysisBypassesLocaleDefaultProbe = spawnSync(
+    "npx",
+    [
+      "tsx",
+      "-e",
+      `let providerCalls = 0;
+
+        globalThis.fetch = async () => {
+          providerCalls += 1;
+
+          return new Response(
+            JSON.stringify({
+              id: "chatcmpl-ru-below-eighty-locale-test",
+              object: "chat.completion",
+              created: 0,
+              model: "gpt-4o-mini",
+              choices: [
+                {
+                  index: 0,
+                  message: {
+                    role: "assistant",
+                    content: JSON.stringify({
+                      editorialDecision: {
+                        strategy: "preserve"
+                      }
+                    })
+                  },
+                  finish_reason: "stop"
+                }
+              ]
+            }),
+            {
+              status: 200,
+              headers: {
+                "Content-Type": "application/json"
+              }
+            }
+          );
+        };
+
+        import("./app/api/improve-script/route.ts").then(
+          async ({ POST }) => {
+            const script =
+              "Success is very important in life. Many people want to become successful, but they do not know what to do. You should work hard, believe in yourself, and never give up.";
+
+            const analysisResult = {
+              scriptType: "generic_advice",
+              verdict: "mixed",
+              scores: {
+                overall: 58,
+                hook: 70,
+                retentionRisk: 55
+              },
+              scoreBreakdown: {
+                overall: {
+                  premiseAppeal: 13,
+                  openingPromise: 15,
+                  progression: 15,
+                  payoff: 15
+                },
+                hook: {
+                  immediacy: 18,
+                  specificity: 17,
+                  viewerPull: 17,
+                  deliveryAlignment: 18
+                },
+                retentionRisk: {
+                  openingFriction: 14,
+                  progressionRisk: 14,
+                  predictabilityRisk: 13,
+                  payoffRisk: 14
+                }
+              },
+              hookDecision: "diagnostic",
+              hookAssessment:
+                "Хук ставит тему сразу и понятен.",
+              riskyParts: [
+                {
+                  excerpt:
+                    "Many people want to become successful, but they do not know what to do.",
+                  reason:
+                    "Эта идея звучит очень обобщённо и не создаёт конкретного любопытства.",
+                  severity: "medium"
+                }
+              ],
+              suggestedFixes: [
+                {
+                  target: "clarity",
+                  suggestion:
+                    "Сделайте совет более конкретным, добавив один пример из личного опыта.",
+                  optional: false
+                }
+              ],
+              scenes: [
+                {
+                  excerpt: script,
+                  label: "Общий совет",
+                  status: "average"
+                }
+              ],
+              mainTakeaway:
+                "Сценарий понятен, но привлекательность идеи ограничивает общую оценку, потому что идея слабо привлекает аудиторию."
+            };
+
+            const response = await POST(
+              new Request(
+                "http://localhost/api/improve-script",
+                {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json"
+                  },
+                  body: JSON.stringify({
+                    title: "Success advice",
+                    script,
+                    locale: "ru",
+                    analysisResult
+                  })
+                }
+              )
+            );
+
+            const payload = await response.json();
+
+            if (
+              response.status !== 200 ||
+              payload.status !== "preserve" ||
+              providerCalls !== 1
+            ) {
+              throw new Error(
+                "Expected a genuinely valid ru analysisResult with overall < 80 to reach the editorial model instead of being rejected as invalid. Got status " +
+                  response.status +
+                  " payload " +
+                  JSON.stringify(payload)
+              );
+            }
+
+            console.log(
+              "RU_BELOW_EIGHTY_ANALYSIS_LOCALE_BYPASS_PASS"
+            );
+          }
+        ).catch((error) => {
+          console.error(
+            error instanceof Error ? error.message : error
+          );
+          process.exit(1);
+        });`,
+    ],
+    {
+      cwd: process.cwd(),
+      env: process.env,
+      encoding: "utf8",
+    }
+  );
+
+  if (
+    ruBelowEightyAnalysisBypassesLocaleDefaultProbe.status === 0 &&
+    ruBelowEightyAnalysisBypassesLocaleDefaultProbe.stdout.includes(
+      "RU_BELOW_EIGHTY_ANALYSIS_LOCALE_BYPASS_PASS"
+    )
+  ) {
+    console.log(
+      "✅ PASS — A valid ru analysisResult with overall < 80 is re-validated under its own locale, not rejected under the en default"
+    );
+  } else {
+    console.error(
+      "❌ FAIL — A valid ru analysisResult with overall < 80 must not be rejected by the en-default re-validation bug"
+    );
+    console.error(
+      ruBelowEightyAnalysisBypassesLocaleDefaultProbe.stderr.trim() ||
+        ruBelowEightyAnalysisBypassesLocaleDefaultProbe.stdout.trim()
+    );
+    process.exitCode = 1;
+    return;
+  }
+
   const requiredAnalysisIssuePromptProbe = spawnSync(
     "npx",
     [
@@ -1428,6 +2077,7 @@ async function main() {
     return;
   }
 
+
   const routeSource = readFileSync(
     "app/api/improve-script/route.ts",
     "utf8"
@@ -1501,6 +2151,36 @@ async function main() {
   } else {
     console.error(
       "❌ FAIL — Improve Script prompt must allow an honest preserve decision"
+    );
+    process.exitCode = 1;
+    return;
+  }
+
+  const isLocaleAware =
+    routeSource.includes(
+      "function buildImproveScriptLanguageInstructions("
+    ) &&
+    routeSource.includes(
+      "${buildImproveScriptLanguageInstructions(locale)}"
+    ) &&
+    routeSource.includes(
+      'Write every "changes" item and the "reason" field in ${languageName}.'
+    ) &&
+    routeSource.includes(
+      "Keep \"improvedScript\" in the exact language of the Original script"
+    ) &&
+    routeSource.includes(
+      "primaryProblemEvidence\" must remain an exact untranslated quote"
+    ) &&
+    routeSource.includes("normalizeApiLocale(");
+
+  if (isLocaleAware) {
+    console.log(
+      "✅ PASS — Improve Script prompt is locale-aware without touching editorialDecision or improvedScript language"
+    );
+  } else {
+    console.error(
+      "❌ FAIL — Improve Script prompt must localize explanations while keeping improvedScript in the script's language"
     );
     process.exitCode = 1;
     return;

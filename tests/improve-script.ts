@@ -4,6 +4,7 @@ import { UnusableAIResponseError } from "../engine/improve-hook";
 import {
   boundImproveScriptResult,
   buildImproveScriptDiagnosticResponse,
+  buildImproveScriptPreserveResponse,
   parseImproveScriptResponse,
   shouldDiagnoseImproveScript,
 } from "../engine/improve-script";
@@ -268,42 +269,45 @@ const tests: TestCase[] = [
     },
   },
   {
-    name: "rewrite with only casing punctuation and whitespace changes should be rejected",
+    name: "rewrite with only casing punctuation and whitespace changes preserves the original instead of failing",
     run: () => {
       const script = [
         "The valve stayed closed for 12 seconds.",
         "That delay changed the final reading.",
       ].join("\n");
 
-      assert.throws(
-        () =>
-          parseImproveScriptResponse(
-            JSON.stringify({
-              editorialDecision: {
-                strategy: "rewrite",
-                primaryProblemScope: "whole_script",
-                primaryProblem:
-                  "The script needs a more immediate presentation of its concrete result.",
-                primaryProblemEvidence:
-                  "The valve stayed closed for 12 seconds.",
-              },
-              candidateAudit: {
-                resolvedPrimaryProblem: true,
-                candidateMateriallyBetter: true,
-                regressionIntroduced: false,
-              },
-              improvedScript:
-                "the valve stayed closed for 12 seconds — THAT DELAY CHANGED THE FINAL READING!",
-              changes: [
-                "Changed the presentation of the existing lines.",
-              ],
-              reason:
-                "The rewrite presents the same material more forcefully.",
-            }),
-            script
-          ),
-        UnusableAIResponseError
+      // A surface-only rewrite is not a material improvement — the original
+      // is known-safe, so this must resolve to an honest preserve result,
+      // the same conclusion as the candidateAudit and light-paraphrase
+      // checks reach elsewhere, not an opaque failure.
+      const result = parseImproveScriptResponse(
+        JSON.stringify({
+          editorialDecision: {
+            strategy: "rewrite",
+            primaryProblemScope: "whole_script",
+            primaryProblem:
+              "The script needs a more immediate presentation of its concrete result.",
+            primaryProblemEvidence:
+              "The valve stayed closed for 12 seconds.",
+          },
+          candidateAudit: {
+            resolvedPrimaryProblem: true,
+            candidateMateriallyBetter: true,
+            regressionIntroduced: false,
+          },
+          improvedScript:
+            "the valve stayed closed for 12 seconds — THAT DELAY CHANGED THE FINAL READING!",
+          changes: [
+            "Changed the presentation of the existing lines.",
+          ],
+          reason:
+            "The rewrite presents the same material more forcefully.",
+        }),
+        script
       );
+
+      assert.equal(result.status, "preserve");
+      assert.equal(result.improvedScript, script);
     },
   },
   {
@@ -845,7 +849,7 @@ const tests: TestCase[] = [
     },
   },
   {
-    name: "rewrite that replaces an approved refined hook should be rejected",
+    name: "rewrite that replaces an approved refined hook preserves the original instead of failing",
     run: () => {
       const script = [
         "Before we start, you need to understand one important thing.",
@@ -856,39 +860,146 @@ const tests: TestCase[] = [
       const refinedHook =
         "The valve stayed closed for 12 seconds before pressure forced it open.";
 
-      assert.throws(
-        () =>
-          parseImproveScriptResponse(
-            JSON.stringify({
-              editorialDecision: {
-                strategy: "rewrite",
-                primaryProblemScope: "whole_script",
-                primaryProblem:
-                  "The generic first sentence delays the concrete valve event.",
-                primaryProblemEvidence:
-                  "Before we start, you need to understand one important thing.",
-              },
-              candidateAudit: {
-                resolvedPrimaryProblem: true,
-                candidateMateriallyBetter: true,
-                regressionIntroduced: false,
-              },
-              improvedScript: [
-                "The final test changed after the valve stayed closed for 12 seconds.",
-                "Pressure eventually forced it open.",
-              ].join("\n"),
-              changes: [
-                "Removed the generic introductory sentence.",
-                "Moved the final test consequence into the opening.",
-              ],
-              reason:
-                "The rewrite removes the generic setup and presents the supported event immediately.",
-            }),
-            script,
-            refinedHook
-          ),
-        UnusableAIResponseError
+      // The original script is known-safe, so a rewrite that ignores the
+      // already-approved refined hook must resolve to an honest preserve
+      // result — the same conclusion the candidateAudit check reaches for
+      // an unaccepted candidate — not an opaque 5xx-triggering failure.
+      const result = parseImproveScriptResponse(
+        JSON.stringify({
+          editorialDecision: {
+            strategy: "rewrite",
+            primaryProblemScope: "whole_script",
+            primaryProblem:
+              "The generic first sentence delays the concrete valve event.",
+            primaryProblemEvidence:
+              "Before we start, you need to understand one important thing.",
+          },
+          candidateAudit: {
+            resolvedPrimaryProblem: true,
+            candidateMateriallyBetter: true,
+            regressionIntroduced: false,
+          },
+          improvedScript: [
+            "The final test changed after the valve stayed closed for 12 seconds.",
+            "Pressure eventually forced it open.",
+          ].join("\n"),
+          changes: [
+            "Removed the generic introductory sentence.",
+            "Moved the final test consequence into the opening.",
+          ],
+          reason:
+            "The rewrite removes the generic setup and presents the supported event immediately.",
+        }),
+        script,
+        refinedHook
       );
+
+      assert.equal(result.status, "preserve");
+      assert.equal(result.improvedScript, script);
+    },
+  },
+  {
+    name: "a model-invented 'Did you know' question hook cannot silently replace an approved direct factual refined hook — preserves instead of failing",
+    run: () => {
+      const script = [
+        "Here is a story about a bakery.",
+        "Last month, a small bakery raised the price of every pastry by 40%.",
+        "Within one week, customer visits dropped by half.",
+        "The owner restored the old prices and offered returning customers a free pastry.",
+        "By Friday, sales were almost back to normal.",
+      ].join(" ");
+
+      const refinedHook =
+        "A small bakery raised the price of every pastry by 40%, and within one week, customer visits dropped by half.";
+
+      const result = parseImproveScriptResponse(
+        JSON.stringify({
+          editorialDecision: {
+            strategy: "rewrite",
+            primaryProblemScope: "hook",
+            primaryProblem:
+              "The generic opening delays the concrete price-increase event.",
+            primaryProblemEvidence:
+              "Here is a story about a bakery.",
+          },
+          candidateAudit: {
+            resolvedPrimaryProblem: true,
+            candidateMateriallyBetter: true,
+            regressionIntroduced: false,
+          },
+          improvedScript: [
+            "Did you know that when a small bakery raised the price of every pastry by 40%, customer visits dropped by half within a week?",
+            "The owner restored the old prices and offered returning customers a free pastry.",
+            "By Friday, sales were almost back to normal.",
+          ].join(" "),
+          changes: [
+            "Rewrote the opening as a question hook.",
+          ],
+          reason:
+            "The rewrite opens with a question to draw in the viewer.",
+        }),
+        script,
+        refinedHook
+      );
+
+      // A question-style opener must not silently override an approved
+      // direct factual refined hook — the safe outcome is the verified
+      // original, not the model's unapproved substitute and not a failure.
+      assert.equal(result.status, "preserve");
+      assert.equal(result.improvedScript, script);
+      assert.equal(
+        result.improvedScript.includes("Did you know"),
+        false
+      );
+    },
+  },
+  {
+    name: "rewrite that opens with the approved direct factual refined hook verbatim is accepted, without being forced into a question",
+    run: () => {
+      const script = [
+        "Here is a story about a bakery.",
+        "Last month, a small bakery raised the price of every pastry by 40%.",
+        "Within one week, customer visits dropped by half.",
+        "The owner restored the old prices and offered returning customers a free pastry.",
+        "By Friday, sales were almost back to normal.",
+      ].join(" ");
+
+      const refinedHook =
+        "A small bakery raised the price of every pastry by 40%, and within one week, customer visits dropped by half.";
+
+      const result = parseImproveScriptResponse(
+        JSON.stringify({
+          editorialDecision: {
+            strategy: "rewrite",
+            primaryProblemScope: "hook",
+            primaryProblem:
+              "The generic opening delays the concrete price-increase event.",
+            primaryProblemEvidence:
+              "Here is a story about a bakery.",
+          },
+          candidateAudit: {
+            resolvedPrimaryProblem: true,
+            candidateMateriallyBetter: true,
+            regressionIntroduced: false,
+          },
+          improvedScript: [
+            `${refinedHook}`,
+            "The owner restored the old prices and offered returning customers a free pastry.",
+            "By Friday, sales were almost back to normal.",
+          ].join(" "),
+          changes: [
+            "Opened directly with the approved refined hook instead of the generic story announcement.",
+          ],
+          reason:
+            "The rewrite leads with the concrete price-increase event already approved as the refined hook.",
+        }),
+        script,
+        refinedHook
+      );
+
+      assert.equal(result.status, "improved");
+      assert.ok(result.improvedScript.startsWith(refinedHook));
+      assert.equal(result.improvedScript.trim().includes("?"), false);
     },
   },
 
@@ -961,6 +1072,102 @@ const tests: TestCase[] = [
       assert.match(result.improvedScript, /concrete|payoff|example/i);
       assert.ok(result.missingMaterial);
       assert.ok(result.missingMaterial.length > 0);
+    },
+  },
+  {
+    name: "locale-aware diagnostic and preserve responses stay in the requested language, improvedScript stays in the script's language",
+    run: () => {
+      const CYRILLIC = /[Ѐ-ӿ]/;
+
+      const enDiagnostic = buildImproveScriptDiagnosticResponse("en");
+      const ruDiagnostic = buildImproveScriptDiagnosticResponse("ru");
+      const defaultDiagnostic = buildImproveScriptDiagnosticResponse();
+
+      assert.equal(defaultDiagnostic.reason, enDiagnostic.reason);
+      assert.doesNotMatch(enDiagnostic.reason, CYRILLIC);
+      assert.match(ruDiagnostic.reason, CYRILLIC);
+      assert.doesNotMatch(enDiagnostic.changes[0], CYRILLIC);
+      assert.match(ruDiagnostic.changes[0], CYRILLIC);
+      assert.ok(ruDiagnostic.missingMaterial);
+      assert.match(ruDiagnostic.missingMaterial!.join(" "), CYRILLIC);
+
+      const originalEnglishScript =
+        "This is the original English script that must never be translated.";
+
+      const enPreserve = buildImproveScriptPreserveResponse(
+        originalEnglishScript,
+        "en"
+      );
+      const ruPreserve = buildImproveScriptPreserveResponse(
+        originalEnglishScript,
+        "ru"
+      );
+
+      // The explanation language changes...
+      assert.doesNotMatch(enPreserve.reason, CYRILLIC);
+      assert.match(ruPreserve.reason, CYRILLIC);
+
+      // ...but improvedScript always stays exactly the original script,
+      // regardless of the UI locale.
+      assert.equal(enPreserve.improvedScript, originalEnglishScript);
+      assert.equal(ruPreserve.improvedScript, originalEnglishScript);
+    },
+  },
+  {
+    name: "refined-hook enforcement rejects a mismatched question-style rewrite identically under en and ru locale",
+    run: () => {
+      const script = [
+        "Here is a story about a bakery.",
+        "Last month, a small bakery raised the price of every pastry by 40%.",
+        "Within one week, customer visits dropped by half.",
+      ].join(" ");
+
+      const refinedHook =
+        "A small bakery raised the price of every pastry by 40%, and within one week, customer visits dropped by half.";
+
+      const buildMismatchedResponse = () =>
+        JSON.stringify({
+          editorialDecision: {
+            strategy: "rewrite",
+            primaryProblemScope: "hook",
+            primaryProblem:
+              "The generic opening delays the concrete price-increase event.",
+            primaryProblemEvidence:
+              "Here is a story about a bakery.",
+          },
+          candidateAudit: {
+            resolvedPrimaryProblem: true,
+            candidateMateriallyBetter: true,
+            regressionIntroduced: false,
+          },
+          improvedScript:
+            "Did you know a bakery once raised its prices by 40 percent?",
+          changes: ["Rewrote the opening as a question hook."],
+          reason:
+            "The rewrite opens with a question to draw in the viewer.",
+        });
+
+      const enResult = parseImproveScriptResponse(
+        buildMismatchedResponse(),
+        script,
+        refinedHook,
+        false,
+        "en"
+      );
+      const ruResult = parseImproveScriptResponse(
+        buildMismatchedResponse(),
+        script,
+        refinedHook,
+        false,
+        "ru"
+      );
+
+      assert.equal(enResult.status, "preserve");
+      assert.equal(ruResult.status, "preserve");
+      // improvedScript is always the verified original script, in its own
+      // language, regardless of the UI locale.
+      assert.equal(enResult.improvedScript, script);
+      assert.equal(ruResult.improvedScript, script);
     },
   },
 ];

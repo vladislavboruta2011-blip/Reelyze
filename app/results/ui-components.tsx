@@ -2,6 +2,82 @@ import type { ReactNode } from "react";
 import { AudioLines, FastForward, Scissors } from "lucide-react";
 import type { RiskyPart, SceneSegment, ScoreData } from "../../engine/scoring";
 import type { AnalysisV2UiScoreBreakdown } from "../../engine/analysis-v2-ui-adapter";
+import type { Messages } from "../../lib/messages";
+import { useMessages } from "../use-messages";
+
+// Score labels ("Weak", "Strong", ...) are deterministic technical values
+// produced by the scoring engines (both the legacy engine and the Analysis V2
+// adapter) — not AI-generated content. They stay stable here and are mapped
+// to a localized display label; unrecognized values fall back to the raw
+// engine text instead of breaking.
+type ScoreLabelCategory = "overall" | "hook" | "risk";
+
+const SCORE_LABEL_KEYS: Record<
+  ScoreLabelCategory,
+  Record<string, string>
+> = {
+  overall: {
+    "Very Strong": "veryStrong",
+    Strong: "strong",
+    Mixed: "mixed",
+    Average: "average",
+    "Needs Work": "needsWork",
+    Weak: "weak",
+  },
+  hook: {
+    Strong: "strong",
+    Good: "good",
+    Average: "average",
+    Weak: "weak",
+  },
+  risk: {
+    High: "high",
+    Medium: "medium",
+    "Low-Medium": "lowMedium",
+    Low: "low",
+  },
+};
+
+function localizeScoreLabel(
+  category: ScoreLabelCategory,
+  rawLabel: string,
+  scoreLabels: Messages["results"]["scoreLabels"]
+): string {
+  const key = SCORE_LABEL_KEYS[category][rawLabel];
+  const table = scoreLabels[category] as Record<string, string>;
+
+  return key && table[key] ? table[key] : rawLabel;
+}
+
+// Score breakdown group titles and item labels/descriptions are also fixed,
+// deterministic category names defined in the Analysis V2 adapter — not
+// AI-generated per-script text. Same technical-value-to-label approach.
+const GROUP_TITLE_KEYS: Record<
+  string,
+  "overallScore" | "hookScore" | "retentionRisk"
+> = {
+  "Overall Score": "overallScore",
+  "Hook Score": "hookScore",
+  "Retention Risk": "retentionRisk",
+};
+
+const BREAKDOWN_ITEM_KEYS: Record<
+  string,
+  keyof Messages["results"]["scoreBreakdown"]["items"]
+> = {
+  "Premise Appeal": "premiseAppeal",
+  "Opening Promise": "openingPromise",
+  Progression: "progression",
+  Payoff: "payoff",
+  Immediacy: "immediacy",
+  Specificity: "specificity",
+  "Viewer Pull": "viewerPull",
+  "Delivery Alignment": "deliveryAlignment",
+  "Opening Friction": "openingFriction",
+  "Progression Risk": "progressionRisk",
+  "Predictability Risk": "predictabilityRisk",
+  "Payoff Risk": "payoffRisk",
+};
 
 export function Card({
   children,
@@ -25,19 +101,32 @@ export function IconBox({ children }: { children: ReactNode }) {
   );
 }
 
-const HELPFUL_FEEDBACK_REASONS = [
-  "Accurate score",
-  "Useful fixes",
-  "Clear explanation",
-  "Other",
-];
+// Reason values are sent to the feedback API and compared against in page.tsx
+// (e.g. reason === "Other") — they must stay stable, untranslated technical values.
+// Only the button label shown to the user is localized.
+const HELPFUL_FEEDBACK_REASON_KEYS = [
+  "accurateScore",
+  "usefulFixes",
+  "clearExplanation",
+  "other",
+] as const;
 
-const UNHELPFUL_FEEDBACK_REASONS = [
-  "Wrong score",
-  "Bad suggestions",
-  "Not specific enough",
-  "Other",
-];
+const UNHELPFUL_FEEDBACK_REASON_KEYS = [
+  "wrongScore",
+  "badSuggestions",
+  "notSpecific",
+  "other",
+] as const;
+
+const FEEDBACK_REASON_VALUES = {
+  accurateScore: "Accurate score",
+  usefulFixes: "Useful fixes",
+  clearExplanation: "Clear explanation",
+  wrongScore: "Wrong score",
+  badSuggestions: "Bad suggestions",
+  notSpecific: "Not specific enough",
+  other: "Other",
+} as const;
 
 export function FeedbackReasonOptions({
   rating,
@@ -52,10 +141,18 @@ export function FeedbackReasonOptions({
   onSelect: (reason: string) => void;
   compact?: boolean;
 }) {
+  const messages = useMessages();
+
   const reasons =
     rating === "helpful"
-      ? HELPFUL_FEEDBACK_REASONS
-      : UNHELPFUL_FEEDBACK_REASONS;
+      ? HELPFUL_FEEDBACK_REASON_KEYS.map((key) => ({
+          value: FEEDBACK_REASON_VALUES[key],
+          label: messages.results.feedback.helpfulReasonLabels[key],
+        }))
+      : UNHELPFUL_FEEDBACK_REASON_KEYS.map((key) => ({
+          value: FEEDBACK_REASON_VALUES[key],
+          label: messages.results.feedback.unhelpfulReasonLabels[key],
+        }));
 
   const selectedClasses =
     rating === "helpful"
@@ -75,19 +172,19 @@ export function FeedbackReasonOptions({
 
   return (
     <div className="flex flex-col gap-1.5">
-      {reasons.map((reason) => (
+      {reasons.map(({ value, label }) => (
         <button
-          key={reason}
+          key={value}
           disabled={disabled}
-          onClick={() => onSelect(reason)}
+          onClick={() => onSelect(value)}
           className={[
             "w-full rounded-[8px] border px-2.5 py-2 text-left text-[12px] font-medium transition",
-            selectedReason === reason
+            selectedReason === value
               ? selectedClasses
               : unselectedClasses,
           ].join(" ")}
         >
-          {reason}
+          {label}
         </button>
       ))}
     </div>
@@ -98,11 +195,20 @@ export function DesktopScoreCard({
   title,
   data,
   accentColor,
+  category,
 }: {
   title: string;
   data: ScoreData;
   accentColor: string;
+  category: ScoreLabelCategory;
 }) {
+  const messages = useMessages();
+  const label = localizeScoreLabel(
+    category,
+    data.label,
+    messages.results.scoreLabels
+  );
+
   return (
     <Card className="p-6">
       <p className="text-[13px] font-medium text-[#6B7280]">{title}</p>
@@ -126,7 +232,7 @@ export function DesktopScoreCard({
         className="mt-3.5 text-[14px] font-semibold"
         style={{ color: accentColor }}
       >
-        {data.label}
+        {label}
       </p>
       <p className="mt-1 line-clamp-2 text-[13px] leading-[1.55] text-[#6B7280]">
         {data.description}
@@ -144,24 +250,38 @@ export function MobileScoreCards({
   hook: ScoreData;
   risk: ScoreData;
 }) {
+  const messages = useMessages();
+
   const items = [
     {
-      label: "Overall",
+      label: messages.results.scoreCards.overall,
       score: overall.score,
       color: overall.ringColor,
-      status: overall.label,
+      status: localizeScoreLabel(
+        "overall",
+        overall.label,
+        messages.results.scoreLabels
+      ),
     },
     {
-      label: "Hook",
+      label: messages.results.scoreCards.hook,
       score: hook.score,
       color: hook.color,
-      status: hook.label,
+      status: localizeScoreLabel(
+        "hook",
+        hook.label,
+        messages.results.scoreLabels
+      ),
     },
     {
-      label: "Risk",
+      label: messages.results.scoreCards.risk,
       score: risk.score,
       color: risk.color,
-      status: risk.label,
+      status: localizeScoreLabel(
+        "risk",
+        risk.label,
+        messages.results.scoreLabels
+      ),
     },
   ];
 
@@ -206,6 +326,8 @@ export function ScoreBreakdownCard({
   breakdown: AnalysisV2UiScoreBreakdown;
   compact?: boolean;
 }) {
+  const messages = useMessages();
+
   const groups = [
     breakdown.overall,
     breakdown.hook,
@@ -222,7 +344,7 @@ export function ScoreBreakdownCard({
               : "text-[17px] font-semibold text-[#111827]"
           }
         >
-          Why these scores?
+          {messages.results.scoreBreakdown.heading}
         </h2>
         <p
           className={
@@ -231,9 +353,7 @@ export function ScoreBreakdownCard({
               : "mt-1.5 text-[13px] leading-[1.55] text-[#6B7280]"
           }
         >
-          Each total is built from four components
-          scored out of 25. Lower is better for
-          Retention Risk.
+          {messages.results.scoreBreakdown.description}
         </p>
       </div>
 
@@ -252,6 +372,11 @@ export function ScoreBreakdownCard({
                 ? "#22C55E"
                 : "#7C3AED";
 
+          const groupTitleKey = GROUP_TITLE_KEYS[group.title];
+          const groupTitle = groupTitleKey
+            ? messages.results.scoreCards[groupTitleKey]
+            : group.title;
+
           return (
             <div
               key={group.title}
@@ -264,13 +389,13 @@ export function ScoreBreakdownCard({
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-[13px] font-semibold text-[#111827]">
-                    {group.title}
+                    {groupTitle}
                   </p>
                   <p className="mt-0.5 text-[10px] text-[#6B7280]">
                     {group.direction ===
                     "higher-is-riskier"
-                      ? "Lower is better"
-                      : "Higher is better"}
+                      ? messages.results.scoreBreakdown.lowerIsBetter
+                      : messages.results.scoreBreakdown.higherIsBetter}
                   </p>
                 </div>
 
@@ -288,41 +413,48 @@ export function ScoreBreakdownCard({
               </div>
 
               <div className="mt-4 flex flex-col gap-3.5">
-                {group.items.map((item) => (
-                  <div key={item.label}>
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-[11px] font-semibold text-[#374151]">
-                        {item.label}
-                      </p>
-                      <p className="shrink-0 text-[11px] font-semibold text-[#111827]">
-                        {item.score}
-                        <span className="font-normal text-[#9CA3AF]">
-                          /{item.maxScore}
-                        </span>
+                {group.items.map((item) => {
+                  const itemKey = BREAKDOWN_ITEM_KEYS[item.label];
+                  const localizedItem = itemKey
+                    ? messages.results.scoreBreakdown.items[itemKey]
+                    : null;
+
+                  return (
+                    <div key={item.label}>
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-[11px] font-semibold text-[#374151]">
+                          {localizedItem?.label ?? item.label}
+                        </p>
+                        <p className="shrink-0 text-[11px] font-semibold text-[#111827]">
+                          {item.score}
+                          <span className="font-normal text-[#9CA3AF]">
+                            /{item.maxScore}
+                          </span>
+                        </p>
+                      </div>
+
+                      <div className="mt-1.5 h-[4px] overflow-hidden rounded-full bg-[#E5E7EB]">
+                        <div
+                          className="h-full rounded-full"
+                          style={{
+                            width: `${Math.max(
+                              0,
+                              Math.min(
+                                100,
+                                item.score * 4
+                              )
+                            )}%`,
+                            backgroundColor: accentColor,
+                          }}
+                        />
+                      </div>
+
+                      <p className="mt-1.5 text-[10.5px] leading-[1.45] text-[#6B7280]">
+                        {localizedItem?.description ?? item.description}
                       </p>
                     </div>
-
-                    <div className="mt-1.5 h-[4px] overflow-hidden rounded-full bg-[#E5E7EB]">
-                      <div
-                        className="h-full rounded-full"
-                        style={{
-                          width: `${Math.max(
-                            0,
-                            Math.min(
-                              100,
-                              item.score * 4
-                            )
-                          )}%`,
-                          backgroundColor: accentColor,
-                        }}
-                      />
-                    </div>
-
-                    <p className="mt-1.5 text-[10.5px] leading-[1.45] text-[#6B7280]">
-                      {item.description}
-                    </p>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           );
@@ -387,6 +519,9 @@ export function RiskyPartsContent({
   hasFixes: boolean;
   compact?: boolean;
 }) {
+  const messages = useMessages();
+  const riskyParts = messages.results.riskyParts;
+
   return (
     <div
       className={
@@ -410,7 +545,7 @@ export function RiskyPartsContent({
                 : "text-[14px] font-medium text-[#111827]"
             }
           >
-            {hasFixes ? "No major risky parts found." : "No risky parts found."}
+            {hasFixes ? riskyParts.noneWithFixesTitle : riskyParts.noneTitle}
           </p>
           <p
             className={
@@ -420,8 +555,8 @@ export function RiskyPartsContent({
             }
           >
             {hasFixes
-              ? "No material drop-off points were found; the suggestions below are optional refinements."
-              : "This script stays focused and does not contain any major drop-off points."}
+              ? riskyParts.noneWithFixesDescription
+              : riskyParts.noneDescription}
           </p>
         </div>
       ) : (
@@ -474,6 +609,9 @@ export function SuggestedFixesContent({
   fixes: string[];
   compact?: boolean;
 }) {
+  const messages = useMessages();
+  const suggestedFixes = messages.results.suggestedFixes;
+
   if (fixes.length === 0) {
     return (
       <div
@@ -490,7 +628,7 @@ export function SuggestedFixesContent({
               : "text-[14px] font-medium text-[#111827]"
           }
         >
-          No fixes needed.
+          {suggestedFixes.noFixesTitle}
         </p>
         <p
           className={
@@ -500,8 +638,8 @@ export function SuggestedFixesContent({
           }
         >
           {compact
-            ? "The script already performs well."
-            : "The script already performs well based on the current analysis."}
+            ? suggestedFixes.noFixesDescriptionCompact
+            : suggestedFixes.noFixesDescription}
         </p>
       </div>
     );

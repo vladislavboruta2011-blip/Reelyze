@@ -8,8 +8,16 @@ import {
   hasAnyConcreteAnchor,
   isVeryGenericScript,
   parseHookResponse,
+  type ImproveHookLocale,
   type ImproveHookResult,
 } from "../../../engine/improve-hook";
+import {
+  delay,
+  getUpstreamErrorStatus,
+  isRetryableAIResponseError,
+} from "../../../lib/ai-transient-retry";
+import { logAIRouteFailure } from "../../../lib/ai-route-log";
+import { normalizeApiLocale } from "../../../lib/i18n";
 
 export type {
   ImproveHookResult,
@@ -19,6 +27,30 @@ const MAX_REQUEST_BODY_BYTES = 16_384;
 const AI_RATE_LIMIT_MAX_REQUESTS = 10;
 const AI_RATE_LIMIT_WINDOW_MS = 60_000;
 const AI_RATE_LIMIT_MAX_ENTRIES = 10_000;
+const IMPROVE_TRANSIENT_RETRY_DELAY_MS = 250;
+
+// Diagnostic-only headers: never read by parsing, retry, or caching logic —
+// a rejected/failed response must never be cached.
+export const IMPROVE_REQUEST_ID_HEADER = "X-Improve-Request-Id";
+export const IMPROVE_RETRY_COUNT_HEADER =
+  "X-Improve-Retry-Count";
+
+function buildImproveResponseHeaders(
+  requestId: string,
+  status: number,
+  retryCount = 0
+): Record<string, string> {
+  const headers: Record<string, string> = {
+    [IMPROVE_REQUEST_ID_HEADER]: requestId,
+    [IMPROVE_RETRY_COUNT_HEADER]: String(retryCount),
+  };
+
+  if (status < 200 || status >= 300) {
+    headers["Cache-Control"] = "no-store";
+  }
+
+  return headers;
+}
 
 type RateLimitEntry = {
   count: number;
@@ -145,18 +177,63 @@ async function readJsonBodyWithLimit(req: Request): Promise<unknown> {
   return JSON.parse(rawBody);
 }
 
+const IMPROVE_LANGUAGE_NAMES: Record<ImproveHookLocale, string> = {
+  en: "English",
+  ru: "Russian",
+};
+
+// Additive, self-contained block — must never alter the hook-quality rules
+// above it. It only controls which language the explanatory prose fields
+// are written in.
+function buildImproveLanguageInstructions(
+  locale: ImproveHookLocale
+): string {
+  const languageName = IMPROVE_LANGUAGE_NAMES[locale];
+
+  return `
+
+LANGUAGE
+Write "diagnosis", "reason", and every "hookOptions[].whyItWorks" in ${languageName}.
+Keep "improvedHook", "originalHook", "hookOptions[].text", every JSON key, and "hookLabel" exactly as this prompt specifies — never translate the script itself or any hook option. improvedHook, originalHook, and hookOptions[].text must stay in the script's original language regardless of the explanation language.
+Do not translate names of real people, brands, products, or teams that appear in the script.
+Choosing ${languageName} for the explanation must not change hookScore, hookLabel, primaryWeakness, anchorMaterial, or which hook is chosen — only the language of the prose explanation.`;
+}
+
 export async function POST(req: Request): Promise<Response> {
+  // Diagnostic-only correlation id for this request — never used for
+  // scoring, editorial decisions, caching keys, or rate limiting.
+  const requestId = crypto.randomUUID();
+
+  function respond(
+    resultBody: unknown,
+    status: number,
+    retryCount = 0,
+    extraHeaders?: Record<string, string>
+  ): Response {
+    return Response.json(resultBody, {
+      status,
+      headers: {
+        ...buildImproveResponseHeaders(
+          requestId,
+          status,
+          retryCount
+        ),
+        ...extraHeaders,
+      },
+    });
+  }
+
   const contentType =
     req.headers.get("content-type")?.split(";", 1)[0].trim().toLowerCase() ?? "";
 
   if (contentType != "application/json") {
-    return Response.json(
+    return respond(
       {
         status: "error",
         improvedHook: "AI hook improvement is unavailable right now.",
         reason: "Unsupported Content-Type. Use application/json.",
       } satisfies ImproveHookResult,
-      { status: 415 }
+      415
     );
   }
 
@@ -166,25 +243,30 @@ export async function POST(req: Request): Promise<Response> {
     body = await readJsonBodyWithLimit(req);
   } catch (error) {
     if (error instanceof RequestBodyTooLargeError) {
-      return Response.json(
+      return respond(
         {
           status: "error",
           improvedHook: "AI hook improvement is unavailable right now.",
           reason: "Request body is too large.",
         } satisfies ImproveHookResult,
-        { status: 413 }
+        413
       );
     }
 
-    return Response.json(
+    return respond(
       {
         status: "error",
         improvedHook: "AI hook improvement is unavailable right now.",
         reason: "Invalid JSON request body.",
       } satisfies ImproveHookResult,
-      { status: 400 }
+      400
     );
   }
+
+  // Set to 1 immediately before the single bounded retry attempt below, so
+  // the catch block can report the real count instead of inferring it from
+  // the error category.
+  let retryCount = 0;
 
   try {
     if (
@@ -193,82 +275,86 @@ export async function POST(req: Request): Promise<Response> {
       !("script" in body) ||
       typeof (body as Record<string, unknown>).script !== "string"
     ) {
-      return Response.json(
+      return respond(
         {
           status: "error",
           improvedHook: "AI hook improvement is unavailable right now.",
           reason: "No script was provided.",
         } satisfies ImproveHookResult,
-        { status: 400 }
+        400
       );
     }
 
     const requestBody = body as Record<string, unknown>;
 
     if ("title" in requestBody && typeof requestBody.title !== "string") {
-      return Response.json(
+      return respond(
         {
           status: "error",
           improvedHook: "AI hook improvement is unavailable right now.",
           reason: "Title must be a string.",
         } satisfies ImproveHookResult,
-        { status: 400 }
+        400
       );
     }
 
     const script = (requestBody.script as string).trim();
     const title =
       typeof requestBody.title === "string" ? requestBody.title.trim() : "";
+    // normalizeApiLocale's default availableLocales is LAUNCHED_LOCALES
+    // ("en" | "ru"), so this is always one of ImproveHookLocale's two values.
+    const locale = normalizeApiLocale(
+      requestBody.locale
+    ) as ImproveHookLocale;
 
     if (script.length === 0) {
-      return Response.json(
+      return respond(
         {
           status: "error",
           improvedHook: "AI hook improvement is unavailable right now.",
           reason: "A non-empty script must be provided.",
         } satisfies ImproveHookResult,
-        { status: 400 }
+        400
       );
     }
 
     if (script.length > 1000) {
-      return Response.json(
+      return respond(
         {
           status: "error",
           improvedHook: "AI hook improvement is unavailable right now.",
           reason: "Script is too long. Keep it to 1,000 characters or less.",
         } satisfies ImproveHookResult,
-        { status: 400 }
+        400
       );
     }
 
     if (title.length > 200) {
-      return Response.json(
+      return respond(
         {
           status: "error",
           improvedHook: "AI hook improvement is unavailable right now.",
           reason: "Title is too long. Keep it to 200 characters or less.",
         } satisfies ImproveHookResult,
-        { status: 400 }
+        400
       );
     }
 
     const unsupportedTitleClaimResponse =
       buildUnsupportedTitleClaimResponse(
         title,
-        script
+        script,
+        locale
       );
 
     if (unsupportedTitleClaimResponse) {
-      return Response.json(
-        unsupportedTitleClaimResponse
-      );
+      return respond(unsupportedTitleClaimResponse, 200);
     }
 
     // ── ABSOLUTE EARLY GUARD — must run before any AI call ──────────────────
     const earlyNoAnchorGuard = !hasAnyConcreteAnchor(script);
     if (earlyNoAnchorGuard) {
-      return Response.json(buildEarlyDiagnosticResponse());
+      return respond(buildEarlyDiagnosticResponse(locale), 200);
     }
 
     const systemPrompt = `You are a YouTube Shorts hook strategist and retention editor.
@@ -391,7 +477,8 @@ Return exactly this shape:
   ]
 }
 
-NEVER use the double-quote character inside any JSON string value. Rephrase to avoid it.`;
+NEVER use the double-quote character inside any JSON string value. Rephrase to avoid it.
+${buildImproveLanguageInstructions(locale)}`;
 
     const userPrompt = `Analyze this YouTube Shorts script and improve the hook.
 ${title ? `\nVideo title / topic: "${title}"\n` : ""}
@@ -443,37 +530,34 @@ Return only valid JSON matching the exact schema.`;
     // ── Generic script guard ───────────────────────────────────────────────
     const { isGeneric } = isVeryGenericScript(script);
     if (isGeneric) {
-      return Response.json(buildGenericScriptResponse());
+      return respond(buildGenericScriptResponse(locale), 200);
     }
 
     const apiKey = process.env.OPENAI_API_KEY?.trim();
 
     if (!apiKey) {
-      return Response.json(
+      return respond(
         {
           status: "error",
           improvedHook: "AI hook improvement is unavailable right now.",
           reason: "AI hook improvement is temporarily unavailable.",
         } satisfies ImproveHookResult,
-        { status: 503 }
+        503
       );
     }
 
     const rateLimit = consumeAIRateLimit(getClientIdentifier(req));
 
     if (!rateLimit.allowed) {
-      return Response.json(
+      return respond(
         {
           status: "error",
           improvedHook: "AI hook improvement is unavailable right now.",
           reason: "Too many hook improvement requests. Please try again later.",
         } satisfies ImproveHookResult,
-        {
-          status: 429,
-          headers: {
-            "Retry-After": String(rateLimit.retryAfterSeconds),
-          },
-        }
+        429,
+        0,
+        { "Retry-After": String(rateLimit.retryAfterSeconds) }
       );
     }
 
@@ -483,51 +567,93 @@ Return only valid JSON matching the exact schema.`;
       maxRetries: 0,
     });
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      temperature: 0.3,
-      max_tokens: 900,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-    });
+    async function callModelOnce(): Promise<ImproveHookResult> {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        temperature: 0.3,
+        max_tokens: 900,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+      });
 
-    const raw = response.choices[0]?.message?.content?.trim() ?? "";
+      const raw = response.choices[0]?.message?.content?.trim() ?? "";
 
-    const result = parseHookResponse(raw, script);
+      return parseHookResponse(raw, script, locale);
+    }
 
-    return Response.json(boundGeneratedResult(result));
+    // Exactly one bounded retry, sequential, for either a transient
+    // upstream failure or a genuinely malformed/schema-invalid model
+    // response (UnusableAIResponseError).
+    let result: ImproveHookResult;
+
+    try {
+      result = await callModelOnce();
+    } catch (error) {
+      if (!isRetryableAIResponseError(error)) {
+        throw error;
+      }
+
+      await delay(IMPROVE_TRANSIENT_RETRY_DELAY_MS);
+      retryCount = 1;
+      result = await callModelOnce();
+    }
+
+    return respond(boundGeneratedResult(result), 200, retryCount);
   } catch (error) {
-    const upstreamStatus =
-      typeof error === "object" &&
-      error !== null &&
-      "status" in error &&
-      typeof (error as { status?: unknown }).status === "number"
-        ? (error as { status: number }).status
-        : undefined;
+    const upstreamStatus = getUpstreamErrorStatus(error);
+    const failureLocale =
+      typeof body === "object" &&
+      body !== null &&
+      "locale" in body
+        ? String((body as Record<string, unknown>).locale)
+        : "unknown";
 
     if (error instanceof UnusableAIResponseError) {
-      console.error("[improve] AI response was unusable.");
-      return Response.json(
+      logAIRouteFailure({
+        requestId,
+        endpoint: "/api/improve",
+        locale: failureLocale,
+        failureStage: "model-call-or-parse",
+        errorCategory:
+          "schema-invalid-or-malformed-model-response",
+        upstreamStatus: upstreamStatus ?? null,
+        retryCount,
+        resultStatus: null,
+      });
+
+      return respond(
         {
           status: "error",
           improvedHook: "AI hook improvement is unavailable right now.",
           reason: "Climpy could not generate a valid hook improvement right now.",
         } satisfies ImproveHookResult,
-        { status: 502 }
+        502,
+        retryCount
       );
     }
 
     if (upstreamStatus === 401 || upstreamStatus === 403) {
-      console.error("[improve] AI provider authentication failed.");
-      return Response.json(
+      logAIRouteFailure({
+        requestId,
+        endpoint: "/api/improve",
+        locale: failureLocale,
+        failureStage: "model-call",
+        errorCategory: "upstream-auth-failure",
+        upstreamStatus,
+        retryCount,
+        resultStatus: null,
+      });
+
+      return respond(
         {
           status: "error",
           improvedHook: "AI hook improvement is unavailable right now.",
           reason: "AI hook improvement is temporarily unavailable.",
         } satisfies ImproveHookResult,
-        { status: 503 }
+        503,
+        retryCount
       );
     }
 
@@ -536,25 +662,47 @@ Return only valid JSON matching the exact schema.`;
       (upstreamStatus !== undefined && upstreamStatus >= 500) ||
       error instanceof OpenAI.APIConnectionError
     ) {
-      console.error("[improve] AI provider temporarily unavailable.");
-      return Response.json(
+      logAIRouteFailure({
+        requestId,
+        endpoint: "/api/improve",
+        locale: failureLocale,
+        failureStage: "model-call",
+        errorCategory: "transient-upstream-failure",
+        upstreamStatus: upstreamStatus ?? null,
+        retryCount,
+        resultStatus: null,
+      });
+
+      return respond(
         {
           status: "error",
           improvedHook: "AI hook improvement is unavailable right now.",
           reason: "AI hook improvement is temporarily unavailable.",
         } satisfies ImproveHookResult,
-        { status: 503 }
+        503,
+        retryCount
       );
     }
 
-    console.error("[improve] request failed.");
-    return Response.json(
+    logAIRouteFailure({
+      requestId,
+      endpoint: "/api/improve",
+      locale: failureLocale,
+      failureStage: "model-call-or-parse",
+      errorCategory: "internal-error",
+      upstreamStatus: upstreamStatus ?? null,
+      retryCount,
+      resultStatus: null,
+    });
+
+    return respond(
       {
         status: "error",
         improvedHook: "AI hook improvement is unavailable right now.",
         reason: "Climpy could not generate a custom hook improvement for this script.",
       } satisfies ImproveHookResult,
-      { status: 500 }
+      500,
+      retryCount
     );
   }
 }

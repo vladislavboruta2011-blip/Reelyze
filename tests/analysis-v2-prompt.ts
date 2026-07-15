@@ -515,6 +515,124 @@ for (const rule of requiredRules) {
   }
 }
 
+// ── Locale-aware LANGUAGE block ──────────────────────────────────────────────
+
+const enPrompt = buildAnalysisV2SystemPrompt("en");
+const ruPrompt = buildAnalysisV2SystemPrompt("ru");
+
+const localeChecks = [
+  {
+    name: "default locale matches explicit en",
+    check: () => assert.equal(prompt, enPrompt),
+  },
+  {
+    name: "ru prompt requires Russian explanations",
+    check: () =>
+      assert.ok(
+        ruPrompt.includes(
+          "Write every user-facing prose explanation field in Russian"
+        )
+      ),
+  },
+  {
+    name: "en prompt requires English explanations",
+    check: () =>
+      assert.ok(
+        enPrompt.includes(
+          "Write every user-facing prose explanation field in English"
+        )
+      ),
+  },
+  {
+    name: "ru prompt still lists every explanation field",
+    check: () =>
+      assert.ok(
+        ruPrompt.includes(
+          "hookAssessment, mainTakeaway, riskyParts[].reason, suggestedFixes[].suggestion, and scenes[].label"
+        )
+      ),
+  },
+  {
+    name: "ru prompt keeps JSON keys and enums in English",
+    check: () =>
+      assert.ok(
+        ruPrompt.includes(
+          "Keep every JSON key name and every enum value (scriptType, verdict, hookDecision, riskyParts[].severity, suggestedFixes[].target, scenes[].status) in English exactly as defined in this prompt, regardless of the explanation language."
+        )
+      ),
+  },
+  {
+    name: "ru prompt forbids translating the script itself",
+    check: () =>
+      assert.ok(
+        ruPrompt.includes(
+          "Do not translate suggestedHook, riskyParts[].excerpt, or scenes[].excerpt. Copy them exactly from the submitted script and keep them in the script's original language — never translate the script itself."
+        )
+      ),
+  },
+  {
+    name: "ru prompt requires identical scores across languages",
+    check: () =>
+      assert.ok(
+        ruPrompt.includes(
+          "An analysis of the same script in English and in Russian must reach the identical scores and editorial decisions."
+        )
+      ),
+  },
+  {
+    name: "ru prompt gives Russian versions of the GROUNDING section's exact allowed forms",
+    check: () => {
+      assert.ok(
+        ruPrompt.includes(
+          "Добавьте проверенное следствие или значение, которое объясняет, почему это важно."
+        )
+      );
+      assert.ok(
+        ruPrompt.includes(
+          "Добавьте проверенный контраст, пример или измеримый результат, который усиливает развязку."
+        )
+      );
+    },
+  },
+  {
+    name: "en prompt does not add the Russian grounding-forms addendum",
+    check: () => {
+      assert.ok(
+        !enPrompt.includes(
+          "Добавьте проверенное следствие"
+        )
+      );
+    },
+  },
+  {
+    name: "locale choice does not alter any editorial rule above LANGUAGE",
+    check: () => {
+      const enBeforeLanguage = enPrompt.slice(
+        0,
+        enPrompt.indexOf("\nLANGUAGE")
+      );
+      const ruBeforeLanguage = ruPrompt.slice(
+        0,
+        ruPrompt.indexOf("\nLANGUAGE")
+      );
+      assert.equal(enBeforeLanguage, ruBeforeLanguage);
+    },
+  },
+];
+
+for (const { name, check } of localeChecks) {
+  try {
+    check();
+    console.log(`✅ PASS — ${name}`);
+  } catch (error) {
+    failures += 1;
+    console.error(`❌ FAIL — ${name}`);
+    console.error(
+      error instanceof Error ? error.message : String(error)
+    );
+  }
+}
+
 if (failures > 0) {
   process.exitCode = 1;
 } else {

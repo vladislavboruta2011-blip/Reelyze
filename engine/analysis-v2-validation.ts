@@ -1,6 +1,7 @@
 import {
   ANALYSIS_V2_FIX_TARGETS,
   ANALYSIS_V2_HOOK_DECISIONS,
+  ANALYSIS_V2_HOOK_STRONG_THRESHOLD,
   ANALYSIS_V2_LIMITS,
   ANALYSIS_V2_SCENE_STATUSES,
   ANALYSIS_V2_SCORE_COMPONENT_KEYS,
@@ -9,6 +10,7 @@ import {
   ANALYSIS_V2_VERDICTS,
   type AnalysisV2FixTarget,
   type AnalysisV2HookDecision,
+  type AnalysisV2Locale,
   type AnalysisV2Result,
   type AnalysisV2RiskyPart,
   type AnalysisV2ScoreBreakdown,
@@ -295,6 +297,11 @@ function validateScoreBreakdown(
   };
 }
 
+// Includes both the English and Russian exact allowed forms (see the
+// GROUNDING and LANGUAGE sections of buildAnalysisV2SystemPrompt) so a
+// grounded RU suggestedFix is recognized just as reliably as an EN one —
+// checked regardless of the requested locale, which only ever widens
+// recognition and cannot weaken this safety net for either language.
 const ALLOWED_VERIFIED_FACTUAL_FIXES = [
   {
     normalized:
@@ -307,6 +314,18 @@ const ALLOWED_VERIFIED_FACTUAL_FIXES = [
       "add a verified contrast, example, or measurable result that strengthens the payoff",
     canonical:
       "Add a verified contrast, example, or measurable result that strengthens the payoff.",
+  },
+  {
+    normalized:
+      "добавьте проверенное следствие или значение, которое объясняет, почему это важно",
+    canonical:
+      "Добавьте проверенное следствие или значение, которое объясняет, почему это важно.",
+  },
+  {
+    normalized:
+      "добавьте проверенный контраст, пример или измеримый результат, который усиливает развязку",
+    canonical:
+      "Добавьте проверенный контраст, пример или измеримый результат, который усиливает развязку.",
   },
 ] as const;
 
@@ -334,6 +353,11 @@ function canonicalizeVerifiedFactualSuggestion(
 
     const isAppendedCandidateDirection =
       /^(?:\s*[,;:]?\s*|\s*[-—]\s*)(?:such as|for example|including|like)\b/i.test(
+        suffix
+      ) ||
+      // Russian equivalents ("например", "включая", "вроде", "такие как").
+      // \b does not work for Cyrillic, so this is plain substring matching.
+      /^(?:\s*[,;:]?\s*|\s*[-—]\s*)(?:например|включая|вроде|такие как)/i.test(
         suffix
       );
 
@@ -586,10 +610,52 @@ function deriveRetentionRiskForCausalNormalization(
   );
 }
 
+const CAUSAL_NORMALIZATION_FOUR_TIE: Record<AnalysisV2Locale, string> = {
+  en: "The premise, opening promise, progression, and payoff are all solid but only moderately strong, which limits the overall score.",
+  ru: "Предпосылка, обещание в начале, развитие и развязка — всё крепкое, но лишь умеренно сильное, что ограничивает общую оценку.",
+};
+
+const CAUSAL_NORMALIZATION_MULTI_TIE: Record<
+  AnalysisV2Locale,
+  (joinedLabels: string) => string
+> = {
+  en: (joinedLabels) =>
+    `The lowest-scoring areas are ${joinedLabels}; their moderate strength limits the overall score.`,
+  ru: (joinedLabels) =>
+    `Самые слабые области — ${joinedLabels}; их умеренная сила ограничивает общую оценку.`,
+};
+
+const CAUSAL_NORMALIZATION_SINGLE: Record<
+  AnalysisV2Locale,
+  Record<OverallBreakdownKey, string>
+> = {
+  en: {
+    premiseAppeal:
+      "The main limitation is moderate audience pull from the premise, which keeps the overall score below 80.",
+    openingPromise:
+      "The main limitation is the opening promise, which is clear but only moderately strong.",
+    progression:
+      "The main limitation is progression, which is complete but only moderately engaging.",
+    payoff:
+      "The main limitation is the payoff, which resolves the explanation but offers only a moderate viewer reward.",
+  },
+  ru: {
+    premiseAppeal:
+      "Основное ограничение — умеренный охват аудитории предпосылкой, что удерживает общую оценку ниже 80.",
+    openingPromise:
+      "Основное ограничение — обещание в начале, которое понятно, но лишь умеренно сильное.",
+    progression:
+      "Основное ограничение — развитие, которое завершено, но лишь умеренно увлекательно.",
+    payoff:
+      "Основное ограничение — развязка, которая завершает объяснение, но даёт лишь умеренную награду зрителю.",
+  },
+};
+
 function createCausalNormalizationMainTakeaway(
   raw: Record<string, unknown>,
   overall: number,
-  baseTakeaway: string
+  baseTakeaway: string,
+  locale: AnalysisV2Locale = "en"
 ): string {
   if (
     overall >= 80 ||
@@ -611,7 +677,7 @@ function createCausalNormalizationMainTakeaway(
 
   const entries = Object.entries(
     overallValidation.value
-  );
+  ) as [OverallBreakdownKey, number][];
 
   const lowestScore = Math.min(
     ...entries.map(([, score]) => score)
@@ -621,28 +687,23 @@ function createCausalNormalizationMainTakeaway(
     .filter(([, score]) => score === lowestScore)
     .map(([key]) => key);
 
-  const componentPatterns: Record<
-    string,
-    RegExp
-  > = {
-    premiseAppeal:
-      /\bpremise\b|\baudience pull\b|\bviewer reward\b|\bangle\b|\bidea\b|\btopic\b|\bstakes?\b|\brelevance\b|\binterest\b/i,
-    openingPromise:
-      /\bopening promise\b|\bpromise\b|\bhook\b|\bopening\b|\bimmediacy\b/i,
-    progression:
-      /\bprogression\b|\bstructure\b|\bmiddle\b|\bmomentum\b|\bdevelopment\b|\bsequence\b|\brepetition\b|\bpacing\b|\bsentence boundaries\b|\breadability\b/i,
-    payoff:
-      /\bpayoff\b|\bending\b|\bconclusion\b|\bresolution\b|\breward\b/i,
-  };
-
-  const limitationPattern =
-    /\blimit(?:s|ed|ation|ations|ing)?\b|\bweak(?:er|ness|nesses)?\b|\blow(?:er)?\b|\bmodest\b|\bmoderate(?:ly)?\b|\bthin\b|\bflat\b|\bpredictable\b|\bgeneric\b|\bunclear\b|\bunderdeveloped\b|\binsufficient\b|\bmissing\b|\black(?:s|ing)?\b|\bneeds?\b|\bonly\b|\bholds? back\b|\bcaps?\b|\bcosts?\b|\breduces?\b|\bdoes not\b|\bdoesn't\b|\bfails? to\b|\bnot enough\b/i;
+  // Reuses the same component/limitation term tables as
+  // mainTakeawayExplainsLowestOverallComponent — see the note there about
+  // why \b does not work for Cyrillic.
+  const componentTerms =
+    locale === "ru"
+      ? OVERALL_COMPONENT_TAKEAWAY_TERMS_RU
+      : OVERALL_COMPONENT_TAKEAWAY_TERMS;
+  const limitationTerms =
+    locale === "ru"
+      ? OVERALL_LIMITATION_TERMS_RU
+      : OVERALL_LIMITATION_TERMS;
 
   const alreadyExplainsLowestComponent =
-    limitationPattern.test(baseTakeaway) &&
+    limitationTerms.some((pattern) => pattern.test(baseTakeaway)) &&
     lowestKeys.some((key) =>
-      componentPatterns[key]?.test(
-        baseTakeaway
+      componentTerms[key]?.some((pattern) =>
+        pattern.test(baseTakeaway)
       )
     );
 
@@ -650,23 +711,18 @@ function createCausalNormalizationMainTakeaway(
     return baseTakeaway;
   }
 
-  const labels: Record<string, string> = {
-    premiseAppeal: "premise appeal",
-    openingPromise: "opening promise",
-    progression: "progression",
-    payoff: "payoff",
-  };
+  const labelTable =
+    locale === "ru"
+      ? OVERALL_COMPONENT_REPAIR_LABELS_RU
+      : OVERALL_COMPONENT_REPAIR_LABELS;
 
   if (lowestKeys.length === 4) {
-    return (
-      `${baseTakeaway} ` +
-      "The premise, opening promise, progression, and payoff are all solid but only moderately strong, which limits the overall score."
-    );
+    return `${baseTakeaway} ${CAUSAL_NORMALIZATION_FOUR_TIE[locale]}`;
   }
 
   if (lowestKeys.length > 1) {
     const lowestLabels = lowestKeys.map(
-      (key) => labels[key] ?? key
+      (key) => labelTable[key] ?? key
     );
 
     const finalLabel =
@@ -675,49 +731,110 @@ function createCausalNormalizationMainTakeaway(
     const joinedLabels =
       lowestLabels.length === 0
         ? finalLabel
-        : `${lowestLabels.join(", ")} and ${finalLabel}`;
+        : locale === "ru"
+          ? `${lowestLabels.join(", ")} и ${finalLabel}`
+          : `${lowestLabels.join(", ")} and ${finalLabel}`;
 
-    return (
-      `${baseTakeaway} ` +
-      `The lowest-scoring areas are ${joinedLabels}; their moderate strength limits the overall score.`
-    );
+    return `${baseTakeaway} ${CAUSAL_NORMALIZATION_MULTI_TIE[locale](joinedLabels)}`;
   }
 
   const lowestKey = lowestKeys[0];
 
-  switch (lowestKey) {
-    case "premiseAppeal":
-      return (
-        `${baseTakeaway} ` +
-        "The main limitation is moderate audience pull from the premise, which keeps the overall score below 80."
-      );
-
-    case "openingPromise":
-      return (
-        `${baseTakeaway} ` +
-        "The main limitation is the opening promise, which is clear but only moderately strong."
-      );
-
-    case "progression":
-      return (
-        `${baseTakeaway} ` +
-        "The main limitation is progression, which is complete but only moderately engaging."
-      );
-
-    case "payoff":
-      return (
-        `${baseTakeaway} ` +
-        "The main limitation is the payoff, which resolves the explanation but offers only a moderate viewer reward."
-      );
-
-    default:
-      return baseTakeaway;
+  if (!lowestKey) {
+    return baseTakeaway;
   }
+
+  return `${baseTakeaway} ${CAUSAL_NORMALIZATION_SINGLE[locale][lowestKey]}`;
 }
+
+const CAUSAL_NORMALIZATION_SCENE_LABEL: Record<AnalysisV2Locale, string> = {
+  en: "Cause, observable effect, and resolution",
+  ru: "Причина, наблюдаемый эффект и развязка",
+};
+
+const CAUSAL_NORMALIZATION_FILLER_HOOK_ASSESSMENT: Record<
+  AnalysisV2Locale,
+  string
+> = {
+  en: "The opening filler delays the concrete premise, while the cause, observable effect, and resolution remain complete.",
+  ru: "Вступительный наполнитель задерживает конкретную суть, при этом причина, наблюдаемый эффект и развязка остаются полными.",
+};
+
+const CAUSAL_NORMALIZATION_FILLER_RISKY_REASON: Record<
+  AnalysisV2Locale,
+  string
+> = {
+  en: "The opening filler delays the concrete premise and reduces hook immediacy.",
+  ru: "Вступительный наполнитель задерживает конкретную суть и снижает непосредственность хука.",
+};
+
+const CAUSAL_NORMALIZATION_FILLER_FIX: Record<
+  AnalysisV2Locale,
+  (fillerExcerpt: string) => string
+> = {
+  en: (fillerExcerpt) =>
+    `Remove the opening filler '${fillerExcerpt}' and start directly with the concrete premise.`,
+  ru: (fillerExcerpt) =>
+    `Уберите вступительный наполнитель «${fillerExcerpt}» и начните сразу с конкретной сути.`,
+};
+
+const CAUSAL_NORMALIZATION_FILLER_BASE_TAKEAWAY: Record<
+  AnalysisV2Locale,
+  string
+> = {
+  en: "The causal explanation is complete; only the opening filler limits immediacy.",
+  ru: "Причинно-следственное объяснение полное; только вступительный наполнитель ограничивает непосредственность.",
+};
+
+const CAUSAL_NORMALIZATION_STRONG_HOOK_ASSESSMENT: Record<
+  AnalysisV2Locale,
+  string
+> = {
+  en: "The opening immediately presents the physical reaction, and the script completes the causal chain from trigger to effect and resolution.",
+  ru: "Начало сразу показывает физическую реакцию, а сценарий завершает причинно-следственную цепочку от триггера к эффекту и развязке.",
+};
+
+const CAUSAL_NORMALIZATION_STRONG_BASE_TAKEAWAY: Record<
+  AnalysisV2Locale,
+  string
+> = {
+  en: "The script provides a complete causal explanation from the trigger through the observable effect to the resolution.",
+  ru: "Сценарий даёт полное причинно-следственное объяснение от триггера через наблюдаемый эффект до развязки.",
+};
+
+const CAUSAL_NORMALIZATION_MIXED_HOOK_ASSESSMENT: Record<
+  AnalysisV2Locale,
+  string
+> = {
+  en: "The opening immediately presents the physical reaction and establishes the explanation clearly.",
+  ru: "Начало сразу показывает физическую реакцию и чётко формулирует объяснение.",
+};
+
+const CAUSAL_NORMALIZATION_MIXED_RISKY_REASON: Record<
+  AnalysisV2Locale,
+  string
+> = {
+  en: "The lack of sentence boundaries makes the otherwise complete causal explanation harder to scan and follow.",
+  ru: "Отсутствие границ предложений усложняет восприятие в остальном полного причинно-следственного объяснения.",
+};
+
+const CAUSAL_NORMALIZATION_MIXED_FIX: Record<AnalysisV2Locale, string> = {
+  en: "Add sentence boundaries between the trigger, physical effect, and resolution without expanding the explanation.",
+  ru: "Добавьте границы предложений между триггером, физическим эффектом и развязкой, не расширяя объяснение.",
+};
+
+const CAUSAL_NORMALIZATION_MIXED_BASE_TAKEAWAY: Record<
+  AnalysisV2Locale,
+  string
+> = {
+  en: "The causal explanation is complete; only the missing sentence boundaries reduce readability.",
+  ru: "Причинно-следственное объяснение полное; только отсутствие границ предложений снижает читаемость.",
+};
 
 export function normalizeAnalysisV2CompleteCausalExplanationModelResult(
   raw: unknown,
-  script: string
+  script: string,
+  locale: AnalysisV2Locale = "en"
 ): unknown | null {
   if (
     !isPlainObject(raw) ||
@@ -851,7 +968,7 @@ export function normalizeAnalysisV2CompleteCausalExplanationModelResult(
       return {
         ...scene,
         label: labelContainsInvalidCritique
-          ? "Cause, observable effect, and resolution"
+          ? CAUSAL_NORMALIZATION_SCENE_LABEL[locale]
           : scene.label,
       };
     }
@@ -874,13 +991,13 @@ export function normalizeAnalysisV2CompleteCausalExplanationModelResult(
         overall <= 45 ? "weak" : "mixed",
       hookDecision: "refine",
       hookAssessment:
-        "The opening filler delays the concrete premise, while the cause, observable effect, and resolution remain complete.",
+        CAUSAL_NORMALIZATION_FILLER_HOOK_ASSESSMENT[locale],
       suggestedHook: raw.suggestedHook.trim(),
       riskyParts: [
         {
           excerpt: fillerExcerpt,
           reason:
-            "The opening filler delays the concrete premise and reduces hook immediacy.",
+            CAUSAL_NORMALIZATION_FILLER_RISKY_REASON[locale],
           severity: "medium",
         },
       ],
@@ -888,7 +1005,7 @@ export function normalizeAnalysisV2CompleteCausalExplanationModelResult(
         {
           target: "hook",
           suggestion:
-            `Remove the opening filler '${fillerExcerpt}' and start directly with the concrete premise.`,
+            CAUSAL_NORMALIZATION_FILLER_FIX[locale](fillerExcerpt),
           optional: false,
         },
       ],
@@ -908,7 +1025,8 @@ export function normalizeAnalysisV2CompleteCausalExplanationModelResult(
         createCausalNormalizationMainTakeaway(
           raw,
           overall,
-          "The causal explanation is complete; only the opening filler limits immediacy."
+          CAUSAL_NORMALIZATION_FILLER_BASE_TAKEAWAY[locale],
+          locale
         ),
     };
   }
@@ -923,7 +1041,7 @@ export function normalizeAnalysisV2CompleteCausalExplanationModelResult(
       verdict: "strong",
       hookDecision: "keep",
       hookAssessment:
-        "The opening immediately presents the physical reaction, and the script completes the causal chain from trigger to effect and resolution.",
+        CAUSAL_NORMALIZATION_STRONG_HOOK_ASSESSMENT[locale],
       suggestedHook: null,
       riskyParts: [],
       suggestedFixes: [],
@@ -940,7 +1058,8 @@ export function normalizeAnalysisV2CompleteCausalExplanationModelResult(
         createCausalNormalizationMainTakeaway(
           raw,
           overall,
-          "The script provides a complete causal explanation from the trigger through the observable effect to the resolution."
+          CAUSAL_NORMALIZATION_STRONG_BASE_TAKEAWAY[locale],
+          locale
         ),
     };
   }
@@ -957,13 +1076,13 @@ export function normalizeAnalysisV2CompleteCausalExplanationModelResult(
     verdict: "mixed",
     hookDecision: "keep",
     hookAssessment:
-      "The opening immediately presents the physical reaction and establishes the explanation clearly.",
+      CAUSAL_NORMALIZATION_MIXED_HOOK_ASSESSMENT[locale],
     suggestedHook: null,
     riskyParts: [
       {
         excerpt: script,
         reason:
-          "The lack of sentence boundaries makes the otherwise complete causal explanation harder to scan and follow.",
+          CAUSAL_NORMALIZATION_MIXED_RISKY_REASON[locale],
         severity: "low",
       },
     ],
@@ -971,7 +1090,7 @@ export function normalizeAnalysisV2CompleteCausalExplanationModelResult(
       {
         target: "clarity",
         suggestion:
-          "Add sentence boundaries between the trigger, physical effect, and resolution without expanding the explanation.",
+          CAUSAL_NORMALIZATION_MIXED_FIX[locale],
         optional: false,
       },
     ],
@@ -988,7 +1107,8 @@ export function normalizeAnalysisV2CompleteCausalExplanationModelResult(
       createCausalNormalizationMainTakeaway(
         raw,
         overall,
-        "The causal explanation is complete; only the missing sentence boundaries reduce readability."
+        CAUSAL_NORMALIZATION_MIXED_BASE_TAKEAWAY[locale],
+        locale
       ),
   };
 }
@@ -1153,6 +1273,13 @@ const genericFirstSentenceFillerPatterns = [
   /^(?:there is|there's)\s+(?:something|one thing)\s+(?:interesting|strange|unusual|surprising)\b/i,
   /^(?:this|it)\s+is\s+something\s+(?:many|most)\s+people\b/i,
   /^(?:many|most)\s+people\s+(?:(?:have|probably have|may have)\s+)?(?:noticed|seen|heard)\b/i,
+  // Generic narrative/framing preambles: the sentence only announces that a
+  // story or topic is coming and defers the concrete premise (whatever
+  // follows "about"/"of") to a later sentence, regardless of subject matter.
+  /^(?:here's|here is|this is|that's|that is)\s+(?:a|the|our|my)\s+(?:story|tale)\s+(?:about|of)\b/i,
+  /^(?:so\s+)?today,?\s+i\s+(?:want|wanted|would like)\s+to\s+(?:tell you|talk about|share)\b/i,
+  /^i\s+(?:want|wanted|would like)\s+to\s+(?:tell you|share)\s+(?:a\s+story\s+)?(?:about|today)\b/i,
+  /^let\s+me\s+tell\s+you\s+(?:a\s+story\s+)?about\b/i,
 ] as const;
 
 function hasGenericFirstSentenceFiller(
@@ -1164,6 +1291,57 @@ function hasGenericFirstSentenceFiller(
 
   return genericFirstSentenceFillerPatterns.some(
     (pattern) => pattern.test(firstSentence)
+  );
+}
+
+// Shared consequence/effect vocabulary. Deliberately the same class of
+// generic, niche-agnostic verbs already used to judge concreteness
+// elsewhere (see hasObservableResult below) — reused here, not duplicated
+// with new wording, to recognize when a stated cause's own effect appears.
+const HOOK_CONSEQUENCE_SIGNAL_PATTERN =
+  /\b(?:dropped|drops?|fell|fallen|falling|declined?|declining|decreased?|decreasing|reduced?|reducing|doubled?|halved?|tripled?|surged?|surging|jumped?|jumping|spiked?|spiking|plummeted?|plummeting|collapsed?|collapsing|crashed?|crashing|soared?|soaring|rose|rising|increased?|increasing|grew|grown|growing|shrank|shrunk|shrinking|lost|losing|gained?|gaining|saved?|saving|cost|earned?|earning)\b/i;
+
+function extractSecondSentence(script: string): string {
+  const cleaned = normalizeWhitespace(script);
+  const firstSentence = extractFirstSentence(cleaned);
+  const remainder = cleaned
+    .slice(firstSentence.length)
+    .trim();
+
+  return extractFirstSentence(remainder);
+}
+
+// A concrete, specific opener (contains a number, so it is not generic
+// filler — see hasGenericFirstSentenceFiller above) can still defer its own
+// payoff: the first sentence states a quantified cause/event but not the
+// consequence or stakes that make it matter, and that consequence only
+// shows up in the very next sentence. This is a distinct weakness from
+// generic filler and must not be penalized as such — it only applies when
+// the cause and its own consequence are split across two sentences, never
+// when a single compact sentence already states both.
+function hasHookConsequenceDeferredToNextSentence(
+  script: string
+): boolean {
+  const firstSentence = extractFirstSentence(script)
+    .replace(/[.!?]+$/, "")
+    .trim();
+
+  if (!/\d/.test(firstSentence)) {
+    return false;
+  }
+
+  if (
+    HOOK_CONSEQUENCE_SIGNAL_PATTERN.test(firstSentence)
+  ) {
+    return false;
+  }
+
+  const secondSentence = extractSecondSentence(script)
+    .replace(/[.!?]+$/, "")
+    .trim();
+
+  return HOOK_CONSEQUENCE_SIGNAL_PATTERN.test(
+    secondSentence
   );
 }
 
@@ -1775,6 +1953,75 @@ const OVERALL_LIMITATION_TERMS = [
   /\bnot enough\b/i,
 ] as const;
 
+// Russian equivalents of the two term sets above. JS regex `\b` does not
+// work for Cyrillic (word-boundary detection relies on the ASCII \w class,
+// which excludes Cyrillic letters), so these intentionally use plain
+// substring matching on word stems instead of \b-anchored patterns.
+const OVERALL_COMPONENT_TAKEAWAY_TERMS_RU: Record<
+  OverallBreakdownKey,
+  readonly RegExp[]
+> = {
+  premiseAppeal: [
+    /предпосылк/i,
+    /охват[а-я]* аудитори/i,
+    /ценност[а-я]* для зрител/i,
+    /ракурс/i,
+    /иде[юяи]/i,
+    /тем[аеы]/i,
+    /ставк[иа]/i,
+    /актуальност/i,
+    /интерес/i,
+  ],
+  openingPromise: [
+    /обещани/i,
+    /хук/i,
+    /начал[оае]/i,
+    /открывающ/i,
+    /непосредственност/i,
+  ],
+  progression: [
+    /развити/i,
+    /структур/i,
+    /середин/i,
+    /динамик/i,
+    /последовательност/i,
+    /повтор/i,
+    /темп/i,
+    /границ[а-я]* предложени/i,
+    /читаемост/i,
+  ],
+  payoff: [
+    /развязк/i,
+    /концовк/i,
+    /заключени/i,
+    /разрешени/i,
+    /награда/i,
+    /вознаграждени/i,
+  ],
+};
+
+const OVERALL_LIMITATION_TERMS_RU = [
+  /ограничива/i,
+  /слаб/i,
+  /низк/i,
+  /умеренн/i,
+  /скромн/i,
+  /предсказуем/i,
+  /обобщенн/i,
+  /неясн/i,
+  /недостаточно развит/i,
+  /недостаточн/i,
+  /отсутств/i,
+  /нужн/i,
+  /только/i,
+  /сдержива/i,
+  /снижа/i,
+  /не хватает/i,
+  /не даёт/i,
+  /не дает/i,
+  /не позволяет/i,
+] as const;
+
 function getLowestOverallComponentKeys(
   breakdown: AnalysisV2ScoreBreakdown
 ): OverallBreakdownKey[] {
@@ -1801,6 +2048,16 @@ const OVERALL_COMPONENT_REPAIR_LABELS: Record<
   payoff: "payoff",
 };
 
+const OVERALL_COMPONENT_REPAIR_LABELS_RU: Record<
+  OverallBreakdownKey,
+  string
+> = {
+  premiseAppeal: "привлекательность идеи",
+  openingPromise: "обещание в начале",
+  progression: "развитие сюжета",
+  payoff: "развязка",
+};
+
 const OVERALL_COMPONENT_REPAIR_LIMITATIONS: Record<
   OverallBreakdownKey,
   string
@@ -1815,19 +2072,48 @@ const OVERALL_COMPONENT_REPAIR_LIMITATIONS: Record<
     "the ending payoff does not deliver a strong enough viewer reward",
 };
 
+const OVERALL_COMPONENT_REPAIR_LIMITATIONS_RU: Record<
+  OverallBreakdownKey,
+  string
+> = {
+  premiseAppeal:
+    "идея слабо привлекает аудиторию и не даёт зрителю достаточной ценности",
+  openingPromise:
+    "обещание в начале недостаточно убедительное или конкретное",
+  progression:
+    "развитие середины недостаточно проработано",
+  payoff:
+    "развязка не даёт зрителю достаточно сильной награды",
+};
+
 function formatOverallComponentList(
-  keys: OverallBreakdownKey[]
+  keys: OverallBreakdownKey[],
+  locale: AnalysisV2Locale = "en"
 ): string {
-  const labels = keys.map(
-    (key) => OVERALL_COMPONENT_REPAIR_LABELS[key]
-  );
+  const labelTable =
+    locale === "ru"
+      ? OVERALL_COMPONENT_REPAIR_LABELS_RU
+      : OVERALL_COMPONENT_REPAIR_LABELS;
+
+  const labels = keys.map((key) => labelTable[key]);
 
   if (labels.length <= 1) {
-    return labels[0] ?? "overall execution";
+    return (
+      labels[0] ??
+      (locale === "ru" ? "общее исполнение" : "overall execution")
+    );
   }
 
   if (labels.length === 2) {
-    return `${labels[0]} and ${labels[1]}`;
+    return locale === "ru"
+      ? `${labels[0]} и ${labels[1]}`
+      : `${labels[0]} and ${labels[1]}`;
+  }
+
+  if (locale === "ru") {
+    return `${labels.slice(0, -1).join(", ")} и ${
+      labels[labels.length - 1]
+    }`;
   }
 
   return `${labels.slice(0, -1).join(", ")}, and ${
@@ -1836,7 +2122,8 @@ function formatOverallComponentList(
 }
 
 export function repairAnalysisV2MainTakeawayForScoreBreakdown(
-  raw: unknown
+  raw: unknown,
+  locale: AnalysisV2Locale = "en"
 ): unknown | null {
   if (
     !isPlainObject(raw) ||
@@ -1940,34 +2227,49 @@ export function repairAnalysisV2MainTakeawayForScoreBreakdown(
   const lowestKeys =
     getLowestOverallComponentKeys(breakdown);
   const componentList =
-    formatOverallComponentList(lowestKeys);
+    formatOverallComponentList(lowestKeys, locale);
   const primaryLimitation =
-    OVERALL_COMPONENT_REPAIR_LIMITATIONS[
+    (locale === "ru"
+      ? OVERALL_COMPONENT_REPAIR_LIMITATIONS_RU
+      : OVERALL_COMPONENT_REPAIR_LIMITATIONS)[
       lowestKeys[0] ?? "premiseAppeal"
     ];
 
   return {
     ...raw,
-    mainTakeaway: `The script is understandable, but its ${componentList} limits the overall score because ${primaryLimitation}.`,
+    mainTakeaway:
+      locale === "ru"
+        ? `Сценарий понятен, но ${componentList} ограничивает общую оценку, потому что ${primaryLimitation}.`
+        : `The script is understandable, but its ${componentList} limits the overall score because ${primaryLimitation}.`,
   };
 }
 
 function mainTakeawayExplainsLowestOverallComponent(
   mainTakeaway: string,
-  breakdown: AnalysisV2ScoreBreakdown
+  breakdown: AnalysisV2ScoreBreakdown,
+  locale: AnalysisV2Locale = "en"
 ): boolean {
   const lowestKeys =
     getLowestOverallComponentKeys(breakdown);
 
+  const componentTerms =
+    locale === "ru"
+      ? OVERALL_COMPONENT_TAKEAWAY_TERMS_RU
+      : OVERALL_COMPONENT_TAKEAWAY_TERMS;
+  const limitationTerms =
+    locale === "ru"
+      ? OVERALL_LIMITATION_TERMS_RU
+      : OVERALL_LIMITATION_TERMS;
+
   const mentionsLowestComponent = lowestKeys.some(
     (key) =>
-      OVERALL_COMPONENT_TAKEAWAY_TERMS[key].some(
+      componentTerms[key].some(
         (pattern) => pattern.test(mainTakeaway)
       )
   );
 
   const explainsLimitation =
-    OVERALL_LIMITATION_TERMS.some((pattern) =>
+    limitationTerms.some((pattern) =>
       pattern.test(mainTakeaway)
     );
 
@@ -2007,7 +2309,8 @@ function hasBlanketNoLimitationClaim(
 
 export function validateAnalysisV2Result(
   raw: unknown,
-  script: string
+  script: string,
+  locale: AnalysisV2Locale = "en"
 ): AnalysisV2ResultValidation {
   if (!isPlainObject(raw)) {
     return {
@@ -2308,7 +2611,10 @@ export function validateAnalysisV2Result(
     const requestsVerifiedFactualMaterial =
       /\bverified\b/i.test(
         validation.value.suggestion
-      );
+      ) ||
+      // Russian equivalent stem (проверенное/проверенный/...) — \b does not
+      // work for Cyrillic, so this is a plain substring check.
+      /провер/i.test(validation.value.suggestion);
 
     const canonicalVerifiedSuggestion =
       requestsVerifiedFactualMaterial
@@ -2403,7 +2709,8 @@ export function validateAnalysisV2Result(
     if (
       !mainTakeawayExplainsLowestOverallComponent(
         normalizedMainTakeaway,
-        scoreBreakdown
+        scoreBreakdown,
+        locale
       )
     ) {
       return {
@@ -2624,6 +2931,71 @@ export function validateAnalysisV2Result(
     }
   }
 
+  if (hasHookConsequenceDeferredToNextSentence(script)) {
+    if (
+      scoreBreakdown &&
+      (scoreBreakdown.hook.immediacy === 25 ||
+        scoreBreakdown.hook.deliveryAlignment === 25)
+    ) {
+      return {
+        ok: false,
+        reason:
+          "A hook whose cause and consequence are split across two sentences cannot receive a maximal immediacy or deliveryAlignment component.",
+      };
+    }
+
+    if (!hasGroundedGenericOpeningRisk) {
+      return {
+        ok: false,
+        reason:
+          "A hook whose consequence is deferred to the next sentence must be identified as a grounded opening risky part.",
+      };
+    }
+
+    if (requiredHookFixes.length === 0) {
+      return {
+        ok: false,
+        reason:
+          "A hook whose consequence is deferred to the next sentence requires a non-optional hook fix.",
+      };
+    }
+
+    if (
+      normalizedHookDecision !== "refine" &&
+      normalizedHookDecision !== "rewrite"
+    ) {
+      return {
+        ok: false,
+        reason:
+          "A hook whose consequence is deferred to the next sentence requires a refine or rewrite hook decision.",
+      };
+    }
+  }
+
+  // Universal invariant, independent of which specific rule above forced
+  // the decision: whenever hookDecision itself says the opening needs work
+  // (refine/rewrite), and that is backed by a grounded opening risky part
+  // and a non-optional hook fix, the hook score cannot still read as
+  // Strong. Without this, individual rules could each force refine/rewrite
+  // plus a risky part and fix while still allowing unrelated components
+  // (e.g. specificity) to keep the aggregate hook score in the Strong band
+  // — an internally inconsistent result (refine decision + risky opening +
+  // required fix + Strong hook). Centralized here once instead of
+  // duplicated inside every rule that can force this decision.
+  if (
+    (normalizedHookDecision === "refine" ||
+      normalizedHookDecision === "rewrite") &&
+    hasGroundedGenericOpeningRisk &&
+    requiredHookFixes.length > 0 &&
+    normalizedScores.hook >= ANALYSIS_V2_HOOK_STRONG_THRESHOLD
+  ) {
+    return {
+      ok: false,
+      reason:
+        "A hookDecision of refine or rewrite backed by a grounded opening risky part and a non-optional hook fix cannot coexist with a Strong hook score.",
+    };
+  }
+
   if (verdict === "strong") {
     if (overall < 70 || retentionRisk > 45) {
       return {
@@ -2769,7 +3141,8 @@ export function validateAnalysisV2Result(
 
 export function validateAnalysisV2ModelResult(
   raw: unknown,
-  script: string
+  script: string,
+  locale: AnalysisV2Locale = "en"
 ): AnalysisV2ResultValidation {
   if (
     !isPlainObject(raw) ||
@@ -2780,7 +3153,7 @@ export function validateAnalysisV2ModelResult(
   ) {
     // Backward compatibility for existing deterministic tests
     // and already-stored public AnalysisV2 results.
-    return validateAnalysisV2Result(raw, script);
+    return validateAnalysisV2Result(raw, script, locale);
   }
 
   const requiredRootKeys = [
@@ -2891,6 +3264,7 @@ export function validateAnalysisV2ModelResult(
 
   return validateAnalysisV2Result(
     publicResult,
-    script
+    script,
+    locale
   );
 }

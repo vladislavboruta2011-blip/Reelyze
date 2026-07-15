@@ -38,13 +38,75 @@ export type ImproveScriptResult = {
   missingMaterial?: string[];
 };
 
-const FALLBACK_DIAGNOSTIC_SCRIPT =
-  "Add one concrete example, result, number, visual moment, or clear payoff before generating a full rewrite.";
+// Kept local and decoupled from lib/i18n.ts, matching this module's existing
+// independence from the rest of the app. Only used for deterministic
+// diagnostic/preserve/fallback text — never for improvedScript itself, which
+// must always stay in the original script's language.
+export type ImproveScriptLocale = "en" | "ru";
 
-const FALLBACK_DIAGNOSTIC_REASON =
-  "The script is too broad to rewrite safely without inventing unsupported facts or a stronger payoff.";
-const PRESERVE_SCRIPT_REASON =
-  "The generated rewrite did not make a meaningful editorial improvement, so Climpy preserved the original script.";
+const FALLBACK_DIAGNOSTIC_SCRIPT: Record<ImproveScriptLocale, string> = {
+  en: "Add one concrete example, result, number, visual moment, or clear payoff before generating a full rewrite.",
+  ru: "Добавьте конкретный пример, результат, число, визуальный момент или ясную развязку, прежде чем создавать полную версию сценария.",
+};
+
+const FALLBACK_DIAGNOSTIC_REASON: Record<ImproveScriptLocale, string> = {
+  en: "The script is too broad to rewrite safely without inventing unsupported facts or a stronger payoff.",
+  ru: "Этот сценарий слишком общий, чтобы безопасно переписать его без выдумывания фактов или более сильной развязки.",
+};
+const PRESERVE_SCRIPT_REASON: Record<ImproveScriptLocale, string> = {
+  en: "The generated rewrite did not make a meaningful editorial improvement, so Climpy preserved the original script.",
+  ru: "Сгенерированная версия не принесла значимого редакторского улучшения, поэтому Climpy сохранил исходный сценарий.",
+};
+
+const CHANGES_FALLBACK: Record<ImproveScriptLocale, string> = {
+  en: "The rewrite was cleaned up for clarity and pacing.",
+  ru: "Версия была доработана для ясности и темпа.",
+};
+
+const REASON_FALLBACK: Record<ImproveScriptLocale, string> = {
+  en: "Climpy generated a safer script improvement.",
+  ru: "Climpy сгенерировал более безопасное улучшение сценария.",
+};
+
+const NO_FULL_REWRITE_CHANGE: Record<ImproveScriptLocale, string> = {
+  en: "No full rewrite was generated because the script needs more concrete source material first.",
+  ru: "Полная версия не была создана, потому что сценарию сначала нужно больше конкретного исходного материала.",
+};
+
+const MISSING_MATERIAL_ITEMS: Record<ImproveScriptLocale, string[]> = {
+  en: [
+    "A specific example",
+    "A concrete visual moment",
+    "A clear payoff",
+    "A number, result, or consequence",
+  ],
+  ru: [
+    "Конкретный пример",
+    "Конкретный визуальный момент",
+    "Ясную развязку",
+    "Число, результат или последствие",
+  ],
+};
+
+const UNSUPPORTED_NUMBER_REASON: Record<ImproveScriptLocale, string> = {
+  en: "The generated rewrite introduced a number or measurement that was not supported by the original script.",
+  ru: "Сгенерированная версия ввела число или измерение, не подтверждённое исходным сценарием.",
+};
+
+const CHANGED_CAUSE_REASON: Record<ImproveScriptLocale, string> = {
+  en: "The generated rewrite changed who or what caused a supported event from the original script.",
+  ru: "Сгенерированная версия изменила, кто или что стало причиной подтверждённого события из исходного сценария.",
+};
+
+const DEFAULT_CHANGES_FALLBACK: Record<ImproveScriptLocale, string> = {
+  en: "The rewrite improves clarity, pacing, and payoff delivery.",
+  ru: "Версия улучшает ясность, темп и подачу развязки.",
+};
+
+const DEFAULT_REASON_FALLBACK: Record<ImproveScriptLocale, string> = {
+  en: "The script was rewritten using only the original material while improving clarity and pacing.",
+  ru: "Сценарий был переписан с использованием только исходного материала, с улучшением ясности и темпа.",
+};
 
 const MAX_IMPROVED_SCRIPT_LENGTH = 1_400;
 const MAX_REASON_LENGTH = 600;
@@ -540,32 +602,27 @@ function changesSupportedExplicitCause(
 }
 
 export function buildImproveScriptDiagnosticResponse(
-  reason = FALLBACK_DIAGNOSTIC_REASON
+  locale: ImproveScriptLocale = "en",
+  reason?: string
 ): ImproveScriptResult {
   return {
     status: "diagnostic",
-    improvedScript: FALLBACK_DIAGNOSTIC_SCRIPT,
-    changes: [
-      "No full rewrite was generated because the script needs more concrete source material first.",
-    ],
-    reason,
-    missingMaterial: [
-      "A specific example",
-      "A concrete visual moment",
-      "A clear payoff",
-      "A number, result, or consequence",
-    ],
+    improvedScript: FALLBACK_DIAGNOSTIC_SCRIPT[locale],
+    changes: [NO_FULL_REWRITE_CHANGE[locale]],
+    reason: reason ?? FALLBACK_DIAGNOSTIC_REASON[locale],
+    missingMaterial: MISSING_MATERIAL_ITEMS[locale],
   };
 }
 
 export function buildImproveScriptPreserveResponse(
-  originalScript: string
+  originalScript: string,
+  locale: ImproveScriptLocale = "en"
 ): ImproveScriptResult {
   return {
     status: "preserve",
     improvedScript: originalScript.trim(),
     changes: [],
-    reason: PRESERVE_SCRIPT_REASON,
+    reason: PRESERVE_SCRIPT_REASON[locale],
   };
 }
 
@@ -584,12 +641,13 @@ export function shouldDiagnoseImproveScript(script: string): boolean {
 }
 
 export function boundImproveScriptResult(
-  result: ImproveScriptResult
+  result: ImproveScriptResult,
+  locale: ImproveScriptLocale = "en"
 ): ImproveScriptResult {
   return {
     status: result.status,
     improvedScript: truncateText(
-      result.improvedScript || FALLBACK_DIAGNOSTIC_SCRIPT,
+      result.improvedScript || FALLBACK_DIAGNOSTIC_SCRIPT[locale],
       MAX_IMPROVED_SCRIPT_LENGTH
     ),
     changes:
@@ -597,12 +655,12 @@ export function boundImproveScriptResult(
         ? []
         : normalizeStringList(
             result.changes,
-            ["The rewrite was cleaned up for clarity and pacing."],
+            [CHANGES_FALLBACK[locale]],
             MAX_CHANGES,
             MAX_CHANGE_LENGTH
           ),
     reason: truncateText(
-      result.reason || "Climpy generated a safer script improvement.",
+      result.reason || REASON_FALLBACK[locale],
       MAX_REASON_LENGTH
     ),
     ...(result.editorialDecision
@@ -639,7 +697,8 @@ export function parseImproveScriptResponse(
   raw: string,
   originalScript: string,
   refinedHook = "",
-  skipLegacyDiagnostic = false
+  skipLegacyDiagnostic = false,
+  locale: ImproveScriptLocale = "en"
 ): ImproveScriptResult {
   const script = originalScript.trim();
   const approvedRefinedHook = refinedHook.trim();
@@ -648,7 +707,7 @@ export function parseImproveScriptResponse(
     !skipLegacyDiagnostic &&
     shouldDiagnoseImproveScript(script)
   ) {
-    return buildImproveScriptDiagnosticResponse();
+    return buildImproveScriptDiagnosticResponse(locale);
   }
 
   const parsed = extractJsonObject(raw);
@@ -659,7 +718,8 @@ export function parseImproveScriptResponse(
 
   if (editorialDecision.strategy === "preserve") {
     return boundImproveScriptResult(
-      buildImproveScriptPreserveResponse(script)
+      buildImproveScriptPreserveResponse(script, locale),
+      locale
     );
   }
 
@@ -682,7 +742,8 @@ export function parseImproveScriptResponse(
     candidateAudit.regressionIntroduced
   ) {
     return boundImproveScriptResult(
-      buildImproveScriptPreserveResponse(script)
+      buildImproveScriptPreserveResponse(script, locale),
+      locale
     );
   }
 
@@ -690,7 +751,16 @@ export function parseImproveScriptResponse(
     approvedRefinedHook &&
     !improvedScript.startsWith(approvedRefinedHook)
   ) {
-    throw new UnusableAIResponseError();
+    // The model failed to honor the already-approved refined hook (e.g. it
+    // substituted its own opening, such as a question-style rewrite). The
+    // original script is known-safe, so this is an honest editorial
+    // rejection — like the candidateAudit and light-paraphrase checks
+    // above/below — not an infrastructure or parsing failure, and must not
+    // surface as a generic 5xx.
+    return boundImproveScriptResult(
+      buildImproveScriptPreserveResponse(script, locale),
+      locale
+    );
   }
 
   if (
@@ -700,23 +770,33 @@ export function parseImproveScriptResponse(
     !preservesOriginalOpeningExactly(script, improvedScript)
   ) {
     return boundImproveScriptResult(
-      buildImproveScriptPreserveResponse(script)
+      buildImproveScriptPreserveResponse(script, locale),
+      locale
     );
   }
 
   if (hasOnlySurfaceChanges(script, improvedScript)) {
-    throw new UnusableAIResponseError();
+    // A rewrite that only changes casing/punctuation/whitespace is not a
+    // material improvement — the same conclusion as the candidateAudit and
+    // light-paraphrase checks, so it gets the same honest preserve outcome
+    // instead of an opaque failure.
+    return boundImproveScriptResult(
+      buildImproveScriptPreserveResponse(script, locale),
+      locale
+    );
   }
 
   if (usesUnsupportedNumberWithUnit(script, improvedScript)) {
     return buildImproveScriptDiagnosticResponse(
-      "The generated rewrite introduced a number or measurement that was not supported by the original script."
+      locale,
+      UNSUPPORTED_NUMBER_REASON[locale]
     );
   }
 
   if (changesSupportedExplicitCause(script, improvedScript)) {
     return buildImproveScriptDiagnosticResponse(
-      "The generated rewrite changed who or what caused a supported event from the original script."
+      locale,
+      CHANGED_CAUSE_REASON[locale]
     );
   }
 
@@ -727,7 +807,8 @@ export function parseImproveScriptResponse(
     )
   ) {
     return boundImproveScriptResult(
-      buildImproveScriptPreserveResponse(script)
+      buildImproveScriptPreserveResponse(script, locale),
+      locale
     );
   }
 
@@ -737,15 +818,15 @@ export function parseImproveScriptResponse(
     editorialDecision,
     changes: normalizeStringList(
       parsed.changes,
-      ["The rewrite improves clarity, pacing, and payoff delivery."],
+      [DEFAULT_CHANGES_FALLBACK[locale]],
       MAX_CHANGES,
       MAX_CHANGE_LENGTH
     ),
     reason:
       typeof parsed.reason === "string" && parsed.reason.trim().length > 0
         ? parsed.reason.trim()
-        : "The script was rewritten using only the original material while improving clarity and pacing.",
+        : DEFAULT_REASON_FALLBACK[locale],
   };
 
-  return boundImproveScriptResult(result);
+  return boundImproveScriptResult(result, locale);
 }
