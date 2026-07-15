@@ -751,7 +751,16 @@ export function parseImproveScriptResponse(
     approvedRefinedHook &&
     !improvedScript.startsWith(approvedRefinedHook)
   ) {
-    throw new UnusableAIResponseError();
+    // The model failed to honor the already-approved refined hook (e.g. it
+    // substituted its own opening, such as a question-style rewrite). The
+    // original script is known-safe, so this is an honest editorial
+    // rejection — like the candidateAudit and light-paraphrase checks
+    // above/below — not an infrastructure or parsing failure, and must not
+    // surface as a generic 5xx.
+    return boundImproveScriptResult(
+      buildImproveScriptPreserveResponse(script, locale),
+      locale
+    );
   }
 
   if (
@@ -767,7 +776,14 @@ export function parseImproveScriptResponse(
   }
 
   if (hasOnlySurfaceChanges(script, improvedScript)) {
-    throw new UnusableAIResponseError();
+    // A rewrite that only changes casing/punctuation/whitespace is not a
+    // material improvement — the same conclusion as the candidateAudit and
+    // light-paraphrase checks, so it gets the same honest preserve outcome
+    // instead of an opaque failure.
+    return boundImproveScriptResult(
+      buildImproveScriptPreserveResponse(script, locale),
+      locale
+    );
   }
 
   if (usesUnsupportedNumberWithUnit(script, improvedScript)) {

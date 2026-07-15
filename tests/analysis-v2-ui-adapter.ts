@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 
-import type {
-  AnalysisV2Result,
-  AnalysisV2SuccessResponse,
+import {
+  ANALYSIS_V2_HOOK_STRONG_THRESHOLD,
+  type AnalysisV2Result,
+  type AnalysisV2SuccessResponse,
 } from "../engine/analysis-v2-schema";
 import {
   adaptAnalysisV2ForResults,
@@ -619,6 +620,51 @@ const tests: TestCase[] = [
       assert.equal(adapted.suggestedHook, "");
       assert.deepEqual(adapted.riskyLineIndexes, []);
       assert.deepEqual(adapted.warningLineIndexes, []);
+    },
+  },
+  {
+    name: "hook label uses the centralized Strong threshold — a normalized (post-validation) below-threshold score never renders as Strong, and no separate UI-only workaround hides a server inconsistency",
+    run: () => {
+      const belowThresholdResult: AnalysisV2Result = {
+        ...strongResult,
+        scores: {
+          ...strongResult.scores,
+          hook: ANALYSIS_V2_HOOK_STRONG_THRESHOLD - 1,
+        },
+      };
+
+      const atThresholdResult: AnalysisV2Result = {
+        ...strongResult,
+        scores: {
+          ...strongResult.scores,
+          hook: ANALYSIS_V2_HOOK_STRONG_THRESHOLD,
+        },
+      };
+
+      const belowAdapted = adaptAnalysisV2ForResults(
+        {
+          status: "ok",
+          result: belowThresholdResult,
+          modelUsed: "test-model",
+        },
+        strongScript,
+        [strongScript],
+        12
+      );
+
+      const atAdapted = adaptAnalysisV2ForResults(
+        {
+          status: "ok",
+          result: atThresholdResult,
+          modelUsed: "test-model",
+        },
+        strongScript,
+        [strongScript],
+        12
+      );
+
+      assert.notEqual(belowAdapted.hook.label, "Strong");
+      assert.equal(atAdapted.hook.label, "Strong");
     },
   },
   {

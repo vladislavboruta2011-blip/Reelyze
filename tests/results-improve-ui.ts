@@ -56,6 +56,38 @@ if (forwardsSuccessfulRefinedHook) {
   failures += 1;
 }
 
+// Cross-feature consistency: the validated Analysis V2 result — not only
+// the ephemeral aiHook/aiHookMode state populated by a separate manual
+// "Improve Hook" click — must be able to supply the approved refined hook,
+// so Improve Script cannot silently invent its own opening when the user
+// never opened the Improve Hook modal first.
+const derivesRefinedHookFromValidatedAnalysisFirst =
+  refinedHookHandler.includes("analysisApprovedHook") &&
+  refinedHookHandler.includes(
+    'analysisResult.hookDecision === "refine"'
+  ) &&
+  refinedHookHandler.includes(
+    'analysisResult.hookDecision === "rewrite"'
+  ) &&
+  refinedHookHandler.includes(
+    "analysisResult.suggestedHook"
+  ) &&
+  refinedHookHandler.indexOf("analysisApprovedHook") <
+    refinedHookHandler.lastIndexOf(
+      'aiHookMode === "rewrite"'
+    );
+
+if (derivesRefinedHookFromValidatedAnalysisFirst) {
+  console.log(
+    "✅ PASS — Improve Script derives the approved refined hook from validated analysis first, before the ephemeral Improve Hook UI state"
+  );
+} else {
+  console.error(
+    "❌ FAIL — Improve Script must prioritize the validated analysis's own suggestedHook over ephemeral aiHook/aiHookMode state"
+  );
+  failures += 1;
+}
+
 
 const handlerStart = source.indexOf("async function handleImproveHook");
 const handlerEnd =

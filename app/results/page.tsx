@@ -618,11 +618,29 @@ const hookCopyButtonLabel =
       );
     }
 
-    const refinedHook =
-      aiHookMode === "rewrite" && aiHook.trim().length > 0
-        ? aiHook.trim()
-        : "";
     const analysisResult = savedAnalysisV2?.result ?? null;
+
+    // The validated Analysis V2 result is the single source of truth for
+    // the approved refined hook whenever one exists — Improve Script must
+    // use it deterministically, not only when the Improve Hook modal
+    // happens to have been opened first in this session. Relying solely on
+    // aiHook/aiHookMode (an ephemeral UI mirror populated only as a
+    // side-effect of that separate action) let Improve Script silently
+    // invent its own opening — including a question-style hook — whenever
+    // the user ran Improve Script without first opening Improve Hook.
+    const analysisApprovedHook =
+      analysisResult &&
+      (analysisResult.hookDecision === "refine" ||
+        analysisResult.hookDecision === "rewrite")
+        ? (analysisResult.suggestedHook ?? "").trim()
+        : "";
+
+    const refinedHook =
+      analysisApprovedHook.length > 0
+        ? analysisApprovedHook
+        : aiHookMode === "rewrite" && aiHook.trim().length > 0
+          ? aiHook.trim()
+          : "";
 
     const improveScriptFingerprint =
       createImproveScriptFingerprint({

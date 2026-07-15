@@ -166,6 +166,13 @@ export type AnalysisV2Response =
   | AnalysisV2SuccessResponse
   | AnalysisV2ErrorResponse;
 
+// The single source of truth for what counts as a "Strong" hook score —
+// shared between the UI label (engine/analysis-v2-ui-adapter.ts) and the
+// editorial validation rule that blocks a Strong-looking hook score for a
+// generic/filler opening (engine/analysis-v2-validation.ts). Kept as one
+// exported number instead of two independently hardcoded 80s.
+export const ANALYSIS_V2_HOOK_STRONG_THRESHOLD = 80;
+
 export const ANALYSIS_V2_LIMITS = {
   maxScriptCharacters: 1000,
   maxTitleCharacters: 200,

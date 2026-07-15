@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 
+import { ANALYSIS_V2_HOOK_STRONG_THRESHOLD } from "../engine/analysis-v2-schema";
 import {
   normalizeAnalysisV2CompleteCausalExplanationModelResult,
   parseAnalysisV2Json,
@@ -2684,6 +2685,1142 @@ const tests: TestCase[] = [
       }
 
       assert.equal(result.value.hookDecision, "refine");
+    },
+  },
+  {
+    name: "rejects a 'here is a story about' framing opener with a Strong hook score and a strong verdict, even with a concrete strong body",
+    run: () => {
+      const bakeryScript =
+        "Here is a story about a bakery. Last month, a small bakery raised the price of every pastry by 40%. Within one week, customer visits dropped by half. The owner restored the old prices and offered returning customers a free pastry. By Friday, sales were almost back to normal.";
+
+      const value = createStrongResult();
+
+      value.scriptType = "narrative_event";
+      value.verdict = "strong";
+      value.scores = {
+        overall: 78,
+        hook: ANALYSIS_V2_HOOK_STRONG_THRESHOLD + 2,
+        retentionRisk: 25,
+      };
+      value.hookDecision = "keep";
+      value.hookAssessment =
+        "The opening sentence quickly introduces a concrete and specific story premise about a bakery.";
+      value.riskyParts = [];
+      value.suggestedFixes = [];
+      value.scenes = [
+        {
+          excerpt: "Here is a story about a bakery.",
+          label: "Opening story introduction",
+          status: "strong",
+        },
+        {
+          excerpt:
+            "Last month, a small bakery raised the price of every pastry by 40%.",
+          label: "Price increase event",
+          status: "strong",
+        },
+      ];
+      value.mainTakeaway =
+        "The script is understandable, but its premise appeal limits the overall score.";
+
+      const result = validateAnalysisV2Result(
+        value,
+        bakeryScript
+      );
+
+      assert.equal(result.ok, false);
+    },
+  },
+  {
+    name: "rejects the same framing filler with a Strong hook score even under a non-strong (mixed) verdict",
+    run: () => {
+      // Isolates the Strong-hook-score guard from the strong-verdict guard:
+      // this result is already mixed (not strong) and already has a grounded
+      // opening risky part and a non-optional hook fix, yet the hook score
+      // itself still reaches the shared Strong threshold — that alone must
+      // still be rejected.
+      const bakeryScript =
+        "Here is a story about a bakery. Last month, a small bakery raised the price of every pastry by 40%. Within one week, customer visits dropped by half.";
+
+      const value = createMixedResult();
+
+      value.scriptType = "narrative_event";
+      value.scores = {
+        overall: 60,
+        hook: ANALYSIS_V2_HOOK_STRONG_THRESHOLD,
+        retentionRisk: 35,
+      };
+      value.hookDecision = "refine";
+      value.hookAssessment =
+        "The opening announces a story instead of leading with the concrete price increase.";
+      value.suggestedHook =
+        "Last month, this bakery raised prices by 40% overnight.";
+      value.riskyParts = [
+        {
+          excerpt: "Here is a story about a bakery.",
+          reason:
+            "This opening only announces a story and delays the concrete 40% price increase.",
+          severity: "high",
+        },
+      ];
+      value.suggestedFixes = [
+        {
+          target: "hook",
+          suggestion:
+            "Remove the generic story announcement and open directly with the 40% price increase.",
+          optional: false,
+        },
+      ];
+      value.scenes = [
+        {
+          excerpt: "Here is a story about a bakery.",
+          label: "Opening",
+          status: "risky",
+        },
+      ];
+
+      const result = validateAnalysisV2Result(
+        value,
+        bakeryScript
+      );
+
+      assert.equal(result.ok, false);
+    },
+  },
+  {
+    name: "accepts a corrected 'story about' opener: below-Strong hook score, refine decision, grounded opening risk, non-optional fix, and a plain (non-question) fix/hook",
+    run: () => {
+      const bakeryScript =
+        "Here is a story about a bakery. Last month, a small bakery raised the price of every pastry by 40%. Within one week, customer visits dropped by half. The owner restored the old prices and offered returning customers a free pastry. By Friday, sales were almost back to normal.";
+
+      const value = createMixedResult();
+
+      value.scriptType = "narrative_event";
+      value.scores = {
+        overall: 60,
+        hook: ANALYSIS_V2_HOOK_STRONG_THRESHOLD - 1,
+        retentionRisk: 35,
+      };
+      value.hookDecision = "refine";
+      value.hookAssessment =
+        "The opening announces a story instead of leading with the concrete 40% price increase.";
+      value.suggestedHook =
+        "Last month, this bakery raised prices by 40% overnight.";
+      value.riskyParts = [
+        {
+          excerpt: "Here is a story about a bakery.",
+          reason:
+            "This opening only announces a story and delays the concrete 40% price increase that drives the whole script.",
+          severity: "high",
+        },
+      ];
+      value.suggestedFixes = [
+        {
+          target: "hook",
+          suggestion:
+            "Remove the generic story announcement and open directly with the 40% price increase.",
+          optional: false,
+        },
+      ];
+      value.scenes = [
+        {
+          excerpt: "Here is a story about a bakery.",
+          label: "Opening",
+          status: "risky",
+        },
+        {
+          excerpt:
+            "Last month, a small bakery raised the price of every pastry by 40%.",
+          label: "Price increase",
+          status: "strong",
+        },
+      ];
+      value.mainTakeaway =
+        "The main limitation is the generic opening, which delays the concrete price-increase fact that should lead the hook.";
+
+      const result = validateAnalysisV2Result(
+        value,
+        bakeryScript
+      );
+
+      if (!result.ok) {
+        throw new Error(result.reason);
+      }
+
+      assert.equal(result.ok, true);
+      assert.notEqual(result.value.hookDecision, "keep");
+      assert.ok(
+        result.value.scores.hook <
+          ANALYSIS_V2_HOOK_STRONG_THRESHOLD
+      );
+      assert.ok(result.value.riskyParts.length > 0);
+      assert.ok(
+        result.value.suggestedFixes.some(
+          (fix) => fix.target === "hook" && !fix.optional
+        )
+      );
+      // The rule must not force an interrogative hook — a plain declarative
+      // rewrite is a valid correction.
+      assert.equal(
+        (result.value.suggestedHook ?? "").trim().endsWith(
+          "?"
+        ),
+        false
+      );
+      assert.equal(
+        result.value.suggestedFixes[0]!.suggestion.trim().endsWith(
+          "?"
+        ),
+        false
+      );
+    },
+  },
+  {
+    name: "does not flag a direct factual opener with the same concrete specificity as the framing variant",
+    run: () => {
+      // The opening sentence states both the cause (the 40% price increase)
+      // and its own consequence (visits dropped by half) together — unlike
+      // the framing variant (generic filler) and unlike a split-consequence
+      // opener (a separate, distinct weakness with its own tests below),
+      // this is a genuinely compact, direct hook and must not be flagged by
+      // either rule.
+      const directScript =
+        "Last month, a small bakery raised the price of every pastry by 40%, and customer visits dropped by half within a week. The owner restored the old prices and offered returning customers a free pastry. By Friday, sales were almost back to normal.";
+
+      const value = createStrongResult();
+
+      value.scriptType = "narrative_event";
+      value.verdict = "strong";
+      value.scores = {
+        overall: 78,
+        hook: ANALYSIS_V2_HOOK_STRONG_THRESHOLD + 2,
+        retentionRisk: 25,
+      };
+      value.hookDecision = "keep";
+      value.hookAssessment =
+        "The opening leads directly with the concrete 40% price increase and its immediate consequence.";
+      value.riskyParts = [];
+      value.suggestedFixes = [];
+      value.scenes = [
+        {
+          excerpt:
+            "Last month, a small bakery raised the price of every pastry by 40%, and customer visits dropped by half within a week.",
+          label: "Price increase and consequence",
+          status: "strong",
+        },
+      ];
+      value.mainTakeaway =
+        "The script leads with a concrete, specific event and stays focused.";
+
+      const result = validateAnalysisV2Result(
+        value,
+        directScript
+      );
+
+      if (!result.ok) {
+        throw new Error(result.reason);
+      }
+
+      assert.equal(result.ok, true);
+      assert.equal(result.value.hookDecision, "keep");
+    },
+  },
+  {
+    name: "rejects a maximal-immediacy hook when the cause and its consequence are split across two sentences",
+    run: () => {
+      const script =
+        "Last month, a small bakery raised the price of every pastry by 40%. Within one week, customer visits dropped by half. The owner restored the old prices and offered returning customers a free pastry. By Friday, sales were almost back to normal.";
+
+      const value = createStrongResult();
+
+      value.scriptType = "narrative_event";
+      value.verdict = "strong";
+      value.scores = {
+        overall: 82,
+        hook: 25 + 20 + 18 + 20,
+        retentionRisk: 20,
+      };
+      value.scoreBreakdown = {
+        overall: {
+          premiseAppeal: 20,
+          openingPromise: 21,
+          progression: 20,
+          payoff: 21,
+        },
+        hook: {
+          immediacy: 25,
+          specificity: 20,
+          viewerPull: 18,
+          deliveryAlignment: 20,
+        },
+        retentionRisk: {
+          openingFriction: 4,
+          progressionRisk: 5,
+          predictabilityRisk: 6,
+          payoffRisk: 5,
+        },
+      };
+      value.hookDecision = "keep";
+      value.hookAssessment =
+        "The opening leads with a concrete, specific event.";
+      value.riskyParts = [];
+      value.suggestedFixes = [];
+      value.scenes = [
+        {
+          excerpt:
+            "Last month, a small bakery raised the price of every pastry by 40%.",
+          label: "Price increase",
+          status: "strong",
+        },
+      ];
+      value.mainTakeaway =
+        "The script leads with a concrete, specific event and stays focused throughout.";
+
+      const result = validateAnalysisV2Result(
+        value,
+        script
+      );
+
+      assert.equal(result.ok, false);
+    },
+  },
+  {
+    name: "rejects a Strong aggregate hook score reached via unrelated components (specificity) even when no single component hits the literal max, while hookDecision/riskyPart/fix already say refine",
+    run: () => {
+      // Reproduces the reported inconsistency exactly: neither immediacy
+      // nor deliveryAlignment is individually maximal (20 each, below the
+      // literal 25 ceiling the narrower per-component check enforces), but
+      // specificity alone pushes the aggregate hook total into the Strong
+      // band while hookDecision/riskyPart/fix already say the opening
+      // needs work — an internally inconsistent result that the narrower
+      // component-only check cannot catch by itself.
+      const script =
+        "Last month, a small bakery raised the price of every pastry by 40%. Within one week, customer visits dropped by half. The owner restored the old prices and offered returning customers a free pastry. By Friday, sales were almost back to normal.";
+
+      const value = createMixedResult();
+
+      value.scriptType = "narrative_event";
+      value.scores = {
+        overall: 80,
+        hook: 20 + 24 + 18 + 20,
+        retentionRisk: 45,
+      };
+      value.scoreBreakdown = {
+        overall: {
+          premiseAppeal: 20,
+          openingPromise: 20,
+          progression: 20,
+          payoff: 20,
+        },
+        hook: {
+          immediacy: 20,
+          specificity: 24,
+          viewerPull: 18,
+          deliveryAlignment: 20,
+        },
+        retentionRisk: {
+          openingFriction: 12,
+          progressionRisk: 11,
+          predictabilityRisk: 11,
+          payoffRisk: 11,
+        },
+      };
+      value.hookDecision = "refine";
+      value.hookAssessment =
+        "The cause is stated in the first sentence, but the consequence appears only in the next sentence.";
+      value.suggestedHook =
+        "A small bakery raised the price of every pastry by 40%, and within one week, customer visits dropped by half.";
+      value.riskyParts = [
+        {
+          excerpt:
+            "Last month, a small bakery raised the price of every pastry by 40%.",
+          reason:
+            "The cause is here, but the consequence is only revealed in the next sentence.",
+          severity: "medium",
+        },
+      ];
+      value.suggestedFixes = [
+        {
+          target: "hook",
+          suggestion:
+            "Compress the cause and its consequence into one opening sentence.",
+          optional: false,
+        },
+      ];
+      value.scenes = [
+        {
+          excerpt:
+            "Last month, a small bakery raised the price of every pastry by 40%.",
+          label: "Price increase",
+          status: "risky",
+        },
+      ];
+      value.mainTakeaway =
+        "The main limitation is the split cause-and-consequence opening.";
+
+      assert.ok(
+        (value.scores as { hook: number }).hook >=
+          ANALYSIS_V2_HOOK_STRONG_THRESHOLD,
+        "test setup must actually reach the Strong band"
+      );
+
+      const result = validateAnalysisV2Result(
+        value,
+        script
+      );
+
+      assert.equal(result.ok, false);
+    },
+  },
+  {
+    name: "accepts the same reproduction once normalized: refine decision, grounded opening risky part, non-optional fix, hook below Strong threshold, and a breakdown that sums to the same final score",
+    run: () => {
+      const script =
+        "Last month, a small bakery raised the price of every pastry by 40%. Within one week, customer visits dropped by half. The owner restored the old prices and offered returning customers a free pastry. By Friday, sales were almost back to normal.";
+
+      const value = createMixedResult();
+
+      value.scriptType = "narrative_event";
+      value.scores = {
+        overall: 60,
+        hook: 16 + 17 + 16 + 16,
+        retentionRisk: 45,
+      };
+      value.scoreBreakdown = {
+        overall: {
+          premiseAppeal: 15,
+          openingPromise: 15,
+          progression: 15,
+          payoff: 15,
+        },
+        hook: {
+          immediacy: 16,
+          specificity: 17,
+          viewerPull: 16,
+          deliveryAlignment: 16,
+        },
+        retentionRisk: {
+          openingFriction: 12,
+          progressionRisk: 11,
+          predictabilityRisk: 11,
+          payoffRisk: 11,
+        },
+      };
+      value.hookDecision = "refine";
+      value.hookAssessment =
+        "The cause is stated in the first sentence, but the consequence appears only in the next sentence.";
+      value.suggestedHook =
+        "A small bakery raised the price of every pastry by 40%, and within one week, customer visits dropped by half.";
+      value.riskyParts = [
+        {
+          excerpt:
+            "Last month, a small bakery raised the price of every pastry by 40%.",
+          reason:
+            "The cause is here, but the consequence is only revealed in the next sentence.",
+          severity: "medium",
+        },
+      ];
+      value.suggestedFixes = [
+        {
+          target: "hook",
+          suggestion:
+            "Compress the cause and its consequence into one opening sentence.",
+          optional: false,
+        },
+      ];
+      value.scenes = [
+        {
+          excerpt:
+            "Last month, a small bakery raised the price of every pastry by 40%.",
+          label: "Price increase",
+          status: "risky",
+        },
+      ];
+      value.mainTakeaway =
+        "The main limitation is the split cause-and-consequence opening, which limits premise appeal.";
+
+      const result = validateAnalysisV2Result(
+        value,
+        script
+      );
+
+      if (!result.ok) {
+        throw new Error(result.reason);
+      }
+
+      assert.equal(result.ok, true);
+      assert.ok(
+        result.value.hookDecision === "refine" ||
+          result.value.hookDecision === "rewrite"
+      );
+      assert.ok(result.value.riskyParts.length > 0);
+      assert.ok(
+        result.value.suggestedFixes.some(
+          (fix) => fix.target === "hook" && !fix.optional
+        )
+      );
+      assert.ok(
+        result.value.scores.hook <
+          ANALYSIS_V2_HOOK_STRONG_THRESHOLD
+      );
+
+      // Breakdown and total stay mathematically consistent.
+      const breakdown = result.value.scoreBreakdown;
+
+      if (!breakdown) {
+        throw new Error(
+          "expected the accepted result to keep its score breakdown"
+        );
+      }
+
+      const hookSum =
+        breakdown.hook.immediacy +
+        breakdown.hook.specificity +
+        breakdown.hook.viewerPull +
+        breakdown.hook.deliveryAlignment;
+
+      assert.equal(hookSum, result.value.scores.hook);
+    },
+  },
+  {
+    name: "generic-framing invariant: a Strong aggregate hook score reached via unrelated components cannot coexist with the refine decision and risky part it also requires",
+    run: () => {
+      // Same universal invariant, exercised through the OTHER rule that
+      // can force hookDecision to refine/rewrite (generic first-sentence
+      // filler) rather than the split cause/consequence rule, proving the
+      // fix is not specific to one invariant.
+      const genericOpeningScript =
+        "Something interesting happens before a spacecraft returns to Earth. NASA heats pieces of its heat shield to extreme temperatures to test whether they can survive reentry. Engineers inspect the material for cracks.";
+
+      const value = createMixedResult();
+
+      value.scriptType = "explanation";
+      value.scores = {
+        overall: 75,
+        hook: 20 + 24 + 18 + 20,
+        retentionRisk: 35,
+      };
+      value.scoreBreakdown = {
+        overall: {
+          premiseAppeal: 19,
+          openingPromise: 19,
+          progression: 19,
+          payoff: 18,
+        },
+        hook: {
+          immediacy: 20,
+          specificity: 24,
+          viewerPull: 18,
+          deliveryAlignment: 20,
+        },
+        retentionRisk: {
+          openingFriction: 9,
+          progressionRisk: 9,
+          predictabilityRisk: 9,
+          payoffRisk: 8,
+        },
+      };
+      value.hookDecision = "refine";
+      value.hookAssessment =
+        "The first sentence is generic and delays the concrete NASA testing premise.";
+      value.suggestedHook =
+        "Before reentry, NASA heats heat-shield pieces to test whether they can survive.";
+      value.riskyParts = [
+        {
+          excerpt:
+            "Something interesting happens before a spacecraft returns to Earth.",
+          reason:
+            "The opening delays the concrete NASA testing premise.",
+          severity: "medium",
+        },
+      ];
+      value.suggestedFixes = [
+        {
+          target: "hook",
+          suggestion:
+            "Replace the generic first sentence with the concrete NASA testing premise.",
+          optional: false,
+        },
+      ];
+      value.scenes = [
+        {
+          excerpt:
+            "Something interesting happens before a spacecraft returns to Earth.",
+          label: "Generic opening",
+          status: "risky",
+        },
+      ];
+
+      assert.ok(
+        (value.scores as { hook: number }).hook >=
+          ANALYSIS_V2_HOOK_STRONG_THRESHOLD,
+        "test setup must actually reach the Strong band"
+      );
+
+      const result = validateAnalysisV2Result(
+        value,
+        genericOpeningScript
+      );
+
+      assert.equal(result.ok, false);
+    },
+  },
+  {
+    name: "does not flag the exact short direct cause+effect opener from the reported scenario",
+    run: () => {
+      const script =
+        "A small bakery raised every pastry price by 40%, causing visits to fall by half within one week.";
+
+      const value = createStrongResult();
+
+      value.scriptType = "narrative_event";
+      value.verdict = "strong";
+      value.scores = {
+        overall: 82,
+        hook: 22 + 21 + 20 + 21,
+        retentionRisk: 20,
+      };
+      value.scoreBreakdown = {
+        overall: {
+          premiseAppeal: 20,
+          openingPromise: 21,
+          progression: 20,
+          payoff: 21,
+        },
+        hook: {
+          immediacy: 22,
+          specificity: 21,
+          viewerPull: 20,
+          deliveryAlignment: 21,
+        },
+        retentionRisk: {
+          openingFriction: 4,
+          progressionRisk: 5,
+          predictabilityRisk: 6,
+          payoffRisk: 5,
+        },
+      };
+      value.hookDecision = "keep";
+      value.hookAssessment =
+        "The single opening sentence states both the cause and its consequence.";
+      value.riskyParts = [];
+      value.suggestedFixes = [];
+      value.scenes = [
+        { excerpt: script, label: "Full hook", status: "strong" },
+      ];
+      value.mainTakeaway =
+        "The script leads with a compact cause-and-consequence hook.";
+
+      const result = validateAnalysisV2Result(
+        value,
+        script
+      );
+
+      if (!result.ok) {
+        throw new Error(result.reason);
+      }
+
+      assert.equal(result.ok, true);
+      assert.equal(result.value.hookDecision, "keep");
+      assert.equal(result.value.riskyParts.length, 0);
+    },
+  },
+  {
+    name: "ru: rejects the exact reported Strong-hook/refine inconsistency identically to en (locale parity)",
+    run: () => {
+      const script =
+        "Last month, a small bakery raised the price of every pastry by 40%. Within one week, customer visits dropped by half. The owner restored the old prices and offered returning customers a free pastry. By Friday, sales were almost back to normal.";
+
+      const buildInconsistentValue = () => {
+        const value = createMixedResult();
+
+        value.scriptType = "narrative_event";
+        value.scores = {
+          overall: 80,
+          hook: 20 + 24 + 18 + 20,
+          retentionRisk: 45,
+        };
+        value.scoreBreakdown = {
+          overall: {
+            premiseAppeal: 20,
+            openingPromise: 20,
+            progression: 20,
+            payoff: 20,
+          },
+          hook: {
+            immediacy: 20,
+            specificity: 24,
+            viewerPull: 18,
+            deliveryAlignment: 20,
+          },
+          retentionRisk: {
+            openingFriction: 12,
+            progressionRisk: 11,
+            predictabilityRisk: 11,
+            payoffRisk: 11,
+          },
+        };
+        value.hookDecision = "refine";
+        value.riskyParts = [
+          {
+            excerpt:
+              "Last month, a small bakery raised the price of every pastry by 40%.",
+            reason: "placeholder",
+            severity: "medium",
+          },
+        ];
+        value.suggestedFixes = [
+          {
+            target: "hook",
+            suggestion: "placeholder",
+            optional: false,
+          },
+        ];
+        value.scenes = [
+          {
+            excerpt:
+              "Last month, a small bakery raised the price of every pastry by 40%.",
+            label: "Price increase",
+            status: "risky",
+          },
+        ];
+
+        return value;
+      };
+
+      const enValue = buildInconsistentValue();
+      enValue.hookAssessment =
+        "The cause is stated in the first sentence, but the consequence appears only in the next sentence.";
+      (
+        enValue.riskyParts as { reason: string }[]
+      )[0]!.reason =
+        "The cause is here, but the consequence is only revealed in the next sentence.";
+      (
+        enValue.suggestedFixes as { suggestion: string }[]
+      )[0]!.suggestion =
+        "Compress the cause and its consequence into one opening sentence.";
+      enValue.mainTakeaway =
+        "The main limitation is the split cause-and-consequence opening.";
+
+      const ruValue = buildInconsistentValue();
+      ruValue.hookAssessment =
+        "Причина указана в первом предложении, но следствие раскрывается только в следующем.";
+      (
+        ruValue.riskyParts as { reason: string }[]
+      )[0]!.reason =
+        "Здесь есть причина, но следствие раскрывается только в следующем предложении.";
+      (
+        ruValue.suggestedFixes as { suggestion: string }[]
+      )[0]!.suggestion =
+        "Объедините причину и следствие в одно вступительное предложение.";
+      ruValue.mainTakeaway =
+        "Основное ограничение — разделённое на два предложения начало.";
+
+      const enResult = validateAnalysisV2Result(
+        enValue,
+        script,
+        "en"
+      );
+      const ruResult = validateAnalysisV2Result(
+        ruValue,
+        script,
+        "ru"
+      );
+
+      assert.equal(enResult.ok, false);
+      assert.equal(ruResult.ok, false);
+
+      if (enResult.ok || ruResult.ok) {
+        throw new Error(
+          "expected both locales to reject the Strong-hook/refine inconsistency"
+        );
+      }
+
+      assert.equal(enResult.reason, ruResult.reason);
+    },
+  },
+  {
+    name: "accepts a corrected split cause/consequence hook: non-maximal components, grounded opening risk, non-optional fix, refine decision, and a plain (non-question) fix",
+    run: () => {
+      const script =
+        "Last month, a small bakery raised the price of every pastry by 40%. Within one week, customer visits dropped by half. The owner restored the old prices and offered returning customers a free pastry. By Friday, sales were almost back to normal.";
+
+      const value = createMixedResult();
+
+      value.scriptType = "narrative_event";
+      value.scores = {
+        overall: 15 + 17 + 17 + 16,
+        hook: 14 + 18 + 13 + 10,
+        retentionRisk: 35,
+      };
+      value.scoreBreakdown = {
+        overall: {
+          premiseAppeal: 15,
+          openingPromise: 17,
+          progression: 17,
+          payoff: 16,
+        },
+        hook: {
+          immediacy: 14,
+          specificity: 18,
+          viewerPull: 13,
+          deliveryAlignment: 10,
+        },
+        retentionRisk: {
+          openingFriction: 10,
+          progressionRisk: 8,
+          predictabilityRisk: 10,
+          payoffRisk: 7,
+        },
+      };
+      value.hookDecision = "refine";
+      value.hookAssessment =
+        "The cause and its consequence are split across two sentences, delaying the real viewer pull.";
+      value.suggestedHook =
+        "A bakery raised every pastry price by 40%, and customer visits fell by half within a week.";
+      value.riskyParts = [
+        {
+          excerpt:
+            "Last month, a small bakery raised the price of every pastry by 40%.",
+          reason:
+            "This sentence states the cause but delays its own consequence to the next sentence, so the real viewer pull arrives too late.",
+          severity: "medium",
+        },
+      ];
+      value.suggestedFixes = [
+        {
+          target: "hook",
+          suggestion:
+            "Compress the cause and its consequence into one opening sentence instead of splitting them across two.",
+          optional: false,
+        },
+      ];
+      value.scenes = [
+        {
+          excerpt:
+            "Last month, a small bakery raised the price of every pastry by 40%.",
+          label: "Price increase",
+          status: "risky",
+        },
+      ];
+      value.mainTakeaway =
+        "The main limitation is the split cause-and-consequence opening, which limits premise appeal.";
+
+      const result = validateAnalysisV2Result(
+        value,
+        script
+      );
+
+      if (!result.ok) {
+        throw new Error(result.reason);
+      }
+
+      assert.equal(result.ok, true);
+      assert.notEqual(result.value.hookDecision, "keep");
+      assert.ok(
+        result.value.hookDecision === "refine" ||
+          result.value.hookDecision === "rewrite"
+      );
+      assert.ok(
+        result.value.scoreBreakdown !== undefined &&
+          result.value.scoreBreakdown.hook.immediacy < 25 &&
+          result.value.scoreBreakdown.hook
+            .deliveryAlignment < 25
+      );
+      assert.ok(result.value.riskyParts.length > 0);
+      assert.ok(
+        result.value.suggestedFixes.some(
+          (fix) => fix.target === "hook" && !fix.optional
+        )
+      );
+      // The rule must not force an interrogative hook.
+      assert.equal(
+        (result.value.suggestedHook ?? "")
+          .trim()
+          .endsWith("?"),
+        false
+      );
+      assert.equal(
+        result.value.suggestedFixes[0]!.suggestion
+          .trim()
+          .endsWith("?"),
+        false
+      );
+    },
+  },
+  {
+    name: "does not flag a short direct factual opener that already compresses cause and consequence into one sentence",
+    run: () => {
+      const script =
+        "A bakery raised every pastry price by 40%, and customer visits fell by half within a week.";
+
+      const value = createStrongResult();
+
+      value.scriptType = "narrative_event";
+      value.verdict = "strong";
+      value.scores = {
+        overall: 82,
+        hook: 22 + 21 + 20 + 21,
+        retentionRisk: 20,
+      };
+      value.scoreBreakdown = {
+        overall: {
+          premiseAppeal: 20,
+          openingPromise: 21,
+          progression: 20,
+          payoff: 21,
+        },
+        hook: {
+          immediacy: 22,
+          specificity: 21,
+          viewerPull: 20,
+          deliveryAlignment: 21,
+        },
+        retentionRisk: {
+          openingFriction: 4,
+          progressionRisk: 5,
+          predictabilityRisk: 6,
+          payoffRisk: 5,
+        },
+      };
+      value.hookDecision = "keep";
+      value.hookAssessment =
+        "The single opening sentence states both the cause and its consequence.";
+      value.riskyParts = [];
+      value.suggestedFixes = [];
+      value.scenes = [
+        { excerpt: script, label: "Full hook", status: "strong" },
+      ];
+      value.mainTakeaway =
+        "The script leads with a compact cause-and-consequence hook.";
+
+      const result = validateAnalysisV2Result(
+        value,
+        script
+      );
+
+      if (!result.ok) {
+        throw new Error(result.reason);
+      }
+
+      assert.equal(result.ok, true);
+      assert.equal(result.value.hookDecision, "keep");
+    },
+  },
+  {
+    name: "ru: rejects the same split cause/consequence hook identically to en (locale parity), quoted excerpts stay English",
+    run: () => {
+      const script =
+        "Last month, a small bakery raised the price of every pastry by 40%. Within one week, customer visits dropped by half.";
+
+      const buildBuggyValue = () => {
+        const value = createStrongResult();
+
+        value.scriptType = "narrative_event";
+        value.verdict = "strong";
+        value.scores = {
+          overall: 82,
+          hook: 25 + 20 + 18 + 20,
+          retentionRisk: 20,
+        };
+        value.scoreBreakdown = {
+          overall: {
+            premiseAppeal: 20,
+            openingPromise: 21,
+            progression: 20,
+            payoff: 21,
+          },
+          hook: {
+            immediacy: 25,
+            specificity: 20,
+            viewerPull: 18,
+            deliveryAlignment: 20,
+          },
+          retentionRisk: {
+            openingFriction: 4,
+            progressionRisk: 5,
+            predictabilityRisk: 6,
+            payoffRisk: 5,
+          },
+        };
+        value.hookDecision = "keep";
+        value.riskyParts = [];
+        value.suggestedFixes = [];
+        value.scenes = [
+          {
+            excerpt:
+              "Last month, a small bakery raised the price of every pastry by 40%.",
+            label: "Price increase",
+            status: "strong",
+          },
+        ];
+
+        return value;
+      };
+
+      const enValue = buildBuggyValue();
+      enValue.hookAssessment =
+        "The opening leads with a concrete, specific event.";
+      enValue.mainTakeaway =
+        "The script leads with a concrete, specific event and stays focused throughout.";
+
+      const ruValue = buildBuggyValue();
+      ruValue.hookAssessment =
+        "Открытие сразу даёт конкретное, специфичное событие.";
+      ruValue.mainTakeaway =
+        "Сценарий сразу даёт конкретное событие и остаётся сфокусированным.";
+
+      const enResult = validateAnalysisV2Result(
+        enValue,
+        script,
+        "en"
+      );
+      const ruResult = validateAnalysisV2Result(
+        ruValue,
+        script,
+        "ru"
+      );
+
+      assert.equal(enResult.ok, false);
+      assert.equal(ruResult.ok, false);
+
+      if (enResult.ok || ruResult.ok) {
+        throw new Error(
+          "expected both locales to reject the split cause/consequence hook"
+        );
+      }
+
+      assert.equal(enResult.reason, ruResult.reason);
+
+      assert.equal(
+        (ruValue.scenes as { excerpt: string }[])[0]!
+          .excerpt,
+        "Last month, a small bakery raised the price of every pastry by 40%."
+      );
+    },
+  },
+  {
+    name: "universal rule: several distinct generic framing openers are all rejected the same way, not just the bakery wording",
+    run: () => {
+      const openers = [
+        "Here is a story about a bakery.",
+        "This is a story about a bakery.",
+        "Today, I want to tell you about a bakery.",
+        "Let me tell you about a bakery.",
+      ];
+
+      const rest =
+        " Last month, a small bakery raised the price of every pastry by 40%. Within one week, customer visits dropped by half.";
+
+      for (const opener of openers) {
+        const script = opener + rest;
+        const value = createStrongResult();
+
+        value.scriptType = "narrative_event";
+        value.verdict = "strong";
+        value.scores = {
+          overall: 78,
+          hook: ANALYSIS_V2_HOOK_STRONG_THRESHOLD + 2,
+          retentionRisk: 25,
+        };
+        value.hookDecision = "keep";
+        value.hookAssessment =
+          "The opening is clear and specific.";
+        value.riskyParts = [];
+        value.suggestedFixes = [];
+        value.scenes = [
+          {
+            excerpt: opener,
+            label: "Opening",
+            status: "strong",
+          },
+        ];
+        value.mainTakeaway =
+          "The script is understandable.";
+
+        const result = validateAnalysisV2Result(
+          value,
+          script
+        );
+
+        assert.equal(
+          result.ok,
+          false,
+          `expected "${opener}" to be treated as generic framing filler`
+        );
+      }
+    },
+  },
+  {
+    name: "ru: rejects the same 'story about' framing filler identically to en (locale parity), quoted excerpts stay English",
+    run: () => {
+      const bakeryScript =
+        "Here is a story about a bakery. Last month, a small bakery raised the price of every pastry by 40%. Within one week, customer visits dropped by half. The owner restored the old prices and offered returning customers a free pastry. By Friday, sales were almost back to normal.";
+
+      const buildBuggyValue = () => {
+        const value = createStrongResult();
+
+        value.scriptType = "narrative_event";
+        value.verdict = "strong";
+        value.scores = {
+          overall: 78,
+          hook: ANALYSIS_V2_HOOK_STRONG_THRESHOLD + 2,
+          retentionRisk: 25,
+        };
+        value.hookDecision = "keep";
+        value.riskyParts = [];
+        value.suggestedFixes = [];
+        value.scenes = [
+          {
+            excerpt: "Here is a story about a bakery.",
+            label: "Opening",
+            status: "strong",
+          },
+        ];
+
+        return value;
+      };
+
+      const enValue = buildBuggyValue();
+      enValue.hookAssessment =
+        "The opening sentence quickly introduces a concrete story premise about a bakery.";
+      enValue.mainTakeaway =
+        "The script is understandable.";
+
+      const ruValue = buildBuggyValue();
+      ruValue.hookAssessment =
+        "Открывающая фраза сразу вводит в конкретную ситуацию с пекарней.";
+      ruValue.mainTakeaway = "Сценарий понятен.";
+
+      const enResult = validateAnalysisV2Result(
+        enValue,
+        bakeryScript,
+        "en"
+      );
+      const ruResult = validateAnalysisV2Result(
+        ruValue,
+        bakeryScript,
+        "ru"
+      );
+
+      assert.equal(enResult.ok, false);
+      assert.equal(ruResult.ok, false);
+
+      if (enResult.ok || ruResult.ok) {
+        throw new Error(
+          "expected both locales to reject the framing filler"
+        );
+      }
+
+      assert.equal(enResult.reason, ruResult.reason);
+
+      // The excerpt itself is a quote from the (English) submitted script —
+      // it must never be translated regardless of locale.
+      assert.equal(
+        (ruValue.scenes as { excerpt: string }[])[0]!
+          .excerpt,
+        "Here is a story about a bakery."
+      );
     },
   },
   {

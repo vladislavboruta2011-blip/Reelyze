@@ -1,6 +1,7 @@
 import {
   ANALYSIS_V2_FIX_TARGETS,
   ANALYSIS_V2_HOOK_DECISIONS,
+  ANALYSIS_V2_HOOK_STRONG_THRESHOLD,
   ANALYSIS_V2_LIMITS,
   ANALYSIS_V2_SCENE_STATUSES,
   ANALYSIS_V2_SCORE_COMPONENT_KEYS,
@@ -1272,6 +1273,13 @@ const genericFirstSentenceFillerPatterns = [
   /^(?:there is|there's)\s+(?:something|one thing)\s+(?:interesting|strange|unusual|surprising)\b/i,
   /^(?:this|it)\s+is\s+something\s+(?:many|most)\s+people\b/i,
   /^(?:many|most)\s+people\s+(?:(?:have|probably have|may have)\s+)?(?:noticed|seen|heard)\b/i,
+  // Generic narrative/framing preambles: the sentence only announces that a
+  // story or topic is coming and defers the concrete premise (whatever
+  // follows "about"/"of") to a later sentence, regardless of subject matter.
+  /^(?:here's|here is|this is|that's|that is)\s+(?:a|the|our|my)\s+(?:story|tale)\s+(?:about|of)\b/i,
+  /^(?:so\s+)?today,?\s+i\s+(?:want|wanted|would like)\s+to\s+(?:tell you|talk about|share)\b/i,
+  /^i\s+(?:want|wanted|would like)\s+to\s+(?:tell you|share)\s+(?:a\s+story\s+)?(?:about|today)\b/i,
+  /^let\s+me\s+tell\s+you\s+(?:a\s+story\s+)?about\b/i,
 ] as const;
 
 function hasGenericFirstSentenceFiller(
@@ -1283,6 +1291,57 @@ function hasGenericFirstSentenceFiller(
 
   return genericFirstSentenceFillerPatterns.some(
     (pattern) => pattern.test(firstSentence)
+  );
+}
+
+// Shared consequence/effect vocabulary. Deliberately the same class of
+// generic, niche-agnostic verbs already used to judge concreteness
+// elsewhere (see hasObservableResult below) — reused here, not duplicated
+// with new wording, to recognize when a stated cause's own effect appears.
+const HOOK_CONSEQUENCE_SIGNAL_PATTERN =
+  /\b(?:dropped|drops?|fell|fallen|falling|declined?|declining|decreased?|decreasing|reduced?|reducing|doubled?|halved?|tripled?|surged?|surging|jumped?|jumping|spiked?|spiking|plummeted?|plummeting|collapsed?|collapsing|crashed?|crashing|soared?|soaring|rose|rising|increased?|increasing|grew|grown|growing|shrank|shrunk|shrinking|lost|losing|gained?|gaining|saved?|saving|cost|earned?|earning)\b/i;
+
+function extractSecondSentence(script: string): string {
+  const cleaned = normalizeWhitespace(script);
+  const firstSentence = extractFirstSentence(cleaned);
+  const remainder = cleaned
+    .slice(firstSentence.length)
+    .trim();
+
+  return extractFirstSentence(remainder);
+}
+
+// A concrete, specific opener (contains a number, so it is not generic
+// filler — see hasGenericFirstSentenceFiller above) can still defer its own
+// payoff: the first sentence states a quantified cause/event but not the
+// consequence or stakes that make it matter, and that consequence only
+// shows up in the very next sentence. This is a distinct weakness from
+// generic filler and must not be penalized as such — it only applies when
+// the cause and its own consequence are split across two sentences, never
+// when a single compact sentence already states both.
+function hasHookConsequenceDeferredToNextSentence(
+  script: string
+): boolean {
+  const firstSentence = extractFirstSentence(script)
+    .replace(/[.!?]+$/, "")
+    .trim();
+
+  if (!/\d/.test(firstSentence)) {
+    return false;
+  }
+
+  if (
+    HOOK_CONSEQUENCE_SIGNAL_PATTERN.test(firstSentence)
+  ) {
+    return false;
+  }
+
+  const secondSentence = extractSecondSentence(script)
+    .replace(/[.!?]+$/, "")
+    .trim();
+
+  return HOOK_CONSEQUENCE_SIGNAL_PATTERN.test(
+    secondSentence
   );
 }
 
@@ -2870,6 +2929,71 @@ export function validateAnalysisV2Result(
           "Generic first-sentence filler requires a refine or rewrite hook decision.",
       };
     }
+  }
+
+  if (hasHookConsequenceDeferredToNextSentence(script)) {
+    if (
+      scoreBreakdown &&
+      (scoreBreakdown.hook.immediacy === 25 ||
+        scoreBreakdown.hook.deliveryAlignment === 25)
+    ) {
+      return {
+        ok: false,
+        reason:
+          "A hook whose cause and consequence are split across two sentences cannot receive a maximal immediacy or deliveryAlignment component.",
+      };
+    }
+
+    if (!hasGroundedGenericOpeningRisk) {
+      return {
+        ok: false,
+        reason:
+          "A hook whose consequence is deferred to the next sentence must be identified as a grounded opening risky part.",
+      };
+    }
+
+    if (requiredHookFixes.length === 0) {
+      return {
+        ok: false,
+        reason:
+          "A hook whose consequence is deferred to the next sentence requires a non-optional hook fix.",
+      };
+    }
+
+    if (
+      normalizedHookDecision !== "refine" &&
+      normalizedHookDecision !== "rewrite"
+    ) {
+      return {
+        ok: false,
+        reason:
+          "A hook whose consequence is deferred to the next sentence requires a refine or rewrite hook decision.",
+      };
+    }
+  }
+
+  // Universal invariant, independent of which specific rule above forced
+  // the decision: whenever hookDecision itself says the opening needs work
+  // (refine/rewrite), and that is backed by a grounded opening risky part
+  // and a non-optional hook fix, the hook score cannot still read as
+  // Strong. Without this, individual rules could each force refine/rewrite
+  // plus a risky part and fix while still allowing unrelated components
+  // (e.g. specificity) to keep the aggregate hook score in the Strong band
+  // — an internally inconsistent result (refine decision + risky opening +
+  // required fix + Strong hook). Centralized here once instead of
+  // duplicated inside every rule that can force this decision.
+  if (
+    (normalizedHookDecision === "refine" ||
+      normalizedHookDecision === "rewrite") &&
+    hasGroundedGenericOpeningRisk &&
+    requiredHookFixes.length > 0 &&
+    normalizedScores.hook >= ANALYSIS_V2_HOOK_STRONG_THRESHOLD
+  ) {
+    return {
+      ok: false,
+      reason:
+        "A hookDecision of refine or rewrite backed by a grounded opening risky part and a non-optional hook fix cannot coexist with a Strong hook score.",
+    };
   }
 
   if (verdict === "strong") {

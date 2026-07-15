@@ -19,6 +19,12 @@ import {
   type ImproveScriptLocale,
   type ImproveScriptResult,
 } from "../../../engine/improve-script";
+import {
+  delay,
+  getUpstreamErrorStatus,
+  isRetryableAIResponseError,
+} from "../../../lib/ai-transient-retry";
+import { logAIRouteFailure } from "../../../lib/ai-route-log";
 import { normalizeApiLocale } from "../../../lib/i18n";
 
 export type {
@@ -26,9 +32,34 @@ export type {
 } from "../../../engine/improve-script";
 
 const MAX_REQUEST_BODY_BYTES = 16_384;
+const IMPROVE_SCRIPT_TRANSIENT_RETRY_DELAY_MS = 250;
 const AI_RATE_LIMIT_MAX_REQUESTS = 10;
 const AI_RATE_LIMIT_WINDOW_MS = 60_000;
 const AI_RATE_LIMIT_MAX_ENTRIES = 10_000;
+
+// Diagnostic-only headers: never read by parsing, retry, or caching logic —
+// a rejected/failed response must never be cached.
+export const IMPROVE_SCRIPT_REQUEST_ID_HEADER =
+  "X-Improve-Script-Request-Id";
+export const IMPROVE_SCRIPT_RETRY_COUNT_HEADER =
+  "X-Improve-Script-Retry-Count";
+
+function buildImproveScriptResponseHeaders(
+  requestId: string,
+  status: number,
+  retryCount = 0
+): Record<string, string> {
+  const headers: Record<string, string> = {
+    [IMPROVE_SCRIPT_REQUEST_ID_HEADER]: requestId,
+    [IMPROVE_SCRIPT_RETRY_COUNT_HEADER]: String(retryCount),
+  };
+
+  if (status < 200 || status >= 300) {
+    headers["Cache-Control"] = "no-store";
+  }
+
+  return headers;
+}
 
 type RateLimitEntry = {
   count: number;
@@ -64,8 +95,14 @@ function isAnalysisConfirmedComplete(
 function hasValidatedActionableIssue(
   analysisResult: AnalysisV2Result
 ): boolean {
+  // hookDecision only describes the opening specifically ("diagnostic"
+  // means the hook itself lacks enough material for a confident rewrite —
+  // see requiresGenericAdviceDiagnostic in analysis-v2-validation.ts). A
+  // validated, grounded riskyPart with a non-optional fix can legitimately
+  // target the body/clarity/payoff instead, independent of that hook
+  // decision, so it must not be disqualified merely because the hook was
+  // diagnosed as needing more material.
   return (
-    analysisResult.hookDecision !== "diagnostic" &&
     analysisResult.riskyParts.length > 0 &&
     analysisResult.suggestedFixes.some(
       (fix) => !fix.optional
@@ -238,13 +275,36 @@ Choosing ${languageName} for the explanation must not change editorialDecision.s
 }
 
 export async function POST(req: Request): Promise<Response> {
+  // Diagnostic-only correlation id for this request — never used for
+  // scoring, editorial decisions, caching keys, or rate limiting.
+  const requestId = crypto.randomUUID();
+
+  function respond(
+    resultBody: unknown,
+    status: number,
+    retryCount = 0,
+    extraHeaders?: Record<string, string>
+  ): Response {
+    return Response.json(resultBody, {
+      status,
+      headers: {
+        ...buildImproveScriptResponseHeaders(
+          requestId,
+          status,
+          retryCount
+        ),
+        ...extraHeaders,
+      },
+    });
+  }
+
   const contentType =
     req.headers.get("content-type")?.split(";", 1)[0].trim().toLowerCase() ?? "";
 
   if (contentType !== "application/json") {
-    return Response.json(
+    return respond(
       buildErrorResponse("Unsupported Content-Type. Use application/json."),
-      { status: 415 }
+      415
     );
   }
 
@@ -254,17 +314,22 @@ export async function POST(req: Request): Promise<Response> {
     body = await readJsonBodyWithLimit(req);
   } catch (error) {
     if (error instanceof RequestBodyTooLargeError) {
-      return Response.json(
+      return respond(
         buildErrorResponse("Request body is too large."),
-        { status: 413 }
+        413
       );
     }
 
-    return Response.json(
+    return respond(
       buildErrorResponse("Invalid JSON request body."),
-      { status: 400 }
+      400
     );
   }
+
+  // Set to 1 immediately before the single bounded retry attempt below, so
+  // the catch block can report the real count instead of inferring it from
+  // the error category.
+  let retryCount = 0;
 
   try {
     if (
@@ -273,18 +338,18 @@ export async function POST(req: Request): Promise<Response> {
       !("script" in body) ||
       typeof (body as Record<string, unknown>).script !== "string"
     ) {
-      return Response.json(
+      return respond(
         buildErrorResponse("No script was provided."),
-        { status: 400 }
+        400
       );
     }
 
     const requestBody = body as Record<string, unknown>;
 
     if ("title" in requestBody && typeof requestBody.title !== "string") {
-      return Response.json(
+      return respond(
         buildErrorResponse("Title must be a string."),
-        { status: 400 }
+        400
       );
     }
 
@@ -292,9 +357,9 @@ export async function POST(req: Request): Promise<Response> {
       "refinedHook" in requestBody &&
       typeof requestBody.refinedHook !== "string"
     ) {
-      return Response.json(
+      return respond(
         buildErrorResponse("Refined hook must be a string."),
-        { status: 400 }
+        400
       );
     }
 
@@ -317,36 +382,36 @@ export async function POST(req: Request): Promise<Response> {
     ) as ImproveScriptLocale;
 
     if (script.length === 0) {
-      return Response.json(
+      return respond(
         buildErrorResponse("A non-empty script must be provided."),
-        { status: 400 }
+        400
       );
     }
 
     if (script.length > 1000) {
-      return Response.json(
+      return respond(
         buildErrorResponse(
           "Script is too long. Keep it to 1,000 characters or less."
         ),
-        { status: 400 }
+        400
       );
     }
 
     if (title.length > 200) {
-      return Response.json(
+      return respond(
         buildErrorResponse(
           "Title is too long. Keep it to 200 characters or less."
         ),
-        { status: 400 }
+        400
       );
     }
 
     if (refinedHook.length > 1000) {
-      return Response.json(
+      return respond(
         buildErrorResponse(
           "Refined hook is too long. Keep it to 1,000 characters or less."
         ),
-        { status: 400 }
+        400
       );
     }
 
@@ -365,11 +430,11 @@ export async function POST(req: Request): Promise<Response> {
       );
 
       if (!validation.ok) {
-        return Response.json(
+        return respond(
           buildErrorResponse(
             "Analysis result is invalid or does not match the submitted script."
           ),
-          { status: 400 }
+          400
         );
       }
 
@@ -381,11 +446,12 @@ export async function POST(req: Request): Promise<Response> {
       refinedHook.length === 0 &&
       isAnalysisConfirmedComplete(analysisResult)
     ) {
-      return Response.json(
+      return respond(
         boundImproveScriptResult(
           buildImproveScriptPreserveResponse(script, locale),
           locale
-        )
+        ),
+        200
       );
     }
 
@@ -397,33 +463,33 @@ export async function POST(req: Request): Promise<Response> {
       !bypassLegacyDiagnostic &&
       shouldDiagnoseImproveScript(script)
     ) {
-      return Response.json(buildImproveScriptDiagnosticResponse(locale));
+      return respond(
+        buildImproveScriptDiagnosticResponse(locale),
+        200
+      );
     }
 
     const apiKey = process.env.OPENAI_API_KEY?.trim();
 
     if (!apiKey) {
-      return Response.json(
+      return respond(
         buildErrorResponse(
           "AI script improvement is temporarily unavailable."
         ),
-        { status: 503 }
+        503
       );
     }
 
     const rateLimit = consumeAIRateLimit(getClientIdentifier(req));
 
     if (!rateLimit.allowed) {
-      return Response.json(
+      return respond(
         buildErrorResponse(
           "Too many script improvement requests. Please try again later."
         ),
-        {
-          status: 429,
-          headers: {
-            "Retry-After": String(rateLimit.retryAfterSeconds),
-          },
-        }
+        429,
+        0,
+        { "Retry-After": String(rateLimit.retryAfterSeconds) }
       );
     }
 
@@ -610,54 +676,100 @@ Return only valid JSON matching the required schema.`;
       maxRetries: 0,
     });
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      temperature: 0.2,
-      max_tokens: 1_200,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-    });
+    async function callModelOnce(): Promise<ImproveScriptResult> {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        temperature: 0.2,
+        max_tokens: 1_200,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+      });
 
-    const raw = response.choices[0]?.message?.content?.trim() ?? "";
-    const result = parseImproveScriptResponse(
-      raw,
-      script,
-      refinedHook,
-      bypassLegacyDiagnostic,
-      locale
+      const raw = response.choices[0]?.message?.content?.trim() ?? "";
+
+      return parseImproveScriptResponse(
+        raw,
+        script,
+        refinedHook,
+        bypassLegacyDiagnostic,
+        locale
+      );
+    }
+
+    // Exactly one bounded retry, sequential, for either a transient
+    // upstream failure or a genuinely malformed/schema-invalid model
+    // response (UnusableAIResponseError) — never for an honest editorial
+    // preserve/diagnostic result, which is returned normally, not thrown.
+    let result: ImproveScriptResult;
+
+    try {
+      result = await callModelOnce();
+    } catch (error) {
+      if (!isRetryableAIResponseError(error)) {
+        throw error;
+      }
+
+      await delay(IMPROVE_SCRIPT_TRANSIENT_RETRY_DELAY_MS);
+      retryCount = 1;
+      result = await callModelOnce();
+    }
+
+    return respond(
+      boundImproveScriptResult(result, locale),
+      200,
+      retryCount
     );
-
-    return Response.json(boundImproveScriptResult(result, locale));
   } catch (error) {
-    const upstreamStatus =
-      typeof error === "object" &&
-      error !== null &&
-      "status" in error &&
-      typeof (error as { status?: unknown }).status === "number"
-        ? (error as { status: number }).status
-        : undefined;
+    const upstreamStatus = getUpstreamErrorStatus(error);
+    const failureLocale =
+      typeof body === "object" &&
+      body !== null &&
+      "locale" in body
+        ? String((body as Record<string, unknown>).locale)
+        : "unknown";
 
     if (error instanceof UnusableAIResponseError) {
-      console.error("[improve-script] AI response was unusable.");
+      logAIRouteFailure({
+        requestId,
+        endpoint: "/api/improve-script",
+        locale: failureLocale,
+        failureStage: "model-call-or-parse",
+        errorCategory:
+          "schema-invalid-or-malformed-model-response",
+        upstreamStatus: upstreamStatus ?? null,
+        retryCount,
+        resultStatus: null,
+      });
 
-      return Response.json(
+      return respond(
         buildErrorResponse(
           "Climpy could not generate a valid script improvement right now."
         ),
-        { status: 502 }
+        502,
+        retryCount
       );
     }
 
     if (upstreamStatus === 401 || upstreamStatus === 403) {
-      console.error("[improve-script] AI provider authentication failed.");
+      logAIRouteFailure({
+        requestId,
+        endpoint: "/api/improve-script",
+        locale: failureLocale,
+        failureStage: "model-call",
+        errorCategory: "upstream-auth-failure",
+        upstreamStatus,
+        retryCount,
+        resultStatus: null,
+      });
 
-      return Response.json(
+      return respond(
         buildErrorResponse(
           "AI script improvement is temporarily unavailable."
         ),
-        { status: 503 }
+        503,
+        retryCount
       );
     }
 
@@ -666,23 +778,43 @@ Return only valid JSON matching the required schema.`;
       (upstreamStatus !== undefined && upstreamStatus >= 500) ||
       error instanceof OpenAI.APIConnectionError
     ) {
-      console.error("[improve-script] AI provider temporarily unavailable.");
+      logAIRouteFailure({
+        requestId,
+        endpoint: "/api/improve-script",
+        locale: failureLocale,
+        failureStage: "model-call",
+        errorCategory: "transient-upstream-failure",
+        upstreamStatus: upstreamStatus ?? null,
+        retryCount,
+        resultStatus: null,
+      });
 
-      return Response.json(
+      return respond(
         buildErrorResponse(
           "AI script improvement is temporarily unavailable."
         ),
-        { status: 503 }
+        503,
+        retryCount
       );
     }
 
-    console.error("[improve-script] request failed.");
+    logAIRouteFailure({
+      requestId,
+      endpoint: "/api/improve-script",
+      locale: failureLocale,
+      failureStage: "model-call-or-parse",
+      errorCategory: "internal-error",
+      upstreamStatus: upstreamStatus ?? null,
+      retryCount,
+      resultStatus: null,
+    });
 
-    return Response.json(
+    return respond(
       buildErrorResponse(
         "Climpy could not generate a custom script improvement right now."
       ),
-      { status: 500 }
+      500,
+      retryCount
     );
   }
 }

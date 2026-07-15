@@ -18,6 +18,11 @@ import {
   validateAnalysisV2Input,
   validateAnalysisV2ModelResult,
 } from "@/engine/analysis-v2-validation";
+import {
+  delay,
+  getUpstreamErrorStatus,
+  isTransientUpstreamError,
+} from "@/lib/ai-transient-retry";
 import { normalizeApiLocale } from "@/lib/i18n";
 
 const ANALYSIS_V2_MODEL =
@@ -113,39 +118,6 @@ class EmptyModelResponseError extends Error {
 // This retry exists solely for infrastructure hiccups (dropped connection,
 // timeout, rate limit, upstream 5xx) and never runs concurrently with itself.
 const ANALYSIS_V2_TRANSIENT_RETRY_DELAY_MS = 250;
-
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
-}
-
-function getUpstreamErrorStatus(
-  error: unknown
-): number | undefined {
-  return typeof error === "object" &&
-    error !== null &&
-    "status" in error &&
-    typeof (error as { status?: unknown }).status ===
-      "number"
-    ? (error as { status: number }).status
-    : undefined;
-}
-
-function isTransientAnalysisV2ModelError(
-  error: unknown
-): boolean {
-  if (error instanceof OpenAI.APIConnectionError) {
-    return true;
-  }
-
-  const upstreamStatus = getUpstreamErrorStatus(error);
-
-  return (
-    upstreamStatus === 429 ||
-    (upstreamStatus !== undefined && upstreamStatus >= 500)
-  );
-}
 
 function classifyAnalysisV2ModelError(
   error: unknown,
@@ -452,6 +424,58 @@ function buildAnalysisV2RetryUserPrompt(
       '"Add a concrete example, mechanism, named situation, number, or observable result before rewriting the hook."'
     );
   } else if (
+    validationReason
+      .toLowerCase()
+      .includes("generic first-sentence filler")
+  ) {
+    specificGuidance.push(
+      "Specific correction:",
+      'The opening sentence only announces that a story or topic is coming (for example "Here is a story about...", "This is a story about...", "Today I want to tell you...", or "Let me tell you about...") instead of stating the concrete premise itself.',
+      "Treat this generic framing opener as a material hook problem, not a clear or strong opening, regardless of the topic or niche.",
+      "Do not use hookDecision keep.",
+      "Do not use verdict strong.",
+      "Lower the hook score enough that it no longer falls in the Strong range.",
+      "Include a grounded riskyPart whose excerpt is the exact generic opening sentence quoted verbatim from the script.",
+      "Include a non-optional hook-target suggestedFix that asks to remove the generic framing sentence and open directly with the concrete fact already present later in the script.",
+      "Use hookDecision refine or rewrite, not keep.",
+      "The corrected suggestedHook and suggestedFix do not need to be phrased as a question — a plain declarative rewrite is acceptable.",
+      "Keep every other score component, scene, and fix aligned with the concrete facts already present in the rest of the script; do not lower components that are already strong and unrelated to the opening."
+    );
+  } else if (
+    validationReason.includes(
+      "deferred to the next sentence"
+    ) ||
+    validationReason.includes(
+      "split across two sentences"
+    )
+  ) {
+    specificGuidance.push(
+      "Specific correction:",
+      "The opening sentence states a concrete, specific cause or event but not its own consequence or stakes — the consequence only appears in the next sentence.",
+      "This is a different weakness from generic filler: the opening is already concrete, but the cause and its consequence are split across two sentences instead of being compressed into one.",
+      "Do not penalize this script as generic filler — the opening is already concrete and specific, it only needs its consequence pulled forward into the same sentence.",
+      "You must apply every one of these four corrections together in the same response, not just one of them:",
+      "1) Do not give scoreComponents.hook.immediacy or scoreComponents.hook.deliveryAlignment the maximum value of 25 while this split remains.",
+      "2) riskyParts must include exactly one entry whose excerpt field is the first sentence of the submitted script copied character-for-character, including its final period — not paraphrased, not shortened, not reworded.",
+      "3) suggestedFixes must include at least one entry with target \"hook\" and optional false, whose suggestion asks to compress the cause and its consequence into one opening sentence.",
+      "4) hookDecision must be refine or rewrite, never keep.",
+      "The corrected suggestedHook and suggestedFix do not need to be phrased as a question — a plain declarative rewrite that states both the cause and the consequence together is acceptable.",
+      "Keep every other score component, scene, and fix aligned with the concrete facts already present in the rest of the script."
+    );
+  } else if (
+    validationReason.includes(
+      "cannot coexist with a Strong hook score"
+    )
+  ) {
+    specificGuidance.push(
+      "Specific correction:",
+      "hookDecision is refine or rewrite, and a grounded opening riskyPart with a non-optional hook fix are both already present — but the four hook components still sum to a Strong hook score.",
+      "A refine or rewrite decision backed by a real opening problem must not still read as a Strong hook.",
+      "Lower one or more of scoreComponents.hook.immediacy, specificity, viewerPull, or deliveryAlignment — whichever the opening problem actually affects — so the four components summed together no longer reach the Strong range.",
+      "Do not remove the riskyPart, the non-optional hook fix, or change hookDecision away from refine/rewrite to avoid this — the score must move, not the decision or the evidence.",
+      "Recalculate the derived hook total from the four components after lowering them, and keep every unrelated score component, scene, and fix aligned with the concrete facts already present in the rest of the script."
+    );
+  } else if (
     validationReason.includes(
       "complete causal explanation in an unpunctuated script"
     )
@@ -551,6 +575,18 @@ function isAnalysisV2FinalTargetedRetryReason(
     ) ||
     validationReason.includes(
       "A strong result must use keep or refine"
+    ) ||
+    validationReason
+      .toLowerCase()
+      .includes("generic first-sentence filler") ||
+    validationReason.includes(
+      "deferred to the next sentence"
+    ) ||
+    validationReason.includes(
+      "split across two sentences"
+    ) ||
+    validationReason.includes(
+      "cannot coexist with a Strong hook score"
     )
   );
 }
@@ -596,6 +632,53 @@ function buildAnalysisV2FinalTargetedRetryUserPrompt(
       "Include a grounded riskyPart copied from the opening promise.",
       "Include a non-optional fix that asks the creator to reveal the promised item or remove the promise.",
       "Do not invent the missing setting, cause, reason, mechanism, entity, or fact in suggestedHook or suggestedFixes."
+    );
+  } else if (
+    validationReason
+      .toLowerCase()
+      .includes("generic first-sentence filler")
+  ) {
+    specificGuidance.push(
+      'The opening sentence only announces that a story or topic is coming (for example "Here is a story about...", "This is a story about...", "Today I want to tell you...", or "Let me tell you about...") instead of stating the concrete premise itself.',
+      "This is a material hook problem regardless of the script's topic or niche.",
+      "Do not use hookDecision keep. Do not use verdict strong.",
+      "Lower the hook score enough that it no longer falls in the Strong range.",
+      "Include a grounded riskyPart whose excerpt is the exact generic opening sentence quoted verbatim from the script.",
+      "Include a non-optional hook-target suggestedFix that asks to remove the generic framing sentence and open directly with the concrete fact already present later in the script.",
+      "Use hookDecision refine or rewrite.",
+      "The corrected suggestedHook and suggestedFix do not need to be phrased as a question — a plain declarative rewrite is acceptable.",
+      "Do not lower unrelated score components, scenes, or facts that are already concrete and strong elsewhere in the script.",
+      "Recalculate the derived overall and hook scores from the score components after making this correction so the mixed verdict range and the below-Strong hook score are both satisfied together."
+    );
+  } else if (
+    validationReason.includes(
+      "deferred to the next sentence"
+    ) ||
+    validationReason.includes(
+      "split across two sentences"
+    )
+  ) {
+    specificGuidance.push(
+      "The opening sentence states a concrete cause or event but its own consequence only appears in the next sentence — this is not generic filler, the opening is already concrete and specific.",
+      "Apply every one of these four corrections together in the same final response, not just one of them:",
+      "1) scoreComponents.hook.immediacy and scoreComponents.hook.deliveryAlignment must not be 25 while the cause and its consequence remain split across two sentences.",
+      "2) riskyParts must include exactly one entry whose excerpt field is the first sentence of the submitted script copied character-for-character, including its final period — not paraphrased, not shortened, not reworded.",
+      "3) suggestedFixes must include at least one entry with target \"hook\" and optional false, whose suggestion asks to compress the cause and its consequence into one opening sentence.",
+      "4) hookDecision must be refine or rewrite, never keep.",
+      "The corrected suggestedHook and suggestedFix do not need to be phrased as a question — a plain declarative rewrite stating both the cause and the consequence together is acceptable.",
+      "Do not lower unrelated score components, scenes, or facts that are already concrete and strong elsewhere in the script."
+    );
+  } else if (
+    validationReason.includes(
+      "cannot coexist with a Strong hook score"
+    )
+  ) {
+    specificGuidance.push(
+      "hookDecision is refine or rewrite, and a grounded opening riskyPart with a non-optional hook fix are both already present — but the four hook components still sum to a Strong hook score.",
+      "A refine or rewrite decision backed by a real opening problem must not still read as a Strong hook.",
+      "Lower one or more of scoreComponents.hook.immediacy, specificity, viewerPull, or deliveryAlignment — whichever the opening problem actually affects — so the four components summed together no longer reach the Strong range.",
+      "Do not remove the riskyPart, the non-optional hook fix, or change hookDecision away from refine/rewrite to avoid this — the score must move, not the decision or the evidence.",
+      "Recalculate the derived hook total from the four components immediately before returning the final JSON, and keep every unrelated score component, scene, and fix aligned with the concrete facts already present in the rest of the script."
     );
   } else if (
     validationReason.includes(
@@ -713,7 +796,7 @@ export async function runAnalysisV2(
     } catch (error) {
       if (
         error instanceof MissingApiKeyError ||
-        !isTransientAnalysisV2ModelError(error)
+        !isTransientUpstreamError(error)
       ) {
         return classifyAnalysisV2ModelError(
           error,

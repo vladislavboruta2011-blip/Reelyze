@@ -1,10 +1,11 @@
-import type {
-  AnalysisV2HookDecision,
-  AnalysisV2Locale,
-  AnalysisV2Result,
-  AnalysisV2ScriptType,
-  AnalysisV2SuccessResponse,
-  AnalysisV2Verdict,
+import {
+  ANALYSIS_V2_HOOK_STRONG_THRESHOLD,
+  type AnalysisV2HookDecision,
+  type AnalysisV2Locale,
+  type AnalysisV2Result,
+  type AnalysisV2ScriptType,
+  type AnalysisV2SuccessResponse,
+  type AnalysisV2Verdict,
 } from "./analysis-v2-schema";
 import { validateAnalysisV2Result } from "./analysis-v2-validation";
 import { dedupeFixes } from "./scoring-fixes";
@@ -253,7 +254,8 @@ function getOverallLabel(
 }
 
 function getHookLabel(score: number): string {
-  if (score >= 80) return "Strong";
+  if (score >= ANALYSIS_V2_HOOK_STRONG_THRESHOLD)
+    return "Strong";
   if (score >= 65) return "Good";
   if (score >= 55) return "Average";
   return "Weak";
