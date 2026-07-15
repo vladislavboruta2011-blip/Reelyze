@@ -414,6 +414,7 @@ async function submitFeedback(
           typeof window === "undefined"
             ? null
             : window.location.pathname,
+        locale,
       }),
     });
 

@@ -10,6 +10,11 @@ const persistedFeedbackRequests: Record<string, unknown>[] = [];
 process.env.SUPABASE_URL = "https://feedback-test.supabase.co";
 process.env.SUPABASE_SECRET_KEY = "feedback-test-secret";
 
+// Toggled on for exactly one test case to simulate a genuine database
+// failure (e.g. the production DNS/connectivity failure this suite
+// regresses against) without affecting every other case.
+let simulateSupabaseFailure = false;
+
 globalThis.fetch = (async (
   input: RequestInfo | URL,
   init?: RequestInit
@@ -33,6 +38,21 @@ globalThis.fetch = (async (
   ) {
     throw new Error(
       `Unexpected Supabase request: ${method} ${url}`
+    );
+  }
+
+  if (simulateSupabaseFailure) {
+    return new Response(
+      JSON.stringify({
+        message: "Simulated database failure (e.g. DNS/connectivity).",
+        code: "SIMULATED_FAILURE",
+      }),
+      {
+        status: 500,
+        headers: {
+          "content-type": "application/json",
+        },
+      }
     );
   }
 
@@ -221,9 +241,206 @@ async function main(): Promise<void> {
     console.log("PASS — rejects oversized script");
   }
 
-  if (persistedFeedbackRequests.length !== 2) {
+  {
+    const beforeCount = persistedFeedbackRequests.length;
+
+    const response = await POST(
+      createRequest(
+        createValidFeedback({
+          locale: "ru",
+          reason: "Useful fixes",
+        })
+      )
+    );
+    const json = await expectJson(response);
+
+    if (response.status !== 200 || json.status !== "ok") {
+      throw new Error("Valid ru-locale feedback should be accepted.");
+    }
+
+    if (persistedFeedbackRequests.length !== beforeCount + 1) {
+      throw new Error(
+        "Expected exactly one new Supabase insert for the ru submission."
+      );
+    }
+
+    const persisted =
+      persistedFeedbackRequests[persistedFeedbackRequests.length - 1]!;
+
+    // The stable canonical (English) reason value must reach Supabase
+    // unchanged — never a localized RU label.
+    if (persisted.reason !== "Useful fixes") {
+      throw new Error(
+        `Expected the canonical reason value to be persisted, got ${JSON.stringify(persisted.reason)}.`
+      );
+    }
+
+    // The feedback table has no locale column (see
+    // app/api/admin/feedback/route.ts's explicit select list) — locale
+    // must not be written to Supabase.
+    if ("locale" in persisted) {
+      throw new Error(
+        "locale must not be persisted to Supabase — the feedback table has no locale column."
+      );
+    }
+
+    console.log(
+      "PASS — accepts ru-locale feedback with the stable canonical reason value, and does not persist a locale column"
+    );
+  }
+
+  {
+    const enResponse = await POST(
+      createRequest(
+        createValidFeedback({ locale: "en", reason: "Useful fixes" })
+      )
+    );
+    const enJson = await expectJson(enResponse);
+
+    const ruResponse = await POST(
+      createRequest(
+        createValidFeedback({ locale: "ru", reason: "Useful fixes" })
+      )
+    );
+    const ruJson = await expectJson(ruResponse);
+
+    if (
+      enResponse.status !== ruResponse.status ||
+      enJson.status !== ruJson.status ||
+      enResponse.status !== 200 ||
+      enJson.status !== "ok"
+    ) {
+      throw new Error(
+        "en and ru submissions of otherwise-identical feedback must behave identically."
+      );
+    }
+
+    console.log(
+      "PASS — en and ru submissions of the same feedback behave identically"
+    );
+  }
+
+  {
+    const response = await POST(
+      createRequest(createValidFeedback({ locale: "not-a-real-locale" }))
+    );
+    const json = await expectJson(response);
+
+    if (response.status !== 200 || json.status !== "ok") {
+      throw new Error(
+        "An invalid locale value must default safely, not reject the submission."
+      );
+    }
+
+    console.log(
+      "PASS — an invalid/garbage locale value defaults safely instead of rejecting the submission"
+    );
+  }
+
+  {
+    simulateSupabaseFailure = true;
+
+    let response: Response;
+
+    try {
+      response = await POST(createRequest(createValidFeedback()));
+    } finally {
+      simulateSupabaseFailure = false;
+    }
+
+    const json = await expectJson(response);
+    const serialized = JSON.stringify(json);
+
+    if (response.status !== 500 || json.status !== "error") {
+      throw new Error(
+        "A database failure must return a safe generic error, not a success."
+      );
+    }
+
+    if (
+      serialized.includes("SIMULATED_FAILURE") ||
+      serialized.includes("Simulated database failure") ||
+      /ENOTFOUND|getaddrinfo|supabase\.co|fetch failed/i.test(
+        serialized
+      )
+    ) {
+      throw new Error(
+        "The raw Supabase/database error must never reach the client response."
+      );
+    }
+
+    console.log(
+      "PASS — a database failure returns a safe generic error without leaking the raw Supabase error"
+    );
+  }
+
+  {
+    const originalConsoleInfo = console.info;
+    const loggedCalls: unknown[][] = [];
+
+    console.info = (...args: unknown[]) => {
+      loggedCalls.push(args);
+    };
+
+    const secretScript =
+      "UNIQUE_SECRET_SCRIPT_TOKEN_44219 do not log this script text";
+    const secretTitle = "UNIQUE_SECRET_TITLE_TOKEN_55330";
+    const secretTakeaway =
+      "UNIQUE_SECRET_TAKEAWAY_TOKEN_66441";
+    const secretCustomText =
+      "UNIQUE_SECRET_CUSTOM_TEXT_TOKEN_77552";
+
+    try {
+      const response = await POST(
+        createRequest(
+          createValidFeedback({
+            locale: "ru",
+            rating: "unhelpful",
+            reason: "Wrong score",
+            text: secretCustomText,
+            title: secretTitle,
+            script: secretScript,
+            mainTakeaway: secretTakeaway,
+          })
+        )
+      );
+
+      await expectJson(response);
+    } finally {
+      console.info = originalConsoleInfo;
+    }
+
+    const serializedLogs = JSON.stringify(loggedCalls);
+
+    if (
+      serializedLogs.includes(secretScript) ||
+      serializedLogs.includes(secretTitle) ||
+      serializedLogs.includes(secretTakeaway) ||
+      serializedLogs.includes(secretCustomText)
+    ) {
+      throw new Error(
+        "Structured feedback logs must never include script, title, mainTakeaway, or free-form custom text."
+      );
+    }
+
+    if (
+      !serializedLogs.includes("\"rating\"") ||
+      !serializedLogs.includes("\"locale\":\"ru\"") ||
+      !serializedLogs.includes("\"hasCustomText\":true")
+    ) {
+      throw new Error(
+        "Structured feedback logs must still include rating, locale, and hasCustomText."
+      );
+    }
+
+    console.log(
+      "PASS — structured feedback log excludes script/title/mainTakeaway/custom text while keeping rating/locale/hasCustomText"
+    );
+  }
+
+  if (persistedFeedbackRequests.length !== 7) {
     throw new Error(
-      `Expected exactly 2 mocked Supabase inserts, received ${persistedFeedbackRequests.length}.`
+      `Expected exactly 7 mocked Supabase inserts, received ${persistedFeedbackRequests.length}.`
     );
   }
 
