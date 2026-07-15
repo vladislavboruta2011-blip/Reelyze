@@ -4,6 +4,10 @@ import Image from "next/image";
 import { Inter } from "next/font/google";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { LanguageSwitcher } from "../language-switcher";
+import { useMessages } from "../use-messages";
+import { useLocale } from "../locale-provider";
+import type { Locale } from "../../lib/i18n";
 import type {
   AnalysisV2SuccessResponse,
 } from "../../engine/analysis-v2-schema";
@@ -27,7 +31,6 @@ import {
   createScaleLabels,
 } from "./timing-helpers";
 import { createDisplayFixes } from "./fixes-helpers";
-import { pluralize } from "./text-helpers";
 import {
   Card,
   DesktopScoreCard,
@@ -63,7 +66,7 @@ const inter = Inter({
 
 const MAX_SCRIPT_CHARACTERS = 1000;
 const MAX_TITLE_CHARACTERS = 200;
-const IMPROVE_SCRIPT_CACHE_VERSION = "2";
+const IMPROVE_SCRIPT_CACHE_VERSION = "3";
 const IMPROVE_SCRIPT_CACHE_STORAGE_KEY =
   "climpy-improve-script-cache";
 
@@ -114,11 +117,13 @@ function createImproveScriptFingerprint({
   title,
   refinedHook,
   analysisResult,
+  locale,
 }: {
   script: string;
   title: string;
   refinedHook: string;
   analysisResult: AnalysisV2SuccessResponse["result"] | null;
+  locale: Locale;
 }): string {
   return JSON.stringify({
     version: IMPROVE_SCRIPT_CACHE_VERSION,
@@ -126,6 +131,7 @@ function createImproveScriptFingerprint({
     title: title.trim(),
     refinedHook: refinedHook.trim(),
     analysisResult,
+    locale,
   });
 }
 
@@ -186,6 +192,9 @@ function parseStoredImproveScriptCache(
 }
 
 export default function ResultsPage() {
+  const { locale } = useLocale();
+  const messages = useMessages();
+  const results = messages.results;
  const [savedScript, setSavedScript] = useState("");
   const [savedTitle, setSavedTitle] = useState("");
   const [savedAnalysisV2, setSavedAnalysisV2] =
@@ -265,9 +274,7 @@ const [mobileScriptOpen, setMobileScriptOpen] = useState(false);
           !isValidStoredTitle ||
           parsedAnalysis === null
         ) {
-          setStorageError(
-            "Your saved analysis is invalid. Please go back and analyze the script again."
-          );
+          setStorageError(results.error.invalidAnalysis);
           return;
         }
 
@@ -290,17 +297,29 @@ const [mobileScriptOpen, setMobileScriptOpen] = useState(false);
           // localStorage not critical — ignore
         }
       } catch {
-        setStorageError("Could not load your script. Please go back and try again.");
+        setStorageError(results.error.couldNotLoad);
       } finally {
         setIsStorageLoaded(true);
       }
     }, 0);
 
     return () => window.clearTimeout(timer);
+    // Intentionally mount-only: this reads sessionStorage once. The error
+    // strings are captured at first render, matching this effect's existing
+    // run-once behavior.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const hasAnalyzedScript = savedScript.trim().length > 0;
   const activeScript = hasAnalyzedScript ? savedScript.trim() : fallbackScript;
+
+  // Old saved analyses have no `locale` field — treat them as "en" rather
+  // than assuming they match the current UI locale.
+  const savedAnalysisLocale = savedAnalysisV2?.locale ?? "en";
+  const hasLocaleMismatch =
+    hasAnalyzedScript &&
+    Boolean(savedAnalysisV2) &&
+    savedAnalysisLocale !== locale;
 
   const scriptLines = useMemo(() => {
     return createScriptLines(activeScript);
@@ -347,7 +366,7 @@ const [mobileScriptOpen, setMobileScriptOpen] = useState(false);
 }, [activeScript]);
 
 const improvedHook = aiHook || fallbackImprovedHook;
-const modalHookText = improveError ? "No improved hook was generated." : improvedHook;
+const modalHookText = improveError ? results.hookModal.noImprovedHookGenerated : improvedHook;
 
 const hookDecision = savedAnalysisV2?.result.hookDecision ?? "keep";
 const shouldShowHookAction = savedAnalysisV2
@@ -355,13 +374,13 @@ const shouldShowHookAction = savedAnalysisV2
   : analysis.fixes.length > 0 && analysis.hook.score < 75;
 const hookActionLabel = savedAnalysisV2
   ? hookDecision === "diagnostic"
-    ? "Needs Details"
+    ? results.suggestedFixes.hookActionNeedsDetails
     : hookDecision === "refine"
-      ? "Refine Hook"
-      : "Improve Hook"
+      ? results.suggestedFixes.hookActionRefine
+      : results.suggestedFixes.hookActionImprove
   : analysis.hook.score >= 70
-    ? "Refine Hook"
-    : "Improve Hook";
+    ? results.suggestedFixes.hookActionRefine
+    : results.suggestedFixes.hookActionImprove;
 
 async function submitFeedback(
   rating: "helpful" | "unhelpful",
@@ -399,13 +418,13 @@ async function submitFeedback(
     });
 
     if (!response.ok) {
-      setFeedbackSubmitError("Feedback could not be sent. Please try again.");
+      setFeedbackSubmitError(results.feedback.submitError);
       return false;
     }
 
     return true;
   } catch {
-    setFeedbackSubmitError("Feedback could not be sent. Please try again.");
+    setFeedbackSubmitError(results.feedback.submitError);
     return false;
   } finally {
     setFeedbackSubmitting(false);
@@ -418,58 +437,52 @@ const shouldShowHookAnalysis = !savedAnalysisV2 && analysis.hook.score >= 80;
 
 const hookModalTitle =
   aiHookMode === "diagnostic"
-    ? "Needs More Specific Material"
+    ? results.hookModal.needsMoreSpecificMaterialTitle
     : savedAnalysisV2
       ? hookDecision === "refine"
-        ? "Refined Hook"
-        : "Improved Hook"
+        ? results.hookModal.refinedHookTitle
+        : results.hookModal.improvedHookTitle
       : shouldShowHookAnalysis
-        ? "Hook Analysis"
+        ? results.hookModal.hookAnalysisTitle
         : analysis.hook.score >= 70
-          ? "Refine Hook"
-          : "Improved Hook";
+          ? results.hookModal.refineHookTitle
+          : results.hookModal.improvedHookTitle;
 
 const hookModalDescription =
   aiHookMode === "diagnostic"
-    ? "This script is too broad to rewrite into a stronger hook without inventing ideas."
+    ? results.hookModal.tooBroadDescription
     : savedAnalysisV2
       ? hookDecision === "refine"
-        ? "This version keeps the same promise while making the opening sharper and clearer."
-        : "Use this version to make the opening clearer, stronger, and more curiosity-driven."
+        ? results.hookModal.refineSameDescription
+        : results.hookModal.usePromptDescription
       : shouldShowHookAnalysis
-        ? "This opening already creates a clear reason to keep watching."
+        ? results.hookModal.alreadyWorksDescription
         : analysis.hook.score >= 70
-          ? "The hook is working. This refinement focuses on making the opening or payoff land stronger."
-          : "Use this version to make the opening clearer, stronger, and more curiosity-driven.";
+          ? results.hookModal.workingRefineDescription
+          : results.hookModal.usePromptDescription;
 
 const hookModalReasonLabel =
   aiHookMode === "diagnostic"
-    ? "Why no hook was generated:"
+    ? results.hookModal.whyNoHookGenerated
     : savedAnalysisV2
       ? hookDecision === "refine"
-        ? "What this version improves:"
-        : "Why it is better:"
+        ? results.hookModal.whatThisVersionImproves
+        : results.hookModal.whyItIsBetter
       : shouldShowHookAnalysis
-        ? "Why this hook works:"
+        ? results.hookModal.whyThisHookWorks
         : analysis.hook.score >= 70
-          ? "What this version improves:"
-          : "Why it is better:";
+          ? results.hookModal.whatThisVersionImproves
+          : results.hookModal.whyItIsBetter;
 
 const displayFixes = createDisplayFixes(analysis.fixes, aiHook);
-  
+
  const improvedHookReason =
   aiHookReason || getHookRewriteReason(activeScript);
 
 const hookCopyButtonLabel =
   aiHookMode === "diagnostic"
-    ? "Copy Advice"
-    : savedAnalysisV2
-      ? hookDecision === "refine"
-        ? "Copy Hook"
-        : "Copy Hook"
-      : analysis.hook.score >= 70
-        ? "Copy Hook"
-        : "Copy Hook";
+    ? results.hookModal.copyAdvice
+    : results.hookModal.copyHook;
 
   async function handleCopyHook() {
     if (isImprovingHook || improveError) return;
@@ -511,18 +524,14 @@ const hookCopyButtonLabel =
       }
 
       if (hookDecision === "diagnostic") {
-        setAiHook(
-          "Add specific material to the script before generating a new hook."
-        );
+        setAiHook(results.hookModal.addSpecificMaterial);
         setAiHookReason(hookAssessment);
         setAiHookMode("diagnostic");
         return;
       }
 
       if (!suggestedHook) {
-        setImproveError(
-          "No validated hook suggestion is available for this analysis."
-        );
+        setImproveError(results.hookModal.noValidatedHookSuggestion);
         return;
       }
 
@@ -541,6 +550,7 @@ const hookCopyButtonLabel =
         body: JSON.stringify({
           script: activeScript,
           title: savedTitle,
+          locale,
         }),
       });
 
@@ -552,17 +562,15 @@ const hookCopyButtonLabel =
       } = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        const apiReason =
-          typeof data.reason === "string" && data.reason.trim().length > 0
-            ? data.reason.trim()
-            : "Could not improve hook. Please try again.";
-
-        setImproveError(apiReason);
+        // The API's `reason` here is a technical/debug message (rate limit,
+        // bad request, provider outage) and must not be shown raw — always
+        // use the localized fallback instead.
+        setImproveError(results.hookModal.genericError);
         return;
       }
 
       if (!isValidImproveSuccessPayload(data)) {
-        setImproveError("Could not improve hook. Please try again.");
+        setImproveError(results.hookModal.genericError);
         return;
       }
 
@@ -570,20 +578,24 @@ const hookCopyButtonLabel =
         typeof data.improvedHook === "string" &&
         data.improvedHook.trim().length > 0
           ? data.improvedHook.trim()
+          // Unreachable: isValidImproveSuccessPayload already guarantees a
+          // non-empty improvedHook. Left in English on purpose — this value
+          // can flow into Improve Script's refinedHook/cache fingerprint, so
+          // it must never depend on locale.
           : "AI hook improvement is unavailable right now.";
 
       const hookReason =
         typeof data.reason === "string" && data.reason.trim().length > 0
           ? data.reason.trim()
           : data.status === "good"
-            ? "The hook is already clear, specific, and creates curiosity without needing a rewrite."
-            : "The hook was adjusted to improve clarity, curiosity, or payoff connection.";
+            ? results.hookModal.alreadyGoodReason
+            : results.hookModal.adjustedReason;
 
       setAiHook(hookText);
       setAiHookReason(hookReason);
       setAiHookMode(data.mode === "diagnostic" ? "diagnostic" : "rewrite");
     } catch {
-      setImproveError("Could not improve hook. Please try again.");
+      setImproveError(results.hookModal.genericError);
     } finally {
       setIsImprovingHook(false);
     }
@@ -618,6 +630,7 @@ const hookCopyButtonLabel =
         title: savedTitle,
         refinedHook,
         analysisResult,
+        locale,
       });
 
     setCopiedScript(false);
@@ -682,6 +695,7 @@ const hookCopyButtonLabel =
           title: savedTitle,
           refinedHook: refinedHook || undefined,
           analysisResult: analysisResult ?? undefined,
+          locale,
         }),
       });
 
@@ -695,20 +709,16 @@ const hookCopyButtonLabel =
       }
 
       if (!response.ok) {
-        const payload = data as { reason?: unknown };
-        const apiReason =
-          typeof payload.reason === "string" &&
-          payload.reason.trim().length > 0
-            ? payload.reason.trim()
-            : "Could not improve script. Please try again.";
-
-        setImproveScriptError(apiReason);
+        // The API's `reason` here is a technical/debug message (rate limit,
+        // bad request, provider outage) and must not be shown raw — always
+        // use the localized fallback instead.
+        setImproveScriptError(results.improveScriptModal.genericError);
         return;
       }
 
       if (!isValidImproveScriptSuccessPayload(data)) {
         setImproveScriptError(
-          "Could not improve script. Please try again."
+          results.improveScriptModal.genericError
         );
         return;
       }
@@ -740,7 +750,7 @@ const hookCopyButtonLabel =
       }
 
       setImproveScriptError(
-        "Could not improve script. Please try again."
+        results.improveScriptModal.genericError
       );
     } finally {
       if (
@@ -778,26 +788,26 @@ const hookCopyButtonLabel =
     if (!isStorageLoaded || storageError || !hasAnalyzedScript) return;
 
     const reviewText = [
-      savedTitle || "Climpy Script Review",
-      `Overall Score: ${analysis.overall.score}/100`,
-      `Hook Score: ${analysis.hook.score}/100`,
-      `Retention Risk: ${analysis.risk.score}/100`,
+      savedTitle || results.share.fallbackTitle,
+      `${results.scoreCards.overallScore}: ${analysis.overall.score}/100`,
+      `${results.scoreCards.hookScore}: ${analysis.hook.score}/100`,
+      `${results.scoreCards.retentionRisk}: ${analysis.risk.score}/100`,
       "",
       activeScript,
     ].join("\n");
 
     const shareData = {
-      title: savedTitle || "Climpy Script Review",
+      title: savedTitle || results.share.fallbackTitle,
       text: reviewText,
     };
 
     try {
       if (typeof navigator !== "undefined" && navigator.share) {
         await navigator.share(shareData);
-        setShareMessage("Shared.");
+        setShareMessage(results.share.shared);
       } else if (typeof navigator !== "undefined" && navigator.clipboard) {
         await navigator.clipboard.writeText(reviewText);
-        setShareMessage("Review copied.");
+        setShareMessage(results.share.reviewCopied);
       }
     } catch {
       // user cancelled share or clipboard write failed — ignore
@@ -823,25 +833,28 @@ const hookCopyButtonLabel =
           <nav className="flex flex-col gap-1.5 px-4">
             <Link href="/results" className="flex h-[46px] items-center gap-3 rounded-[12px] border border-[#DDD6FE] bg-[#F3E8FF] px-4">
               <SquarePen size={16} className="text-[#7C3AED]" />
-              <span className="text-[14px] font-semibold text-[#7C3AED]">Results</span>
+              <span className="text-[14px] font-semibold text-[#7C3AED]">{messages.common.results}</span>
             </Link>
             <Link href="/" className="flex h-[46px] items-center gap-3 rounded-[12px] px-4 transition hover:bg-white/[0.03]">
               <PencilLine size={16} className="text-[#6B7280]" />
-              <span className="text-[14px] font-medium text-[#6B7280]">New Analysis</span>
+              <span className="text-[14px] font-medium text-[#6B7280]">{results.nav.newAnalysis}</span>
             </Link>
           </nav>
+          <div className="px-4 pt-3">
+            <LanguageSwitcher className="w-full justify-center" />
+          </div>
           {isStorageLoaded && !storageError && hasAnalyzedScript && (
             <div className="mt-auto px-4 pb-10 pt-8">
               <div className="rounded-[18px] border border-[#E5E7EB]/70 bg-white p-5">
-              <p className="text-[14px] font-semibold text-[#111827]">Rate this analysis</p>
-              <p className="mt-1.5 text-[12px] text-[#6B7280]">Was this review helpful?</p>
+              <p className="text-[14px] font-semibold text-[#111827]">{results.feedback.heading}</p>
+              <p className="mt-1.5 text-[12px] text-[#6B7280]">{results.feedback.subheading}</p>
               <div className="mt-3.5 flex gap-2">
                 <button
                   onClick={() => { setDesktopFeedback("helpful"); setDesktopSelectedReason(null); setDesktopFeedbackSubmitted(false); }}
                   className={["flex h-[38px] flex-1 items-center justify-center gap-1.5 rounded-[10px] border text-[13px] font-medium transition", desktopFeedback === "helpful" ? "border-[#22C55E]/60 bg-[#22C55E]/10 text-[#22C55E]" : "border-[#E5E7EB] text-[#6B7280] hover:border-[#22C55E]/40 hover:text-[#111827]"].join(" ")}
                 >
                   <ThumbsUp size={14} />
-                  Helpful
+                  {results.feedback.helpful}
                 </button>
                 <button
                   onClick={() => { setDesktopFeedback(desktopFeedback === "dislike" ? null : "dislike"); setDesktopSelectedReason(null); setDesktopFeedbackSubmitted(false); }}
@@ -853,7 +866,7 @@ const hookCopyButtonLabel =
 
               {desktopFeedback === "helpful" && !desktopFeedbackSubmitted && (
                 <div className="mt-3">
-                  <p className="text-[11px] text-[#6B7280] mb-1.5">What was helpful?</p>
+                  <p className="text-[11px] text-[#6B7280] mb-1.5">{results.feedback.whatWasHelpful}</p>
                   <FeedbackReasonOptions
                     rating="helpful"
                     selectedReason={desktopSelectedReason}
@@ -875,7 +888,7 @@ const hookCopyButtonLabel =
 
               {desktopFeedback === "dislike" && !desktopFeedbackSubmitted && (
                 <div className="mt-3">
-                  <p className="text-[11px] text-[#6B7280] mb-1.5">What was wrong?</p>
+                  <p className="text-[11px] text-[#6B7280] mb-1.5">{results.feedback.whatWasWrong}</p>
                   <FeedbackReasonOptions
                     rating="unhelpful"
                     selectedReason={desktopSelectedReason}
@@ -897,13 +910,13 @@ const hookCopyButtonLabel =
 
               {desktopFeedbackSubmitted && (
                 <p className="mt-2.5 text-[12px]" style={{ color: desktopFeedback === "helpful" ? "#22C55E" : "#EF4444" }}>
-                  {desktopFeedback === "helpful" ? "Thanks — feedback noted." : "Thanks — we'll use this to improve."}
+                  {desktopFeedback === "helpful" ? results.feedback.thanksHelpful : results.feedback.thanksUnhelpful}
                 </p>
               )}
 
               {feedbackSubmitting && (
                 <p className="mt-2 text-[12px] text-[#6B7280]">
-                  Sending feedback...
+                  {results.feedback.sending}
                 </p>
               )}
 
@@ -924,23 +937,28 @@ const hookCopyButtonLabel =
             {/* Header */}
             <div className="mb-7 flex items-start justify-between gap-6">
               <div>
-                <h1 className="text-[36px] font-semibold tracking-[-0.02em] text-[#111827]">Script Review</h1>
+                <h1 className="text-[36px] font-semibold tracking-[-0.02em] text-[#111827]">{results.header.title}</h1>
                 <p className="mt-1.5 text-[14px] text-[#6B7280]">
-                  Analyzed just now —{" "}
-                  <span className="text-[#6B7280]">{savedTitle || "YouTube Shorts Script"}</span>
+                  {results.header.analyzedPrefix}{" "}
+                  <span className="text-[#6B7280]">{savedTitle || results.header.fallbackTitle}</span>
                 </p>
+                {hasLocaleMismatch && (
+                  <p className="mt-1 text-[12px] text-[#9CA3AF]">
+                    {results.localeMismatch.message}
+                  </p>
+                )}
               </div>
               <Link href="/" className="inline-flex h-[42px] shrink-0 items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-5 text-[14px] font-semibold text-[#111827] transition hover:border-[#7C3AED]/50 hover:bg-[#7C3AED]/10">
                 <PencilLine size={15} />
-                New Analysis
+                {results.nav.newAnalysis}
               </Link>
             </div>
 
             {/* Loading state */}
             {!isStorageLoaded && (
               <Card className="p-8 mb-6">
-                <p className="text-[20px] font-semibold text-[#111827]">Loading results...</p>
-                <p className="mt-3 text-[14px] text-[#6B7280]">Please wait while Climpy checks your latest analysis.</p>
+                <p className="text-[20px] font-semibold text-[#111827]">{results.loading.title}</p>
+                <p className="mt-3 text-[14px] text-[#6B7280]">{results.loading.descriptionDesktop}</p>
               </Card>
             )}
 
@@ -954,9 +972,9 @@ const hookCopyButtonLabel =
             {/* Empty state */}
             {isStorageLoaded && !storageError && !hasAnalyzedScript && (
               <Card className="p-8 mb-6">
-                <h2 className="text-[26px] font-semibold text-[#111827]">No script analyzed yet.</h2>
-                <p className="mt-4 text-[15px] text-[#6B7280]">Go to New Analysis and paste your YouTube Shorts script first. After you click Analyze Script, your results will appear here.</p>
-                <Link href="/" className="mt-6 inline-flex h-[48px] items-center justify-center rounded-[12px] bg-[#7C3AED] px-6 text-[15px] font-semibold text-[#111827] transition hover:bg-[#6D28D9]">New Analysis</Link>
+                <h2 className="text-[26px] font-semibold text-[#111827]">{results.empty.headingDesktop}</h2>
+                <p className="mt-4 text-[15px] text-[#6B7280]">{results.empty.descriptionDesktop}</p>
+                <Link href="/" className="mt-6 inline-flex h-[48px] items-center justify-center rounded-[12px] bg-[#7C3AED] px-6 text-[15px] font-semibold text-[#111827] transition hover:bg-[#6D28D9]">{results.nav.newAnalysis}</Link>
               </Card>
             )}
 
@@ -966,19 +984,22 @@ const hookCopyButtonLabel =
                 {/* Score cards */}
                 <div className="mb-6 grid grid-cols-3 gap-5">
                   <DesktopScoreCard
-                    title="Overall Score"
+                    title={results.scoreCards.overallScore}
                     data={analysis.overall}
                     accentColor={analysis.overall.ringColor}
+                    category="overall"
                   />
                   <DesktopScoreCard
-                    title="Hook Score"
+                    title={results.scoreCards.hookScore}
                     data={analysis.hook}
                     accentColor={analysis.hook.color}
+                    category="hook"
                   />
                   <DesktopScoreCard
-                    title="Retention Risk"
+                    title={results.scoreCards.retentionRisk}
                     data={analysis.risk}
                     accentColor={analysis.risk.color}
+                    category="risk"
                   />
                 </div>
 
@@ -997,7 +1018,7 @@ const hookCopyButtonLabel =
                   <div className="flex items-start gap-3">
                     <Target size={16} className="mt-0.5 shrink-0 text-[#7C3AED]" />
                     <div>
-                      <p className="text-[12.5px] font-semibold text-[#7C3AED]">Main Takeaway</p>
+                      <p className="text-[12.5px] font-semibold text-[#7C3AED]">{results.mainTakeaway.label}</p>
                       <p className="mt-1 text-[13px] leading-[1.6] text-[#5B21B6]">{analysis.overall.description}</p>
                     </div>
                   </div>
@@ -1008,10 +1029,10 @@ const hookCopyButtonLabel =
                   {/* Script card */}
                   <Card className="p-6">
                     <div className="mb-4">
-                      <h2 className="text-[17px] font-semibold text-[#111827]">Your Script</h2>
+                      <h2 className="text-[17px] font-semibold text-[#111827]">{results.script.heading}</h2>
                       {savedTitle && (
                         <div className="mt-3 rounded-[12px] border border-[#E5E7EB] bg-[#F8F8FC] px-4 py-3">
-                          <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-[#6B7280]">Title</p>
+                          <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-[#6B7280]">{results.script.titleLabel}</p>
                           <p className="mt-1 text-[14px] font-semibold leading-[1.45] text-[#111827]">{savedTitle}</p>
                         </div>
                       )}
@@ -1026,7 +1047,7 @@ const hookCopyButtonLabel =
                       />
                     </div>
                     <p className="mt-4 text-[12px] text-[#6B7280]">
-  {characterCount} / 1000 Characters — ~{formatTime(estimatedDuration)} estimated
+  {results.script.characterCount(characterCount)} — {results.script.estimatedDuration(formatTime(estimatedDuration))}
 </p>
                   </Card>
 
@@ -1035,8 +1056,8 @@ const hookCopyButtonLabel =
                     {/* Risky Parts */}
                     <Card className="p-6">
                       <div className="mb-5 flex items-center justify-between">
-                        <h2 className="text-[17px] font-semibold text-[#111827]">Risky Parts</h2>
-                        <span className="text-[12px] font-medium text-[#6B7280]">{pluralize(analysis.riskyParts.length, "found", "found")}</span>
+                        <h2 className="text-[17px] font-semibold text-[#111827]">{results.riskyParts.heading}</h2>
+                        <span className="text-[12px] font-medium text-[#6B7280]">{results.riskyParts.found(analysis.riskyParts.length)}</span>
                       </div>
                       <RiskyPartsContent
                         parts={analysis.riskyParts}
@@ -1047,8 +1068,8 @@ const hookCopyButtonLabel =
                     {/* Suggested Fixes */}
                     <Card className="p-6">
                       <div className="mb-5 flex items-center justify-between">
-                        <h2 className="text-[17px] font-semibold text-[#111827]">Suggested Fixes</h2>
-                        <span className="text-[12px] font-medium text-[#6B7280]">{pluralize(displayFixes.length, "suggestion", "suggestions")}</span>
+                        <h2 className="text-[17px] font-semibold text-[#111827]">{results.suggestedFixes.heading}</h2>
+                        <span className="text-[12px] font-medium text-[#6B7280]">{results.suggestedFixes.count(displayFixes.length)}</span>
                       </div>
                       <button
                         onClick={handleImproveScript}
@@ -1056,7 +1077,7 @@ const hookCopyButtonLabel =
                         className="mb-3 mr-3 inline-flex h-[38px] items-center gap-2 rounded-[10px] border border-[#DDD6FE] bg-[#F3E8FF] px-4 text-[13px] font-semibold text-[#7C3AED] transition hover:bg-[#EDE9FE] disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         <PencilLine size={15} />
-                        Improve Script
+                        {results.suggestedFixes.improveScriptButton}
                       </button>
                       {shouldShowHookAction && (
                         <button
@@ -1077,7 +1098,7 @@ const hookCopyButtonLabel =
 
                 {/* Scene Breakdown */}
                 <Card className="mt-5 p-6">
-                  <h2 className="mb-4 text-[17px] font-semibold text-[#111827]">Scene Breakdown</h2>
+                  <h2 className="mb-4 text-[17px] font-semibold text-[#111827]">{results.sceneBreakdown.heading}</h2>
                   <SceneBreakdownContent
                     segments={analysis.sceneSegments}
                     scaleLabels={scaleLabels}
@@ -1095,12 +1116,12 @@ const hookCopyButtonLabel =
         <div className="fixed inset-0 z-50 hidden lg:flex items-center justify-center bg-black/60 backdrop-blur-[3px]">
           <div className="relative w-full max-w-[460px] rounded-[24px] border border-[#E5E7EB] bg-white p-8 shadow-[0_24px_80px_rgba(0,0,0,0.7)]">
             <button onClick={() => setDesktopOtherFeedbackOpen(false)} className="absolute right-5 top-5 text-[20px] text-[#6B7280] transition hover:text-[#111827]">×</button>
-            <h2 className="text-[20px] font-semibold text-[#111827]">{desktopFeedback === "helpful" ? "What did you like?" : "What did not work?"}</h2>
-            <p className="mt-1.5 text-[13px] text-[#6B7280]">Your feedback helps improve Climpy.</p>
+            <h2 className="text-[20px] font-semibold text-[#111827]">{desktopFeedback === "helpful" ? results.feedback.otherModal.likedTitle : results.feedback.otherModal.wrongTitle}</h2>
+            <p className="mt-1.5 text-[13px] text-[#6B7280]">{results.feedback.otherModal.helperText}</p>
             <textarea
               value={desktopOtherFeedbackText}
               onChange={(e) => setDesktopOtherFeedbackText(e.target.value)}
-              placeholder={desktopFeedback === "helpful" ? "Tell us what you liked about this analysis..." : "Tell us what was wrong or missing..."}
+              placeholder={desktopFeedback === "helpful" ? results.feedback.otherModal.placeholderLiked : results.feedback.otherModal.placeholderWrong}
               rows={5}
               className="mt-5 w-full resize-none rounded-[12px] border border-[#E5E7EB] bg-[#F8F8FC] px-4 py-3 text-[13px] leading-[1.65] text-[#6B7280] outline-none placeholder:text-[#9CA3AF]"
             />
@@ -1119,9 +1140,9 @@ const hookCopyButtonLabel =
                 disabled={feedbackSubmitting}
                 className="h-[40px] rounded-[10px] bg-[#6D28D9] px-5 text-[13px] font-semibold text-[#111827] transition hover:bg-[#7C3AED] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {feedbackSubmitting ? "Submitting..." : "Submit"}
+                {feedbackSubmitting ? results.feedback.otherModal.submitting : results.feedback.otherModal.submit}
               </button>
-              <button onClick={() => setDesktopOtherFeedbackOpen(false)} className="h-[40px] rounded-[10px] border border-[#E5E7EB] bg-[#F8F8FC] px-5 text-[13px] font-semibold text-[#111827] transition hover:bg-[#F3F4F6]">Cancel</button>
+              <button onClick={() => setDesktopOtherFeedbackOpen(false)} className="h-[40px] rounded-[10px] border border-[#E5E7EB] bg-[#F8F8FC] px-5 text-[13px] font-semibold text-[#111827] transition hover:bg-[#F3F4F6]">{results.feedback.otherModal.cancel}</button>
             </div>
           </div>
         </div>
@@ -1149,23 +1170,32 @@ const hookCopyButtonLabel =
             </button>
           </div>
 
+          <div className="flex justify-center px-5 pb-2">
+            <LanguageSwitcher />
+          </div>
+
           {shareMessage && (
             <p className="px-5 -mt-1 mb-2 text-[11px] text-[#6B7280]">{shareMessage}</p>
           )}
 
           {/* Title */}
           <div className="px-5 mb-5">
-            <h1 className="text-[28px] font-semibold tracking-[-0.02em] text-[#111827]">Script Review</h1>
+            <h1 className="text-[28px] font-semibold tracking-[-0.02em] text-[#111827]">{results.header.title}</h1>
             <p className="mt-1 text-[12px] text-[#6B7280]">
-              Analyzed just now — <span className="text-[#6B7280]">{savedTitle || "YouTube Shorts Script"}</span>
+              {results.header.analyzedPrefix} <span className="text-[#6B7280]">{savedTitle || results.header.fallbackTitle}</span>
             </p>
+            {hasLocaleMismatch && (
+              <p className="mt-1 text-[11px] text-[#9CA3AF]">
+                {results.localeMismatch.message}
+              </p>
+            )}
           </div>
 
           {/* Loading */}
           {!isStorageLoaded && (
             <div className="mx-5 mb-4 rounded-[18px] border border-[#E5E7EB] bg-white p-5">
-              <p className="text-[15px] font-semibold text-[#111827]">Loading results...</p>
-              <p className="mt-1.5 text-[13px] text-[#6B7280]">Please wait a moment.</p>
+              <p className="text-[15px] font-semibold text-[#111827]">{results.loading.title}</p>
+              <p className="mt-1.5 text-[13px] text-[#6B7280]">{results.loading.descriptionMobile}</p>
             </div>
           )}
 
@@ -1179,9 +1209,9 @@ const hookCopyButtonLabel =
           {/* Empty state */}
           {isStorageLoaded && !storageError && !hasAnalyzedScript && (
             <div className="mx-5 mb-4 rounded-[18px] border border-[#E5E7EB] bg-white p-6">
-              <p className="text-[18px] font-semibold text-[#111827] mb-2">No script analyzed yet.</p>
-              <p className="text-[13px] leading-[1.6] text-[#6B7280] mb-5">Go to New Analysis and paste your script first.</p>
-              <Link href="/" className="flex h-[44px] w-full items-center justify-center rounded-[12px] bg-[#6D28D9] text-[14px] font-semibold text-[#111827]">New Analysis</Link>
+              <p className="text-[18px] font-semibold text-[#111827] mb-2">{results.empty.headingMobile}</p>
+              <p className="text-[13px] leading-[1.6] text-[#6B7280] mb-5">{results.empty.descriptionMobile}</p>
+              <Link href="/" className="flex h-[44px] w-full items-center justify-center rounded-[12px] bg-[#6D28D9] text-[14px] font-semibold text-[#111827]">{results.nav.newAnalysis}</Link>
             </div>
           )}
 
@@ -1209,7 +1239,7 @@ const hookCopyButtonLabel =
                 <div className="flex items-start gap-3">
                   <Target size={15} className="mt-0.5 shrink-0 text-[#7C3AED]" />
                   <div>
-                    <p className="text-[11px] font-semibold text-[#7C3AED] mb-1">Main Takeaway</p>
+                    <p className="text-[11px] font-semibold text-[#7C3AED] mb-1">{results.mainTakeaway.label}</p>
                     <p className="text-[13px] leading-[1.6] text-[#5B21B6]">{analysis.overall.description}</p>
                   </div>
                 </div>
@@ -1228,8 +1258,8 @@ const hookCopyButtonLabel =
               {/* Risky Parts */}
               <div className="rounded-[18px] border border-[#E5E7EB] bg-white overflow-hidden">
                 <div className="flex items-center justify-between px-5 pt-4 pb-3">
-                  <h2 className="text-[15px] font-semibold text-[#111827]">Risky Parts</h2>
-                  <span className="text-[11px] font-medium text-[#6B7280]">{pluralize(analysis.riskyParts.length, "found", "found")}</span>
+                  <h2 className="text-[15px] font-semibold text-[#111827]">{results.riskyParts.heading}</h2>
+                  <span className="text-[11px] font-medium text-[#6B7280]">{results.riskyParts.found(analysis.riskyParts.length)}</span>
                 </div>
                 <RiskyPartsContent
                   parts={analysis.riskyParts}
@@ -1241,8 +1271,8 @@ const hookCopyButtonLabel =
               {/* Suggested Fixes */}
               <div className="rounded-[18px] border border-[#E5E7EB] bg-white overflow-hidden">
                 <div className="flex items-center justify-between px-5 pt-4 pb-3">
-                  <h2 className="text-[15px] font-semibold text-[#111827]">Suggested Fixes</h2>
-                  <span className="text-[11px] font-medium text-[#6B7280]">{pluralize(displayFixes.length, "suggestion", "suggestions")}</span>
+                  <h2 className="text-[15px] font-semibold text-[#111827]">{results.suggestedFixes.heading}</h2>
+                  <span className="text-[11px] font-medium text-[#6B7280]">{results.suggestedFixes.count(displayFixes.length)}</span>
                 </div>
                 <div className="px-4 pb-4 flex flex-col gap-2.5">
                   <button
@@ -1250,7 +1280,7 @@ const hookCopyButtonLabel =
                     disabled={isImprovingScript}
                     className="h-[42px] w-full rounded-[12px] border border-[#DDD6FE] bg-[#F3E8FF] text-[13px] font-semibold text-[#7C3AED] disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    Improve Script
+                    {results.suggestedFixes.improveScriptButton}
                   </button>
                   <SuggestedFixesContent
                     fixes={mobileFixesOpen ? displayFixes : displayFixes.slice(0, 3)}
@@ -1258,7 +1288,7 @@ const hookCopyButtonLabel =
                   />
                   {displayFixes.length > 3 && (
                     <button onClick={() => setMobileFixesOpen(!mobileFixesOpen)} className="flex w-full items-center justify-center gap-1.5 pt-1">
-                      <span className="text-[12px] font-semibold text-[#6B7280]">{mobileFixesOpen ? "Show fewer" : "View all suggestions"}</span>
+                      <span className="text-[12px] font-semibold text-[#6B7280]">{mobileFixesOpen ? results.suggestedFixes.showFewer : results.suggestedFixes.viewAll}</span>
                       <ChevronRight size={12} className={`text-[#6B7280] transition-transform ${mobileFixesOpen ? "rotate-90" : ""}`} />
                     </button>
                   )}
@@ -1271,9 +1301,9 @@ const hookCopyButtonLabel =
                   onClick={() => setMobileScriptOpen(!mobileScriptOpen)}
                   className="flex w-full items-center justify-between px-5 py-4"
                 >
-                  <h2 className="text-[15px] font-semibold text-[#111827]">Your Script</h2>
+                  <h2 className="text-[15px] font-semibold text-[#111827]">{results.script.heading}</h2>
                   <div className="flex items-center gap-2">
-                    <span className="text-[11px] text-[#6B7280]">{characterCount} / 1000 Characters</span>
+                    <span className="text-[11px] text-[#6B7280]">{results.script.characterCount(characterCount)}</span>
                     <ChevronDown size={15} className={`text-[#6B7280] transition-transform ${mobileScriptOpen ? "rotate-180" : ""}`} />
                   </div>
                 </button>
@@ -1281,7 +1311,7 @@ const hookCopyButtonLabel =
                   <div className="px-4 pb-4">
                     {savedTitle && (
                       <div className="mb-3 rounded-[10px] border border-[#E5E7EB] bg-[#F8F8FC] px-3 py-2.5">
-                        <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-[#6B7280]">Title</p>
+                        <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-[#6B7280]">{results.script.titleLabel}</p>
                         <p className="mt-1 text-[12px] font-semibold leading-[1.45] text-[#111827]">{savedTitle}</p>
                       </div>
                     )}
@@ -1295,7 +1325,7 @@ const hookCopyButtonLabel =
                         compact
                       />
                     </div>
-                    <p className="mt-2 text-[11px] text-[#9CA3AF]">~{formatTime(estimatedDuration)} estimated</p>
+                    <p className="mt-2 text-[11px] text-[#9CA3AF]">{results.script.estimatedDuration(formatTime(estimatedDuration))}</p>
                   </div>
                 )}
               </div>
@@ -1306,7 +1336,7 @@ const hookCopyButtonLabel =
                   onClick={() => setMobileSceneOpen(!mobileSceneOpen)}
                   className="flex w-full items-center justify-between px-5 py-4"
                 >
-                  <h2 className="text-[15px] font-semibold text-[#111827]">Scene Breakdown</h2>
+                  <h2 className="text-[15px] font-semibold text-[#111827]">{results.sceneBreakdown.heading}</h2>
                   <ChevronDown size={15} className={`text-[#6B7280] transition-transform ${mobileSceneOpen ? "rotate-180" : ""}`} />
                 </button>
                 {mobileSceneOpen && (
@@ -1322,15 +1352,15 @@ const hookCopyButtonLabel =
 
               {/* Rate This Analysis */}
               <div className="rounded-[18px] border border-[#E5E7EB] bg-white px-5 py-4">
-                <p className="text-[14px] font-semibold text-[#111827]">Rate this analysis</p>
-                <p className="mt-1 text-[12px] text-[#6B7280]">Was this review helpful?</p>
+                <p className="text-[14px] font-semibold text-[#111827]">{results.feedback.heading}</p>
+                <p className="mt-1 text-[12px] text-[#6B7280]">{results.feedback.subheading}</p>
                 <div className="mt-3 flex gap-2.5">
                   <button
                     onClick={() => { setMobileFeedback("helpful"); setMobileSelectedReason(null); setMobileFeedbackSubmitted(false); }}
                     className={["flex h-[40px] flex-1 items-center justify-center gap-1.5 rounded-[10px] border text-[13px] font-semibold transition", mobileFeedback === "helpful" ? "border-[#22C55E]/50 bg-[#22C55E]/10 text-[#22C55E]" : "border-[#E5E7EB] bg-[#F8F8FC] text-[#6B7280]"].join(" ")}
                   >
                     <ThumbsUp size={13} />
-                    Helpful
+                    {results.feedback.helpful}
                   </button>
                   <button
                     onClick={() => { setMobileFeedback(mobileFeedback === "dislike" ? null : "dislike"); setMobileSelectedReason(null); setMobileFeedbackSubmitted(false); }}
@@ -1342,7 +1372,7 @@ const hookCopyButtonLabel =
 
                 {mobileFeedback === "helpful" && !mobileFeedbackSubmitted && (
                   <div className="mt-3">
-                    <p className="text-[11px] text-[#6B7280] mb-1.5">What was helpful?</p>
+                    <p className="text-[11px] text-[#6B7280] mb-1.5">{results.feedback.whatWasHelpful}</p>
                     <FeedbackReasonOptions
                       rating="helpful"
                       selectedReason={mobileSelectedReason}
@@ -1365,7 +1395,7 @@ const hookCopyButtonLabel =
 
                 {mobileFeedback === "dislike" && !mobileFeedbackSubmitted && (
                   <div className="mt-3">
-                    <p className="text-[11px] text-[#6B7280] mb-1.5">What was wrong?</p>
+                    <p className="text-[11px] text-[#6B7280] mb-1.5">{results.feedback.whatWasWrong}</p>
                     <FeedbackReasonOptions
                       rating="unhelpful"
                       selectedReason={mobileSelectedReason}
@@ -1388,13 +1418,13 @@ const hookCopyButtonLabel =
 
                 {mobileFeedbackSubmitted && (
                   <p className="mt-2 text-[12px]" style={{ color: mobileFeedback === "helpful" ? "#22C55E" : "#EF4444" }}>
-                    {mobileFeedback === "helpful" ? "Thanks — feedback noted." : "Thanks — we'll use this to improve."}
+                    {mobileFeedback === "helpful" ? results.feedback.thanksHelpful : results.feedback.thanksUnhelpful}
                   </p>
                 )}
 
                 {feedbackSubmitting && (
                   <p className="mt-2 text-[12px] text-[#6B7280]">
-                    Sending feedback...
+                    {results.feedback.sending}
                   </p>
                 )}
 
@@ -1415,11 +1445,11 @@ const hookCopyButtonLabel =
           <div className="mx-auto flex h-full w-full max-w-[430px] items-center justify-between px-5">
             <Link href="/" className="flex h-[40px] items-center justify-center gap-2 rounded-[12px] border border-[#E5E7EB] bg-white px-5 text-[13px] font-semibold text-[#111827]">
               <PencilLine size={14} className="text-[#6B7280]" />
-              New analysis
+              {results.nav.newAnalysisMobileNav}
             </Link>
             <Link href="/results" className="flex h-[40px] items-center justify-center gap-2 rounded-[12px] border border-[#DDD6FE] bg-[#F3E8FF] px-5 text-[13px] font-semibold text-[#7C3AED]">
               <SquarePen size={13} />
-              Results
+              {messages.common.results}
             </Link>
           </div>
         </div>
@@ -1437,13 +1467,13 @@ const hookCopyButtonLabel =
             </button>
 
             <h2 className="pr-8 text-[22px] font-semibold leading-[28px] tracking-[-0.03em] text-[#111827]">
-  {mobileFeedback === "helpful" ? "What did you like?" : "What was wrong?"}
+  {mobileFeedback === "helpful" ? results.feedback.mobileModal.likedTitle : results.feedback.mobileModal.wrongTitle}
 </h2>
 
             <p className="mt-2 text-[13px] font-normal leading-[21px] text-[#6B7280]">
   {mobileFeedback === "helpful"
-    ? "Tell us what felt useful, accurate, or helpful in this analysis."
-    : "Tell us what felt inaccurate, confusing, or not useful in this analysis."}
+    ? results.feedback.mobileModal.likedDescription
+    : results.feedback.mobileModal.wrongDescription}
 </p>
 
             <textarea
@@ -1451,8 +1481,8 @@ const hookCopyButtonLabel =
               onChange={(event) => setFeedbackText(event.target.value)}
               placeholder={
   mobileFeedback === "helpful"
-    ? "Tell us what you liked..."
-    : "Write your feedback here..."
+    ? results.feedback.mobileModal.placeholderLiked
+    : results.feedback.mobileModal.placeholderWrong
 }
               rows={4}
               className="mt-4 w-full resize-none rounded-[14px] border border-[#E5E7EB] bg-[#F8F8FC] px-3.5 py-3 text-[13px] font-normal leading-[20px] text-[#111827] outline-none placeholder:text-[#6B7280] focus:border-[#DDD6FE]"
@@ -1473,14 +1503,14 @@ const hookCopyButtonLabel =
                 disabled={feedbackSubmitting}
                 className="h-[44px] rounded-[12px] bg-[#6D28D9] text-[13px] font-semibold text-[#111827] transition hover:bg-[#7C3AED] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {feedbackSubmitting ? "Sending..." : "Send feedback"}
+                {feedbackSubmitting ? results.feedback.mobileModal.sending : results.feedback.mobileModal.send}
               </button>
 
               <button
                 onClick={() => setIsFeedbackOpen(false)}
                 className="h-[44px] rounded-[12px] border border-[#E5E7EB] bg-[#F8F8FC] text-[13px] font-semibold text-[#111827] transition hover:bg-[#F3F4F6]"
               >
-                Cancel
+                {results.feedback.mobileModal.cancel}
               </button>
             </div>
           </div>
@@ -1499,23 +1529,23 @@ const hookCopyButtonLabel =
 
             <h2 className="pr-8 text-[20px] font-semibold text-[#111827] sm:text-[22px]">
               {improvedScriptMissingMaterial.length > 0
-                ? "Script Needs More Material"
+                ? results.improveScriptModal.needsMoreMaterialTitle
                 : improveScriptStatus === "preserve"
-                  ? "Original Script Preserved"
-                  : "Improved Script"}
+                  ? results.improveScriptModal.originalPreservedTitle
+                  : results.improveScriptModal.improvedTitle}
             </h2>
 
             <p className="mt-2 text-[13px] leading-5 text-[#6B7280] sm:text-[14px]">
               {improveScriptStatus === "preserve"
-                ? "Climpy kept your original because the generated rewrite did not make a meaningful editorial improvement."
-                : "Climpy rewrites the complete Short while preserving the facts in your original script."}
+                ? results.improveScriptModal.preservedDescription
+                : results.improveScriptModal.defaultDescription}
             </p>
 
             <div className="mt-5 max-h-[300px] overflow-y-auto whitespace-pre-wrap rounded-[14px] border border-[#E5E7EB] bg-[#F8F8FC] p-4 text-[13px] leading-6 text-[#111827] sm:text-[14px]">
               {isImprovingScript
-                ? "Improving the full script..."
+                ? results.improveScriptModal.improving
                 : improveScriptError
-                  ? "No improved script was generated."
+                  ? results.improveScriptModal.noScriptGenerated
                   : improvedScript}
             </div>
 
@@ -1541,7 +1571,7 @@ const hookCopyButtonLabel =
 
                 {improvedScriptMissingMaterial.length > 0 && (
                   <p className="text-[12px] leading-5 text-[#6B7280] sm:text-[13px]">
-                    Add: {improvedScriptMissingMaterial.join(", ")}.
+                    {results.improveScriptModal.addMissingMaterial(improvedScriptMissingMaterial)}
                   </p>
                 )}
               </div>
@@ -1555,16 +1585,16 @@ const hookCopyButtonLabel =
                 }
                 className="h-[42px] flex-1 rounded-[12px] bg-[#7C3AED] text-[13px] font-semibold text-white transition hover:bg-[#6D28D9] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {copiedScript ? "Copied!" : improveScriptStatus === "preserve"
-                ? "Copy Original"
-                : "Copy Script"}
+                {copiedScript ? results.improveScriptModal.copied : improveScriptStatus === "preserve"
+                ? results.improveScriptModal.copyOriginal
+                : results.improveScriptModal.copyScript}
               </button>
 
               <button
                 onClick={() => setIsScriptModalOpen(false)}
                 className="h-[42px] flex-1 rounded-[12px] border border-[#E5E7EB] bg-[#F8F8FC] text-[13px] font-semibold text-[#111827] transition hover:bg-[#F3F4F6]"
               >
-                Close
+                {results.improveScriptModal.close}
               </button>
             </div>
           </div>
@@ -1592,7 +1622,7 @@ const hookCopyButtonLabel =
 
             <div className="absolute left-[30px] top-[115px] h-[86px] w-[460px] rounded-[14px] border border-[#E5E7EB] bg-[#F8F8FC] px-[16px] py-[14px]">
               <p className="text-[15px] font-normal leading-[22px] text-[#111827]">
-                &ldquo;{isImprovingHook ? "Improving hook..." : modalHookText}&rdquo;
+                &ldquo;{isImprovingHook ? results.hookModal.improving : modalHookText}&rdquo;
               </p>
             </div>
 
@@ -1608,7 +1638,7 @@ const hookCopyButtonLabel =
                   </p>
                   <p className="mt-[6px] text-[14px] font-normal leading-[21px] text-[#6B7280] break-words whitespace-normal">
                     {isImprovingHook
-                      ? "Climpy is rewriting the opening based on your script."
+                      ? results.hookModal.rewritingDescription
                       : improvedHookReason}
                   </p>
                 </>
@@ -1620,14 +1650,14 @@ const hookCopyButtonLabel =
               disabled={isImprovingHook || Boolean(improveError)}
               className="absolute left-[30px] top-[360px] h-[40px] w-[130px] rounded-[12px] border border-[#E5E7EB] bg-[#7C3AED] text-[14px] font-semibold leading-[24px] text-[#111827] transition hover:bg-[#6D28D9]"
             >
-              {copiedHook ? "Copied!" : hookCopyButtonLabel}
+              {copiedHook ? results.hookModal.copied : hookCopyButtonLabel}
             </button>
 
             <button
               onClick={() => setIsHookModalOpen(false)}
               className="absolute left-[175px] top-[360px] h-[40px] w-[100px] rounded-[12px] border border-[#E5E7EB] bg-[#F8F8FC] text-[14px] font-semibold leading-[24px] text-[#111827] transition hover:bg-[#F3E8FF]"
             >
-              Close
+              {results.hookModal.close}
             </button>
           </div>
 
@@ -1650,7 +1680,7 @@ const hookCopyButtonLabel =
 
             <div className="w-full rounded-[12px] border border-[#E5E7EB] bg-[#F8F8FC] px-[14px] py-[12px] mb-[14px]">
               <p className="text-[13px] font-normal leading-[21px] text-[#111827] break-words">
-                &ldquo;{isImprovingHook ? "Improving hook..." : modalHookText}&rdquo;
+                &ldquo;{isImprovingHook ? results.hookModal.improving : modalHookText}&rdquo;
               </p>
             </div>
 
@@ -1665,7 +1695,7 @@ const hookCopyButtonLabel =
                 </p>
                 <p className="text-[12px] font-normal leading-[18px] text-[#6B7280] mt-[4px] break-words">
                   {isImprovingHook
-                    ? "Climpy is rewriting the opening based on your script."
+                    ? results.hookModal.rewritingDescription
                     : improvedHookReason}
                 </p>
               </div>
@@ -1677,13 +1707,13 @@ const hookCopyButtonLabel =
                 disabled={isImprovingHook || Boolean(improveError)}
                 className="flex-1 h-[40px] rounded-[12px] border border-[#E5E7EB] bg-[#7C3AED] text-[13px] font-semibold text-[#111827] focus:outline-none focus:ring-0"
               >
-                {copiedHook ? "Copied!" : hookCopyButtonLabel}
+                {copiedHook ? results.hookModal.copied : hookCopyButtonLabel}
               </button>
               <button
                 onClick={() => setIsHookModalOpen(false)}
                 className="flex-1 h-[40px] rounded-[12px] border border-[#E5E7EB] bg-[#F8F8FC] text-[13px] font-semibold text-[#111827] focus:outline-none focus:ring-0"
               >
-                Close
+                {results.hookModal.close}
               </button>
             </div>
           </div>

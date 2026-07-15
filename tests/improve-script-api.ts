@@ -1257,6 +1257,191 @@ async function main() {
     return;
   }
 
+  // Regression test for a real reported bug: a genuinely valid ru
+  // AnalysisV2 result with an overall score below 80 was rejected here
+  // with a 400 ("Analysis result is invalid or does not match the
+  // submitted script") because this route validated the submitted
+  // analysisResult without the request's own locale, silently defaulting
+  // to "en". The below-80 mainTakeaway check is locale-gated, so a
+  // correct Russian mainTakeaway failed to match the English-only term
+  // tables. The mixed-analysis probe above never exercises this because
+  // it never sends `locale: "ru"`.
+  const ruBelowEightyAnalysisBypassesLocaleDefaultProbe = spawnSync(
+    "npx",
+    [
+      "tsx",
+      "-e",
+      `let providerCalls = 0;
+
+        globalThis.fetch = async () => {
+          providerCalls += 1;
+
+          return new Response(
+            JSON.stringify({
+              id: "chatcmpl-ru-below-eighty-locale-test",
+              object: "chat.completion",
+              created: 0,
+              model: "gpt-4o-mini",
+              choices: [
+                {
+                  index: 0,
+                  message: {
+                    role: "assistant",
+                    content: JSON.stringify({
+                      editorialDecision: {
+                        strategy: "preserve"
+                      }
+                    })
+                  },
+                  finish_reason: "stop"
+                }
+              ]
+            }),
+            {
+              status: 200,
+              headers: {
+                "Content-Type": "application/json"
+              }
+            }
+          );
+        };
+
+        import("./app/api/improve-script/route.ts").then(
+          async ({ POST }) => {
+            const script =
+              "Success is very important in life. Many people want to become successful, but they do not know what to do. You should work hard, believe in yourself, and never give up.";
+
+            const analysisResult = {
+              scriptType: "generic_advice",
+              verdict: "mixed",
+              scores: {
+                overall: 58,
+                hook: 70,
+                retentionRisk: 55
+              },
+              scoreBreakdown: {
+                overall: {
+                  premiseAppeal: 13,
+                  openingPromise: 15,
+                  progression: 15,
+                  payoff: 15
+                },
+                hook: {
+                  immediacy: 18,
+                  specificity: 17,
+                  viewerPull: 17,
+                  deliveryAlignment: 18
+                },
+                retentionRisk: {
+                  openingFriction: 14,
+                  progressionRisk: 14,
+                  predictabilityRisk: 13,
+                  payoffRisk: 14
+                }
+              },
+              hookDecision: "diagnostic",
+              hookAssessment:
+                "Хук ставит тему сразу и понятен.",
+              riskyParts: [
+                {
+                  excerpt:
+                    "Many people want to become successful, but they do not know what to do.",
+                  reason:
+                    "Эта идея звучит очень обобщённо и не создаёт конкретного любопытства.",
+                  severity: "medium"
+                }
+              ],
+              suggestedFixes: [
+                {
+                  target: "clarity",
+                  suggestion:
+                    "Сделайте совет более конкретным, добавив один пример из личного опыта.",
+                  optional: false
+                }
+              ],
+              scenes: [
+                {
+                  excerpt: script,
+                  label: "Общий совет",
+                  status: "average"
+                }
+              ],
+              mainTakeaway:
+                "Сценарий понятен, но привлекательность идеи ограничивает общую оценку, потому что идея слабо привлекает аудиторию."
+            };
+
+            const response = await POST(
+              new Request(
+                "http://localhost/api/improve-script",
+                {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json"
+                  },
+                  body: JSON.stringify({
+                    title: "Success advice",
+                    script,
+                    locale: "ru",
+                    analysisResult
+                  })
+                }
+              )
+            );
+
+            const payload = await response.json();
+
+            if (
+              response.status !== 200 ||
+              payload.status !== "preserve" ||
+              providerCalls !== 1
+            ) {
+              throw new Error(
+                "Expected a genuinely valid ru analysisResult with overall < 80 to reach the editorial model instead of being rejected as invalid. Got status " +
+                  response.status +
+                  " payload " +
+                  JSON.stringify(payload)
+              );
+            }
+
+            console.log(
+              "RU_BELOW_EIGHTY_ANALYSIS_LOCALE_BYPASS_PASS"
+            );
+          }
+        ).catch((error) => {
+          console.error(
+            error instanceof Error ? error.message : error
+          );
+          process.exit(1);
+        });`,
+    ],
+    {
+      cwd: process.cwd(),
+      env: process.env,
+      encoding: "utf8",
+    }
+  );
+
+  if (
+    ruBelowEightyAnalysisBypassesLocaleDefaultProbe.status === 0 &&
+    ruBelowEightyAnalysisBypassesLocaleDefaultProbe.stdout.includes(
+      "RU_BELOW_EIGHTY_ANALYSIS_LOCALE_BYPASS_PASS"
+    )
+  ) {
+    console.log(
+      "✅ PASS — A valid ru analysisResult with overall < 80 is re-validated under its own locale, not rejected under the en default"
+    );
+  } else {
+    console.error(
+      "❌ FAIL — A valid ru analysisResult with overall < 80 must not be rejected by the en-default re-validation bug"
+    );
+    console.error(
+      ruBelowEightyAnalysisBypassesLocaleDefaultProbe.stderr.trim() ||
+        ruBelowEightyAnalysisBypassesLocaleDefaultProbe.stdout.trim()
+    );
+    process.exitCode = 1;
+    return;
+  }
+
   const requiredAnalysisIssuePromptProbe = spawnSync(
     "npx",
     [
@@ -1501,6 +1686,36 @@ async function main() {
   } else {
     console.error(
       "❌ FAIL — Improve Script prompt must allow an honest preserve decision"
+    );
+    process.exitCode = 1;
+    return;
+  }
+
+  const isLocaleAware =
+    routeSource.includes(
+      "function buildImproveScriptLanguageInstructions("
+    ) &&
+    routeSource.includes(
+      "${buildImproveScriptLanguageInstructions(locale)}"
+    ) &&
+    routeSource.includes(
+      'Write every "changes" item and the "reason" field in ${languageName}.'
+    ) &&
+    routeSource.includes(
+      "Keep \"improvedScript\" in the exact language of the Original script"
+    ) &&
+    routeSource.includes(
+      "primaryProblemEvidence\" must remain an exact untranslated quote"
+    ) &&
+    routeSource.includes("normalizeApiLocale(");
+
+  if (isLocaleAware) {
+    console.log(
+      "✅ PASS — Improve Script prompt is locale-aware without touching editorialDecision or improvedScript language"
+    );
+  } else {
+    console.error(
+      "❌ FAIL — Improve Script prompt must localize explanations while keeping improvedScript in the script's language"
     );
     process.exitCode = 1;
     return;

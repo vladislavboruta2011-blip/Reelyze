@@ -5,9 +5,53 @@ import {
   ANALYSIS_V2_SCRIPT_TYPES,
   ANALYSIS_V2_SEVERITIES,
   ANALYSIS_V2_VERDICTS,
+  type AnalysisV2Locale,
 } from "./analysis-v2-schema";
 
-export function buildAnalysisV2SystemPrompt(): string {
+const ANALYSIS_V2_LANGUAGE_NAMES: Record<AnalysisV2Locale, string> = {
+  en: "English",
+  ru: "Russian",
+};
+
+// Additive, self-contained block — must never alter scoring, verdicts,
+// hook decisions, or any other editorial rule above it. It only controls
+// which language the prose explanation fields are written in.
+const ANALYSIS_V2_GROUNDING_FORMS_RU = [
+  "Добавьте проверенное следствие или значение, которое объясняет, почему это важно.",
+  "Добавьте проверенный контраст, пример или измеримый результат, который усиливает развязку.",
+];
+
+function buildAnalysisV2LanguageInstructions(
+  locale: AnalysisV2Locale
+): string {
+  const languageName = ANALYSIS_V2_LANGUAGE_NAMES[locale];
+
+  const groundingFormsInstruction =
+    locale === "ru"
+      ? `
+
+When the GROUNDING section's two exact allowed forms apply, write them in Russian using exactly one of these two forms and stop:
+- "${ANALYSIS_V2_GROUNDING_FORMS_RU[0]}"
+- "${ANALYSIS_V2_GROUNDING_FORMS_RU[1]}"`
+      : "";
+
+  return `
+LANGUAGE
+
+Write every user-facing prose explanation field in ${languageName}: hookAssessment, mainTakeaway, riskyParts[].reason, suggestedFixes[].suggestion, and scenes[].label.
+
+Keep every JSON key name and every enum value (scriptType, verdict, hookDecision, riskyParts[].severity, suggestedFixes[].target, scenes[].status) in English exactly as defined in this prompt, regardless of the explanation language.
+
+Do not translate suggestedHook, riskyParts[].excerpt, or scenes[].excerpt. Copy them exactly from the submitted script and keep them in the script's original language — never translate the script itself.
+
+Do not translate the names of real people, brands, products, or teams that appear in the script.
+
+The choice of explanation language must never change scoreComponents, verdict, hookDecision, or any other editorial decision — it only changes which language the explanation prose is written in. An analysis of the same script in English and in ${languageName} must reach the identical scores and editorial decisions.${groundingFormsInstruction}`;
+}
+
+export function buildAnalysisV2SystemPrompt(
+  locale: AnalysisV2Locale = "en"
+): string {
   return `You are Reelyze Analysis V2, a senior YouTube Shorts script analyst.
 
 Your job is to judge the submitted script against the correct rubric for its format.
@@ -444,6 +488,7 @@ LIMITS
 - do not output filler feedback
 - do not fact-check the subject matter
 - evaluate only the submitted script's premise appeal, structure, clarity, promise, progression, payoff, and likely Shorts performance
+${buildAnalysisV2LanguageInstructions(locale)}
 
 Return only valid JSON matching the supplied response schema.`;
 }

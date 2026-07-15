@@ -444,6 +444,152 @@ const tests: TestCase[] = [
       },
     },
     {
+      name: "ru: accepts a below-80 Russian takeaway that explains the lowest overall component in Russian",
+      run: () => {
+        // This is the actual root cause behind English fallback text
+        // appearing in RU analyses: an English-only regex check used to
+        // reject any well-formed Russian mainTakeaway outright, forcing
+        // the (also English) repair template to run on every below-80 RU
+        // script. A well-formed Russian explanation must now pass.
+        const modelResult = createComponentModelResult();
+        const scoreComponents = modelResult.scoreComponents as {
+          overall: Record<string, number>;
+        };
+
+        scoreComponents.overall = {
+          premiseAppeal: 10,
+          openingPromise: 21,
+          progression: 21,
+          payoff: 21,
+        };
+        modelResult.mainTakeaway =
+          "Сценарий понятен, но привлекательность идеи слабо привлекает аудиторию, что ограничивает общую оценку.";
+
+        const result = validateAnalysisV2ModelResult(
+          modelResult,
+          script,
+          "ru"
+        );
+
+        if (!result.ok) {
+          throw new Error(result.reason);
+        }
+      },
+    },
+    {
+      name: "ru: still rejects a below-80 Russian takeaway that ignores the lowest overall component",
+      run: () => {
+        const modelResult = createComponentModelResult();
+        const scoreComponents = modelResult.scoreComponents as {
+          overall: Record<string, number>;
+        };
+
+        scoreComponents.overall = {
+          premiseAppeal: 10,
+          openingPromise: 21,
+          progression: 21,
+          payoff: 21,
+        };
+        modelResult.mainTakeaway =
+          "Сценарий понятен и структурно выдержан на всём протяжении.";
+
+        const result = validateAnalysisV2ModelResult(
+          modelResult,
+          script,
+          "ru"
+        );
+
+        assert.equal(result.ok, false);
+      },
+    },
+    {
+      name: "ru: repairs a below-80 takeaway in Russian instead of English",
+      run: () => {
+        const modelResult = createComponentModelResult();
+        const scoreComponents = modelResult.scoreComponents as {
+          overall: Record<string, number>;
+        };
+
+        scoreComponents.overall = {
+          premiseAppeal: 10,
+          openingPromise: 21,
+          progression: 21,
+          payoff: 21,
+        };
+        modelResult.mainTakeaway =
+          "The script is clear and structurally polished throughout.";
+
+        const repaired = repairAnalysisV2MainTakeawayForScoreBreakdown(
+          modelResult,
+          "ru"
+        );
+
+        assert.notEqual(repaired, null);
+
+        const result = validateAnalysisV2ModelResult(
+          repaired,
+          script,
+          "ru"
+        );
+
+        if (!result.ok) {
+          throw new Error(result.reason);
+        }
+
+        assert.doesNotMatch(
+          result.value.mainTakeaway,
+          /[a-zA-Z]{4,}/
+        );
+        assert.match(
+          result.value.mainTakeaway,
+          /привлекательность идеи/i
+        );
+        assert.match(
+          result.value.mainTakeaway,
+          /ограничивает общую оценку/i
+        );
+      },
+    },
+    {
+      name: "en flow is unchanged: repair still produces English by default",
+      run: () => {
+        const modelResult = createComponentModelResult();
+        const scoreComponents = modelResult.scoreComponents as {
+          overall: Record<string, number>;
+        };
+
+        scoreComponents.overall = {
+          premiseAppeal: 10,
+          openingPromise: 21,
+          progression: 21,
+          payoff: 21,
+        };
+        modelResult.mainTakeaway =
+          "The script is clear and structurally polished throughout.";
+
+        const repaired =
+          repairAnalysisV2MainTakeawayForScoreBreakdown(
+            modelResult
+          );
+
+        assert.notEqual(repaired, null);
+
+        const result = validateAnalysisV2ModelResult(
+          repaired,
+          script
+        );
+
+        if (!result.ok) {
+          throw new Error(result.reason);
+        }
+
+        assert.match(
+          result.value.mainTakeaway,
+          /premise appeal/i
+        );
+      },
+    },
+    {
       name: "accepts a below-80 takeaway that explains the lowest overall component",
       run: () => {
         const modelResult =
@@ -812,6 +958,112 @@ const tests: TestCase[] = [
         result.value.mainTakeaway,
         "The causal explanation is complete; only the opening filler limits immediacy."
       );
+    },
+  },
+  {
+    name: "ru: causal-explanation normalization produces Russian hookAssessment/reason/suggestion/mainTakeaway, not English",
+    run: () => {
+      const CYRILLIC = /[Ѐ-ӿ]/;
+      const autoCaptionScript =
+        "so basically [music] your body releases adrenaline when it senses danger and that is why your hands shake [music] the response normally fades after the danger has passed";
+      const value = createComponentModelResult();
+
+      value.scriptType = "explanation";
+      value.verdict = "strong";
+      value.scoreComponents = {
+        overall: {
+          premiseAppeal: 12,
+          openingPromise: 12,
+          progression: 13,
+          payoff: 12,
+        },
+        hook: {
+          immediacy: 16,
+          specificity: 16,
+          viewerPull: 16,
+          deliveryAlignment: 15,
+        },
+        retentionRisk: {
+          openingFriction: 13,
+          progressionRisk: 13,
+          predictabilityRisk: 14,
+          payoffRisk: 13,
+        },
+      };
+      value.hookDecision = "refine";
+      value.hookAssessment =
+        "The opening filler reduces immediacy, and the explanation needs more detail.";
+      value.suggestedHook =
+        "Your body releases adrenaline when it senses danger, causing your hands to shake.";
+      value.riskyParts = [
+        {
+          excerpt: autoCaptionScript,
+          reason:
+            "The explanation lacks a deeper mechanism and additional consequences.",
+          severity: "medium",
+        },
+      ];
+      value.suggestedFixes = [
+        {
+          target: "middle",
+          suggestion:
+            "Add more detailed explanation or consequences to improve retention.",
+          optional: false,
+        },
+      ];
+      value.scenes = [
+        {
+          excerpt: autoCaptionScript,
+          label: "Incomplete explanation needing more detail",
+          status: "risky",
+        },
+      ];
+      value.mainTakeaway =
+        "Adding more detailed explanation or consequences would improve retention.";
+
+      const normalized =
+        normalizeAnalysisV2CompleteCausalExplanationModelResult(
+          value,
+          autoCaptionScript,
+          "ru"
+        );
+
+      assert.notEqual(normalized, null);
+
+      const result = validateAnalysisV2ModelResult(
+        normalized,
+        autoCaptionScript,
+        "ru"
+      );
+
+      if (!result.ok) {
+        throw new Error(result.reason);
+      }
+
+      // Enums/technical values stay exactly as before — locale never
+      // touches them.
+      assert.equal(result.value.verdict, "mixed");
+      assert.equal(result.value.scores.overall, 49);
+      assert.equal(result.value.suggestedFixes[0]?.target, "hook");
+      assert.equal(result.value.scenes[0]?.status, "average");
+
+      // The original script's exact excerpt is never translated.
+      assert.equal(
+        result.value.riskyParts[0]?.excerpt,
+        "so basically"
+      );
+
+      // But every user-facing prose field is now Russian, not English.
+      assert.match(result.value.hookAssessment, CYRILLIC);
+      assert.match(
+        result.value.riskyParts[0]?.reason ?? "",
+        CYRILLIC
+      );
+      assert.match(
+        result.value.suggestedFixes[0]?.suggestion ?? "",
+        CYRILLIC
+      );
+      assert.match(result.value.mainTakeaway, CYRILLIC);
     },
   },
   {
@@ -1683,6 +1935,36 @@ const tests: TestCase[] = [
         result.value.suggestedFixes[0]
           ?.suggestion,
         "Add a verified consequence or implication that explains why this matters."
+      );
+    },
+  },
+  {
+    name: "ru: recognizes the Russian allowed verified-request form just like the English one",
+    run: () => {
+      const value = createMixedResult();
+
+      value.suggestedFixes = [
+        {
+          target: "payoff",
+          suggestion:
+            "Добавьте проверенное следствие или значение, которое объясняет, почему это важно, например культурное значение или распространённые заблуждения.",
+          optional: false,
+        },
+      ];
+
+      const result = validateAnalysisV2Result(
+        value,
+        script
+      );
+
+      if (!result.ok) {
+        throw new Error(result.reason);
+      }
+
+      assert.equal(result.ok, true);
+      assert.equal(
+        result.value.suggestedFixes[0]?.suggestion,
+        "Добавьте проверенное следствие или значение, которое объясняет, почему это важно."
       );
     },
   },

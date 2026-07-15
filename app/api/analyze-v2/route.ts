@@ -8,6 +8,7 @@ import {
 import {
   ANALYSIS_V2_LIMITS,
   type AnalysisV2ErrorResponse,
+  type AnalysisV2Locale,
   type AnalysisV2SuccessResponse,
 } from "@/engine/analysis-v2-schema";
 import {
@@ -17,6 +18,7 @@ import {
   validateAnalysisV2Input,
   validateAnalysisV2ModelResult,
 } from "@/engine/analysis-v2-validation";
+import { normalizeApiLocale } from "@/lib/i18n";
 
 const ANALYSIS_V2_MODEL =
   process.env.ANALYSIS_V2_MODEL?.trim() ||
@@ -25,6 +27,30 @@ const ANALYSIS_V2_TIMEOUT_MS = 20_000;
 const ANALYSIS_V2_RATE_LIMIT_MAX_REQUESTS = 10;
 const ANALYSIS_V2_RATE_LIMIT_WINDOW_MS = 60_000;
 const ANALYSIS_V2_RATE_LIMIT_MAX_ENTRIES = 10_000;
+
+// Diagnostic-only headers: never read by any scoring, validation, or
+// caching logic — a rejected/failed response must never be cached.
+export const ANALYSIS_V2_REQUEST_ID_HEADER =
+  "X-Analysis-V2-Request-Id";
+export const ANALYSIS_V2_RETRY_COUNT_HEADER =
+  "X-Analysis-V2-Retry-Count";
+
+function buildAnalysisV2ResponseHeaders(
+  requestId: string,
+  status: number,
+  retryCount = 0
+): Record<string, string> {
+  const headers: Record<string, string> = {
+    [ANALYSIS_V2_REQUEST_ID_HEADER]: requestId,
+    [ANALYSIS_V2_RETRY_COUNT_HEADER]: String(retryCount),
+  };
+
+  if (status < 200 || status >= 300) {
+    headers["Cache-Control"] = "no-store";
+  }
+
+  return headers;
+}
 
 type RateLimitEntry = {
   count: number;
@@ -46,11 +72,16 @@ export type AnalysisV2RunResult =
       ok: true;
       status: 200;
       response: AnalysisV2SuccessResponse;
+      // Count of transient (network/timeout/429/5xx) model-call retries
+      // actually performed while producing this result. Purely diagnostic —
+      // never influences scoring, verdict, or validation.
+      retryCount: number;
     }
   | {
       ok: false;
       status: 400 | 502 | 503;
       response: AnalysisV2ErrorResponse;
+      retryCount: number;
     };
 
 const rateLimitEntries = new Map<string, RateLimitEntry>();
@@ -74,6 +105,97 @@ class EmptyModelResponseError extends Error {
     super("Empty model response.");
     this.name = "EmptyModelResponseError";
   }
+}
+
+// A single bounded retry for transient upstream failures only — this is
+// independent from the validation-correction loop in runAnalysisV2, which
+// already retries up to twice more for malformed/schema-invalid *content*.
+// This retry exists solely for infrastructure hiccups (dropped connection,
+// timeout, rate limit, upstream 5xx) and never runs concurrently with itself.
+const ANALYSIS_V2_TRANSIENT_RETRY_DELAY_MS = 250;
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+function getUpstreamErrorStatus(
+  error: unknown
+): number | undefined {
+  return typeof error === "object" &&
+    error !== null &&
+    "status" in error &&
+    typeof (error as { status?: unknown }).status ===
+      "number"
+    ? (error as { status: number }).status
+    : undefined;
+}
+
+function isTransientAnalysisV2ModelError(
+  error: unknown
+): boolean {
+  if (error instanceof OpenAI.APIConnectionError) {
+    return true;
+  }
+
+  const upstreamStatus = getUpstreamErrorStatus(error);
+
+  return (
+    upstreamStatus === 429 ||
+    (upstreamStatus !== undefined && upstreamStatus >= 500)
+  );
+}
+
+function classifyAnalysisV2ModelError(
+  error: unknown,
+  retryCount: number
+): Extract<AnalysisV2RunResult, { ok: false }> {
+  if (error instanceof MissingApiKeyError) {
+    return {
+      ok: false,
+      status: 503,
+      response: {
+        status: "error",
+        reason:
+          "Analysis V2 is temporarily unavailable.",
+      },
+      retryCount,
+    };
+  }
+
+  const upstreamStatus = getUpstreamErrorStatus(error);
+
+  if (
+    upstreamStatus === 401 ||
+    upstreamStatus === 403 ||
+    upstreamStatus === 429 ||
+    (upstreamStatus !== undefined &&
+      upstreamStatus >= 500) ||
+    error instanceof OpenAI.APIConnectionError
+  ) {
+    return {
+      ok: false,
+      status: 503,
+      response: {
+        status: "error",
+        reason:
+          "Analysis V2 is temporarily unavailable.",
+      },
+      retryCount,
+    };
+  }
+
+  return {
+    ok: false,
+    status: 503,
+    response: {
+      status: "error",
+      reason:
+        "Analysis V2 could not complete this request.",
+    },
+    retryCount,
+  };
 }
 
 function getClientIdentifier(request: Request): string {
@@ -552,7 +674,8 @@ export async function runAnalysisV2(
   script: unknown,
   title: unknown,
   modelCaller: AnalysisV2ModelCaller =
-    defaultAnalysisV2ModelCaller
+    defaultAnalysisV2ModelCaller,
+  locale: AnalysisV2Locale = "en"
 ): Promise<AnalysisV2RunResult> {
   const inputValidation =
     validateAnalysisV2Input(script, title);
@@ -565,17 +688,19 @@ export async function runAnalysisV2(
         status: "error",
         reason: inputValidation.reason,
       },
+      retryCount: 0,
     };
   }
 
   const systemPrompt =
-    buildAnalysisV2SystemPrompt();
+    buildAnalysisV2SystemPrompt(locale);
   const userPrompt = buildAnalysisV2UserPrompt(
     inputValidation.script,
     inputValidation.title
   );
 
   let currentUserPrompt = userPrompt;
+  let transientRetryCount = 0;
 
   for (let attempt = 0; attempt < 3; attempt += 1) {
     let modelOutput: AnalysisV2ModelOutput;
@@ -586,55 +711,33 @@ export async function runAnalysisV2(
         currentUserPrompt
       );
     } catch (error) {
-      if (error instanceof MissingApiKeyError) {
-        return {
-          ok: false,
-          status: 503,
-          response: {
-            status: "error",
-            reason:
-              "Analysis V2 is temporarily unavailable.",
-          },
-        };
-      }
-
-      const upstreamStatus =
-        typeof error === "object" &&
-        error !== null &&
-        "status" in error &&
-        typeof (error as { status?: unknown }).status ===
-          "number"
-          ? (error as { status: number }).status
-          : undefined;
-
       if (
-        upstreamStatus === 401 ||
-        upstreamStatus === 403 ||
-        upstreamStatus === 429 ||
-        (upstreamStatus !== undefined &&
-          upstreamStatus >= 500) ||
-        error instanceof OpenAI.APIConnectionError
+        error instanceof MissingApiKeyError ||
+        !isTransientAnalysisV2ModelError(error)
       ) {
-        return {
-          ok: false,
-          status: 503,
-          response: {
-            status: "error",
-            reason:
-              "Analysis V2 is temporarily unavailable.",
-          },
-        };
+        return classifyAnalysisV2ModelError(
+          error,
+          transientRetryCount
+        );
       }
 
-      return {
-        ok: false,
-        status: 503,
-        response: {
-          status: "error",
-          reason:
-            "Analysis V2 could not complete this request.",
-        },
-      };
+      // Exactly one bounded retry, sequential (awaited before continuing),
+      // only for transient infrastructure failures — never for validation
+      // or contract errors, which are handled separately below.
+      await delay(ANALYSIS_V2_TRANSIENT_RETRY_DELAY_MS);
+      transientRetryCount += 1;
+
+      try {
+        modelOutput = await modelCaller(
+          systemPrompt,
+          currentUserPrompt
+        );
+      } catch (retryError) {
+        return classifyAnalysisV2ModelError(
+          retryError,
+          transientRetryCount
+        );
+      }
     }
 
     const parsed = parseAnalysisV2Json(
@@ -650,13 +753,15 @@ export async function runAnalysisV2(
           reason:
             "Analysis V2 returned an unusable response.",
         },
+        retryCount: transientRetryCount,
       };
     }
 
     const resultValidation =
       validateAnalysisV2ModelResult(
         parsed,
-        inputValidation.script
+        inputValidation.script,
+        locale
       );
 
     if (!resultValidation.ok) {
@@ -666,14 +771,16 @@ export async function runAnalysisV2(
       ) {
         const repairedModelResult =
           repairAnalysisV2MainTakeawayForScoreBreakdown(
-            parsed
+            parsed,
+            locale
           );
 
         if (repairedModelResult !== null) {
           const repairedValidation =
             validateAnalysisV2ModelResult(
               repairedModelResult,
-              inputValidation.script
+              inputValidation.script,
+              locale
             );
 
           if (repairedValidation.ok) {
@@ -684,7 +791,9 @@ export async function runAnalysisV2(
                 status: "ok",
                 result: repairedValidation.value,
                 modelUsed: modelOutput.modelUsed,
+                locale,
               },
+              retryCount: transientRetryCount,
             };
           }
         }
@@ -718,14 +827,16 @@ export async function runAnalysisV2(
         const normalizedModelResult =
           normalizeAnalysisV2CompleteCausalExplanationModelResult(
             parsed,
-            inputValidation.script
+            inputValidation.script,
+            locale
           );
 
         if (normalizedModelResult !== null) {
           const normalizedValidation =
             validateAnalysisV2ModelResult(
               normalizedModelResult,
-              inputValidation.script
+              inputValidation.script,
+              locale
             );
 
           if (normalizedValidation.ok) {
@@ -738,7 +849,9 @@ export async function runAnalysisV2(
                   normalizedValidation.value,
                 modelUsed:
                   modelOutput.modelUsed,
+                locale,
               },
+              retryCount: transientRetryCount,
             };
           }
         }
@@ -759,6 +872,7 @@ export async function runAnalysisV2(
           reason:
             "Analysis V2 returned an invalid analysis.",
         },
+        retryCount: transientRetryCount,
       };
     }
 
@@ -769,7 +883,9 @@ export async function runAnalysisV2(
         status: "ok",
         result: resultValidation.value,
         modelUsed: modelOutput.modelUsed,
+        locale,
       },
+      retryCount: transientRetryCount,
     };
   }
 
@@ -781,12 +897,18 @@ export async function runAnalysisV2(
       reason:
         "Analysis V2 returned an invalid analysis.",
     },
+    retryCount: transientRetryCount,
   };
 }
 
 export async function POST(
   request: Request
 ): Promise<Response> {
+  // Diagnostic-only correlation id for this request. Never used for
+  // scoring, caching keys, or rate limiting — purely so a rejected
+  // response can be traced back to a specific server-side attempt.
+  const requestId = crypto.randomUUID();
+
   const contentType =
     request.headers
       .get("content-type")
@@ -803,6 +925,10 @@ export async function POST(
       } satisfies AnalysisV2ErrorResponse,
       {
         status: 415,
+        headers: buildAnalysisV2ResponseHeaders(
+          requestId,
+          415
+        ),
       }
     );
   }
@@ -822,6 +948,10 @@ export async function POST(
         } satisfies AnalysisV2ErrorResponse,
         {
           status: 413,
+          headers: buildAnalysisV2ResponseHeaders(
+            requestId,
+            413
+          ),
         }
       );
     }
@@ -833,6 +963,10 @@ export async function POST(
       } satisfies AnalysisV2ErrorResponse,
       {
         status: 400,
+        headers: buildAnalysisV2ResponseHeaders(
+          requestId,
+          400
+        ),
       }
     );
   }
@@ -849,6 +983,10 @@ export async function POST(
       } satisfies AnalysisV2ErrorResponse,
       {
         status: 400,
+        headers: buildAnalysisV2ResponseHeaders(
+          requestId,
+          400
+        ),
       }
     );
   }
@@ -869,6 +1007,10 @@ export async function POST(
       } satisfies AnalysisV2ErrorResponse,
       {
         status: 400,
+        headers: buildAnalysisV2ResponseHeaders(
+          requestId,
+          400
+        ),
       }
     );
   }
@@ -887,6 +1029,10 @@ export async function POST(
       {
         status: 429,
         headers: {
+          ...buildAnalysisV2ResponseHeaders(
+            requestId,
+            429
+          ),
           "Retry-After": String(
             rateLimit.retryAfterSeconds
           ),
@@ -895,12 +1041,25 @@ export async function POST(
     );
   }
 
+  // normalizeApiLocale's default availableLocales is LAUNCHED_LOCALES ("en" | "ru"),
+  // so this is always one of AnalysisV2Locale's two values at runtime.
+  const locale = normalizeApiLocale(
+    record.locale
+  ) as AnalysisV2Locale;
+
   const result = await runAnalysisV2(
     inputValidation.script,
-    inputValidation.title
+    inputValidation.title,
+    undefined,
+    locale
   );
 
   return Response.json(result.response, {
     status: result.status,
+    headers: buildAnalysisV2ResponseHeaders(
+      requestId,
+      result.status,
+      result.retryCount
+    ),
   });
 }

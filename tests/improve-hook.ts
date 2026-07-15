@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 import {
+  buildEarlyDiagnosticResponse,
+  buildGenericScriptResponse,
   hasAnyConcreteAnchor,
   isVeryGenericScript,
   parseHookResponse,
@@ -583,7 +585,26 @@ const tests: TestCase[] = [
       );
     },
   },
+  {
+    name: "locale-aware diagnostic responses stay in the requested language",
+    run: () => {
+      const enEarly = buildEarlyDiagnosticResponse("en");
+      const ruEarly = buildEarlyDiagnosticResponse("ru");
+      const defaultEarly = buildEarlyDiagnosticResponse();
 
+      assert.equal(defaultEarly.reason, enEarly.reason);
+      assert.doesNotMatch(enEarly.reason, /[Ѐ-ӿ]/);
+      assert.match(ruEarly.reason, /[Ѐ-ӿ]/);
+      assert.doesNotMatch(enEarly.improvedHook, /[Ѐ-ӿ]/);
+      assert.match(ruEarly.improvedHook, /[Ѐ-ӿ]/);
+
+      const enGeneric = buildGenericScriptResponse("en");
+      const ruGeneric = buildGenericScriptResponse("ru");
+
+      assert.doesNotMatch(enGeneric.reason, /[Ѐ-ӿ]/);
+      assert.match(ruGeneric.reason, /[Ѐ-ӿ]/);
+    },
+  },
 ];
 
 let passed = 0;

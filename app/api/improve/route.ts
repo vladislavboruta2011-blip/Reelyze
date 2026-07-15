@@ -8,8 +8,10 @@ import {
   hasAnyConcreteAnchor,
   isVeryGenericScript,
   parseHookResponse,
+  type ImproveHookLocale,
   type ImproveHookResult,
 } from "../../../engine/improve-hook";
+import { normalizeApiLocale } from "../../../lib/i18n";
 
 export type {
   ImproveHookResult,
@@ -145,6 +147,28 @@ async function readJsonBodyWithLimit(req: Request): Promise<unknown> {
   return JSON.parse(rawBody);
 }
 
+const IMPROVE_LANGUAGE_NAMES: Record<ImproveHookLocale, string> = {
+  en: "English",
+  ru: "Russian",
+};
+
+// Additive, self-contained block — must never alter the hook-quality rules
+// above it. It only controls which language the explanatory prose fields
+// are written in.
+function buildImproveLanguageInstructions(
+  locale: ImproveHookLocale
+): string {
+  const languageName = IMPROVE_LANGUAGE_NAMES[locale];
+
+  return `
+
+LANGUAGE
+Write "diagnosis", "reason", and every "hookOptions[].whyItWorks" in ${languageName}.
+Keep "improvedHook", "originalHook", "hookOptions[].text", every JSON key, and "hookLabel" exactly as this prompt specifies — never translate the script itself or any hook option. improvedHook, originalHook, and hookOptions[].text must stay in the script's original language regardless of the explanation language.
+Do not translate names of real people, brands, products, or teams that appear in the script.
+Choosing ${languageName} for the explanation must not change hookScore, hookLabel, primaryWeakness, anchorMaterial, or which hook is chosen — only the language of the prose explanation.`;
+}
+
 export async function POST(req: Request): Promise<Response> {
   const contentType =
     req.headers.get("content-type")?.split(";", 1)[0].trim().toLowerCase() ?? "";
@@ -219,6 +243,11 @@ export async function POST(req: Request): Promise<Response> {
     const script = (requestBody.script as string).trim();
     const title =
       typeof requestBody.title === "string" ? requestBody.title.trim() : "";
+    // normalizeApiLocale's default availableLocales is LAUNCHED_LOCALES
+    // ("en" | "ru"), so this is always one of ImproveHookLocale's two values.
+    const locale = normalizeApiLocale(
+      requestBody.locale
+    ) as ImproveHookLocale;
 
     if (script.length === 0) {
       return Response.json(
@@ -256,7 +285,8 @@ export async function POST(req: Request): Promise<Response> {
     const unsupportedTitleClaimResponse =
       buildUnsupportedTitleClaimResponse(
         title,
-        script
+        script,
+        locale
       );
 
     if (unsupportedTitleClaimResponse) {
@@ -268,7 +298,7 @@ export async function POST(req: Request): Promise<Response> {
     // ── ABSOLUTE EARLY GUARD — must run before any AI call ──────────────────
     const earlyNoAnchorGuard = !hasAnyConcreteAnchor(script);
     if (earlyNoAnchorGuard) {
-      return Response.json(buildEarlyDiagnosticResponse());
+      return Response.json(buildEarlyDiagnosticResponse(locale));
     }
 
     const systemPrompt = `You are a YouTube Shorts hook strategist and retention editor.
@@ -391,7 +421,8 @@ Return exactly this shape:
   ]
 }
 
-NEVER use the double-quote character inside any JSON string value. Rephrase to avoid it.`;
+NEVER use the double-quote character inside any JSON string value. Rephrase to avoid it.
+${buildImproveLanguageInstructions(locale)}`;
 
     const userPrompt = `Analyze this YouTube Shorts script and improve the hook.
 ${title ? `\nVideo title / topic: "${title}"\n` : ""}
@@ -443,7 +474,7 @@ Return only valid JSON matching the exact schema.`;
     // ── Generic script guard ───────────────────────────────────────────────
     const { isGeneric } = isVeryGenericScript(script);
     if (isGeneric) {
-      return Response.json(buildGenericScriptResponse());
+      return Response.json(buildGenericScriptResponse(locale));
     }
 
     const apiKey = process.env.OPENAI_API_KEY?.trim();
@@ -495,7 +526,7 @@ Return only valid JSON matching the exact schema.`;
 
     const raw = response.choices[0]?.message?.content?.trim() ?? "";
 
-    const result = parseHookResponse(raw, script);
+    const result = parseHookResponse(raw, script, locale);
 
     return Response.json(boundGeneratedResult(result));
   } catch (error) {

@@ -1,5 +1,6 @@
 import type {
   AnalysisV2HookDecision,
+  AnalysisV2Locale,
   AnalysisV2Result,
   AnalysisV2ScriptType,
   AnalysisV2SuccessResponse,
@@ -97,12 +98,86 @@ export function isAnalysisV2SuccessResponse(
     return false;
   }
 
+  // The response's own declared locale must be used here: several
+  // validation rules (e.g. the below-80 mainTakeaway check) are
+  // locale-gated, so re-validating a genuine ru response under the "en"
+  // default rejects it outright — the explanatory text is Russian, so
+  // it never matches the English-only term tables.
+  const locale: AnalysisV2Locale =
+    value.locale === "ru" ? "ru" : "en";
+
   const validation = validateAnalysisV2Result(
     value.result,
-    script
+    script,
+    locale
   );
 
   return validation.ok;
+}
+
+// Machine-readable reasons a /api/analyze-v2 response fails the frontend
+// contract check. Used only for diagnostics (console logging) — never
+// shown to the user and never used to change the analysis result itself.
+export type AnalysisV2ResponseContractReason =
+  | "invalid-json"
+  | "payload-not-object"
+  | "missing-status"
+  | "invalid-success-shape"
+  | "invalid-error-shape";
+
+export type AnalysisV2ResponseContractResult =
+  | { valid: true; payload: AnalysisV2SuccessResponse }
+  | { valid: false; reason: AnalysisV2ResponseContractReason };
+
+// Classifies an already-parsed payload against the expected /api/analyze-v2
+// contract. Delegates the actual success-shape check to
+// isAnalysisV2SuccessResponse — this does not reimplement or loosen that
+// guard, it only adds a machine-readable reason for why a payload was
+// rejected, for safe diagnostic logging.
+export function checkAnalysisV2ResponseContract(
+  payload: unknown,
+  script: string
+): AnalysisV2ResponseContractResult {
+  if (!isPlainObject(payload)) {
+    return { valid: false, reason: "payload-not-object" };
+  }
+
+  if (typeof payload.status !== "string") {
+    return { valid: false, reason: "missing-status" };
+  }
+
+  if (payload.status === "error") {
+    // A 200 OK response body must never declare itself an error — that is
+    // itself a contract violation, distinct from a malformed success body.
+    return { valid: false, reason: "invalid-error-shape" };
+  }
+
+  if (payload.status !== "ok") {
+    return { valid: false, reason: "missing-status" };
+  }
+
+  if (!isAnalysisV2SuccessResponse(payload, script)) {
+    return { valid: false, reason: "invalid-success-shape" };
+  }
+
+  return { valid: true, payload };
+}
+
+// Convenience wrapper for callers that still hold the raw response text
+// (e.g. tests exercising the "invalid-json" reason directly).
+export function parseAnalysisV2ResponseContract(
+  rawJsonText: string,
+  script: string
+): AnalysisV2ResponseContractResult {
+  let parsed: unknown;
+
+  try {
+    parsed = JSON.parse(rawJsonText);
+  } catch {
+    return { valid: false, reason: "invalid-json" };
+  }
+
+  return checkAnalysisV2ResponseContract(parsed, script);
 }
 
 export function parseStoredAnalysisV2(
@@ -129,9 +204,21 @@ export function parseStoredAnalysisV2(
     return null;
   }
 
+  // Older saved analyses have no `locale` field, and an unrecognized value
+  // must not be trusted — both cases fall back to "en" for the declared
+  // field below. But the validation call itself must still use this same
+  // fallback (not the validator's own separate "en" default) so a stored
+  // ru analysis is checked against its own locale-gated rules instead of
+  // being rejected outright.
+  const declaredLocale =
+    parsed.locale === "en" || parsed.locale === "ru"
+      ? parsed.locale
+      : undefined;
+
   const validation = validateAnalysisV2Result(
     parsed.result,
-    script
+    script,
+    declaredLocale ?? "en"
   );
 
   if (!validation.ok) {
@@ -142,6 +229,7 @@ export function parseStoredAnalysisV2(
     status: "ok",
     modelUsed: parsed.modelUsed,
     result: validation.value,
+    ...(declaredLocale ? { locale: declaredLocale } : {}),
   };
 }
 
@@ -198,26 +286,57 @@ function getRiskColor(score: number): string {
   return "#22C55E";
 }
 
-function getRiskDescription(result: AnalysisV2Result): string {
+// Deterministic fallback sentences, used only when there are no riskyParts
+// to quote from (in which case AI content already carries the locale via
+// the Analysis V2 prompt). Centralized here rather than as an inline UI
+// condition — matches the same pattern as the score-label tables.
+const RISK_DESCRIPTION_FALLBACKS: Record<
+  AnalysisV2Locale,
+  { low: string; lowMedium: string; medium: string; high: string }
+> = {
+  en: {
+    low: "Low retention risk. The script stays focused and maintains a clear progression.",
+    lowMedium:
+      "The script is structurally sound, with only minor opportunities to tighten the pacing.",
+    medium:
+      "Some sections may lose attention before the script reaches its payoff.",
+    high: "High retention risk. Important sections need stronger pacing, specificity, or escalation.",
+  },
+  ru: {
+    low: "Низкий риск удержания. Сценарий остаётся сфокусированным и сохраняет чёткое развитие.",
+    lowMedium:
+      "Сценарий структурно крепкий, есть лишь небольшие возможности улучшить темп.",
+    medium:
+      "Некоторые части могут терять внимание зрителя до того, как сценарий дойдёт до развязки.",
+    high: "Высокий риск удержания. Важным частям нужен более сильный темп, конкретность или нарастание.",
+  },
+};
+
+function getRiskDescription(
+  result: AnalysisV2Result,
+  locale: AnalysisV2Locale = "en"
+): string {
   const firstRisk = result.riskyParts[0];
 
   if (firstRisk) {
     return firstRisk.reason;
   }
 
+  const fallbacks = RISK_DESCRIPTION_FALLBACKS[locale];
+
   if (result.scores.retentionRisk <= 25) {
-    return "Low retention risk. The script stays focused and maintains a clear progression.";
+    return fallbacks.low;
   }
 
   if (result.scores.retentionRisk <= 45) {
-    return "The script is structurally sound, with only minor opportunities to tighten the pacing.";
+    return fallbacks.lowMedium;
   }
 
   if (result.scores.retentionRisk <= 64) {
-    return "Some sections may lose attention before the script reaches its payoff.";
+    return fallbacks.medium;
   }
 
-  return "High retention risk. Important sections need stronger pacing, specificity, or escalation.";
+  return fallbacks.high;
 }
 
 function formatTime(seconds: number): string {
@@ -309,18 +428,27 @@ function uniqueSortedIndexes(indexes: number[]): number[] {
   );
 }
 
+const RISKY_PART_TITLES: Record<
+  AnalysisV2Locale,
+  { high: string; medium: string; low: string }
+> = {
+  en: {
+    high: "High-risk section.",
+    medium: "Potential drop-off point.",
+    low: "Minor retention risk.",
+  },
+  ru: {
+    high: "Рискованный момент.",
+    medium: "Возможная точка оттока.",
+    low: "Незначительный риск удержания.",
+  },
+};
+
 function getRiskTitle(
-  severity: "low" | "medium" | "high"
+  severity: "low" | "medium" | "high",
+  locale: AnalysisV2Locale = "en"
 ): string {
-  if (severity === "high") {
-    return "High-risk section.";
-  }
-
-  if (severity === "medium") {
-    return "Potential drop-off point.";
-  }
-
-  return "Minor retention risk.";
+  return RISKY_PART_TITLES[locale][severity];
 }
 
 function getSceneColor(
@@ -501,6 +629,11 @@ export function adaptAnalysisV2ForResults(
   estimatedDuration: number
 ): AnalysisV2UiResult {
   const result = response.result;
+  // Adapts using the language the analysis was actually generated in, not
+  // necessarily the live UI locale (they usually match, but a stale saved
+  // analysis viewed after a UI language switch should keep its own
+  // language rather than silently mixing in the other one).
+  const locale: AnalysisV2Locale = response.locale ?? "en";
   const overallScore = clampScore(result.scores.overall);
   const hookScore = clampScore(result.scores.hook);
   const retentionRisk = clampScore(
@@ -559,7 +692,7 @@ export function adaptAnalysisV2ForResults(
       label: getRiskLabel(retentionRisk),
       color: riskColor,
       ringColor: riskColor,
-      description: getRiskDescription(result),
+      description: getRiskDescription(result, locale),
     },
     scoreBreakdown: adaptScoreBreakdown(result),
     riskyParts: result.riskyParts.map((part) => ({
@@ -568,7 +701,7 @@ export function adaptAnalysisV2ForResults(
         part.excerpt,
         estimatedDuration
       ),
-      title: getRiskTitle(part.severity),
+      title: getRiskTitle(part.severity, locale),
       description: part.reason,
     })),
       fixes: dedupeFixes(

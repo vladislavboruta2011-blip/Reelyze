@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 
 import type {
+  AnalysisV2Locale,
   AnalysisV2Result,
 } from "../../../engine/analysis-v2-schema";
 import {
@@ -15,8 +16,10 @@ import {
   buildImproveScriptPreserveResponse,
   parseImproveScriptResponse,
   shouldDiagnoseImproveScript,
+  type ImproveScriptLocale,
   type ImproveScriptResult,
 } from "../../../engine/improve-script";
+import { normalizeApiLocale } from "../../../lib/i18n";
 
 export type {
   ImproveScriptResult,
@@ -210,6 +213,30 @@ async function readJsonBodyWithLimit(req: Request): Promise<unknown> {
   return JSON.parse(rawBody);
 }
 
+const IMPROVE_SCRIPT_LANGUAGE_NAMES: Record<ImproveScriptLocale, string> = {
+  en: "English",
+  ru: "Russian",
+};
+
+// Additive, self-contained block — must never alter the editorial-decision
+// or invention/causal-safety rules above it. It only controls which
+// language the "changes" and "reason" explanation fields are written in.
+function buildImproveScriptLanguageInstructions(
+  locale: ImproveScriptLocale
+): string {
+  const languageName = IMPROVE_SCRIPT_LANGUAGE_NAMES[locale];
+
+  return `
+
+LANGUAGE
+Write every "changes" item and the "reason" field in ${languageName}.
+Keep "improvedScript" in the exact language of the Original script — never translate the script itself, regardless of the explanation language. If an Approved refined hook is provided, keep it in the script's language too.
+Keep "editorialDecision.primaryProblemScope" and every other JSON key and enum value in English exactly as this prompt specifies.
+"editorialDecision.primaryProblemEvidence" must remain an exact untranslated quote copied from the Original script.
+Do not translate names of real people, brands, products, or teams that appear in the script.
+Choosing ${languageName} for the explanation must not change editorialDecision.strategy, candidateAudit, or which script is returned — only the language of "changes" and "reason".`;
+}
+
 export async function POST(req: Request): Promise<Response> {
   const contentType =
     req.headers.get("content-type")?.split(";", 1)[0].trim().toLowerCase() ?? "";
@@ -283,6 +310,11 @@ export async function POST(req: Request): Promise<Response> {
         : "";
     const hasAnalysisResult =
       "analysisResult" in requestBody;
+    // normalizeApiLocale's default availableLocales is LAUNCHED_LOCALES
+    // ("en" | "ru"), so this is always one of ImproveScriptLocale's two values.
+    const locale = normalizeApiLocale(
+      requestBody.locale
+    ) as ImproveScriptLocale;
 
     if (script.length === 0) {
       return Response.json(
@@ -321,9 +353,15 @@ export async function POST(req: Request): Promise<Response> {
     let analysisResult: AnalysisV2Result | null = null;
 
     if (hasAnalysisResult) {
+      // The request's own locale, not the validator's "en" default — the
+      // submitted analysisResult was produced (and already validated) for
+      // this locale, and several validation rules are locale-gated (e.g.
+      // the below-80 mainTakeaway check), so re-validating a genuine ru
+      // result under "en" would reject it outright.
       const validation = validateAnalysisV2Result(
         requestBody.analysisResult,
-        script
+        script,
+        locale as AnalysisV2Locale
       );
 
       if (!validation.ok) {
@@ -345,7 +383,8 @@ export async function POST(req: Request): Promise<Response> {
     ) {
       return Response.json(
         boundImproveScriptResult(
-          buildImproveScriptPreserveResponse(script)
+          buildImproveScriptPreserveResponse(script, locale),
+          locale
         )
       );
     }
@@ -358,7 +397,7 @@ export async function POST(req: Request): Promise<Response> {
       !bypassLegacyDiagnostic &&
       shouldDiagnoseImproveScript(script)
     ) {
-      return Response.json(buildImproveScriptDiagnosticResponse());
+      return Response.json(buildImproveScriptDiagnosticResponse(locale));
     }
 
     const apiKey = process.env.OPENAI_API_KEY?.trim();
@@ -546,7 +585,8 @@ An accepted rewrite must use resolvedPrimaryProblem=true, candidateMateriallyBet
 If that exact audit result is not honest, return the preserve response shape instead.
 Every rewrite item in "changes" must describe a concrete editorial decision made in this script.
 For "preserve", do not require or invent a primary problem, evidence, candidate audit, changes, reason, or improvedScript.
-Do not use generic claims such as "improved pacing, clarity, and engagement."`;
+Do not use generic claims such as "improved pacing, clarity, and engagement."
+${buildImproveScriptLanguageInstructions(locale)}`;
 
     const validatedAnalysisContext =
       analysisResult !== null
@@ -585,10 +625,11 @@ Return only valid JSON matching the required schema.`;
       raw,
       script,
       refinedHook,
-      bypassLegacyDiagnostic
+      bypassLegacyDiagnostic,
+      locale
     );
 
-    return Response.json(boundImproveScriptResult(result));
+    return Response.json(boundImproveScriptResult(result, locale));
   } catch (error) {
     const upstreamStatus =
       typeof error === "object" &&

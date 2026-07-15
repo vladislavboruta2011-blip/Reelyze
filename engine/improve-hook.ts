@@ -11,6 +11,11 @@ export type ImproveHookResult = {
   mode?: "diagnostic" | "rewrite";
 };
 
+// Kept local and decoupled from lib/i18n.ts, matching this module's existing
+// independence from the rest of the app. Only used for the deterministic
+// diagnostic responses below — never for the AI-authored improvedHook.
+export type ImproveHookLocale = "en" | "ru";
+
 export class UnusableAIResponseError extends Error {
   constructor() {
     super("Unusable AI response");
@@ -173,8 +178,10 @@ export function hasAnyConcreteAnchor(script: string): boolean {
   return false;
 }
 
-const GENERIC_DIAGNOSTIC_HOOK =
-  "This script needs one specific example, result, or consequence before the hook can feel strong.";
+const GENERIC_DIAGNOSTIC_HOOK: Record<ImproveHookLocale, string> = {
+  en: "This script needs one specific example, result, or consequence before the hook can feel strong.",
+  ru: "Этому сценарию нужен конкретный пример, результат или последствие, прежде чем хук станет сильным.",
+};
 
 // Builds the universal diagnostic response when no concrete anchor exists.
 type MeasurableTitleClaim = {
@@ -302,13 +309,36 @@ function scriptSupportsMeasurableTitleClaim(
   ).test(script);
 }
 
-function formatEvidencePromise(label: string): string {
+const EVIDENCE_LABELS_RU: Record<string, string> = {
+  research: "научные доказательства",
+  study: "исследование",
+  experiment: "эксперимент",
+  trial: "испытание",
+};
+
+function formatEvidencePromise(
+  label: string,
+  locale: ImproveHookLocale = "en"
+): string {
+  if (locale === "ru") {
+    return EVIDENCE_LABELS_RU[label] ?? label;
+  }
+
   return label === "research"
     ? "research evidence"
     : `a ${label}`;
 }
 
-function formatMeasuredPromise(label: string): string {
+function formatMeasuredPromise(
+  label: string,
+  locale: ImproveHookLocale = "en"
+): string {
+  if (locale === "ru") {
+    if (label === "double") return "двукратный эффект";
+    if (label === "triple") return "трёхкратный эффект";
+    return `эффект в ${label}`;
+  }
+
   if (label === "double") {
     return "a doubling effect";
   }
@@ -320,9 +350,15 @@ function formatMeasuredPromise(label: string): string {
   return `a ${label} effect`;
 }
 
+const MISSING_PROOF_HOOK: Record<ImproveHookLocale, string> = {
+  en: "Add the missing proof before rewriting the hook.",
+  ru: "Добавьте недостающее доказательство, прежде чем переписывать хук.",
+};
+
 export function buildUnsupportedTitleClaimResponse(
   title: string,
-  script: string
+  script: string,
+  locale: ImproveHookLocale = "en"
 ): ImproveHookResult | null {
   if (title.trim().length === 0) {
     return null;
@@ -361,36 +397,52 @@ export function buildUnsupportedTitleClaimResponse(
     measurableClaim
   ) {
     reason =
-      `The title promises ${formatEvidencePromise(evidenceClaim)} and ` +
-      `${formatMeasuredPromise(measurableClaim.label)}, but the script ` +
-      "supports neither. Add the missing evidence and measured result before rewriting the hook.";
+      locale === "ru"
+        ? `Заголовок обещает ${formatEvidencePromise(evidenceClaim, locale)} и ` +
+          `${formatMeasuredPromise(measurableClaim.label, locale)}, но сценарий ` +
+          "не подтверждает ни то, ни другое. Добавьте недостающие доказательства и результат, прежде чем переписывать хук."
+        : `The title promises ${formatEvidencePromise(evidenceClaim)} and ` +
+          `${formatMeasuredPromise(measurableClaim.label)}, but the script ` +
+          "supports neither. Add the missing evidence and measured result before rewriting the hook.";
   } else if (
     missingEvidenceClaim &&
     evidenceClaim
   ) {
     reason =
-      `The title promises ${formatEvidencePromise(evidenceClaim)}, but the script ` +
-      "does not provide that evidence. Add the missing proof before rewriting the hook.";
+      locale === "ru"
+        ? `Заголовок обещает ${formatEvidencePromise(evidenceClaim, locale)}, но сценарий ` +
+          "не предоставляет этих доказательств. Добавьте недостающее доказательство, прежде чем переписывать хук."
+        : `The title promises ${formatEvidencePromise(evidenceClaim)}, but the script ` +
+          "does not provide that evidence. Add the missing proof before rewriting the hook.";
   } else {
     reason =
-      `The title promises ${formatMeasuredPromise(measurableClaim!.label)}, but the script ` +
-      "does not support that measured result. Add the missing result before rewriting the hook.";
+      locale === "ru"
+        ? `Заголовок обещает ${formatMeasuredPromise(measurableClaim!.label, locale)}, но сценарий ` +
+          "не подтверждает этот результат. Добавьте недостающий результат, прежде чем переписывать хук."
+        : `The title promises ${formatMeasuredPromise(measurableClaim!.label)}, but the script ` +
+          "does not support that measured result. Add the missing result before rewriting the hook.";
   }
 
   return {
     status: "improved",
-    improvedHook:
-      "Add the missing proof before rewriting the hook.",
+    improvedHook: MISSING_PROOF_HOOK[locale],
     reason,
     mode: "diagnostic",
   };
 }
 
-export function buildEarlyDiagnosticResponse(): ImproveHookResult {
+const EARLY_DIAGNOSTIC_REASON: Record<ImproveHookLocale, string> = {
+  en: "The script is too abstract to rewrite into a stronger hook without inventing unsupported ideas. Add one concrete example, result, consequence, number, or real situation first.",
+  ru: "Этот сценарий слишком абстрактный, чтобы переписать более сильный хук без выдумывания фактов. Сначала добавьте конкретный пример, результат, последствие, число или реальную ситуацию.",
+};
+
+export function buildEarlyDiagnosticResponse(
+  locale: ImproveHookLocale = "en"
+): ImproveHookResult {
   return {
     status: "improved",
-    improvedHook: GENERIC_DIAGNOSTIC_HOOK,
-    reason: "The script is too abstract to rewrite into a stronger hook without inventing unsupported ideas. Add one concrete example, result, consequence, number, or real situation first.",
+    improvedHook: GENERIC_DIAGNOSTIC_HOOK[locale],
+    reason: EARLY_DIAGNOSTIC_REASON[locale],
     mode: "diagnostic",
   };
 }
@@ -1223,13 +1275,19 @@ export function isVeryGenericScript(script: string): {
   return { isGeneric: true, mainTopicWord };
 }
 
-export function buildGenericScriptResponse(): ImproveHookResult {
+const GENERIC_SCRIPT_REASON: Record<ImproveHookLocale, string> = {
+  en: "The script is too broad to create a strong grounded hook. Every line states a general idea — there is no specific number, named reference, concrete result, or story moment to anchor the opening. Add one specific detail first: a result someone achieved, a named example, a measurable outcome, or a story beat. Once the script has that, the hook can be rewritten around it.",
+  ru: "Этот сценарий слишком общий, чтобы создать сильный обоснованный хук. Каждая строка выражает общую идею — нет конкретного числа, названной ссылки, конкретного результата или сюжетного момента, на который можно опереться. Сначала добавьте одну конкретную деталь: результат, которого кто-то достиг, названный пример, измеримый итог или сюжетный момент. После этого хук можно будет переписать на его основе.",
+};
+
+export function buildGenericScriptResponse(
+  locale: ImproveHookLocale = "en"
+): ImproveHookResult {
   // Return an honest structural diagnosis only.
   // Do NOT guess a topic from an unreliable first word.
-  const improvedHook = GENERIC_DIAGNOSTIC_HOOK;
+  const improvedHook = GENERIC_DIAGNOSTIC_HOOK[locale];
 
-  const reason =
-    "The script is too broad to create a strong grounded hook. Every line states a general idea — there is no specific number, named reference, concrete result, or story moment to anchor the opening. Add one specific detail first: a result someone achieved, a named example, a measurable outcome, or a story beat. Once the script has that, the hook can be rewritten around it.";
+  const reason = GENERIC_SCRIPT_REASON[locale];
 
   return {
     status: "improved",
@@ -1343,7 +1401,10 @@ function hookDistortsAnchor(hook: string, script: string, anchor: { type: string
   return false;
 }
 
-function buildFallbackHookFromScript(script: string): string {
+function buildFallbackHookFromScript(
+  script: string,
+  locale: ImproveHookLocale = "en"
+): string {
   const lines = splitScriptSentences(script).map(l => l.trim()).filter(Boolean);
   const firstLine = lines[0] ?? "";
   const bodyLines = lines.slice(1);
@@ -1352,7 +1413,7 @@ function buildFallbackHookFromScript(script: string): string {
   const hasAnyConcrete = lines.some(line => lineHasHardAnchor(line));
 
   if (!hasAnyConcrete && lines.length >= 3) {
-    return GENERIC_DIAGNOSTIC_HOOK;
+    return GENERIC_DIAGNOSTIC_HOOK[locale];
   }
 
   // ── Scenario opener + final payoff combination ──────────────────────────
@@ -1504,7 +1565,11 @@ function isGroundedStandaloneOpening(hook: string): boolean {
   );
 }
 
-export function parseHookResponse(raw: string, script: string): ImproveHookResult {
+export function parseHookResponse(
+  raw: string,
+  script: string,
+  locale: ImproveHookLocale = "en"
+): ImproveHookResult {
   const firstLine = extractOpeningHook(script);
 
   // Pre-extract anchor from the script so we can validate the AI's choice
@@ -1779,7 +1844,7 @@ export function parseHookResponse(raw: string, script: string): ImproveHookResul
     if (candidateStillFails) {
       improvedHook =
         buildAnchorHook(script, scriptAnchor) ??
-        buildFallbackHookFromScript(script);
+        buildFallbackHookFromScript(script, locale);
     }
     const rawReason = typeof parsed.reason === "string" ? parsed.reason.trim() : "";
     const rawReasonLower = rawReason.toLowerCase();
@@ -1832,8 +1897,8 @@ export function parseHookResponse(raw: string, script: string): ImproveHookResul
 
     if (!scriptHasConcrete || (!hookHasConcrete && !scriptHasConcrete)) {
       if (allScriptLines.length >= 3) {
-        const diagnosticHook = GENERIC_DIAGNOSTIC_HOOK;
-        const diagnosticReason = "The script is too abstract to rewrite into a stronger hook without inventing unsupported ideas. Add one concrete example, result, consequence, number, or real situation first.";
+        const diagnosticHook = GENERIC_DIAGNOSTIC_HOOK[locale];
+        const diagnosticReason = EARLY_DIAGNOSTIC_REASON[locale];
         return { status: "improved", improvedHook: diagnosticHook, reason: diagnosticReason, mode: "diagnostic" };
       }
     }
@@ -1845,8 +1910,8 @@ export function parseHookResponse(raw: string, script: string): ImproveHookResul
     if (!finalScriptHasConcrete) {
       return {
         status: "improved",
-        improvedHook: GENERIC_DIAGNOSTIC_HOOK,
-        reason: "The script is too abstract to rewrite into a stronger hook without inventing unsupported ideas. Add one concrete example, result, consequence, number, or real situation first.",
+        improvedHook: GENERIC_DIAGNOSTIC_HOOK[locale],
+        reason: EARLY_DIAGNOSTIC_REASON[locale],
         mode: "diagnostic",
       };
     }

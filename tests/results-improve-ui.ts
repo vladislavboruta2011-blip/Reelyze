@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 
 const source = readFileSync("app/results/page.tsx", "utf8");
 const homeSource = readFileSync("app/page.tsx", "utf8");
+const messagesSource = readFileSync("lib/messages.ts", "utf8");
 const uiComponentsSource = readFileSync(
   "app/results/ui-components.tsx",
   "utf8"
@@ -80,7 +81,10 @@ if (jsonIndex >= 0 && okIndex >= 0 && jsonIndex < okIndex) {
 
 const hasSafeModalHookText =
   source.includes(
-    'const modalHookText = improveError ? "No improved hook was generated." : improvedHook;'
+    "const modalHookText = improveError ? results.hookModal.noImprovedHookGenerated : improvedHook;"
+  ) &&
+  messagesSource.includes(
+    'noImprovedHookGenerated: "No improved hook was generated."'
   );
 
 if (hasSafeModalHookText) {
@@ -213,9 +217,9 @@ const validatesStoredTitle =
   storageEffect.includes("storedTitle.length <= MAX_TITLE_CHARACTERS");
 
 const rejectsInvalidStoredAnalysis =
-  storageEffect.includes("setStorageError(") &&
-  storageEffect.includes(
-    "Your saved analysis is invalid. Please go back and analyze the script again."
+  storageEffect.includes("setStorageError(results.error.invalidAnalysis)") &&
+  messagesSource.includes(
+    'invalidAnalysis:\n        "Your saved analysis is invalid. Please go back and analyze the script again."'
   );
 
 if (
@@ -306,21 +310,26 @@ const titleCounterCount =
   homeSource.split("{title.length} / {MAX_TITLE_CHARACTERS}").length - 1;
 const titleDisableGuardCount =
   homeSource.split("title.length > MAX_TITLE_CHARACTERS").length - 1;
-const hasVisibleTitleError =
-  homeSource.includes(
-    "Title is too long. Please shorten it to 200 characters or less."
-  );
+const visibleTitleErrorBindingCount =
+  homeSource.split("messages.landing.analyzer.titleTooLong").length - 1;
+const validationTitleErrorBindingCount =
+  homeSource.split("messages.landing.errors.titleTooLong").length - 1;
+const catalogContainsTitleTooLongError = messagesSource.includes(
+  "Title is too long. Please shorten it to 200 characters or less."
+);
 
 if (
   silentTitleLimitCount === 0 &&
   titleCounterCount === 2 &&
   titleDisableGuardCount >= 2 &&
-  hasVisibleTitleError
+  visibleTitleErrorBindingCount === 2 &&
+  validationTitleErrorBindingCount >= 1 &&
+  catalogContainsTitleTooLongError
 ) {
   console.log("✅ PASS — Title length feedback is visible on desktop and mobile");
 } else {
   console.error(
-    `❌ FAIL — Title must allow overflow feedback instead of silently truncating (maxLength: ${silentTitleLimitCount}, counters: ${titleCounterCount}, guards: ${titleDisableGuardCount}, error: ${hasVisibleTitleError})`
+    `❌ FAIL — Title must allow overflow feedback instead of silently truncating (maxLength: ${silentTitleLimitCount}, counters: ${titleCounterCount}, guards: ${titleDisableGuardCount}, visible bindings: ${visibleTitleErrorBindingCount}, validation bindings: ${validationTitleErrorBindingCount}, catalog: ${catalogContainsTitleTooLongError})`
   );
   failures += 1;
 }
@@ -342,10 +351,10 @@ if (desktopFeedbackRequiresResults) {
 
 
 const scriptCardStart = source.indexOf(
-  '<h2 className="text-[17px] font-semibold text-[#111827]">Your Script</h2>'
+  '<h2 className="text-[17px] font-semibold text-[#111827]">{results.script.heading}</h2>'
 );
 const savedTitleBlockIndex = source.indexOf("{savedTitle && (", scriptCardStart);
-const titleLabelIndex = source.indexOf(">Title</p>", savedTitleBlockIndex);
+const titleLabelIndex = source.indexOf(">{results.script.titleLabel}</p>", savedTitleBlockIndex);
 const savedTitleValueIndex = source.indexOf("{savedTitle}</p>", savedTitleBlockIndex);
 const scriptLinesContentIndex = source.indexOf(
   "<ScriptLinesContent",
@@ -367,36 +376,55 @@ if (
   failures += 1;
 }
 
-const hasDesktopShortsNotice = homeSource.includes(
+const desktopUsesLocalizedShortsNotice = homeSource.includes(
+  "messages.landing.analyzer.supportingText"
+);
+const catalogContainsDesktopShortsNotice = messagesSource.includes(
   "Works best for YouTube Shorts (15–60 seconds)."
 );
-const hasMobileShortsNotice = homeSource.includes("Shorts only");
+const hasDesktopShortsNotice =
+  desktopUsesLocalizedShortsNotice &&
+  catalogContainsDesktopShortsNotice;
+
+const mobileUsesLocalizedShortsNotice = homeSource.includes(
+  "messages.landing.analyzer.shortsOnly"
+);
+const catalogContainsMobileShortsNotice = messagesSource.includes(
+  'shortsOnly: "Shorts only"'
+);
+const hasMobileShortsNotice =
+  mobileUsesLocalizedShortsNotice &&
+  catalogContainsMobileShortsNotice;
 
 if (hasDesktopShortsNotice && hasMobileShortsNotice) {
   console.log("✅ PASS — New Analysis shows desktop and mobile Shorts-only guidance");
 } else {
   console.error(
-    `❌ FAIL — New Analysis must show Shorts-only guidance on desktop and mobile (desktop: ${hasDesktopShortsNotice}, mobile: ${hasMobileShortsNotice})`
+    `❌ FAIL — New Analysis must show Shorts-only guidance on desktop and mobile (desktop binding: ${desktopUsesLocalizedShortsNotice}, desktop catalog: ${catalogContainsDesktopShortsNotice}, mobile binding: ${mobileUsesLocalizedShortsNotice}, mobile catalog: ${catalogContainsMobileShortsNotice})`
   );
   failures += 1;
 }
 
 const scriptLengthGuardCount =
   homeSource.split("script.length > maxCharacters").length - 1;
-const scriptTooLongErrorCount =
-  homeSource.split("Script is too long.").length - 1;
+const scriptTooLongBindingCount =
+  homeSource.split("messages.landing.errors.scriptTooLong").length - 1;
+const catalogContainsScriptTooLongError = messagesSource.includes(
+  "Script is too long. Please shorten it to 1,000 characters or less."
+);
 const silentScriptLimitCount =
   homeSource.split("maxLength={maxCharacters}").length - 1;
 
 if (
   scriptLengthGuardCount >= 2 &&
-  scriptTooLongErrorCount >= 2 &&
+  scriptTooLongBindingCount >= 2 &&
+  catalogContainsScriptTooLongError &&
   silentScriptLimitCount === 0
 ) {
   console.log("✅ PASS — Script length feedback blocks over-1000 scripts visibly");
 } else {
   console.error(
-    `❌ FAIL — Script length must use visible blocking feedback instead of silent truncation (guards: ${scriptLengthGuardCount}, errors: ${scriptTooLongErrorCount}, maxLength: ${silentScriptLimitCount})`
+    `❌ FAIL — Script length must use visible blocking feedback instead of silent truncation (guards: ${scriptLengthGuardCount}, bindings: ${scriptTooLongBindingCount}, catalog: ${catalogContainsScriptTooLongError}, maxLength: ${silentScriptLimitCount})`
   );
   failures += 1;
 }
@@ -432,12 +460,15 @@ const hasDecisionSpecificActionLabels =
   source.includes(
     'hookDecision === "diagnostic"'
   ) &&
-  source.includes('"Needs Details"') &&
+  source.includes('results.suggestedFixes.hookActionNeedsDetails') &&
   source.includes(
     'hookDecision === "refine"'
   ) &&
-  source.includes('"Refine Hook"') &&
-  source.includes('"Improve Hook"');
+  source.includes('results.suggestedFixes.hookActionRefine') &&
+  source.includes('results.suggestedFixes.hookActionImprove') &&
+  messagesSource.includes('hookActionNeedsDetails: "Needs Details"') &&
+  messagesSource.includes('hookActionRefine: "Refine Hook"') &&
+  messagesSource.includes('hookActionImprove: "Improve Hook"');
 
 if (hasDecisionSpecificActionLabels) {
   console.log(
@@ -529,7 +560,7 @@ const preservesLegacyHookActionLabel =
     "const hookActionLabel = savedAnalysisV2"
   ) &&
   source.includes(
-    ': analysis.hook.score >= 70\n    ? "Refine Hook"\n    : "Improve Hook";'
+    ": analysis.hook.score >= 70\n    ? results.suggestedFixes.hookActionRefine\n    : results.suggestedFixes.hookActionImprove;"
   );
 
 if (preservesLegacyHookActionLabel) {
@@ -553,7 +584,7 @@ const breakdownGuardCount =
   ).length - 1;
 
 const desktopScoreIndex = source.indexOf(
-  'title="Retention Risk"'
+  "title={results.scoreCards.retentionRisk}"
 );
 const desktopBreakdownIndex = source.indexOf(
   "<ScoreBreakdownCard",
@@ -581,14 +612,16 @@ const hasScoreBreakdownComponent =
     "export function ScoreBreakdownCard("
   ) &&
   uiComponentsSource.includes(
-    "Why these scores?"
+    "messages.results.scoreBreakdown.heading"
   ) &&
   uiComponentsSource.includes(
-    "Lower is better for"
+    "messages.results.scoreBreakdown.description"
   ) &&
   uiComponentsSource.includes(
     "item.score * 4"
-  );
+  ) &&
+  messagesSource.includes("heading: \"Why these scores?\"") &&
+  messagesSource.includes("Lower is better for");
 
 const scoreBreakdownAppearsInCorrectOrder =
   desktopScoreIndex >= 0 &&
@@ -752,14 +785,17 @@ const storesImproveScriptResultStatus =
 
 const presentsPreservedOriginalHonestly =
   source.includes('improveScriptStatus === "preserve"') &&
-  source.includes("Original Script Preserved") &&
+  source.includes("results.improveScriptModal.originalPreservedTitle") &&
+  source.includes("results.improveScriptModal.preservedDescription") &&
   source.includes(
+    "copiedScript ? results.improveScriptModal.copied : improveScriptStatus === \"preserve\""
+  ) &&
+  source.includes("results.improveScriptModal.copyOriginal") &&
+  messagesSource.includes('originalPreservedTitle: "Original Script Preserved"') &&
+  messagesSource.includes(
     "the generated rewrite did not make a meaningful editorial improvement"
   ) &&
-  source.includes(
-    'copiedScript ? "Copied!" : improveScriptStatus === "preserve"'
-  ) &&
-  source.includes('"Copy Original"');
+  messagesSource.includes('copyOriginal: "Copy Original"');
 
 if (
   supportsPreserveImproveScriptStatus &&
@@ -824,8 +860,9 @@ const improveScriptFingerprintSource =
     : "";
 
 const invalidatesImproveScriptCacheWithAnalysis =
-  source.includes('const IMPROVE_SCRIPT_CACHE_VERSION = "2";') &&
+  source.includes('const IMPROVE_SCRIPT_CACHE_VERSION = "3";') &&
   improveScriptFingerprintSource.includes("analysisResult") &&
+  improveScriptFingerprintSource.includes("locale") &&
   refinedHookHandler.includes("analysisResult") &&
   refinedHookHandler.includes("createImproveScriptFingerprint({");
 
@@ -842,14 +879,15 @@ if (invalidatesImproveScriptCacheWithAnalysis) {
 
 
 const hasVersionedImproveScriptCacheContract =
-  source.includes('const IMPROVE_SCRIPT_CACHE_VERSION = "2";') &&
+  source.includes('const IMPROVE_SCRIPT_CACHE_VERSION = "3";') &&
   source.includes("const IMPROVE_SCRIPT_CACHE_STORAGE_KEY") &&
   source.includes("function createImproveScriptFingerprint(") &&
   source.includes("version: IMPROVE_SCRIPT_CACHE_VERSION") &&
   source.includes("script: script.trim()") &&
   source.includes("title: title.trim()") &&
   source.includes("refinedHook: refinedHook.trim()") &&
-  improveScriptFingerprintSource.includes("analysisResult");
+  improveScriptFingerprintSource.includes("analysisResult") &&
+  improveScriptFingerprintSource.includes("locale");
 
 if (hasVersionedImproveScriptCacheContract) {
   console.log(

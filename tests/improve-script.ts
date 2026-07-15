@@ -4,6 +4,7 @@ import { UnusableAIResponseError } from "../engine/improve-hook";
 import {
   boundImproveScriptResult,
   buildImproveScriptDiagnosticResponse,
+  buildImproveScriptPreserveResponse,
   parseImproveScriptResponse,
   shouldDiagnoseImproveScript,
 } from "../engine/improve-script";
@@ -961,6 +962,45 @@ const tests: TestCase[] = [
       assert.match(result.improvedScript, /concrete|payoff|example/i);
       assert.ok(result.missingMaterial);
       assert.ok(result.missingMaterial.length > 0);
+    },
+  },
+  {
+    name: "locale-aware diagnostic and preserve responses stay in the requested language, improvedScript stays in the script's language",
+    run: () => {
+      const CYRILLIC = /[Ѐ-ӿ]/;
+
+      const enDiagnostic = buildImproveScriptDiagnosticResponse("en");
+      const ruDiagnostic = buildImproveScriptDiagnosticResponse("ru");
+      const defaultDiagnostic = buildImproveScriptDiagnosticResponse();
+
+      assert.equal(defaultDiagnostic.reason, enDiagnostic.reason);
+      assert.doesNotMatch(enDiagnostic.reason, CYRILLIC);
+      assert.match(ruDiagnostic.reason, CYRILLIC);
+      assert.doesNotMatch(enDiagnostic.changes[0], CYRILLIC);
+      assert.match(ruDiagnostic.changes[0], CYRILLIC);
+      assert.ok(ruDiagnostic.missingMaterial);
+      assert.match(ruDiagnostic.missingMaterial!.join(" "), CYRILLIC);
+
+      const originalEnglishScript =
+        "This is the original English script that must never be translated.";
+
+      const enPreserve = buildImproveScriptPreserveResponse(
+        originalEnglishScript,
+        "en"
+      );
+      const ruPreserve = buildImproveScriptPreserveResponse(
+        originalEnglishScript,
+        "ru"
+      );
+
+      // The explanation language changes...
+      assert.doesNotMatch(enPreserve.reason, CYRILLIC);
+      assert.match(ruPreserve.reason, CYRILLIC);
+
+      // ...but improvedScript always stays exactly the original script,
+      // regardless of the UI locale.
+      assert.equal(enPreserve.improvedScript, originalEnglishScript);
+      assert.equal(ruPreserve.improvedScript, originalEnglishScript);
     },
   },
 ];
