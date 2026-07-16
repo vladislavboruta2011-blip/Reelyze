@@ -418,7 +418,24 @@ async function submitFeedback(
       }),
     });
 
-    if (!response.ok) {
+    let payload: unknown = null;
+
+    try {
+      payload = await response.json();
+    } catch {
+      payload = null;
+    }
+
+    // A 200 response alone is not proof feedback was actually stored —
+    // only an explicit stored: true from the API counts as success. This
+    // must never say "saved" when it wasn't.
+    const stored =
+      response.ok &&
+      typeof payload === "object" &&
+      payload !== null &&
+      (payload as { stored?: unknown }).stored === true;
+
+    if (!stored) {
       setFeedbackSubmitError(results.feedback.submitError);
       return false;
     }
