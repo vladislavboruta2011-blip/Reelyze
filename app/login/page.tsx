@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { SignInCardContent } from "../sign-in-card-content";
 import { useMessages } from "../use-messages";
 
-export default function LoginPage() {
+function LoginPageContent() {
   const messages = useMessages();
   const searchParams = useSearchParams();
 
@@ -33,5 +34,23 @@ export default function LoginPage() {
         </Link>
       </div>
     </main>
+  );
+}
+
+// useSearchParams() requires a Suspense boundary — without one, Next.js
+// can't produce a static shell for this route and the production build
+// fails at prerender time (a build-time failure, not a type error, so
+// tsc alone won't catch it). The fallback matches the real page's
+// background to avoid a flash of unstyled content during the brief
+// client-side hydration gap.
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-[#FAFAFA]" />
+      }
+    >
+      <LoginPageContent />
+    </Suspense>
   );
 }
