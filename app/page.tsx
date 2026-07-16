@@ -5,6 +5,7 @@ import { Inter } from "next/font/google";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { AuthNav } from "./auth-nav";
 import { LanguageSwitcher } from "./language-switcher";
 import { useMessages } from "./use-messages";
 import { useLocale } from "./locale-provider";
@@ -131,6 +132,7 @@ function Navbar() {
 
       <div className="hidden items-center gap-3 md:flex">
         <LanguageSwitcher />
+        <AuthNav />
         <a
           href="#analyzer"
           onClick={(e) => {
@@ -1288,6 +1290,7 @@ export default function HomePage() {
 
             <div className="flex items-center gap-2">
               <LanguageSwitcher />
+              <AuthNav />
               <Link
                 href="/results"
                 className="inline-flex h-[34px] items-center justify-center rounded-full border border-[#E5E7EB] bg-white/80 px-4 text-[12px] font-semibold text-[#6B7280]"

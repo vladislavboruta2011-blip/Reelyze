@@ -55,18 +55,21 @@ function expectStatus(
   }
 }
 
-function main(): void {
+async function main(): Promise<void> {
   try {
     const expectedMatchers = [
       "/admin/:path*",
       "/api/admin/:path*",
+      "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
     ];
 
     if (
       JSON.stringify(proxyConfig.matcher) !==
       JSON.stringify(expectedMatchers)
     ) {
-      throw new Error("Proxy matcher does not protect both admin routes.");
+      throw new Error(
+        "Proxy matcher does not protect both admin routes and refresh the session elsewhere."
+      );
     }
 
     console.log("PASS — protects admin page and admin API routes");
@@ -75,7 +78,7 @@ function main(): void {
     delete process.env.ADMIN_PASSWORD;
 
     {
-      const response = proxy(createRequest());
+      const response = await proxy(createRequest());
 
       expectStatus(
         response,
@@ -96,7 +99,7 @@ function main(): void {
     process.env.ADMIN_PASSWORD = "correct:test-password";
 
     {
-      const response = proxy(createRequest());
+      const response = await proxy(createRequest());
 
       expectStatus(
         response,
@@ -116,7 +119,7 @@ function main(): void {
     }
 
     {
-      const response = proxy(
+      const response = await proxy(
         createRequest(
           createBasicAuthorization(
             "admin-test",
@@ -135,7 +138,7 @@ function main(): void {
     }
 
     {
-      const response = proxy(
+      const response = await proxy(
         createRequest(
           createBasicAuthorization(
             "admin-test",
@@ -159,14 +162,16 @@ function main(): void {
   }
 }
 
-try {
-  main();
-} catch (error: unknown) {
-  restoreEnvironment();
+(async () => {
+  try {
+    await main();
+  } catch (error: unknown) {
+    restoreEnvironment();
 
-  const message =
-    error instanceof Error ? error.message : String(error);
+    const message =
+      error instanceof Error ? error.message : String(error);
 
-  console.error(`FAIL — ${message}`);
-  process.exitCode = 1;
-}
+    console.error(`FAIL — ${message}`);
+    process.exitCode = 1;
+  }
+})();

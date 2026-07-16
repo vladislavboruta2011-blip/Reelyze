@@ -4,6 +4,7 @@ import Image from "next/image";
 import { Inter } from "next/font/google";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { AuthNav } from "../auth-nav";
 import { LanguageSwitcher } from "../language-switcher";
 import { useMessages } from "../use-messages";
 import { useLocale } from "../locale-provider";
@@ -876,8 +877,9 @@ const hookCopyButtonLabel =
               <span className="text-[14px] font-medium text-[#6B7280]">{results.nav.newAnalysis}</span>
             </Link>
           </nav>
-          <div className="px-4 pt-3">
+          <div className="flex flex-col items-center gap-2 px-4 pt-3">
             <LanguageSwitcher className="w-full justify-center" />
+            <AuthNav variant="results" />
           </div>
           {isStorageLoaded && !storageError && hasAnalyzedScript && (
             <div className="mt-auto px-4 pb-10 pt-8">
@@ -1206,8 +1208,9 @@ const hookCopyButtonLabel =
             </button>
           </div>
 
-          <div className="flex justify-center px-5 pb-2">
+          <div className="flex flex-col items-center gap-2 px-5 pb-2">
             <LanguageSwitcher />
+            <AuthNav variant="results" />
           </div>
 
           {shareMessage && (

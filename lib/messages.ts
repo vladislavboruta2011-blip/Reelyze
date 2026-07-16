@@ -39,6 +39,9 @@ const enMessages = {
   common: {
     language: "Language",
     results: "Results",
+    signIn: "Sign in",
+    signOut: "Sign out",
+    myAnalyses: "My analyses",
   },
   landing: {
     nav: {
@@ -640,6 +643,27 @@ const enMessages = {
         "No validated hook suggestion is available for this analysis.",
     },
   },
+  auth: {
+    login: {
+      heading: "Welcome to Climpy",
+      description:
+        "Sign in to save and revisit your script analyses.",
+      continueWithGoogle: "Continue with Google",
+      privacyNote:
+        "We only use your Google sign-in to identify you — never to post or share anything.",
+      errorGeneric:
+        "Something went wrong signing you in. Please try again.",
+      errorMissingCode: "The sign-in link was invalid or expired.",
+      backToHome: "Back to home",
+    },
+    modal: {
+      closeLabel: "Close",
+    },
+  },
+  myAnalyses: {
+    heading: "My analyses",
+    comingSoon: "Your saved analyses will appear here soon.",
+  },
 } as const;
 
 type WidenMessageValues<T> =
@@ -659,6 +683,9 @@ const ruMessages = {
   common: {
     language: "Язык",
     results: "Результаты",
+    signIn: "Войти",
+    signOut: "Выйти",
+    myAnalyses: "Мои анализы",
   },
   landing: {
     nav: {
@@ -1263,6 +1290,28 @@ const ruMessages = {
       noValidatedHookSuggestion:
         "Для этого анализа нет проверенного варианта хука.",
     },
+  },
+  auth: {
+    login: {
+      heading: "Добро пожаловать в Climpy",
+      description:
+        "Войдите, чтобы сохранять и просматривать анализы сценариев.",
+      continueWithGoogle: "Продолжить с Google",
+      privacyNote:
+        "Мы используем вход через Google только для подтверждения личности — мы ничего не публикуем и не передаём третьим лицам.",
+      errorGeneric:
+        "Не удалось выполнить вход. Попробуйте ещё раз.",
+      errorMissingCode:
+        "Ссылка для входа недействительна или устарела.",
+      backToHome: "На главную",
+    },
+    modal: {
+      closeLabel: "Закрыть",
+    },
+  },
+  myAnalyses: {
+    heading: "Мои анализы",
+    comingSoon: "Здесь скоро появятся ваши сохранённые анализы.",
   },
 } satisfies Messages;
 

@@ -34,6 +34,7 @@
     "test:api:improve-script": "tsx tests/improve-script-api.ts"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.12.3",
     "@supabase/supabase-js": "^2.108.2",
     "dotenv": "^17.4.2",
     "lucide-react": "^1.17.0",

@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { LocaleProvider } from "./locale-provider";
+import { SessionProvider } from "./session-provider";
+import { toSessionUser, type SessionUser } from "../lib/session-user";
+import { createSupabaseServerClient } from "../lib/supabase/server";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -37,18 +40,40 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+// Never throws: if Supabase isn't configured yet, or the session check
+// fails for any reason, the app renders anonymously — AuthNav shows
+// "Sign in" the same as a genuine anonymous visit. This must stay safe
+// because RootLayout wraps every page, including the fully anonymous
+// landing and results pages.
+async function getInitialSessionUser(): Promise<SessionUser | null> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    return toSessionUser(user);
+  } catch {
+    return null;
+  }
+}
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const initialUser = await getInitialSessionUser();
+
   return (
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <LocaleProvider>{children}</LocaleProvider>
+        <SessionProvider initialUser={initialUser}>
+          <LocaleProvider>{children}</LocaleProvider>
+        </SessionProvider>
       </body>
     </html>
   );
