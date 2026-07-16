@@ -20,7 +20,12 @@ html {
 html,
 body {
   min-height: 100%;
+  /* Default/top-of-page value — shown for top rubber-band overscroll and
+     before JS runs. app/page.tsx swaps body's background to the footer's
+     dark end-color only while scrolled to the very bottom, so bottom
+     rubber-band overscroll shows footer-dark instead of this light color. */
   background: var(--background);
+  overscroll-behavior-y: none;
 }
 
 body {

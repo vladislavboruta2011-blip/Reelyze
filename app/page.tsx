@@ -4,7 +4,7 @@ import Image from "next/image";
 import { Inter } from "next/font/google";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { LanguageSwitcher } from "./language-switcher";
 import { useMessages } from "./use-messages";
 import { useLocale } from "./locale-provider";
@@ -836,14 +836,20 @@ function CommonQuestionsSection() {
 
 
 
+// The footer brand gradient's final/darkest stop — shared with HomePage's
+// scroll listener so the body background it sets while scrolled to the
+// bottom (for elastic-overscroll) can never drift from the actual footer.
+const FOOTER_BRAND_DARK = "#3B0764";
+
 function FooterSection() {
   const messages = useMessages();
   const footer = messages.landing.footer;
 
   return (
-    <footer className="relative z-10 mx-auto w-full max-w-[1280px] px-8 pb-10">
-      <div className="overflow-hidden rounded-[34px] border border-[#E5E7EB] bg-[#111827] p-8 text-white shadow-[0_30px_100px_rgba(17,24,39,0.18)]">
-        <div className="grid gap-10 lg:grid-cols-[1.2fr_0.8fr_0.8fr]">
+    <footer className="relative z-10 w-full">
+      {/* Zone A — light footer content: logo, description, nav columns */}
+      <div className="border-t border-[#E5E7EB] bg-[#FAF7FF]">
+        <div className="mx-auto grid w-full max-w-[1280px] gap-10 px-8 py-14 lg:grid-cols-[1.2fr_0.8fr_0.8fr]">
           <div>
             <div className="flex items-center gap-3">
               <Image
@@ -854,52 +860,107 @@ function FooterSection() {
                 className="h-11 w-11 object-contain"
               />
               <div>
-                <p className="text-[22px] font-extrabold tracking-[-0.06em]">
+                <p className="text-[22px] font-extrabold tracking-[-0.06em] text-[#111827]">
                   Climpy
                 </p>
-                <p className="text-[13px] font-medium text-white/50">
+                <p className="text-[13px] font-medium text-[#6B7280]">
                   {footer.tagline}
                 </p>
               </div>
             </div>
 
-            <p className="mt-6 max-w-[430px] text-[16px] leading-7 text-white/60">
+            <p className="mt-6 max-w-[430px] text-[16px] leading-7 text-[#6B7280]">
               {footer.description}
             </p>
           </div>
 
           <div>
-            <p className="text-[13px] font-semibold uppercase tracking-[0.18em] text-white/40">
+            <p className="text-[13px] font-semibold uppercase tracking-[0.18em] text-[#9CA3AF]">
               {footer.productHeading}
             </p>
-            <div className="mt-5 grid gap-3 text-[15px] font-medium text-white/70">
-              <a href="#analyzer" className="transition hover:text-white">
+            <div className="mt-5 grid gap-3 text-[15px] font-medium text-[#374151]">
+              <a href="#analyzer" className="transition hover:text-[#7C3AED]">
                 {footer.analyzeScript}
               </a>
-              <a href="#faqs" className="transition hover:text-white">
+              <a href="#faqs" className="transition hover:text-[#7C3AED]">
                 {footer.faqs}
               </a>
-              <a href="#analyzer" className="transition hover:text-white">
+              <a href="#analyzer" className="transition hover:text-[#7C3AED]">
                 {footer.tryClimpy}
               </a>
             </div>
           </div>
 
           <div>
-            <p className="text-[13px] font-semibold uppercase tracking-[0.18em] text-white/40">
+            <p className="text-[13px] font-semibold uppercase tracking-[0.18em] text-[#9CA3AF]">
               {footer.builtForHeading}
             </p>
-            <div className="mt-5 grid gap-3 text-[15px] font-medium text-white/70">
+            <div className="mt-5 grid gap-3 text-[15px] font-medium text-[#374151]">
               {footer.builtForItems.map((item) => (
                 <p key={item}>{item}</p>
               ))}
             </div>
           </div>
         </div>
+      </div>
 
-        <div className="mt-10 flex items-center justify-between border-t border-white/10 pt-6 text-[13px] font-medium text-white/40">
-          <p>{footer.copyright}</p>
-          <p>{footer.processTagline}</p>
+      {/* Zone A → Zone B transition + Zone B itself, grouped so the glow's
+          negative top offset can visually overlap Zone A's tail without
+          affecting document flow/height (it's absolutely positioned). */}
+      <div className="relative">
+        {/* Soft fog/glow bridging the seam: transparent at its own top
+            (revealing Zone A's flat color underneath), fading into the same
+            lavender tone Zone B's gradient starts with. Holds a brief fully
+            opaque plateau right at the Zone A/B boundary so the DOM seam is
+            always masked by this single x-uniform color, regardless of how
+            Zone B's own (radial-influenced, edge-weaker) blend looks at that
+            row. Purely decorative, zero layout height — cannot add scroll
+            space. */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 -top-[120px] z-10 h-[200px]"
+          style={{
+            backgroundImage:
+              "linear-gradient(180deg, rgba(250,247,255,0) 0%, rgba(245,238,255,0.45) 38%, rgba(238,222,255,1) 55%, rgba(238,222,255,1) 65%, rgba(225,200,255,0.45) 82%, rgba(210,180,255,0) 100%)",
+          }}
+        />
+
+        {/* Zone B — full-bleed brand zone: the last thing on the page.
+            Layered radial + linear gradients (not a flat purple fill): an
+            almost-white/lavender glow at the top blends into vivid Climpy
+            purple, deepening toward the bottom, with a second soft radial
+            bloom placed lower to sit behind the wordmark. A pure vertical
+            linear-gradient sits underneath the radials as a guaranteed,
+            x-independent fade — the radials add depth/bloom on top, but
+            every column (including the far left/right edges, where the
+            radials contribute little) still gets the same smooth hand-off
+            from Zone A's tail into the brand gradient. */}
+        <div
+          className="relative w-full overflow-hidden"
+          style={{
+            backgroundImage: `
+              radial-gradient(120% 60% at 50% 0%, rgba(250,247,255,0.95) 0%, rgba(233,213,255,0.55) 20%, rgba(168,85,247,0.35) 42%, rgba(168,85,247,0) 62%),
+              radial-gradient(90% 70% at 50% 82%, rgba(124,58,237,0.55) 0%, rgba(124,58,237,0) 65%),
+              linear-gradient(180deg, rgba(250,247,255,0.98) 0%, rgba(240,226,255,0.9) 10%, rgba(216,185,255,0.6) 22%, rgba(190,150,255,0.22) 34%, rgba(190,150,255,0) 46%),
+              linear-gradient(180deg, #FAF5FF 0%, #C084FC 22%, #7C3AED 56%, ${FOOTER_BRAND_DARK} 100%)
+            `,
+          }}
+        >
+          <div className="pointer-events-none absolute left-1/2 top-[68%] h-[380px] w-[75%] max-w-[820px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/[0.10] blur-[110px]" />
+
+          <div className="relative mx-auto flex w-full max-w-[1280px] flex-col items-center px-4 pt-20 sm:pt-28">
+            <p
+              aria-hidden="true"
+              className="select-none whitespace-nowrap text-[clamp(52px,17vw,200px)] font-extrabold leading-none tracking-[-0.04em] text-white/25 [-webkit-text-stroke:1.5px_rgba(255,255,255,0.65)]"
+            >
+              CLIMPY
+            </p>
+          </div>
+
+          <div className="relative mx-auto mt-10 flex w-full max-w-[1280px] flex-col gap-2 border-t border-white/15 px-8 py-6 text-[13px] font-medium text-white/60 sm:mt-14 sm:flex-row sm:items-center sm:justify-between sm:gap-0">
+            <p>{footer.copyright}</p>
+            <p>{footer.processTagline}</p>
+          </div>
         </div>
       </div>
     </footer>
@@ -917,6 +978,49 @@ export default function HomePage() {
   const [title, setTitle] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analyzeError, setAnalyzeError] = useState("");
+
+  // Elastic/rubber-band overscroll reveals the root <body> background, not
+  // page content — <main> always paints its own opaque light background over
+  // the real content regardless. Swapping body's background only while
+  // scrolled to the true bottom makes a bottom overscroll reveal the
+  // footer's own dark color instead of a mismatched light flash, while a top
+  // overscroll still reveals the default light background untouched.
+  useEffect(() => {
+    let currentlyDark = false;
+
+    function syncOverscrollBackground() {
+      const atBottom =
+        window.innerHeight + window.scrollY >=
+        document.documentElement.scrollHeight - 1;
+
+      // Skip the write entirely when nothing would change — avoids a style
+      // mutation (and the resulting style recalc) on every scroll tick.
+      if (atBottom === currentlyDark) {
+        return;
+      }
+
+      currentlyDark = atBottom;
+      document.body.style.backgroundColor = atBottom
+        ? FOOTER_BRAND_DARK
+        : "";
+    }
+
+    syncOverscrollBackground();
+    window.addEventListener("scroll", syncOverscrollBackground, {
+      passive: true,
+    });
+    window.addEventListener("resize", syncOverscrollBackground, {
+      passive: true,
+    });
+
+    return () => {
+      window.removeEventListener("scroll", syncOverscrollBackground);
+      window.removeEventListener("resize", syncOverscrollBackground);
+      // Navigating away (client-side routing keeps the same <body> node)
+      // must not leave a different page permanently dark.
+      document.body.style.backgroundColor = "";
+    };
+  }, []);
 
   const maxCharacters = 1000;
   const scriptCharactersOverLimit = Math.max(
@@ -1490,6 +1594,10 @@ export default function HomePage() {
               <ArrowRight className="h-4 w-4" />
             </a>
           </section>
+        </div>
+
+        <div className="relative z-10 mt-8">
+          <FooterSection />
         </div>
       </div>
 
