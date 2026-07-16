@@ -203,27 +203,70 @@ function createScriptPreview(script: string): string {
     : script;
 }
 
+type PersistedFeedback = {
+  id: number;
+};
+
+function extractSafeSupabaseErrorDiagnostic(
+  error: unknown
+): { code: string | null; message: string } {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error
+  ) {
+    const candidate = error as { code?: unknown; message?: unknown };
+
+    return {
+      code: typeof candidate.code === "string" ? candidate.code : null,
+      message:
+        typeof candidate.message === "string"
+          ? candidate.message
+          : "Unknown error",
+    };
+  }
+
+  return { code: null, message: "Unknown error" };
+}
+
 async function persistFeedback(
   feedback: FeedbackPayload,
   createdAt: string
-): Promise<void> {
-  const { error } = await supabase.from("feedback").insert({
-    rating: feedback.rating,
-    reason: feedback.reason,
-    text: feedback.text,
-    title: feedback.title,
-    script_preview: createScriptPreview(feedback.script),
-    overall_score: feedback.overallScore,
-    hook_score: feedback.hookScore,
-    retention_risk: feedback.retentionRisk,
-    main_takeaway: feedback.mainTakeaway,
-    current_path: feedback.currentPath,
-    created_at: createdAt,
-  });
+): Promise<PersistedFeedback> {
+  const { data, error } = await supabase
+    .from("feedback")
+    .insert({
+      rating: feedback.rating,
+      reason: feedback.reason,
+      text: feedback.text,
+      title: feedback.title,
+      script_preview: createScriptPreview(feedback.script),
+      overall_score: feedback.overallScore,
+      hook_score: feedback.hookScore,
+      retention_risk: feedback.retentionRisk,
+      main_takeaway: feedback.mainTakeaway,
+      current_path: feedback.currentPath,
+      created_at: createdAt,
+    })
+    // Requesting the inserted id back (Prefer: return=representation)
+    // instead of the previous bare insert (Prefer: return=minimal) is the
+    // actual fix here: a bare insert only proves Postgres accepted the
+    // statement, not that a row you can prove exists was written back to
+    // you. .single() additionally turns "zero rows returned" (e.g. an
+    // insert-allowed-but-select-blocked RLS mismatch) into an explicit
+    // error instead of a silently empty success.
+    .select("id")
+    .single();
 
   if (error) {
     throw error;
   }
+
+  if (!data || typeof data.id !== "number") {
+    throw new Error("Feedback insert did not return a stored row id.");
+  }
+
+  return { id: data.id };
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -235,6 +278,7 @@ export async function POST(request: Request): Promise<Response> {
     return createJsonResponse(
       {
         status: "error",
+        stored: false,
         reason: "Feedback request could not be processed.",
       },
       400
@@ -247,6 +291,7 @@ export async function POST(request: Request): Promise<Response> {
     return createJsonResponse(
       {
         status: "error",
+        stored: false,
         reason: "Feedback request is invalid.",
       },
       400
@@ -258,11 +303,18 @@ export async function POST(request: Request): Promise<Response> {
   try {
     await persistFeedback(feedback, createdAt);
   } catch (error) {
-    console.error("Failed to persist Reelyze feedback", error);
+    // Safe structured diagnostic only — operation name plus the Supabase
+    // error's code/message. Never the raw error object (which could carry
+    // request context), and never script/title/mainTakeaway/custom text.
+    console.error("feedback insert failed", {
+      operation: "persistFeedback",
+      ...extractSafeSupabaseErrorDiagnostic(error),
+    });
 
     return createJsonResponse(
       {
         status: "error",
+        stored: false,
         reason: "Feedback could not be saved.",
       },
       500
@@ -288,5 +340,5 @@ export async function POST(request: Request): Promise<Response> {
     createdAt,
   });
 
-  return createJsonResponse({ status: "ok" }, 200);
+  return createJsonResponse({ status: "ok", stored: true }, 200);
 }

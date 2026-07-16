@@ -1007,16 +1007,43 @@ if (hasImproveScriptRequestDeduplication) {
   failures += 1;
 }
 
+// A naive "first \n} after the start" extraction breaks once the function
+// body contains its own nested blocks (e.g. an inner try/catch around
+// response.json() parsing) — this walks brace depth to find the real
+// matching close instead.
+function extractBalancedBlock(
+  fullSource: string,
+  startIndex: number
+): string {
+  const braceStart = fullSource.indexOf("{", startIndex);
+
+  if (braceStart === -1) {
+    return "";
+  }
+
+  let depth = 0;
+
+  for (let i = braceStart; i < fullSource.length; i += 1) {
+    if (fullSource[i] === "{") {
+      depth += 1;
+    } else if (fullSource[i] === "}") {
+      depth -= 1;
+
+      if (depth === 0) {
+        return fullSource.slice(startIndex, i + 1);
+      }
+    }
+  }
+
+  return "";
+}
+
 const submitFeedbackStart = source.indexOf(
   "async function submitFeedback"
 );
-const submitFeedbackEnd =
-  submitFeedbackStart >= 0
-    ? source.indexOf("\n}", submitFeedbackStart)
-    : -1;
 const submitFeedbackHandler =
-  submitFeedbackStart >= 0 && submitFeedbackEnd > submitFeedbackStart
-    ? source.slice(submitFeedbackStart, submitFeedbackEnd)
+  submitFeedbackStart >= 0
+    ? extractBalancedBlock(source, submitFeedbackStart)
     : "";
 
 const feedbackRequestIncludesLocale =
@@ -1075,23 +1102,34 @@ const allSetFeedbackSubmitErrorCallsAreSafe =
       call === 'setFeedbackSubmitError("")'
   );
 
+// A 200/response.ok alone must never be treated as proof of a successful
+// save — only an explicit stored: true from the parsed JSON body counts.
+// This regresses the class of bug where the API returned 200 {"status":
+// "ok"} without a row actually being written, and the UI still said
+// "saved" because it only ever checked response.ok.
+const feedbackChecksStoredFieldFromParsedBody =
+  submitFeedbackHandler.includes("response.json()") &&
+  /\.stored\s*===\s*true/.test(submitFeedbackHandler) &&
+  submitFeedbackHandler.includes("response.ok");
+
 const feedbackContractIsSafe =
-  /if\s*\(!response\.ok\)\s*{\s*setFeedbackSubmitError\(results\.feedback\.submitError\);\s*return false;\s*}/.test(
+  /if\s*\(!stored\)\s*{\s*setFeedbackSubmitError\(results\.feedback\.submitError\);\s*return false;\s*}/.test(
     submitFeedbackHandler
   ) &&
   submitFeedbackHandler.includes("return true;") &&
   /catch\s*{\s*setFeedbackSubmitError\(results\.feedback\.submitError\);\s*return false;\s*}/.test(
     submitFeedbackHandler
   ) &&
-  allSetFeedbackSubmitErrorCallsAreSafe;
+  allSetFeedbackSubmitErrorCallsAreSafe &&
+  feedbackChecksStoredFieldFromParsedBody;
 
 if (submitFeedbackHandler && feedbackContractIsSafe) {
   console.log(
-    "✅ PASS — Feedback submission resolves true on success and falls back to the same localized generic error on a non-ok response or a thrown exception, never surfacing raw API/error text"
+    "✅ PASS — Feedback submission resolves true only when the parsed response body has stored: true, and falls back to the same localized generic error on a non-ok/not-stored response or a thrown exception, never surfacing raw API/error text"
   );
 } else {
   console.error(
-    "❌ FAIL — Feedback submission must resolve true on success, and use the same localized generic error (never raw response/exception text) for both a non-ok response and a thrown exception"
+    "❌ FAIL — Feedback submission must resolve true only when stored === true from the parsed response body, and use the same localized generic error (never raw response/exception text) for both a not-stored response and a thrown exception"
   );
   failures += 1;
 }

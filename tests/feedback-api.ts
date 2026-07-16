@@ -15,10 +15,23 @@ process.env.SUPABASE_SECRET_KEY = "feedback-test-secret";
 // regresses against) without affecting every other case.
 let simulateSupabaseFailure = false;
 
+// Toggled on for exactly one test case to simulate the Supabase client
+// itself throwing (e.g. a raw network/fetch-layer exception) rather than
+// resolving with an { error } result — a different failure shape than
+// simulateSupabaseFailure, which still resolves normally with a non-2xx
+// HTTP response.
+let simulateFetchThrow = false;
+
 globalThis.fetch = (async (
   input: RequestInfo | URL,
   init?: RequestInit
 ): Promise<Response> => {
+  if (simulateFetchThrow) {
+    throw new Error(
+      "Simulated fetch-layer failure (e.g. DNS/connectivity) — the client never got a response at all."
+    );
+  }
+
   const request = input instanceof Request ? input : null;
   const url =
     typeof input === "string"
@@ -80,12 +93,19 @@ globalThis.fetch = (async (
     parsedBody as Record<string, unknown>
   );
 
-  return new Response("[]", {
-    status: 201,
-    headers: {
-      "content-type": "application/json",
-    },
-  });
+  // .select("id").single() expects a single JSON object back (Prefer:
+  // return=representation), not the "[]" (return=minimal) shape the old
+  // bare insert() used — this mock's response must match what the real
+  // route now actually requests.
+  return new Response(
+    JSON.stringify({ id: persistedFeedbackRequests.length }),
+    {
+      status: 201,
+      headers: {
+        "content-type": "application/json",
+      },
+    }
+  );
 }) as typeof globalThis.fetch;
 
 function restoreTestEnvironment(): void {
@@ -165,11 +185,19 @@ async function main(): Promise<void> {
     );
     const json = await expectJson(response);
 
-    if (response.status !== 200 || json.status !== "ok") {
-      throw new Error("Valid helpful feedback should be accepted.");
+    if (
+      response.status !== 200 ||
+      json.status !== "ok" ||
+      json.stored !== true
+    ) {
+      throw new Error(
+        "Valid helpful feedback should be accepted and reported as stored."
+      );
     }
 
-    console.log("PASS — accepts valid helpful feedback");
+    console.log(
+      "PASS — accepts valid helpful feedback and reports stored: true"
+    );
   }
 
   {
@@ -184,11 +212,19 @@ async function main(): Promise<void> {
     );
     const json = await expectJson(response);
 
-    if (response.status !== 200 || json.status !== "ok") {
-      throw new Error("Valid unhelpful feedback should be accepted.");
+    if (
+      response.status !== 200 ||
+      json.status !== "ok" ||
+      json.stored !== true
+    ) {
+      throw new Error(
+        "Valid unhelpful feedback should be accepted and reported as stored."
+      );
     }
 
-    console.log("PASS — accepts valid unhelpful feedback");
+    console.log(
+      "PASS — accepts valid unhelpful feedback and reports stored: true"
+    );
   }
 
   {
@@ -197,22 +233,34 @@ async function main(): Promise<void> {
     );
     const json = await expectJson(response);
 
-    if (response.status !== 400 || json.status !== "error") {
-      throw new Error("Invalid rating should be rejected.");
+    if (
+      response.status !== 400 ||
+      json.status !== "error" ||
+      json.stored !== false
+    ) {
+      throw new Error(
+        "Invalid rating should be rejected and reported as not stored."
+      );
     }
 
-    console.log("PASS — rejects invalid rating");
+    console.log("PASS — rejects invalid rating with stored: false");
   }
 
   {
     const response = await POST(createRequest("{bad json"));
     const json = await expectJson(response);
 
-    if (response.status !== 400 || json.status !== "error") {
-      throw new Error("Malformed JSON should be rejected.");
+    if (
+      response.status !== 400 ||
+      json.status !== "error" ||
+      json.stored !== false
+    ) {
+      throw new Error(
+        "Malformed JSON should be rejected and reported as not stored."
+      );
     }
 
-    console.log("PASS — rejects malformed JSON");
+    console.log("PASS — rejects malformed JSON with stored: false");
   }
 
   {
@@ -221,11 +269,19 @@ async function main(): Promise<void> {
     );
     const json = await expectJson(response);
 
-    if (response.status !== 400 || json.status !== "error") {
-      throw new Error("Non-JSON content type should be rejected.");
+    if (
+      response.status !== 400 ||
+      json.status !== "error" ||
+      json.stored !== false
+    ) {
+      throw new Error(
+        "Non-JSON content type should be rejected and reported as not stored."
+      );
     }
 
-    console.log("PASS — rejects non-JSON content type");
+    console.log(
+      "PASS — rejects non-JSON content type with stored: false"
+    );
   }
 
   {
@@ -234,11 +290,17 @@ async function main(): Promise<void> {
     );
     const json = await expectJson(response);
 
-    if (response.status !== 400 || json.status !== "error") {
-      throw new Error("Oversized script should be rejected.");
+    if (
+      response.status !== 400 ||
+      json.status !== "error" ||
+      json.stored !== false
+    ) {
+      throw new Error(
+        "Oversized script should be rejected and reported as not stored."
+      );
     }
 
-    console.log("PASS — rejects oversized script");
+    console.log("PASS — rejects oversized script with stored: false");
   }
 
   {
@@ -254,8 +316,14 @@ async function main(): Promise<void> {
     );
     const json = await expectJson(response);
 
-    if (response.status !== 200 || json.status !== "ok") {
-      throw new Error("Valid ru-locale feedback should be accepted.");
+    if (
+      response.status !== 200 ||
+      json.status !== "ok" ||
+      json.stored !== true
+    ) {
+      throw new Error(
+        "Valid ru-locale feedback should be accepted and reported as stored."
+      );
     }
 
     if (persistedFeedbackRequests.length !== beforeCount + 1) {
@@ -285,7 +353,7 @@ async function main(): Promise<void> {
     }
 
     console.log(
-      "PASS — accepts ru-locale feedback with the stable canonical reason value, and does not persist a locale column"
+      "PASS — accepts ru-locale feedback with the stable canonical reason value, reports stored: true, and does not persist a locale column"
     );
   }
 
@@ -307,11 +375,13 @@ async function main(): Promise<void> {
     if (
       enResponse.status !== ruResponse.status ||
       enJson.status !== ruJson.status ||
+      enJson.stored !== ruJson.stored ||
       enResponse.status !== 200 ||
-      enJson.status !== "ok"
+      enJson.status !== "ok" ||
+      enJson.stored !== true
     ) {
       throw new Error(
-        "en and ru submissions of otherwise-identical feedback must behave identically."
+        "en and ru submissions of otherwise-identical feedback must behave identically and both report stored: true."
       );
     }
 
@@ -326,9 +396,13 @@ async function main(): Promise<void> {
     );
     const json = await expectJson(response);
 
-    if (response.status !== 200 || json.status !== "ok") {
+    if (
+      response.status !== 200 ||
+      json.status !== "ok" ||
+      json.stored !== true
+    ) {
       throw new Error(
-        "An invalid locale value must default safely, not reject the submission."
+        "An invalid locale value must default safely and still report stored: true, not reject the submission."
       );
     }
 
@@ -351,9 +425,13 @@ async function main(): Promise<void> {
     const json = await expectJson(response);
     const serialized = JSON.stringify(json);
 
-    if (response.status !== 500 || json.status !== "error") {
+    if (
+      response.status !== 500 ||
+      json.status !== "error" ||
+      json.stored !== false
+    ) {
       throw new Error(
-        "A database failure must return a safe generic error, not a success."
+        "A database failure must return a safe generic error with stored: false, not a success."
       );
     }
 
@@ -370,7 +448,47 @@ async function main(): Promise<void> {
     }
 
     console.log(
-      "PASS — a database failure returns a safe generic error without leaking the raw Supabase error"
+      "PASS — a database failure returns a safe generic error (stored: false) without leaking the raw Supabase error"
+    );
+  }
+
+  {
+    simulateFetchThrow = true;
+
+    let response: Response;
+
+    try {
+      response = await POST(createRequest(createValidFeedback()));
+    } finally {
+      simulateFetchThrow = false;
+    }
+
+    const json = await expectJson(response);
+    const serialized = JSON.stringify(json);
+
+    if (
+      response.status !== 500 ||
+      json.status !== "error" ||
+      json.stored !== false
+    ) {
+      throw new Error(
+        "A thrown Supabase-client/fetch-layer exception must still return a safe generic error with stored: false, not a success."
+      );
+    }
+
+    if (
+      serialized.includes("Simulated fetch-layer failure") ||
+      /ENOTFOUND|getaddrinfo|supabase\.co|fetch failed/i.test(
+        serialized
+      )
+    ) {
+      throw new Error(
+        "A raw thrown exception's message must never reach the client response."
+      );
+    }
+
+    console.log(
+      "PASS — a thrown Supabase-client exception (not just a resolved error) returns a safe generic error with stored: false"
     );
   }
 
@@ -405,7 +523,13 @@ async function main(): Promise<void> {
         )
       );
 
-      await expectJson(response);
+      const json = await expectJson(response);
+
+      if (json.stored !== true) {
+        throw new Error(
+          "Expected this valid submission to be stored successfully."
+        );
+      }
     } finally {
       console.info = originalConsoleInfo;
     }
@@ -435,6 +559,50 @@ async function main(): Promise<void> {
 
     console.log(
       "PASS — structured feedback log excludes script/title/mainTakeaway/custom text while keeping rating/locale/hasCustomText"
+    );
+  }
+
+  {
+    const originalConsoleError = console.error;
+    const loggedErrorCalls: unknown[][] = [];
+
+    console.error = (...args: unknown[]) => {
+      loggedErrorCalls.push(args);
+    };
+
+    simulateSupabaseFailure = true;
+
+    try {
+      await POST(createRequest(createValidFeedback()));
+    } finally {
+      simulateSupabaseFailure = false;
+      console.error = originalConsoleError;
+    }
+
+    const serializedErrorLogs = JSON.stringify(loggedErrorCalls);
+
+    if (
+      !serializedErrorLogs.includes("\"operation\":\"persistFeedback\"") ||
+      !serializedErrorLogs.includes("SIMULATED_FAILURE")
+    ) {
+      throw new Error(
+        "A database failure must log a structured diagnostic with an operation name and the error code/message."
+      );
+    }
+
+    if (
+      serializedErrorLogs.includes("Phone battery setting") ||
+      serializedErrorLogs.includes(
+        "Your phone battery dies faster"
+      )
+    ) {
+      throw new Error(
+        "The failure diagnostic log must never include title or script content."
+      );
+    }
+
+    console.log(
+      "PASS — a database failure logs only operation name + error code/message, never title/script content"
     );
   }
 
