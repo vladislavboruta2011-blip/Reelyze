@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { AudioLines, FastForward, Scissors } from "lucide-react";
+import { AudioLines, Check, FastForward, Scissors } from "lucide-react";
 import type { RiskyPart, SceneSegment, ScoreData } from "../../engine/scoring";
 import type { AnalysisV2UiScoreBreakdown } from "../../engine/analysis-v2-ui-adapter";
 import type { Messages } from "../../lib/messages";
@@ -89,6 +89,64 @@ export function Card({
   return (
     <div className={`rounded-[22px] border border-[#E5E7EB] bg-white ${className}`}>
       {children}
+    </div>
+  );
+}
+
+export type SaveAnalysisState = "idle" | "saving" | "saved" | "error";
+
+export function SaveAnalysisAction({
+  state,
+  errorMessage,
+  onSave,
+  labels,
+  compact = false,
+}: {
+  state: SaveAnalysisState;
+  errorMessage: string;
+  onSave: () => void;
+  labels: {
+    action: string;
+    saving: string;
+    saved: string;
+    retry: string;
+  };
+  compact?: boolean;
+}) {
+  const isDisabled = state === "saving" || state === "saved";
+  const label =
+    state === "saving"
+      ? labels.saving
+      : state === "saved"
+        ? labels.saved
+        : state === "error"
+          ? labels.retry
+          : labels.action;
+
+  return (
+    <div
+      className={
+        compact
+          ? "flex w-full flex-col gap-1.5"
+          : "flex flex-col items-end gap-1.5"
+      }
+    >
+      <button
+        type="button"
+        onClick={onSave}
+        disabled={isDisabled}
+        className={
+          compact
+            ? "flex h-[44px] w-full items-center justify-center gap-2 rounded-[12px] border border-[#DDD6FE] bg-[#F3E8FF] text-[14px] font-semibold text-[#7C3AED] transition hover:bg-[#EDE9FE] disabled:cursor-not-allowed disabled:opacity-60"
+            : "inline-flex h-[42px] shrink-0 items-center gap-2 rounded-full border border-[#DDD6FE] bg-[#F3E8FF] px-5 text-[14px] font-semibold text-[#7C3AED] transition hover:bg-[#EDE9FE] disabled:cursor-not-allowed disabled:opacity-60"
+        }
+      >
+        {state === "saved" && <Check size={15} />}
+        {label}
+      </button>
+      {state === "error" && errorMessage && (
+        <p className="text-[12px] text-[#7C3AED]">{errorMessage}</p>
+      )}
     </div>
   );
 }
