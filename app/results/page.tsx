@@ -56,6 +56,7 @@ import {
   validateAnalysisForSave,
   writePendingSaveIntent,
 } from "./save-analysis";
+import { readAndClearReopenedAnalysisId } from "./reopened-analysis";
 import {
   SquarePen,
   PencilLine,
@@ -290,6 +291,14 @@ const [mobileScriptOpen, setMobileScriptOpen] = useState(false);
               )
             : null;
 
+        // Read and cleared unconditionally, on every /results mount,
+        // regardless of whether this session's stored data turns out to be
+        // valid below — never only inside the success branch. Otherwise a
+        // marker left over from a discarded/invalid handoff could survive
+        // this mount and incorrectly mark a later, genuinely unsaved fresh
+        // analysis in the same tab as already "saved".
+        const reopenedAnalysisId = readAndClearReopenedAnalysisId();
+
         if (
           !isValidStoredScript ||
           !isValidStoredTitle ||
@@ -302,6 +311,16 @@ const [mobileScriptOpen, setMobileScriptOpen] = useState(false);
         if (isValidStoredScript) {
           setSavedScript(storedScript.trim());
           setSavedAnalysisV2(parsedAnalysis);
+
+          // Set only when app/my-analyses/[id] just handed this analysis
+          // off — never for a fresh analysis, which never writes this key.
+          // Reusing the existing "saved" SaveAnalysisAction state (instead
+          // of a bespoke one) is what stops Save from silently inserting a
+          // duplicate row for content that is already persisted.
+          if (reopenedAnalysisId) {
+            savedAnalysisIdRef.current = reopenedAnalysisId;
+            setSaveState("saved");
+          }
         }
 
         if (
