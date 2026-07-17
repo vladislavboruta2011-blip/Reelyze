@@ -6,8 +6,11 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AuthNav } from "../auth-nav";
 import { LanguageSwitcher } from "../language-switcher";
+import { SignInModal } from "../sign-in-modal";
+import { useSession } from "../session-provider";
 import { useMessages } from "../use-messages";
 import { useLocale } from "../locale-provider";
+import { supabaseBrowser } from "../../lib/supabase/browser";
 import type { Locale } from "../../lib/i18n";
 import type {
   AnalysisV2SuccessResponse,
@@ -37,12 +40,22 @@ import {
   DesktopScoreCard,
   FeedbackReasonOptions,
   MobileScoreCards,
+  SaveAnalysisAction,
   ScoreBreakdownCard,
   RiskyPartsContent,
   SceneBreakdownContent,
   ScriptLinesContent,
   SuggestedFixesContent,
 } from "./ui-components";
+import {
+  clearPendingSaveIntent,
+  createSaveAnalysisFingerprint,
+  generateDefaultAnalysisTitle,
+  insertAnalysis,
+  readPendingSaveIntent,
+  validateAnalysisForSave,
+  writePendingSaveIntent,
+} from "./save-analysis";
 import {
   SquarePen,
   PencilLine,
@@ -242,7 +255,14 @@ const [mobileScriptOpen, setMobileScriptOpen] = useState(false);
   const [mobileFeedbackSubmitted, setMobileFeedbackSubmitted] = useState(false);
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
   const [feedbackSubmitError, setFeedbackSubmitError] = useState("");
-  
+  const { user } = useSession();
+  const [saveState, setSaveState] =
+    useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [saveErrorReason, setSaveErrorReason] =
+    useState<"auth" | "validation" | "database" | "">("");
+  const [isSaveSignInModalOpen, setIsSaveSignInModalOpen] = useState(false);
+  const savedAnalysisIdRef = useRef<string | null>(null);
+
     useEffect(() => {
     const timer = window.setTimeout(() => {
       try {
@@ -321,6 +341,35 @@ const [mobileScriptOpen, setMobileScriptOpen] = useState(false);
     hasAnalyzedScript &&
     Boolean(savedAnalysisV2) &&
     savedAnalysisLocale !== locale;
+
+  // Save Analysis is only ever offered for a validated Analysis V2 result —
+  // the legacy client-only heuristic fallback (savedAnalysisV2 === null)
+  // has no model identifier or validated result shape to persist, so it
+  // can never satisfy public.analyses's schema.
+  const saveTitle = useMemo(() => {
+    return generateDefaultAnalysisTitle(
+      savedTitle,
+      activeScript,
+      results.save.untitled,
+      MAX_TITLE_CHARACTERS
+    );
+  }, [savedTitle, activeScript, results.save.untitled]);
+
+  // Computed on demand (never memoized/stored as plain state) — this digest
+  // is only ever needed at the exact moments Save is clicked or a pending
+  // intent is being verified, and computing it fresh each time means the
+  // hashed script/title/model never sit around in component state, only
+  // the SHA-256 result briefly does at the two call sites below.
+  async function computeCurrentSaveFingerprint(): Promise<string> {
+    if (!savedAnalysisV2) return "";
+
+    return createSaveAnalysisFingerprint({
+      script: activeScript,
+      title: saveTitle,
+      locale: savedAnalysisLocale,
+      modelUsed: savedAnalysisV2.modelUsed,
+    });
+  }
 
   const scriptLines = useMemo(() => {
     return createScriptLines(activeScript);
@@ -855,6 +904,144 @@ const hookCopyButtonLabel =
     }, 2000);
   }
 
+  // Performs the actual insert. Called either directly (already signed in)
+  // or from the pending-save-intent effect below (just returned from the
+  // Google OAuth redirect). Never called merely because a session appeared
+  // — only in response to this specific analysis's own explicit Save
+  // click, current or previously pending.
+  async function performSave() {
+    if (!savedAnalysisV2 || saveState === "saving" || saveState === "saved") {
+      return;
+    }
+
+    // Consumed unconditionally up front: whether this attempt succeeds or
+    // fails, it has been acted on and must not fire again on a later
+    // render/reload. A failed save is retried by a manual Save click, not
+    // by the pending intent.
+    clearPendingSaveIntent();
+
+    setSaveState("saving");
+    setSaveErrorReason("");
+
+    const validation = validateAnalysisForSave({
+      hasSession: Boolean(user),
+      script: activeScript,
+      title: saveTitle,
+      locale: savedAnalysisLocale,
+      result: savedAnalysisV2.result,
+      modelUsed: savedAnalysisV2.modelUsed,
+    });
+
+    if (!validation.ok) {
+      setSaveState("error");
+      setSaveErrorReason(validation.reason);
+      return;
+    }
+
+    const result = await insertAnalysis(supabaseBrowser, {
+      user_id: user!.id,
+      title: saveTitle,
+      script: activeScript,
+      locale: savedAnalysisLocale,
+      result_json: savedAnalysisV2.result,
+      model_used: savedAnalysisV2.modelUsed,
+    });
+
+    if (!result.ok) {
+      setSaveState("error");
+      setSaveErrorReason(result.reason);
+      return;
+    }
+
+    savedAnalysisIdRef.current = result.id;
+    setSaveState("saved");
+  }
+
+  async function handleSaveClick() {
+    if (!savedAnalysisV2 || saveState === "saving" || saveState === "saved") {
+      return;
+    }
+
+    if (!user) {
+      // Pending intent is written here — at the explicit Save click —
+      // never merely because the user later happens to sign in some other
+      // way. Closing the modal without completing sign-in clears it again
+      // (see onClose below). Only the digest is ever written, never the
+      // script/title/model themselves.
+      const fingerprint = await computeCurrentSaveFingerprint();
+      writePendingSaveIntent(fingerprint);
+      setIsSaveSignInModalOpen(true);
+      return;
+    }
+
+    void performSave();
+  }
+
+  // Completes a Save that was requested before sign-in, immediately after
+  // the OAuth redirect lands back on this page signed in. Runs at most
+  // once per pending intent: performSave() clears the intent up front, and
+  // saveState leaving "idle" prevents this effect from re-triggering it.
+  useEffect(() => {
+    if (!isStorageLoaded || storageError || !savedAnalysisV2 || !user) {
+      return;
+    }
+
+    if (saveState !== "idle") {
+      return;
+    }
+
+    const pending = readPendingSaveIntent();
+
+    if (!pending) {
+      return;
+    }
+
+    let cancelled = false;
+    let timer: number | undefined;
+
+    void (async () => {
+      const currentFingerprint = await computeCurrentSaveFingerprint();
+
+      if (cancelled) {
+        return;
+      }
+
+      if (pending.fingerprint !== currentFingerprint) {
+        // Belongs to a different analysis, or is left over from an
+        // abandoned/expired flow — never acted on for the wrong content.
+        clearPendingSaveIntent();
+        return;
+      }
+
+      // Deferred a tick, matching this page's other mount-time effect
+      // (loading sessionStorage above) — avoids calling setState
+      // synchronously within the effect body itself.
+      timer = window.setTimeout(() => {
+        if (!cancelled) {
+          void performSave();
+        }
+      }, 0);
+    })();
+
+    return () => {
+      cancelled = true;
+
+      if (timer !== undefined) {
+        window.clearTimeout(timer);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isStorageLoaded, storageError, savedAnalysisV2, user, saveState, activeScript, saveTitle, savedAnalysisLocale]);
+
+  const saveErrorMessage =
+    saveErrorReason === "auth"
+      ? results.save.errorAuth
+      : saveErrorReason === "database"
+        ? results.save.errorDatabase
+        : saveErrorReason === "validation"
+          ? results.save.errorValidation
+          : "";
+
   return (
     <main
       className={`${inter.className} min-h-screen bg-[#FAFAFA] text-[#111827] antialiased`}
@@ -986,10 +1173,25 @@ const hookCopyButtonLabel =
                   </p>
                 )}
               </div>
-              <Link href="/" className="inline-flex h-[42px] shrink-0 items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-5 text-[14px] font-semibold text-[#111827] transition hover:border-[#7C3AED]/50 hover:bg-[#7C3AED]/10">
-                <PencilLine size={15} />
-                {results.nav.newAnalysis}
-              </Link>
+              <div className="flex shrink-0 items-start gap-3">
+                {isStorageLoaded && !storageError && hasAnalyzedScript && savedAnalysisV2 && (
+                  <SaveAnalysisAction
+                    state={saveState}
+                    errorMessage={saveErrorMessage}
+                    onSave={handleSaveClick}
+                    labels={{
+                      action: results.save.action,
+                      saving: results.save.saving,
+                      saved: results.save.saved,
+                      retry: results.save.retry,
+                    }}
+                  />
+                )}
+                <Link href="/" className="inline-flex h-[42px] shrink-0 items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-5 text-[14px] font-semibold text-[#111827] transition hover:border-[#7C3AED]/50 hover:bg-[#7C3AED]/10">
+                  <PencilLine size={15} />
+                  {results.nav.newAnalysis}
+                </Link>
+              </div>
             </div>
 
             {/* Loading state */}
@@ -1256,6 +1458,21 @@ const hookCopyButtonLabel =
 
           {isStorageLoaded && !storageError && hasAnalyzedScript && (
             <div className="flex flex-col gap-3 px-5">
+
+              {savedAnalysisV2 && (
+                <SaveAnalysisAction
+                  state={saveState}
+                  errorMessage={saveErrorMessage}
+                  onSave={handleSaveClick}
+                  labels={{
+                    action: results.save.action,
+                    saving: results.save.saving,
+                    saved: results.save.saved,
+                    retry: results.save.retry,
+                  }}
+                  compact
+                />
+              )}
 
               {/* Score cards — horizontal row */}
               <MobileScoreCards
@@ -1758,6 +1975,19 @@ const hookCopyButtonLabel =
           </div>
         </div>
       )}
+
+      <SignInModal
+        isOpen={isSaveSignInModalOpen}
+        onClose={() => {
+          setIsSaveSignInModalOpen(false);
+          // Dismissed without completing sign-in — this explicit Save
+          // request is abandoned, not merely paused. Clearing it here is
+          // what stops a later, unrelated sign-in (e.g. from the nav) from
+          // ever being mistaken for this one.
+          clearPendingSaveIntent();
+        }}
+        nextPath="/results"
+      />
     </main>
   );
 }

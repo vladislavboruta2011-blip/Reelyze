@@ -642,6 +642,17 @@ const enMessages = {
       noValidatedHookSuggestion:
         "No validated hook suggestion is available for this analysis.",
     },
+    save: {
+      action: "Save analysis",
+      saving: "Saving...",
+      saved: "Saved",
+      retry: "Try again",
+      errorAuth: "Sign in to save this analysis.",
+      errorValidation:
+        "This analysis can't be saved. Please try analyzing again.",
+      errorDatabase: "Could not save your analysis. Please try again.",
+      untitled: "Untitled analysis",
+    },
   },
   auth: {
     login: {
@@ -1289,6 +1300,17 @@ const ruMessages = {
       genericError: "Не удалось улучшить хук. Попробуйте ещё раз.",
       noValidatedHookSuggestion:
         "Для этого анализа нет проверенного варианта хука.",
+    },
+    save: {
+      action: "Сохранить анализ",
+      saving: "Сохранение...",
+      saved: "Сохранено",
+      retry: "Повторить",
+      errorAuth: "Войдите, чтобы сохранить этот анализ.",
+      errorValidation:
+        "Этот анализ нельзя сохранить. Попробуйте проанализировать сценарий заново.",
+      errorDatabase: "Не удалось сохранить анализ. Попробуйте ещё раз.",
+      untitled: "Анализ без названия",
     },
   },
   auth: {
