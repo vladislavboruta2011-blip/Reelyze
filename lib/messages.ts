@@ -673,6 +673,7 @@ const enMessages = {
   },
   myAnalyses: {
     heading: "My analyses",
+    subtitle: "All your saved script analyses in one place.",
     empty: {
       heading: "No saved analyses yet.",
       description:
@@ -684,6 +685,15 @@ const enMessages = {
     },
     list: {
       scoreUnavailable: "Unavailable",
+    },
+    table: {
+      columnScript: "Script",
+      columnAnalyzed: "Analyzed",
+      columnOverall: "Overall",
+      columnHook: "Hook",
+      columnRisk: "Risk",
+      columnActions: "Actions",
+      openSoon: "Open soon",
     },
   },
 } as const;
@@ -1344,6 +1354,7 @@ const ruMessages = {
   },
   myAnalyses: {
     heading: "Мои анализы",
+    subtitle: "Все ваши сохранённые анализы сценариев в одном месте.",
     empty: {
       heading: "Пока нет сохранённых анализов.",
       description:
@@ -1355,6 +1366,15 @@ const ruMessages = {
     },
     list: {
       scoreUnavailable: "Недоступно",
+    },
+    table: {
+      columnScript: "Сценарий",
+      columnAnalyzed: "Дата анализа",
+      columnOverall: "Общая оценка",
+      columnHook: "Хук",
+      columnRisk: "Риск",
+      columnActions: "Действия",
+      openSoon: "Скоро",
     },
   },
 } satisfies Messages;
