@@ -290,9 +290,37 @@ function checkMessageCoverage(): void {
   );
 
   check(
+    "myAnalyses subtitle and dashboard table column keys are covered for every launched locale",
+    LAUNCHED_LOCALES.every((locale) => {
+      const myAnalyses = getMessages(locale).myAnalyses;
+
+      return (
+        myAnalyses.subtitle.length > 0 &&
+        myAnalyses.table.columnScript.length > 0 &&
+        myAnalyses.table.columnAnalyzed.length > 0 &&
+        myAnalyses.table.columnOverall.length > 0 &&
+        myAnalyses.table.columnHook.length > 0 &&
+        myAnalyses.table.columnRisk.length > 0 &&
+        myAnalyses.table.columnActions.length > 0 &&
+        myAnalyses.table.openSoon.length > 0
+      );
+    })
+  );
+
+  check(
     "EN and RU empty-state headings are actually localized (not identical strings)",
     getMessages("en").myAnalyses.empty.heading !==
       getMessages("ru").myAnalyses.empty.heading
+  );
+
+  check(
+    "EN and RU dashboard subtitle and column labels are actually localized (not identical strings)",
+    getMessages("en").myAnalyses.subtitle !==
+      getMessages("ru").myAnalyses.subtitle &&
+      getMessages("en").myAnalyses.table.columnScript !==
+        getMessages("ru").myAnalyses.table.columnScript &&
+      getMessages("en").myAnalyses.table.openSoon !==
+        getMessages("ru").myAnalyses.table.openSoon
   );
 }
 
@@ -349,6 +377,148 @@ function checkPageSourceShape(): void {
   );
 }
 
+// Dashboard-redesign-specific source-shape checks. Same rationale as
+// checkPageSourceShape above: no React/DOM test harness exists here, so
+// structural claims (sidebar exists, nav item is marked active, no fake
+// fields are rendered, the Open action is honestly disabled) are verified
+// against the page's source text.
+function checkDashboardShape(): void {
+  const pageSource = readFileSync("app/my-analyses/page.tsx", "utf8");
+
+  check(
+    "a desktop sidebar shell exists with the Climpy logo",
+    /hidden lg:flex/.test(pageSource) &&
+      pageSource.includes('<aside') &&
+      pageSource.includes('src="/logo.png"')
+  );
+
+  check(
+    "the sidebar has New Analysis, My Analyses, and How It Works nav items",
+    pageSource.includes("{results.nav.newAnalysis}") &&
+      pageSource.includes("{messages.common.myAnalyses}") &&
+      pageSource.includes("{messages.landing.nav.howItWorks}")
+  );
+
+  check(
+    "the My Analyses nav item is marked as the active/current page in both the desktop sidebar and mobile bottom nav",
+    (() => {
+      const activeMyAnalysesLinks = pageSource
+        .split('href="/my-analyses"')
+        .slice(1)
+        .filter((chunk) => chunk.slice(0, 80).includes('aria-current="page"'));
+
+      return activeMyAnalysesLinks.length === 2;
+    })()
+  );
+
+  check(
+    "a prominent New Analysis CTA exists in the main header, next to the page title",
+    (() => {
+      const headerStart = pageSource.indexOf("myAnalyses.heading");
+      const headerSection =
+        headerStart >= 0
+          ? pageSource.slice(headerStart, headerStart + 600)
+          : "";
+
+      return headerSection.includes("{results.nav.newAnalysis}");
+    })()
+  );
+
+  check(
+    "the desktop table declares the required columns and no others",
+    pageSource.includes("myAnalyses.table.columnScript") &&
+      pageSource.includes("myAnalyses.table.columnAnalyzed") &&
+      pageSource.includes("myAnalyses.table.columnOverall") &&
+      pageSource.includes("myAnalyses.table.columnHook") &&
+      pageSource.includes("myAnalyses.table.columnRisk") &&
+      pageSource.includes("myAnalyses.table.columnActions")
+  );
+
+  check(
+    "no fake Type, thumbnail, platform, or word-count field is rendered",
+    !/\bType\b/.test(pageSource) &&
+      !/thumbnail/i.test(pageSource) &&
+      !/platform/i.test(pageSource) &&
+      !/word[\s-]?count/i.test(pageSource)
+  );
+
+  check(
+    "no external image / <img> thumbnail is used — only the local logo (next/image) and a neutral document icon",
+    !pageSource.includes("<img")
+  );
+
+  check(
+    "the Open action is a real disabled <button>, never an enabled clickable control",
+    /function OpenSoonButton[\s\S]*?disabled[\s\S]*?<\/button>/.test(
+      pageSource
+    ) &&
+      // Guard against a regression that re-enables it (e.g. `disabled={false}`
+      // or a conditional that could evaluate away the attribute entirely).
+      !/disabled=\{false\}/.test(pageSource)
+  );
+
+  check(
+    "the Open action is never rendered as a Link/anchor (which would look clickable without disabled semantics)",
+    (() => {
+      const openSoonStart = pageSource.indexOf(
+        "function OpenSoonButton"
+      );
+      const nextFunctionStart =
+        openSoonStart >= 0
+          ? pageSource.indexOf("\nfunction ", openSoonStart + 1)
+          : -1;
+      const body =
+        openSoonStart >= 0 && nextFunctionStart > openSoonStart
+          ? pageSource.slice(openSoonStart, nextFunctionStart)
+          : "";
+
+      return body.includes("<button") && !body.includes("<Link");
+    })()
+  );
+
+  check(
+    "malformed/missing scores fall back to the unavailable badge, in both the table and the mobile card",
+    (pageSource.split("ScoreUnavailableBadge").length - 1) >= 2 &&
+      pageSource.includes("myAnalyses.list.scoreUnavailable")
+  );
+
+  check(
+    "a mobile card structure exists (stacked list, not a squeezed table) and stays hidden on desktop",
+    /block lg:hidden/.test(pageSource) &&
+      pageSource.includes("function AnalysisMobileCard")
+  );
+
+  check(
+    "the mobile view never renders the desktop <table>",
+    (() => {
+      const mobileStart = pageSource.indexOf('{/* MOBILE */}');
+      const mobileSection =
+        mobileStart >= 0 ? pageSource.slice(mobileStart) : "";
+
+      return mobileStart >= 0 && !mobileSection.includes("<table");
+    })()
+  );
+
+  check(
+    "no toolbar (search input / score filter / time filter) controls were added",
+    !pageSource.includes("<input") &&
+      !pageSource.includes("<select") &&
+      !/placeholder=/.test(pageSource)
+  );
+
+  check(
+    "the error state is announced via role=alert and stays localized (no raw technical detail)",
+    pageSource.includes('role="alert"') &&
+      pageSource.includes("myAnalyses.error.heading") &&
+      pageSource.includes("myAnalyses.error.description")
+  );
+
+  check(
+    "table column headers use scope, and the title cell uses scope=row (real semantic table, not a div grid)",
+    pageSource.includes('scope="col"') && pageSource.includes('scope="row"')
+  );
+}
+
 async function main(): Promise<void> {
   await checkQueryShape();
   await checkEmptyState();
@@ -360,6 +530,7 @@ async function main(): Promise<void> {
   checkDateFormatting();
   checkMessageCoverage();
   checkPageSourceShape();
+  checkDashboardShape();
 
   if (failures > 0) {
     console.error(`\nMy Analyses tests: ${failures} failed`);
