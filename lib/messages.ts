@@ -693,7 +693,17 @@ const enMessages = {
       columnHook: "Hook",
       columnRisk: "Risk",
       columnActions: "Actions",
-      openSoon: "Open soon",
+      open: "Open",
+    },
+    open: {
+      loadingHeading: "Opening your analysis...",
+      loadingDescription: "Please wait a moment.",
+      notFoundHeading: "Analysis not found.",
+      notFoundDescription:
+        "This analysis may have been removed, or the link may be incorrect.",
+      backLink: "Back to My Analyses",
+      errorHeading: "Could not open this analysis.",
+      errorDescription: "Please refresh the page to try again.",
     },
   },
 } as const;
@@ -1374,7 +1384,17 @@ const ruMessages = {
       columnHook: "Хук",
       columnRisk: "Риск",
       columnActions: "Действия",
-      openSoon: "Скоро",
+      open: "Открыть",
+    },
+    open: {
+      loadingHeading: "Открываем ваш анализ...",
+      loadingDescription: "Подождите немного.",
+      notFoundHeading: "Анализ не найден.",
+      notFoundDescription:
+        "Возможно, этот анализ был удалён, либо ссылка неверна.",
+      backLink: "Назад к «Мои анализы»",
+      errorHeading: "Не удалось открыть этот анализ.",
+      errorDescription: "Обновите страницу, чтобы попробовать ещё раз.",
     },
   },
 } satisfies Messages;

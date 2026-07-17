@@ -302,7 +302,7 @@ function checkMessageCoverage(): void {
         myAnalyses.table.columnHook.length > 0 &&
         myAnalyses.table.columnRisk.length > 0 &&
         myAnalyses.table.columnActions.length > 0 &&
-        myAnalyses.table.openSoon.length > 0
+        myAnalyses.table.open.length > 0
       );
     })
   );
@@ -319,8 +319,8 @@ function checkMessageCoverage(): void {
       getMessages("ru").myAnalyses.subtitle &&
       getMessages("en").myAnalyses.table.columnScript !==
         getMessages("ru").myAnalyses.table.columnScript &&
-      getMessages("en").myAnalyses.table.openSoon !==
-        getMessages("ru").myAnalyses.table.openSoon
+      getMessages("en").myAnalyses.table.open !==
+        getMessages("ru").myAnalyses.table.open
   );
 }
 
@@ -447,33 +447,36 @@ function checkDashboardShape(): void {
     !pageSource.includes("<img")
   );
 
+  // Open Saved Analysis landed on top of this dashboard's stub: the Open
+  // action is now a real, enabled navigation to /my-analyses/[id] instead
+  // of the disabled placeholder this PR originally shipped.
   check(
-    "the Open action is a real disabled <button>, never an enabled clickable control",
-    /function OpenSoonButton[\s\S]*?disabled[\s\S]*?<\/button>/.test(
-      pageSource
-    ) &&
-      // Guard against a regression that re-enables it (e.g. `disabled={false}`
-      // or a conditional that could evaluate away the attribute entirely).
-      !/disabled=\{false\}/.test(pageSource)
+    "the Open action is a real Link to /my-analyses/[id], never a disabled control",
+    (() => {
+      const openButtonStart = pageSource.indexOf(
+        "function OpenAnalysisButton"
+      );
+      const nextFunctionStart =
+        openButtonStart >= 0
+          ? pageSource.indexOf("\nfunction ", openButtonStart + 1)
+          : -1;
+      const body =
+        openButtonStart >= 0 && nextFunctionStart > openButtonStart
+          ? pageSource.slice(openButtonStart, nextFunctionStart)
+          : "";
+
+      return (
+        body.includes("<Link") &&
+        body.includes("`/my-analyses/${id}`") &&
+        !body.includes("disabled")
+      );
+    })()
   );
 
   check(
-    "the Open action is never rendered as a Link/anchor (which would look clickable without disabled semantics)",
-    (() => {
-      const openSoonStart = pageSource.indexOf(
-        "function OpenSoonButton"
-      );
-      const nextFunctionStart =
-        openSoonStart >= 0
-          ? pageSource.indexOf("\nfunction ", openSoonStart + 1)
-          : -1;
-      const body =
-        openSoonStart >= 0 && nextFunctionStart > openSoonStart
-          ? pageSource.slice(openSoonStart, nextFunctionStart)
-          : "";
-
-      return body.includes("<button") && !body.includes("<Link");
-    })()
+    "each row's Open action is keyed to that row's own analysis id",
+    (pageSource.match(/<OpenAnalysisButton\s+id=\{item\.id\}/g) ?? [])
+      .length === 2
   );
 
   check(

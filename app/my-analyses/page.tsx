@@ -108,27 +108,28 @@ function ScoreCell({
   );
 }
 
-function OpenSoonButton({
+function OpenAnalysisButton({
+  id,
   title,
   label,
   className = "",
 }: {
+  id: string;
   title: string;
   label: string;
   className?: string;
 }) {
   return (
-    <button
-      type="button"
-      disabled
+    <Link
+      href={`/my-analyses/${id}`}
       aria-label={`${label}: ${title}`}
       className={[
-        "inline-flex h-8 shrink-0 cursor-not-allowed items-center justify-center rounded-full border border-[#E5E7EB] px-3 text-[11px] font-semibold text-[#9CA3AF]",
+        "inline-flex h-8 shrink-0 items-center justify-center rounded-full border border-[#DDD6FE] bg-[#F3E8FF] px-3 text-[11px] font-semibold text-[#7C3AED] transition hover:bg-[#EDE9FE]",
         className,
       ].join(" ")}
     >
       {label}
-    </button>
+    </Link>
   );
 }
 
@@ -215,9 +216,10 @@ function AnalysesTable({
                 )}
               </td>
               <td className="px-5 py-4 align-middle text-right">
-                <OpenSoonButton
+                <OpenAnalysisButton
+                  id={item.id}
                   title={item.title}
-                  label={myAnalyses.table.openSoon}
+                  label={myAnalyses.table.open}
                   className="ml-auto"
                 />
               </td>
@@ -299,9 +301,10 @@ function AnalysisMobileCard({
             </span>
           </div>
         </div>
-        <OpenSoonButton
+        <OpenAnalysisButton
+          id={item.id}
           title={item.title}
-          label={myAnalyses.table.openSoon}
+          label={myAnalyses.table.open}
         />
       </div>
     </li>
