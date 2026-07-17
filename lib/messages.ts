@@ -673,7 +673,18 @@ const enMessages = {
   },
   myAnalyses: {
     heading: "My analyses",
-    comingSoon: "Your saved analyses will appear here soon.",
+    empty: {
+      heading: "No saved analyses yet.",
+      description:
+        "Analyze a script and save it to see it listed here.",
+    },
+    error: {
+      heading: "Could not load your analyses.",
+      description: "Please refresh the page to try again.",
+    },
+    list: {
+      scoreUnavailable: "Unavailable",
+    },
   },
 } as const;
 
@@ -1333,7 +1344,18 @@ const ruMessages = {
   },
   myAnalyses: {
     heading: "Мои анализы",
-    comingSoon: "Здесь скоро появятся ваши сохранённые анализы.",
+    empty: {
+      heading: "Пока нет сохранённых анализов.",
+      description:
+        "Проанализируйте сценарий и сохраните его, чтобы увидеть здесь.",
+    },
+    error: {
+      heading: "Не удалось загрузить ваши анализы.",
+      description: "Обновите страницу, чтобы попробовать ещё раз.",
+    },
+    list: {
+      scoreUnavailable: "Недоступно",
+    },
   },
 } satisfies Messages;
 
