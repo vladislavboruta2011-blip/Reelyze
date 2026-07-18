@@ -18,6 +18,7 @@ import {
 } from "./score-visuals";
 import { SidebarSignOutButton } from "./sidebar-sign-out-button";
 import { DeleteAnalysisButton } from "./delete-analysis-button";
+import { AnalysisActionsMenu } from "./analysis-actions-menu";
 
 // Always re-runs the query on navigation/refresh — a newly saved analysis
 // must show up without a stale cached render. No real-time subscription is
@@ -224,6 +225,7 @@ function AnalysesTable({
                     label={myAnalyses.table.open}
                   />
                   <DeleteAnalysisButton id={item.id} title={item.title} />
+                  <AnalysisActionsMenu id={item.id} title={item.title} />
                 </div>
               </td>
             </tr>
@@ -311,6 +313,7 @@ function AnalysisMobileCard({
             label={myAnalyses.table.open}
           />
           <DeleteAnalysisButton id={item.id} title={item.title} />
+          <AnalysisActionsMenu id={item.id} title={item.title} />
         </div>
       </div>
     </li>
@@ -361,7 +364,8 @@ function ErrorState({ myAnalyses }: { myAnalyses: Messages["myAnalyses"] }) {
   );
 }
 
-// Display-only MVP: no open/delete/rename/rerun, no search/filters/custom
+// Open, Delete, and Rename (the last inside the row's overflow menu — see
+// AnalysisActionsMenu) are implemented; no rerun, no search/filters/custom
 // sorting, no pagination UI — those all land in later PRs.
 export default async function MyAnalysesPage() {
   const user = await getCurrentUserOrNull();

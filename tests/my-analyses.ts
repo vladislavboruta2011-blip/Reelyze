@@ -369,7 +369,7 @@ function checkPageSourceShape(): void {
   );
 
   check(
-    "rename/rerun are out of scope for this PR (page has no such inline handlers); Open/Delete are dedicated components, not inline page handlers",
+    "rerun is out of scope for this PR (page has no such inline handler); Open, Delete, and Rename are dedicated components, not inline page handlers",
     !pageSource.includes("handleDelete") &&
       !pageSource.includes("handleRename") &&
       !pageSource.includes("handleRerun") &&
