@@ -17,6 +17,7 @@ import {
   ScoreUnavailableBadge,
 } from "./score-visuals";
 import { SidebarSignOutButton } from "./sidebar-sign-out-button";
+import { DeleteAnalysisButton } from "./delete-analysis-button";
 
 // Always re-runs the query on navigation/refresh — a newly saved analysis
 // must show up without a stale cached render. No real-time subscription is
@@ -216,12 +217,14 @@ function AnalysesTable({
                 )}
               </td>
               <td className="px-5 py-4 align-middle text-right">
-                <OpenAnalysisButton
-                  id={item.id}
-                  title={item.title}
-                  label={myAnalyses.table.open}
-                  className="ml-auto"
-                />
+                <div className="ml-auto flex items-center justify-end gap-2">
+                  <OpenAnalysisButton
+                    id={item.id}
+                    title={item.title}
+                    label={myAnalyses.table.open}
+                  />
+                  <DeleteAnalysisButton id={item.id} title={item.title} />
+                </div>
               </td>
             </tr>
           ))}
@@ -301,11 +304,14 @@ function AnalysisMobileCard({
             </span>
           </div>
         </div>
-        <OpenAnalysisButton
-          id={item.id}
-          title={item.title}
-          label={myAnalyses.table.open}
-        />
+        <div className="flex items-center gap-2">
+          <OpenAnalysisButton
+            id={item.id}
+            title={item.title}
+            label={myAnalyses.table.open}
+          />
+          <DeleteAnalysisButton id={item.id} title={item.title} />
+        </div>
       </div>
     </li>
   );

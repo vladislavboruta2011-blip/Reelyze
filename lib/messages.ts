@@ -705,6 +705,22 @@ const enMessages = {
       errorHeading: "Could not open this analysis.",
       errorDescription: "Please refresh the page to try again.",
     },
+    delete: {
+      triggerLabel: "Delete",
+      dialogHeading: "Delete analysis",
+      dialogDescription:
+        "Are you sure you want to delete this analysis?",
+      dialogDescriptionWithTitle: (title: string) =>
+        `Are you sure you want to delete "${title}"?`,
+      permanentWarning:
+        "This action is permanent and cannot be undone.",
+      cancel: "Cancel",
+      confirm: "Delete",
+      deleting: "Deleting...",
+      errorHeading: "Delete failed",
+      errorDescription:
+        "Could not delete this analysis. Please try again.",
+    },
   },
 } as const;
 
@@ -1395,6 +1411,22 @@ const ruMessages = {
       backLink: "Назад к «Мои анализы»",
       errorHeading: "Не удалось открыть этот анализ.",
       errorDescription: "Обновите страницу, чтобы попробовать ещё раз.",
+    },
+    delete: {
+      triggerLabel: "Удалить",
+      dialogHeading: "Удалить анализ",
+      dialogDescription:
+        "Вы уверены, что хотите удалить этот анализ?",
+      dialogDescriptionWithTitle: (title: string) =>
+        `Вы уверены, что хотите удалить «${title}»?`,
+      permanentWarning:
+        "Это действие необратимо и не может быть отменено.",
+      cancel: "Отмена",
+      confirm: "Удалить",
+      deleting: "Удаление...",
+      errorHeading: "Не удалось удалить",
+      errorDescription:
+        "Не удалось удалить этот анализ. Попробуйте ещё раз.",
     },
   },
 } satisfies Messages;
