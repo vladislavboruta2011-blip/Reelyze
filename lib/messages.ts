@@ -721,6 +721,22 @@ const enMessages = {
       errorDescription:
         "Could not delete this analysis. Please try again.",
     },
+    rename: {
+      triggerLabel: "Rename",
+      dialogHeading: "Rename analysis",
+      inputLabel: "Analysis title",
+      cancel: "Cancel",
+      confirm: "Save",
+      saving: "Saving...",
+      errorEmpty: "Title cannot be empty.",
+      errorTooLong: "Title is too long.",
+      errorHeading: "Rename failed",
+      errorDescription:
+        "Could not rename this analysis. Please try again.",
+    },
+    actionsMenu: {
+      triggerLabel: "More actions",
+    },
   },
 } as const;
 
@@ -1427,6 +1443,22 @@ const ruMessages = {
       errorHeading: "Не удалось удалить",
       errorDescription:
         "Не удалось удалить этот анализ. Попробуйте ещё раз.",
+    },
+    rename: {
+      triggerLabel: "Переименовать",
+      dialogHeading: "Переименовать анализ",
+      inputLabel: "Название анализа",
+      cancel: "Отмена",
+      confirm: "Сохранить",
+      saving: "Сохранение...",
+      errorEmpty: "Название не может быть пустым.",
+      errorTooLong: "Название слишком длинное.",
+      errorHeading: "Не удалось переименовать",
+      errorDescription:
+        "Не удалось переименовать этот анализ. Попробуйте ещё раз.",
+    },
+    actionsMenu: {
+      triggerLabel: "Другие действия",
     },
   },
 } satisfies Messages;
