@@ -745,6 +745,15 @@ const enMessages = {
       noResultsDescriptionPrefix: 'No saved analyses match "',
       noResultsDescriptionSuffix: '".',
     },
+    filters: {
+      groupLabel: "Filter by risk",
+      all: "All",
+      noResultsHeading: "No analyses match this filter",
+      noResultsDescription: "Try selecting a different risk level.",
+      noResultsCombinedHeading: "No analyses match your search and filter",
+      noResultsCombinedDescription:
+        "Try changing your search or selecting a different risk level.",
+    },
   },
 } as const;
 
@@ -1476,6 +1485,16 @@ const ruMessages = {
       noResultsDescriptionPrefix:
         "Нет сохранённых анализов, соответствующих запросу «",
       noResultsDescriptionSuffix: "».",
+    },
+    filters: {
+      groupLabel: "Фильтр по риску",
+      all: "Все",
+      noResultsHeading: "Нет анализов, соответствующих этому фильтру",
+      noResultsDescription: "Попробуйте выбрать другой уровень риска.",
+      noResultsCombinedHeading:
+        "Нет анализов, соответствующих поиску и фильтру",
+      noResultsCombinedDescription:
+        "Попробуйте изменить поисковый запрос или выбрать другой уровень риска.",
     },
   },
 } satisfies Messages;

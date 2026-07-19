@@ -511,14 +511,18 @@ function checkDashboardShape(): void {
     })()
   );
 
-  // Title search landed on top of this dashboard: a single text input is
-  // now expected (in analyses-search.tsx, not page.tsx itself), but a
-  // score filter or time filter toolbar remains out of scope.
+  // Title search and the Risk Level filter both landed on top of this
+  // dashboard: a single text input plus a chip-button risk filter group
+  // are now expected (both in analyses-search.tsx, not page.tsx itself),
+  // but a native <select>, a date/time filter, or an Overall/Hook score
+  // filter remain out of scope (see checkFiltersShape for the Risk filter's
+  // own structural checks).
   check(
-    "no score filter or time filter toolbar was added — only the approved title search input exists",
+    "no native <select>, date/time filter, or score-range filter was added — only the approved title search input and risk filter chip group exist",
     !combinedSource.includes("<select") &&
       (searchSource.match(/<input/g) ?? []).length === 1 &&
-      !pageSource.includes("<input")
+      !pageSource.includes("<input") &&
+      !/date|daterange|timerange/i.test(searchSource)
   );
 
   check(
@@ -562,7 +566,7 @@ function checkSearchShape(): void {
     "search messages are threaded through props, not useMessages(), typed as a narrowed Pick of the real Messages shape",
     !searchSource.includes("useMessages(") &&
       searchSource.includes(
-        'Pick<Messages["myAnalyses"], "table" | "list" | "search">'
+        'Pick<Messages["myAnalyses"], "table" | "list" | "search" | "filters">'
       )
   );
 
@@ -597,7 +601,7 @@ function checkSearchShape(): void {
 
   check(
     "a distinct no-results state exists for a non-matching search, separate from the empty-analyses state",
-    searchSource.includes("function NoSearchResults") &&
+    searchSource.includes("function NoResults") &&
       searchSource.includes("searchMessages.noResultsHeading") &&
       searchSource.includes("searchMessages.noResultsDescriptionPrefix") &&
       searchSource.includes("searchMessages.noResultsDescriptionSuffix")
@@ -651,19 +655,184 @@ function checkSearchShape(): void {
   // elsewhere in page.tsx is legitimate and must not trip this check.
   const searchClientCallSites = [
     ...pageSource.matchAll(/<AnalysesSearchBar\b[\s\S]*?\/>/g),
+    ...pageSource.matchAll(/<AnalysesFilterBar\b[\s\S]*?\/>/g),
     ...pageSource.matchAll(/<AnalysesSearchDesktopResults\b[\s\S]*?\/>/g),
     ...pageSource.matchAll(/<AnalysesSearchMobileResults\b[\s\S]*?\/>/g),
   ].map((match) => match[0]);
 
   check(
-    "the Server Component passes narrowed, plain-data props into the search Client Components, never the full myAnalyses/results message trees",
-    searchClientCallSites.length === 4 &&
+    "the Server Component passes narrowed, plain-data props into the search/filter Client Components, never the full myAnalyses/results message trees",
+    searchClientCallSites.length === 6 &&
       searchClientCallSites.every(
         (tag) =>
           !tag.includes("myAnalyses={myAnalyses}") &&
           !tag.includes("results={results}") &&
           tag.includes("myAnalyses={searchMyAnalyses}")
       )
+  );
+}
+
+// Risk Level filter structural checks — same source-shape convention as
+// checkSearchShape above (no React/DOM test harness exists here).
+function checkFiltersShape(): void {
+  const pageSource = readFileSync("app/my-analyses/page.tsx", "utf8");
+  const searchSource = readFileSync(
+    "app/my-analyses/analyses-search.tsx",
+    "utf8"
+  );
+  const scoreVisualsSource = readFileSync(
+    "app/my-analyses/score-visuals.tsx",
+    "utf8"
+  );
+
+  check(
+    "the risk filter reuses the exported riskTier helper (same >=65/>=45 thresholds as each row's own RiskIndicator) instead of duplicating the thresholds",
+    scoreVisualsSource.includes("export function riskTier") &&
+      searchSource.includes("riskTier") &&
+      /riskTier,?\s*}\s*from\s*"\.\/score-visuals"/.test(searchSource) &&
+      !/riskFilter[\s\S]{0,80}>=\s*6[45]/.test(searchSource) &&
+      !/riskFilter[\s\S]{0,80}>=\s*45/.test(searchSource)
+  );
+
+  check(
+    "filterAnalysesByRisk defaults to All as a no-op, and excludes null-score (unavailable) rows from every specific tier",
+    (() => {
+      const fnStart = searchSource.indexOf(
+        "function filterAnalysesByRisk"
+      );
+      const fnEnd =
+        fnStart >= 0 ? searchSource.indexOf("\n}", fnStart) : -1;
+      const body =
+        fnStart >= 0 && fnEnd > fnStart
+          ? searchSource.slice(fnStart, fnEnd)
+          : "";
+
+      return (
+        body.includes('riskFilter === "all"') &&
+        body.includes("item.scores !== null") &&
+        body.includes("riskTier(item.scores.retentionRisk) === riskFilter")
+      );
+    })()
+  );
+
+  check(
+    "Search and the Risk filter compose with AND — both predicates run before either results view renders",
+    (searchSource.match(
+      /filterAnalysesByRisk\(\s*filterAnalysesByTitle\(items, query\),\s*riskFilter,\s*\)/g
+    ) ?? []).length === 2
+  );
+
+  check(
+    "risk filter state (riskFilter/setRiskFilter) lives on the one existing SearchContext, not a second provider",
+    (searchSource.match(/= createContext/g) ?? []).length === 1 &&
+      (searchSource.match(/function AnalysesSearchProvider/g) ?? [])
+        .length === 1 &&
+      (() => {
+        const typeStart = searchSource.indexOf("type SearchContextValue");
+        const typeEnd =
+          typeStart >= 0 ? searchSource.indexOf("};", typeStart) : -1;
+        const body =
+          typeStart >= 0 && typeEnd > typeStart
+            ? searchSource.slice(typeStart, typeEnd)
+            : "";
+
+        return body.includes("query") && body.includes("riskFilter");
+      })()
+  );
+
+  check(
+    "the filter control is an accessible chip/button group, not a native <select>, with a named group label and aria-pressed on the active option",
+    searchSource.includes('role="group"') &&
+      searchSource.includes("aria-label={filtersMessages.groupLabel}") &&
+      searchSource.includes("aria-pressed={isActive}") &&
+      !searchSource.includes("<select")
+  );
+
+  check(
+    "the filter bar is rendered once per breakpoint, sharing the same context as the search bar",
+    (pageSource.match(/<AnalysesFilterBar\b/g) ?? []).length === 2
+  );
+
+  check(
+    "the risk filter reuses the existing translated High/Medium/Low risk labels instead of new duplicate strings",
+    searchSource.includes("results.scoreLabels.risk") &&
+      searchSource.includes("riskLabels.high") &&
+      searchSource.includes("riskLabels.medium") &&
+      searchSource.includes("riskLabels.low")
+  );
+
+  check(
+    "default filter state is All",
+    searchSource.includes('useState<RiskFilterValue>("all")')
+  );
+
+  check(
+    "the no-results state distinguishes search-only, filter-only, and combined search+filter cases",
+    searchSource.includes("filtersMessages.noResultsHeading") &&
+      searchSource.includes("filtersMessages.noResultsDescription") &&
+      searchSource.includes("filtersMessages.noResultsCombinedHeading") &&
+      searchSource.includes("filtersMessages.noResultsCombinedDescription") &&
+      searchSource.includes("hasRiskFilter") &&
+      searchSource.includes("hasQuery")
+  );
+
+  check(
+    "the no-results 'Clear search' button only ever clears the search query, never the risk filter (independent resets, no combined Clear-all control)",
+    (() => {
+      const fnStart = searchSource.indexOf("function NoResults");
+      const nextFnMatch =
+        fnStart >= 0
+          ? /\n(export )?function /.exec(searchSource.slice(fnStart + 1))
+          : null;
+      const fnEnd =
+        fnStart >= 0 && nextFnMatch
+          ? fnStart + 1 + nextFnMatch.index
+          : -1;
+      const body =
+        fnStart >= 0 && fnEnd > fnStart
+          ? searchSource.slice(fnStart, fnEnd)
+          : "";
+
+      return (
+        body.includes("hasQuery &&") &&
+        body.includes('onClick={() => setQuery("")}') &&
+        !body.includes("setRiskFilter")
+      );
+    })()
+  );
+
+  check(
+    "myAnalyses.filters keys are covered for every launched locale",
+    LAUNCHED_LOCALES.every((locale) => {
+      const filters = getMessages(locale).myAnalyses.filters;
+
+      return (
+        filters.groupLabel.length > 0 &&
+        filters.all.length > 0 &&
+        filters.noResultsHeading.length > 0 &&
+        filters.noResultsDescription.length > 0 &&
+        filters.noResultsCombinedHeading.length > 0 &&
+        filters.noResultsCombinedDescription.length > 0
+      );
+    })
+  );
+
+  check(
+    "EN and RU filter labels are actually localized (not identical strings)",
+    getMessages("en").myAnalyses.filters.groupLabel !==
+      getMessages("ru").myAnalyses.filters.groupLabel &&
+      getMessages("en").myAnalyses.filters.noResultsHeading !==
+        getMessages("ru").myAnalyses.filters.noResultsHeading &&
+      getMessages("en").myAnalyses.filters.noResultsCombinedHeading !==
+        getMessages("ru").myAnalyses.filters.noResultsCombinedHeading
+  );
+
+  check(
+    "no function-valued message is passed as a prop across the Server/Client boundary for the filter bar either — SearchMyAnalyses/SearchResults stay narrowed Pick<> types",
+    searchSource.includes(
+      'Pick<Messages["myAnalyses"], "table" | "list" | "search" | "filters">'
+    ) &&
+      pageSource.includes("filters: myAnalyses.filters,")
   );
 }
 
@@ -680,6 +849,7 @@ async function main(): Promise<void> {
   checkPageSourceShape();
   checkDashboardShape();
   checkSearchShape();
+  checkFiltersShape();
 
   if (failures > 0) {
     console.error(`\nMy Analyses tests: ${failures} failed`);
