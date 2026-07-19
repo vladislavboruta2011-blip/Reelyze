@@ -737,6 +737,14 @@ const enMessages = {
     actionsMenu: {
       triggerLabel: "More actions",
     },
+    search: {
+      inputLabel: "Search analyses by title",
+      placeholder: "Search by title...",
+      clearLabel: "Clear search",
+      noResultsHeading: "No analyses match your search.",
+      noResultsDescriptionPrefix: 'No saved analyses match "',
+      noResultsDescriptionSuffix: '".',
+    },
   },
 } as const;
 
@@ -1459,6 +1467,15 @@ const ruMessages = {
     },
     actionsMenu: {
       triggerLabel: "Другие действия",
+    },
+    search: {
+      inputLabel: "Поиск анализов по названию",
+      placeholder: "Поиск по названию...",
+      clearLabel: "Очистить поиск",
+      noResultsHeading: "Нет анализов, соответствующих запросу.",
+      noResultsDescriptionPrefix:
+        "Нет сохранённых анализов, соответствующих запросу «",
+      noResultsDescriptionSuffix: "».",
     },
   },
 } satisfies Messages;

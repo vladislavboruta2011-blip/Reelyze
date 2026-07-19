@@ -384,6 +384,15 @@ function checkPageSourceShape(): void {
 // against the page's source text.
 function checkDashboardShape(): void {
   const pageSource = readFileSync("app/my-analyses/page.tsx", "utf8");
+  // The desktop table, mobile card, and their row cells were extracted
+  // into analyses-search.tsx (alongside the search feature that now
+  // drives which rows they show) — checks on that moved markup read the
+  // combined source of both files, not page.tsx alone.
+  const searchSource = readFileSync(
+    "app/my-analyses/analyses-search.tsx",
+    "utf8"
+  );
+  const combinedSource = `${pageSource}\n${searchSource}`;
 
   check(
     "a desktop sidebar shell exists with the Climpy logo",
@@ -426,25 +435,25 @@ function checkDashboardShape(): void {
 
   check(
     "the desktop table declares the required columns and no others",
-    pageSource.includes("myAnalyses.table.columnScript") &&
-      pageSource.includes("myAnalyses.table.columnAnalyzed") &&
-      pageSource.includes("myAnalyses.table.columnOverall") &&
-      pageSource.includes("myAnalyses.table.columnHook") &&
-      pageSource.includes("myAnalyses.table.columnRisk") &&
-      pageSource.includes("myAnalyses.table.columnActions")
+    combinedSource.includes("myAnalyses.table.columnScript") &&
+      combinedSource.includes("myAnalyses.table.columnAnalyzed") &&
+      combinedSource.includes("myAnalyses.table.columnOverall") &&
+      combinedSource.includes("myAnalyses.table.columnHook") &&
+      combinedSource.includes("myAnalyses.table.columnRisk") &&
+      combinedSource.includes("myAnalyses.table.columnActions")
   );
 
   check(
     "no fake Type, thumbnail, platform, or word-count field is rendered",
-    !/\bType\b/.test(pageSource) &&
-      !/thumbnail/i.test(pageSource) &&
-      !/platform/i.test(pageSource) &&
-      !/word[\s-]?count/i.test(pageSource)
+    !/\bType\b/.test(combinedSource) &&
+      !/thumbnail/i.test(combinedSource) &&
+      !/platform/i.test(combinedSource) &&
+      !/word[\s-]?count/i.test(combinedSource)
   );
 
   check(
     "no external image / <img> thumbnail is used — only the local logo (next/image) and a neutral document icon",
-    !pageSource.includes("<img")
+    !combinedSource.includes("<img")
   );
 
   // Open Saved Analysis landed on top of this dashboard's stub: the Open
@@ -453,16 +462,16 @@ function checkDashboardShape(): void {
   check(
     "the Open action is a real Link to /my-analyses/[id], never a disabled control",
     (() => {
-      const openButtonStart = pageSource.indexOf(
+      const openButtonStart = combinedSource.indexOf(
         "function OpenAnalysisButton"
       );
       const nextFunctionStart =
         openButtonStart >= 0
-          ? pageSource.indexOf("\nfunction ", openButtonStart + 1)
+          ? combinedSource.indexOf("\nfunction ", openButtonStart + 1)
           : -1;
       const body =
         openButtonStart >= 0 && nextFunctionStart > openButtonStart
-          ? pageSource.slice(openButtonStart, nextFunctionStart)
+          ? combinedSource.slice(openButtonStart, nextFunctionStart)
           : "";
 
       return (
@@ -475,20 +484,20 @@ function checkDashboardShape(): void {
 
   check(
     "each row's Open action is keyed to that row's own analysis id",
-    (pageSource.match(/<OpenAnalysisButton\s+id=\{item\.id\}/g) ?? [])
+    (combinedSource.match(/<OpenAnalysisButton\s+id=\{item\.id\}/g) ?? [])
       .length === 2
   );
 
   check(
     "malformed/missing scores fall back to the unavailable badge, in both the table and the mobile card",
-    (pageSource.split("ScoreUnavailableBadge").length - 1) >= 2 &&
-      pageSource.includes("myAnalyses.list.scoreUnavailable")
+    (combinedSource.split("ScoreUnavailableBadge").length - 1) >= 2 &&
+      combinedSource.includes("myAnalyses.list.scoreUnavailable")
   );
 
   check(
     "a mobile card structure exists (stacked list, not a squeezed table) and stays hidden on desktop",
     /block lg:hidden/.test(pageSource) &&
-      pageSource.includes("function AnalysisMobileCard")
+      combinedSource.includes("function AnalysisMobileCard")
   );
 
   check(
@@ -502,11 +511,14 @@ function checkDashboardShape(): void {
     })()
   );
 
+  // Title search landed on top of this dashboard: a single text input is
+  // now expected (in analyses-search.tsx, not page.tsx itself), but a
+  // score filter or time filter toolbar remains out of scope.
   check(
-    "no toolbar (search input / score filter / time filter) controls were added",
-    !pageSource.includes("<input") &&
-      !pageSource.includes("<select") &&
-      !/placeholder=/.test(pageSource)
+    "no score filter or time filter toolbar was added — only the approved title search input exists",
+    !combinedSource.includes("<select") &&
+      (searchSource.match(/<input/g) ?? []).length === 1 &&
+      !pageSource.includes("<input")
   );
 
   check(
@@ -518,7 +530,140 @@ function checkDashboardShape(): void {
 
   check(
     "table column headers use scope, and the title cell uses scope=row (real semantic table, not a div grid)",
-    pageSource.includes('scope="col"') && pageSource.includes('scope="row"')
+    combinedSource.includes('scope="col"') &&
+      combinedSource.includes('scope="row"')
+  );
+}
+
+// Search-specific structural checks, following the same source-shape
+// convention as checkDashboardShape above (no React/DOM test harness
+// exists here — see that function's comment).
+function checkSearchShape(): void {
+  const pageSource = readFileSync("app/my-analyses/page.tsx", "utf8");
+  const searchSource = readFileSync(
+    "app/my-analyses/analyses-search.tsx",
+    "utf8"
+  );
+
+  check(
+    "search state is shared via a single Context/Provider, not two independent desktop/mobile states",
+    (searchSource.match(/= createContext/g) ?? []).length === 1 &&
+      (searchSource.match(/function AnalysesSearchProvider/g) ?? [])
+        .length === 1 &&
+      (pageSource.match(/<AnalysesSearchProvider>/g) ?? []).length === 1
+  );
+
+  check(
+    "the search bar is rendered once per breakpoint, both reading the same shared context",
+    (pageSource.match(/<AnalysesSearchBar\b/g) ?? []).length === 2
+  );
+
+  check(
+    "search messages are threaded through props, not useMessages(), typed as a narrowed Pick of the real Messages shape",
+    !searchSource.includes("useMessages(") &&
+      searchSource.includes(
+        'Pick<Messages["myAnalyses"], "table" | "list" | "search">'
+      )
+  );
+
+  check(
+    "matching is case-insensitive, title-only, and whitespace-only queries behave like an empty query",
+    (() => {
+      const fnStart = searchSource.indexOf(
+        "function filterAnalysesByTitle"
+      );
+      const fnEnd =
+        fnStart >= 0 ? searchSource.indexOf("\n}", fnStart) : -1;
+      const body =
+        fnStart >= 0 && fnEnd > fnStart
+          ? searchSource.slice(fnStart, fnEnd)
+          : "";
+
+      return (
+        body.includes(".trim()") &&
+        body.includes(".toLowerCase()") &&
+        body.includes("item.title.toLowerCase().includes") &&
+        !body.includes("item.locale") &&
+        !body.includes("item.scores")
+      );
+    })()
+  );
+
+  check(
+    "a clear button appears only once a query exists, and clears the shared query",
+    searchSource.includes("query.length > 0 &&") &&
+      (searchSource.match(/setQuery\(""\)/g) ?? []).length >= 2
+  );
+
+  check(
+    "a distinct no-results state exists for a non-matching search, separate from the empty-analyses state",
+    searchSource.includes("function NoSearchResults") &&
+      searchSource.includes("searchMessages.noResultsHeading") &&
+      searchSource.includes("searchMessages.noResultsDescriptionPrefix") &&
+      searchSource.includes("searchMessages.noResultsDescriptionSuffix")
+  );
+
+  check(
+    "the no-results description is built from plain strings in the Client Component, never a message function passed as a prop",
+    !searchSource.includes("noResultsDescription(") &&
+      typeof getMessages("en").myAnalyses.search.noResultsDescriptionPrefix ===
+        "string" &&
+      typeof getMessages("en").myAnalyses.search.noResultsDescriptionSuffix ===
+        "string"
+  );
+
+  check(
+    "myAnalyses.search keys are covered for every launched locale",
+    LAUNCHED_LOCALES.every((locale) => {
+      const search = getMessages(locale).myAnalyses.search;
+
+      return (
+        search.inputLabel.length > 0 &&
+        search.placeholder.length > 0 &&
+        search.clearLabel.length > 0 &&
+        search.noResultsHeading.length > 0 &&
+        search.noResultsDescriptionPrefix.length > 0 &&
+        search.noResultsDescriptionSuffix.length > 0
+      );
+    })
+  );
+
+  check(
+    "EN and RU search labels are actually localized (not identical strings)",
+    getMessages("en").myAnalyses.search.placeholder !==
+      getMessages("ru").myAnalyses.search.placeholder &&
+      getMessages("en").myAnalyses.search.noResultsHeading !==
+        getMessages("ru").myAnalyses.search.noResultsHeading
+  );
+
+  // page.tsx (a Server Component) must build plain, narrowed objects
+  // (searchMyAnalyses/searchResults) before handing them to these Client
+  // Components — the full `myAnalyses`/`results` message trees contain
+  // function-valued keys elsewhere (e.g. myAnalyses.delete
+  // .dialogDescriptionWithTitle, results.script.characterCount), and
+  // Pick<> on the receiving prop type doesn't strip those at runtime, only
+  // narrows the type. Passing the wide objects directly crashes with
+  // "Functions cannot be passed directly to Client Components." the first
+  // time the page actually renders (it's a force-dynamic route, so
+  // `next build` never renders it to catch this). Scoped to just these
+  // three tags' own prop lists — EmptyState/ErrorState are Server
+  // Components too, so their unrelated `myAnalyses={myAnalyses}` usage
+  // elsewhere in page.tsx is legitimate and must not trip this check.
+  const searchClientCallSites = [
+    ...pageSource.matchAll(/<AnalysesSearchBar\b[\s\S]*?\/>/g),
+    ...pageSource.matchAll(/<AnalysesSearchDesktopResults\b[\s\S]*?\/>/g),
+    ...pageSource.matchAll(/<AnalysesSearchMobileResults\b[\s\S]*?\/>/g),
+  ].map((match) => match[0]);
+
+  check(
+    "the Server Component passes narrowed, plain-data props into the search Client Components, never the full myAnalyses/results message trees",
+    searchClientCallSites.length === 4 &&
+      searchClientCallSites.every(
+        (tag) =>
+          !tag.includes("myAnalyses={myAnalyses}") &&
+          !tag.includes("results={results}") &&
+          tag.includes("myAnalyses={searchMyAnalyses}")
+      )
   );
 }
 
@@ -534,6 +679,7 @@ async function main(): Promise<void> {
   checkMessageCoverage();
   checkPageSourceShape();
   checkDashboardShape();
+  checkSearchShape();
 
   if (failures > 0) {
     console.error(`\nMy Analyses tests: ${failures} failed`);
