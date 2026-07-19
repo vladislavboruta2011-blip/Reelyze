@@ -561,15 +561,21 @@ function checkActionsMenuSourceShape(): void {
   );
 
   check(
-    "the menu currently contains exactly one item (Rename) — Delete is deliberately not moved in yet",
-    (source.match(/key: "/g) ?? []).length === 1 &&
-      source.includes('key: "rename"')
+    "the menu contains exactly two items, in order: Rename then Delete",
+    (() => {
+      const keys = Array.from(source.matchAll(/key: "([a-z]+)"/g)).map(
+        ([, key]) => key
+      );
+      return (
+        keys.length === 2 && keys[0] === "rename" && keys[1] === "delete"
+      );
+    })()
   );
 
   check(
     "Rename is wired through the reusable OverflowMenu primitive and the controlled RenameAnalysisDialog",
-    source.includes(
-      'import { OverflowMenu } from "./overflow-menu";'
+    /import \{ OverflowMenu(, type OverflowMenuItem)? \} from "\.\/overflow-menu";/.test(
+      source
     ) &&
       source.includes(
         'import { RenameAnalysisDialog } from "./rename-analysis-dialog";'
@@ -577,13 +583,52 @@ function checkActionsMenuSourceShape(): void {
   );
 
   check(
-    "the dialog's open state is owned here and controlled by conditionally mounting it, toggled from the menu item's onSelect",
+    "Delete is wired through the same reusable OverflowMenu primitive and the controlled DeleteAnalysisDialog",
+    source.includes(
+      'import { DeleteAnalysisDialog } from "./delete-analysis-dialog";'
+    )
+  );
+
+  check(
+    "Rename's dialog open state is owned here and controlled by conditionally mounting it, toggled from the menu item's onSelect",
     /const \[isRenameDialogOpen, setIsRenameDialogOpen\] = useState\(false\);/.test(
       source
     ) &&
       source.includes("onSelect: () => setIsRenameDialogOpen(true)") &&
       source.includes("{isRenameDialogOpen && (") &&
       source.includes("onClose={() => setIsRenameDialogOpen(false)}")
+  );
+
+  check(
+    "Delete's dialog open state is owned here and controlled by conditionally mounting it, toggled from the menu item's onSelect",
+    /const \[isDeleteDialogOpen, setIsDeleteDialogOpen\] = useState\(false\);/.test(
+      source
+    ) &&
+      source.includes("onSelect: () => setIsDeleteDialogOpen(true)") &&
+      source.includes("{isDeleteDialogOpen && (") &&
+      source.includes("onClose={() => setIsDeleteDialogOpen(false)}")
+  );
+
+  check(
+    "Delete's menu entry uses the destructive variant; Rename's does not",
+    (() => {
+      const deleteIdx = source.indexOf('key: "delete"');
+      const renameIdx = source.indexOf('key: "rename"');
+      if (deleteIdx < 0 || renameIdx < 0) return false;
+
+      const deleteEntry = source.slice(deleteIdx, source.indexOf("},", deleteIdx));
+      const renameEntry = source.slice(renameIdx, source.indexOf("},", renameIdx));
+
+      return (
+        deleteEntry.includes('variant: "destructive"') &&
+        !renameEntry.includes("variant:")
+      );
+    })()
+  );
+
+  check(
+    "items is a plain array assembled once, the stable extension point for future actions",
+    /const items: OverflowMenuItem\[\] = \[/.test(source)
   );
 }
 
@@ -600,40 +645,23 @@ function checkPageWiringSourceShape(): void {
   );
 
   check(
-    "Open, Delete, and the actions menu are three independent siblings — none nested inside another",
+    "Open and the actions menu are two independent siblings — neither nested inside the other",
     (() => {
       const openOccurrences = pageSource.split("<OpenAnalysisButton");
-      const deleteOccurrences = pageSource.split("<DeleteAnalysisButton");
-
-      const openNeverContainsOthers = openOccurrences.slice(1).every((chunk) => {
-        const snippet = chunk.slice(0, chunk.indexOf("/>"));
-        return (
-          !snippet.includes("<DeleteAnalysisButton") &&
-          !snippet.includes("<AnalysisActionsMenu")
-        );
-      });
-
-      const deleteNeverContainsMenu = deleteOccurrences
-        .slice(1)
-        .every((chunk) => {
-          const snippet = chunk.slice(0, chunk.indexOf("/>"));
-          return !snippet.includes("<AnalysisActionsMenu");
-        });
 
       return (
         openOccurrences.length - 1 === 2 &&
-        deleteOccurrences.length - 1 === 2 &&
-        openNeverContainsOthers &&
-        deleteNeverContainsMenu
+        openOccurrences.slice(1).every((chunk) => {
+          const snippet = chunk.slice(0, chunk.indexOf("/>"));
+          return !snippet.includes("<AnalysisActionsMenu");
+        })
       );
     })()
   );
 
   check(
-    "Delete remains its own standalone button — it has not been moved into the overflow menu in this feature",
-    pageSource.includes(
-      'import { DeleteAnalysisButton } from "./delete-analysis-button";'
-    )
+    "Delete has been moved into the overflow menu — no standalone DeleteAnalysisButton remains on the page",
+    !pageSource.includes("DeleteAnalysisButton")
   );
 }
 

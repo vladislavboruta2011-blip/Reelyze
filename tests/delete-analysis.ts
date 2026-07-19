@@ -236,9 +236,9 @@ function checkNoMigrationChanges(): void {
 // can't be exercised as a pure function is verified against the component's
 // source shape instead.
 
-function checkButtonSourceShape(): void {
+function checkDialogSourceShape(): void {
   const source = readFileSync(
-    "app/my-analyses/delete-analysis-button.tsx",
+    "app/my-analyses/delete-analysis-dialog.tsx",
     "utf8"
   );
 
@@ -248,12 +248,28 @@ function checkButtonSourceShape(): void {
   );
 
   check(
+    "the dialog is controlled by mount/unmount (id/title/onClose props only, no isOpen prop), with no trigger of its own",
+    /\{\s*id,\s*title,\s*onClose,\s*\}: \{\s*id: string;\s*title: string;\s*onClose: \(\) => void;\s*\}/.test(
+      source
+    ) && !source.includes("setIsOpen(true)")
+  );
+
+  check(
     "deletion uses the RLS-bound browser client, never the service-role client",
     source.includes(
       'import { supabaseBrowser } from "../../lib/supabase/browser";'
     ) &&
       !source.includes('from "../../lib/supabase"') &&
       !source.includes("SUPABASE_SECRET_KEY")
+  );
+
+  check(
+    "deletion is delegated to the reused deleteAnalysis function — no new delete query is duplicated in the dialog",
+    source.includes(
+      'import { deleteAnalysis } from "./delete-analysis";'
+    ) &&
+      !/\.from\(\s*"analyses"\s*\)/.test(source) &&
+      !source.includes(".delete(")
   );
 
   check(
@@ -325,7 +341,7 @@ function checkButtonSourceShape(): void {
     "backdrop click closes the dialog only through closeDialog's own not-while-deleting guard",
     /onClick=\{\(event\) => \{\s*if \(event\.target === event\.currentTarget\) \{\s*closeDialog\(\);/.test(
       source
-    ) && source.includes("if (isDeletingRef.current) return;\n    setIsOpen(false);")
+    ) && source.includes("if (isDeletingRef.current) return;\n    onCloseRef.current();")
   );
 
   check(
@@ -367,7 +383,7 @@ function checkButtonSourceShape(): void {
 
       return (
         branch.includes("setErrorMessage(deleteMessages.errorDescription);") &&
-        !branch.includes("setIsOpen(false)") &&
+        !branch.includes("onCloseRef.current()") &&
         !branch.includes("result.reason") &&
         !branch.toLowerCase().includes("error.message")
       );
@@ -375,9 +391,9 @@ function checkButtonSourceShape(): void {
   );
 
   check(
-    "a successful delete closes the dialog and revalidates via router.refresh() — never a full page reload",
+    "a successful delete revalidates via router.refresh() and then closes via onClose — never a full page reload",
     source.includes(
-      "setIsOpen(false);\n    setIsDeleting(false);\n    router.refresh();"
+      "setIsDeleting(false);\n    router.refresh();\n    onCloseRef.current();"
     ) &&
       !source.includes("window.location.reload") &&
       !source.includes("location.href")
@@ -388,16 +404,22 @@ function checkPageWiringSourceShape(): void {
   const pageSource = readFileSync("app/my-analyses/page.tsx", "utf8");
 
   check(
-    "DeleteAnalysisButton is imported and rendered exactly twice — once for the desktop table row, once for the mobile card",
+    "DeleteAnalysisButton is no longer imported or rendered anywhere on the page — Delete now lives inside the overflow menu",
+    !pageSource.includes("DeleteAnalysisButton") &&
+      !pageSource.includes("delete-analysis-button")
+  );
+
+  check(
+    "AnalysisActionsMenu is imported and rendered exactly twice — once for the desktop table row, once for the mobile card",
     pageSource.includes(
-      'import { DeleteAnalysisButton } from "./delete-analysis-button";'
+      'import { AnalysisActionsMenu } from "./analysis-actions-menu";'
     ) &&
-      (pageSource.match(/<DeleteAnalysisButton\s+id=\{item\.id\}/g) ?? [])
+      (pageSource.match(/<AnalysisActionsMenu\s+id=\{item\.id\}/g) ?? [])
         .length === 2
   );
 
   check(
-    "Open remains present alongside Delete as a sibling, never nested inside it",
+    "Open remains present alongside the actions menu as a sibling, never nested inside it",
     (() => {
       const occurrences = pageSource.split("<OpenAnalysisButton");
 
@@ -406,7 +428,7 @@ function checkPageWiringSourceShape(): void {
         occurrences.slice(1).every((chunk) => {
           const closeIndex = chunk.indexOf("/>");
           const snippet = chunk.slice(0, closeIndex);
-          return !snippet.includes("<DeleteAnalysisButton");
+          return !snippet.includes("<AnalysisActionsMenu");
         })
       );
     })()
@@ -464,7 +486,7 @@ async function main(): Promise<void> {
   await checkMissingAndUnauthorizedIdentical();
   checkDeleteModuleSourceShape();
   checkNoMigrationChanges();
-  checkButtonSourceShape();
+  checkDialogSourceShape();
   checkPageWiringSourceShape();
   checkMessageCoverage();
 

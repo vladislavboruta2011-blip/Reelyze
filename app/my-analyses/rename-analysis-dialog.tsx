@@ -21,10 +21,9 @@ const FOCUSABLE_SELECTOR =
 // with no reset-on-reopen effect, and lets the mount effect below run with
 // an empty dependency array — no isOpen prop needed at all.
 //
-// Unlike app/my-analyses/delete-analysis-button.tsx's self-contained
-// button+dialog, this has no trigger of its own: any future caller (e.g. a
-// later Delete-in-menu refactor's sibling) can reuse it unchanged by
-// conditionally rendering it the same way.
+// This has no trigger of its own — like its sibling
+// app/my-analyses/delete-analysis-dialog.tsx, any future caller can reuse
+// it unchanged by conditionally rendering it the same way.
 export function RenameAnalysisDialog({
   id,
   title,
@@ -46,7 +45,7 @@ export function RenameAnalysisDialog({
   const inputRef = useRef<HTMLInputElement>(null);
   const previouslyFocusedElementRef = useRef<HTMLElement | null>(null);
 
-  // Mirrors delete-analysis-button.tsx's isDeletingRef pattern: the mount
+  // Mirrors delete-analysis-dialog.tsx's isDeletingRef pattern: the mount
   // effect below has an empty dependency array, so isSaving must be read
   // from a ref inside its keydown handler rather than added to that
   // effect's own dependencies (which would re-run the effect's cleanup —

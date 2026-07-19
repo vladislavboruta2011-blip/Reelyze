@@ -17,7 +17,6 @@ import {
   ScoreUnavailableBadge,
 } from "./score-visuals";
 import { SidebarSignOutButton } from "./sidebar-sign-out-button";
-import { DeleteAnalysisButton } from "./delete-analysis-button";
 import { AnalysisActionsMenu } from "./analysis-actions-menu";
 
 // Always re-runs the query on navigation/refresh — a newly saved analysis
@@ -224,7 +223,6 @@ function AnalysesTable({
                     title={item.title}
                     label={myAnalyses.table.open}
                   />
-                  <DeleteAnalysisButton id={item.id} title={item.title} />
                   <AnalysisActionsMenu id={item.id} title={item.title} />
                 </div>
               </td>
@@ -312,7 +310,6 @@ function AnalysisMobileCard({
             title={item.title}
             label={myAnalyses.table.open}
           />
-          <DeleteAnalysisButton id={item.id} title={item.title} />
           <AnalysisActionsMenu id={item.id} title={item.title} />
         </div>
       </div>
@@ -364,9 +361,10 @@ function ErrorState({ myAnalyses }: { myAnalyses: Messages["myAnalyses"] }) {
   );
 }
 
-// Open, Delete, and Rename (the last inside the row's overflow menu — see
-// AnalysisActionsMenu) are implemented; no rerun, no search/filters/custom
-// sorting, no pagination UI — those all land in later PRs.
+// Open is implemented as its own standalone action; Rename and Delete both
+// live inside the row's overflow menu (see AnalysisActionsMenu). No rerun,
+// no search/filters/custom sorting, no pagination UI — those all land in
+// later PRs.
 export default async function MyAnalysesPage() {
   const user = await getCurrentUserOrNull();
 
