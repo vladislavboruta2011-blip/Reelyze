@@ -1,8 +1,14 @@
 import type { AnalysisV2Scores } from "../../engine/analysis-v2-schema";
 
-// Fixed MVP cap — no pagination UI in this PR. Matches the pattern already
-// used by app/admin/feedback/page.tsx for the same reason.
-const MY_ANALYSES_LIMIT = 50;
+// Fixed cap on what a single request ever fetches — client-side Pagination
+// (analyses-search.tsx) pages through whatever is fetched here, but this
+// cap is still the ceiling on how many of a user's saved analyses are ever
+// visible at all (there is no follow-up query for rows beyond this). 200
+// keeps a single request small (see MY_ANALYSES_SELECT_COLUMNS below — no
+// script/result_json blob) while covering realistic usage at this product
+// stage; true server-side range pagination (and an exact total count) is a
+// deliberately deferred, separate future feature.
+const MY_ANALYSES_LIMIT = 200;
 
 // Only the columns the list actually renders: no `script` (full original
 // script text) and no full `result_json` blob — `result_json->scores` asks

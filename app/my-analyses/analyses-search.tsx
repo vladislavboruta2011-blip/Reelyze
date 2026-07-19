@@ -3,6 +3,7 @@
 import {
   createContext,
   useContext,
+  useEffect,
   useId,
   useState,
   type ReactNode,
@@ -40,7 +41,7 @@ import { AnalysisActionsMenu } from "./analysis-actions-menu";
 // type, not the runtime object — so page.tsx must actually construct a
 // plain object with just these keys before passing it down, not just
 // annotate a wider one.
-export type SearchMyAnalyses = Pick<Messages["myAnalyses"], "table" | "list" | "search" | "filters">;
+export type SearchMyAnalyses = Pick<Messages["myAnalyses"], "table" | "list" | "search" | "filters" | "pagination">;
 export type SearchResults = Pick<Messages["results"], "scoreCards" | "scoreLabels">;
 
 function localeLabel(locale: string): string {
@@ -303,21 +304,27 @@ function AnalysisMobileCard({
   );
 }
 
-// --- Search + Filters state ---------------------------------------------
+// --- Search + Filters + Pagination state ---------------------------------
 //
 // One Context instance, provided once by AnalysesSearchProvider around
 // both the desktop and mobile trees in page.tsx (they're both always
 // mounted, only CSS-hidden per breakpoint — see page.tsx's own comment).
 // AnalysesSearchBar/AnalysesFilterBar and the two results components below
 // are each rendered once per breakpoint but all read/write the same
-// `query`/`riskFilter` values, so typing or picking a filter in either
-// breakpoint stays in sync with the other without lifting state into
-// page.tsx itself (a Server Component, which can't hold state) or reaching
-// for URL search params/a server round-trip for a list this small (see
-// app/my-analyses/analyses-list.ts's fixed 50-row cap). Search and the risk
-// filter are deliberately independent fields on this one shared context,
-// not a second provider — the search "Clear" only resets `query`, and
-// picking "All" only resets `riskFilter`; there is no combined reset in v1.
+// `query`/`riskFilter`/`page` values, so typing, picking a filter, or
+// paging in either breakpoint stays in sync with the other without lifting
+// state into page.tsx itself (a Server Component, which can't hold state)
+// or reaching for URL search params/a server round-trip for a list this
+// small (see app/my-analyses/analyses-list.ts's fixed 200-row cap). Search
+// and the risk filter are deliberately independent fields on this one
+// shared context, not a second provider — the search "Clear" only resets
+// `query`, and picking "All" only resets `riskFilter`; there is no combined
+// reset in v1. `page` resets to 1 whenever `query` or `riskFilter` changes
+// (below) — but never on its own from Rename/Delete, which only refetch
+// `items` via router.refresh() without touching `query`/`riskFilter`; the
+// separate render-time clamp in useSearchedAndFilteredAnalyses is what
+// keeps `page` in range when that refetch (or a Rename that changes search
+// membership) shrinks the composed result out from under the current page.
 export type RiskFilterValue = "all" | "high" | "medium" | "low";
 
 type SearchContextValue = {
@@ -325,6 +332,8 @@ type SearchContextValue = {
   setQuery: (query: string) => void;
   riskFilter: RiskFilterValue;
   setRiskFilter: (riskFilter: RiskFilterValue) => void;
+  page: number;
+  setPage: (page: number) => void;
 };
 
 const SearchContext = createContext<SearchContextValue | null>(null);
@@ -344,10 +353,25 @@ function useSearchContext(): SearchContextValue {
 export function AnalysesSearchProvider({ children }: { children: ReactNode }) {
   const [query, setQuery] = useState("");
   const [riskFilter, setRiskFilter] = useState<RiskFilterValue>("all");
+  const [page, setPage] = useState(1);
+  // Tracks the (query, riskFilter) pair `page` was last reset for. Adjusted
+  // during render (React's documented pattern for resetting state when an
+  // input changes — see "You might not need an Effect"), not in a
+  // useEffect: an effect here would commit the stale page for one extra
+  // render before resetting it, and calling setState synchronously inside
+  // an effect is exactly what react-hooks/set-state-in-effect exists to
+  // catch. The condition is self-correcting (false again immediately after
+  // the reset), so this can't loop.
+  const [lastResetFor, setLastResetFor] = useState({ query, riskFilter });
+
+  if (lastResetFor.query !== query || lastResetFor.riskFilter !== riskFilter) {
+    setLastResetFor({ query, riskFilter });
+    setPage(1);
+  }
 
   return (
     <SearchContext.Provider
-      value={{ query, setQuery, riskFilter, setRiskFilter }}
+      value={{ query, setQuery, riskFilter, setRiskFilter, page, setPage }}
     >
       {children}
     </SearchContext.Provider>
@@ -390,6 +414,131 @@ export function filterAnalysesByRisk(
     (item) =>
       item.scores !== null &&
       riskTier(item.scores.retentionRisk) === riskFilter,
+  );
+}
+
+// --- Pagination -----------------------------------------------------------
+//
+// Client-side only, over whatever page.tsx already fetched (see
+// app/my-analyses/analyses-list.ts's fixed 200-row cap) — no `.range()`,
+// no count query, no new Supabase request. Pure and dependency-free (no
+// React/context), so it's testable on its own without a component tree.
+export const PAGE_SIZE = 10;
+
+export function getTotalPages(itemCount: number): number {
+  return Math.max(1, Math.ceil(itemCount / PAGE_SIZE));
+}
+
+export function paginateAnalyses(
+  items: MyAnalysesListItem[],
+  page: number,
+): MyAnalysesListItem[] {
+  const startIndex = (page - 1) * PAGE_SIZE;
+  return items.slice(startIndex, startIndex + PAGE_SIZE);
+}
+
+// Applies Search, then the Risk filter, then Pagination, always in that
+// exact order — pagination must operate on the complete combined
+// Search+Filter result, never on the raw list. Both
+// AnalysesSearchDesktopResults and AnalysesSearchMobileResults call this
+// identical hook with the identical `items` prop from page.tsx, the same
+// way they already independently call filterAnalysesByTitle/
+// filterAnalysesByRisk above — not new duplication, the same established
+// per-breakpoint pattern.
+//
+// The clamp below MUST run inside a useEffect, not directly in this
+// function's body. `page`/`setPage` are owned by AnalysesSearchProvider's
+// own useState (see its `lastResetFor` comment for the *same-component*
+// case, where a render-time adjustment is correct) — but this hook runs
+// inside a *different* component (whichever of
+// AnalysesSearchDesktopResults/AnalysesSearchMobileResults called it).
+// Calling `setPage` synchronously during that child's render would be
+// React's "Cannot update a component while rendering a different
+// component" case, not the safe "adjust your own state during render"
+// case: React can only safely discard-and-immediately-rerender the
+// *currently rendering* component's own output, not retroactively patch a
+// different component's (the Provider's) state mid-render. A useEffect
+// runs after render commits, which is the correct place to synchronize a
+// value owned by another component/context. `pageItems` below still reads
+// `Math.min(page, totalPages)` rather than raw `page`, so this same render
+// already shows the right slice even before the effect flushes the
+// persisted `page` value for the Previous/Next boundary buttons.
+function useSearchedAndFilteredAnalyses(items: MyAnalysesListItem[]): {
+  pageItems: MyAnalysesListItem[];
+  totalPages: number;
+} {
+  const { query, riskFilter, page, setPage } = useSearchContext();
+  const combinedItems = filterAnalysesByRisk(
+    filterAnalysesByTitle(items, query),
+    riskFilter,
+  );
+  const totalPages = getTotalPages(combinedItems.length);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages, setPage]);
+
+  return {
+    pageItems: paginateAnalyses(combinedItems, Math.min(page, totalPages)),
+    totalPages,
+  };
+}
+
+// Real <button>s (native `disabled`, not just a visual style) inside a
+// labelled <nav> landmark — an accessible pagination region, not just a
+// styled div. The "Page X of Y" text is built here, in the Client
+// Component, from three plain strings (pageLabel/ofLabel) plus the
+// component's own numeric `page`/`totalPages` state — deliberately never a
+// message *function* (see SearchMyAnalyses's comment on why a resolved
+// function crossing the Server/Client boundary is the one thing to avoid
+// here). aria-live="polite" announces the page change without stealing
+// focus from the button that was just clicked. Hidden entirely (not
+// rendered disabled) when the composed result fits on a single page.
+function PaginationControls({
+  myAnalyses,
+  totalPages,
+}: {
+  myAnalyses: SearchMyAnalyses;
+  totalPages: number;
+}) {
+  const { page, setPage } = useSearchContext();
+  const paginationMessages = myAnalyses.pagination;
+
+  if (totalPages <= 1) {
+    return null;
+  }
+
+  return (
+    <nav
+      aria-label={paginationMessages.ariaLabel}
+      className="mt-4 flex items-center justify-center gap-4"
+    >
+      <button
+        type="button"
+        disabled={page <= 1}
+        onClick={() => setPage(page - 1)}
+        className="inline-flex h-9 items-center justify-center rounded-full border border-[#E5E7EB] bg-white px-4 text-[13px] font-medium text-[#6B7280] transition hover:text-[#111827] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-[#6B7280]"
+      >
+        {paginationMessages.previousLabel}
+      </button>
+      <span
+        aria-live="polite"
+        className="text-[13px] font-medium text-[#6B7280]"
+      >
+        {paginationMessages.pageLabel} {page} {paginationMessages.ofLabel}{" "}
+        {totalPages}
+      </span>
+      <button
+        type="button"
+        disabled={page >= totalPages}
+        onClick={() => setPage(page + 1)}
+        className="inline-flex h-9 items-center justify-center rounded-full border border-[#E5E7EB] bg-white px-4 text-[13px] font-medium text-[#6B7280] transition hover:text-[#111827] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-[#6B7280]"
+      >
+        {paginationMessages.nextLabel}
+      </button>
+    </nav>
   );
 }
 
@@ -568,20 +717,19 @@ export function AnalysesSearchDesktopResults({
   myAnalyses: SearchMyAnalyses;
   results: SearchResults;
 }) {
-  const { query, riskFilter } = useSearchContext();
-  const filteredItems = filterAnalysesByRisk(
-    filterAnalysesByTitle(items, query),
-    riskFilter,
-  );
+  const { pageItems, totalPages } = useSearchedAndFilteredAnalyses(items);
 
-  return filteredItems.length === 0 ? (
+  return pageItems.length === 0 ? (
     <NoResults myAnalyses={myAnalyses} />
   ) : (
-    <AnalysesTable
-      items={filteredItems}
-      myAnalyses={myAnalyses}
-      results={results}
-    />
+    <>
+      <AnalysesTable
+        items={pageItems}
+        myAnalyses={myAnalyses}
+        results={results}
+      />
+      <PaginationControls myAnalyses={myAnalyses} totalPages={totalPages} />
+    </>
   );
 }
 
@@ -594,24 +742,23 @@ export function AnalysesSearchMobileResults({
   myAnalyses: SearchMyAnalyses;
   results: SearchResults;
 }) {
-  const { query, riskFilter } = useSearchContext();
-  const filteredItems = filterAnalysesByRisk(
-    filterAnalysesByTitle(items, query),
-    riskFilter,
-  );
+  const { pageItems, totalPages } = useSearchedAndFilteredAnalyses(items);
 
-  return filteredItems.length === 0 ? (
+  return pageItems.length === 0 ? (
     <NoResults myAnalyses={myAnalyses} />
   ) : (
-    <ul className="flex flex-col gap-3">
-      {filteredItems.map((item) => (
-        <AnalysisMobileCard
-          key={item.id}
-          item={item}
-          myAnalyses={myAnalyses}
-          results={results}
-        />
-      ))}
-    </ul>
+    <>
+      <ul className="flex flex-col gap-3">
+        {pageItems.map((item) => (
+          <AnalysisMobileCard
+            key={item.id}
+            item={item}
+            myAnalyses={myAnalyses}
+            results={results}
+          />
+        ))}
+      </ul>
+      <PaginationControls myAnalyses={myAnalyses} totalPages={totalPages} />
+    </>
   );
 }
