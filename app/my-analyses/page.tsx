@@ -11,6 +11,7 @@ import { SidebarSignOutButton } from "./sidebar-sign-out-button";
 import {
   AnalysesSearchProvider,
   AnalysesSearchBar,
+  AnalysesFilterBar,
   AnalysesSearchDesktopResults,
   AnalysesSearchMobileResults,
   type SearchMyAnalyses,
@@ -127,6 +128,7 @@ export default async function MyAnalysesPage() {
     table: myAnalyses.table,
     list: myAnalyses.list,
     search: myAnalyses.search,
+    filters: myAnalyses.filters,
   };
   const searchResults: SearchResults = {
     scoreCards: results.scoreCards,
@@ -253,6 +255,10 @@ export default async function MyAnalysesPage() {
               {result.ok && result.items.length > 0 && (
                 <>
                   <AnalysesSearchBar myAnalyses={searchMyAnalyses} />
+                  <AnalysesFilterBar
+                    myAnalyses={searchMyAnalyses}
+                    results={searchResults}
+                  />
                   <AnalysesSearchDesktopResults
                     items={result.items}
                     myAnalyses={searchMyAnalyses}
@@ -305,6 +311,10 @@ export default async function MyAnalysesPage() {
               {result.ok && result.items.length > 0 && (
                 <>
                   <AnalysesSearchBar myAnalyses={searchMyAnalyses} />
+                  <AnalysesFilterBar
+                    myAnalyses={searchMyAnalyses}
+                    results={searchResults}
+                  />
                   <AnalysesSearchMobileResults
                     items={result.items}
                     myAnalyses={searchMyAnalyses}

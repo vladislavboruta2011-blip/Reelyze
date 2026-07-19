@@ -19,6 +19,7 @@ import {
   RiskIndicator,
   ScoreRing,
   ScoreUnavailableBadge,
+  riskTier,
 } from "./score-visuals";
 import { AnalysisActionsMenu } from "./analysis-actions-menu";
 
@@ -39,7 +40,7 @@ import { AnalysisActionsMenu } from "./analysis-actions-menu";
 // type, not the runtime object — so page.tsx must actually construct a
 // plain object with just these keys before passing it down, not just
 // annotate a wider one.
-export type SearchMyAnalyses = Pick<Messages["myAnalyses"], "table" | "list" | "search">;
+export type SearchMyAnalyses = Pick<Messages["myAnalyses"], "table" | "list" | "search" | "filters">;
 export type SearchResults = Pick<Messages["results"], "scoreCards" | "scoreLabels">;
 
 function localeLabel(locale: string): string {
@@ -302,20 +303,28 @@ function AnalysisMobileCard({
   );
 }
 
-// --- Search state ------------------------------------------------------
+// --- Search + Filters state ---------------------------------------------
 //
 // One Context instance, provided once by AnalysesSearchProvider around
 // both the desktop and mobile trees in page.tsx (they're both always
 // mounted, only CSS-hidden per breakpoint — see page.tsx's own comment).
-// AnalysesSearchBar and the two results components below are each
-// rendered once per breakpoint but all read/write the same `query` value,
-// so typing in either input stays in sync with the other without lifting
-// state into page.tsx itself (a Server Component, which can't hold state)
-// or reaching for URL search params/a server round-trip for a list this
-// small (see app/my-analyses/analyses-list.ts's fixed 50-row cap).
+// AnalysesSearchBar/AnalysesFilterBar and the two results components below
+// are each rendered once per breakpoint but all read/write the same
+// `query`/`riskFilter` values, so typing or picking a filter in either
+// breakpoint stays in sync with the other without lifting state into
+// page.tsx itself (a Server Component, which can't hold state) or reaching
+// for URL search params/a server round-trip for a list this small (see
+// app/my-analyses/analyses-list.ts's fixed 50-row cap). Search and the risk
+// filter are deliberately independent fields on this one shared context,
+// not a second provider — the search "Clear" only resets `query`, and
+// picking "All" only resets `riskFilter`; there is no combined reset in v1.
+export type RiskFilterValue = "all" | "high" | "medium" | "low";
+
 type SearchContextValue = {
   query: string;
   setQuery: (query: string) => void;
+  riskFilter: RiskFilterValue;
+  setRiskFilter: (riskFilter: RiskFilterValue) => void;
 };
 
 const SearchContext = createContext<SearchContextValue | null>(null);
@@ -334,9 +343,12 @@ function useSearchContext(): SearchContextValue {
 
 export function AnalysesSearchProvider({ children }: { children: ReactNode }) {
   const [query, setQuery] = useState("");
+  const [riskFilter, setRiskFilter] = useState<RiskFilterValue>("all");
 
   return (
-    <SearchContext.Provider value={{ query, setQuery }}>
+    <SearchContext.Provider
+      value={{ query, setQuery, riskFilter, setRiskFilter }}
+    >
       {children}
     </SearchContext.Provider>
   );
@@ -358,6 +370,26 @@ export function filterAnalysesByTitle(
 
   return items.filter((item) =>
     item.title.toLowerCase().includes(trimmedQuery),
+  );
+}
+
+// Reuses score-visuals.tsx's riskTier (same >=65/>=45 thresholds already
+// shown by each row's own RiskIndicator dot) rather than duplicating them.
+// "all" is a no-op. A null `scores` (the "Unavailable" badge case) never
+// gets an invented tier — those rows are excluded from every specific
+// High/Medium/Low selection, and only ever visible under "all".
+export function filterAnalysesByRisk(
+  items: MyAnalysesListItem[],
+  riskFilter: RiskFilterValue,
+): MyAnalysesListItem[] {
+  if (riskFilter === "all") {
+    return items;
+  }
+
+  return items.filter(
+    (item) =>
+      item.scores !== null &&
+      riskTier(item.scores.retentionRisk) === riskFilter,
   );
 }
 
@@ -402,13 +434,96 @@ export function AnalysesSearchBar({
   );
 }
 
-function NoSearchResults({
+const RISK_FILTER_OPTIONS: RiskFilterValue[] = ["all", "high", "medium", "low"];
+
+// Compact accessible chip/button group (deliberately not a native select
+// element) — mirrors the pill styling already used for the locale badge /
+// RiskIndicator dot elsewhere on this page. role="group" + aria-label
+// names the whole control; each button reports its own selected state via
+// aria-pressed rather than relying on color alone.
+// "High"/"Medium"/"Low" reuse the already-launched
+// results.scoreLabels.risk translations (the same ones each row's own
+// RiskIndicator already renders) instead of new duplicate strings — only
+// "All" and the no-results copy are new keys (myAnalyses.filters).
+export function AnalysesFilterBar({
+  myAnalyses,
+  results,
+}: {
+  myAnalyses: SearchMyAnalyses;
+  results: SearchResults;
+}) {
+  const { riskFilter, setRiskFilter } = useSearchContext();
+  const filtersMessages = myAnalyses.filters;
+  const riskLabels = results.scoreLabels.risk;
+
+  const labelFor = (value: RiskFilterValue): string => {
+    switch (value) {
+      case "all":
+        return filtersMessages.all;
+      case "high":
+        return riskLabels.high;
+      case "medium":
+        return riskLabels.medium;
+      case "low":
+        return riskLabels.low;
+    }
+  };
+
+  return (
+    <div
+      role="group"
+      aria-label={filtersMessages.groupLabel}
+      className="mb-4 flex flex-wrap items-center gap-2"
+    >
+      {RISK_FILTER_OPTIONS.map((value) => {
+        const isActive = riskFilter === value;
+
+        return (
+          <button
+            key={value}
+            type="button"
+            aria-pressed={isActive}
+            onClick={() => setRiskFilter(value)}
+            className={
+              isActive
+                ? "inline-flex h-9 items-center justify-center rounded-full border border-[#DDD6FE] bg-[#F3E8FF] px-4 text-[13px] font-semibold text-[#7C3AED] transition"
+                : "inline-flex h-9 items-center justify-center rounded-full border border-[#E5E7EB] bg-white px-4 text-[13px] font-medium text-[#6B7280] transition hover:text-[#111827]"
+            }
+          >
+            {labelFor(value)}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// Covers three reachable no-results cases (the fourth — no query and no
+// filter — can't reach here, since the caller only renders this once the
+// unfiltered items list is already non-empty): search text alone keeps the
+// exact pre-Filters copy/behavior (quoted query + "Clear search"); the risk
+// filter alone, or both together, use the new myAnalyses.filters copy. The
+// "Clear search" button only ever clears the query — resetting the risk
+// filter is done via the still-visible "All" chip in AnalysesFilterBar
+// above, matching the independent-reset requirement (no combined "Clear
+// all" control in v1).
+function NoResults({
   myAnalyses,
 }: {
   myAnalyses: SearchMyAnalyses;
 }) {
-  const { query, setQuery } = useSearchContext();
+  const { query, setQuery, riskFilter } = useSearchContext();
   const searchMessages = myAnalyses.search;
+  const filtersMessages = myAnalyses.filters;
+  const trimmedQuery = query.trim();
+  const hasQuery = trimmedQuery.length > 0;
+  const hasRiskFilter = riskFilter !== "all";
+
+  const heading = !hasRiskFilter
+    ? searchMessages.noResultsHeading
+    : hasQuery
+      ? filtersMessages.noResultsCombinedHeading
+      : filtersMessages.noResultsHeading;
 
   return (
     <div className="rounded-[18px] border border-[#E5E7EB] bg-white p-10 text-center">
@@ -416,20 +531,30 @@ function NoSearchResults({
         <Search size={20} className="text-[#7C3AED]" aria-hidden="true" />
       </div>
       <h2 className="mt-4 text-[18px] font-semibold text-[#111827]">
-        {searchMessages.noResultsHeading}
+        {heading}
       </h2>
       <p className="mx-auto mt-2 max-w-[360px] text-[14px] leading-[1.6] text-[#6B7280]">
-        {searchMessages.noResultsDescriptionPrefix}
-        {query.trim()}
-        {searchMessages.noResultsDescriptionSuffix}
+        {!hasRiskFilter ? (
+          <>
+            {searchMessages.noResultsDescriptionPrefix}
+            {trimmedQuery}
+            {searchMessages.noResultsDescriptionSuffix}
+          </>
+        ) : hasQuery ? (
+          filtersMessages.noResultsCombinedDescription
+        ) : (
+          filtersMessages.noResultsDescription
+        )}
       </p>
-      <button
-        type="button"
-        onClick={() => setQuery("")}
-        className="mt-6 inline-flex h-[44px] items-center justify-center rounded-[12px] border border-[#E5E7EB] bg-white px-6 text-[14px] font-semibold text-[#6B7280] transition hover:text-[#111827]"
-      >
-        {searchMessages.clearLabel}
-      </button>
+      {hasQuery && (
+        <button
+          type="button"
+          onClick={() => setQuery("")}
+          className="mt-6 inline-flex h-[44px] items-center justify-center rounded-[12px] border border-[#E5E7EB] bg-white px-6 text-[14px] font-semibold text-[#6B7280] transition hover:text-[#111827]"
+        >
+          {searchMessages.clearLabel}
+        </button>
+      )}
     </div>
   );
 }
@@ -443,11 +568,14 @@ export function AnalysesSearchDesktopResults({
   myAnalyses: SearchMyAnalyses;
   results: SearchResults;
 }) {
-  const { query } = useSearchContext();
-  const filteredItems = filterAnalysesByTitle(items, query);
+  const { query, riskFilter } = useSearchContext();
+  const filteredItems = filterAnalysesByRisk(
+    filterAnalysesByTitle(items, query),
+    riskFilter,
+  );
 
   return filteredItems.length === 0 ? (
-    <NoSearchResults myAnalyses={myAnalyses} />
+    <NoResults myAnalyses={myAnalyses} />
   ) : (
     <AnalysesTable
       items={filteredItems}
@@ -466,11 +594,14 @@ export function AnalysesSearchMobileResults({
   myAnalyses: SearchMyAnalyses;
   results: SearchResults;
 }) {
-  const { query } = useSearchContext();
-  const filteredItems = filterAnalysesByTitle(items, query);
+  const { query, riskFilter } = useSearchContext();
+  const filteredItems = filterAnalysesByRisk(
+    filterAnalysesByTitle(items, query),
+    riskFilter,
+  );
 
   return filteredItems.length === 0 ? (
-    <NoSearchResults myAnalyses={myAnalyses} />
+    <NoResults myAnalyses={myAnalyses} />
   ) : (
     <ul className="flex flex-col gap-3">
       {filteredItems.map((item) => (

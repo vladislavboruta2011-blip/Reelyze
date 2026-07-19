@@ -19,7 +19,10 @@ function riskColor(score: number): string {
 // Three tiers for this compact summary view (the full /results page breaks
 // risk into four for its detailed breakdown — this is deliberately
 // coarser, matching the "Low/Medium/High" the dashboard row calls for).
-function riskTier(
+// Exported so the Risk Level filter (analyses-search.tsx) reuses these exact
+// thresholds instead of duplicating them — the filter buckets must always
+// agree with what a row's own RiskIndicator dot/label already shows.
+export function riskTier(
   score: number
 ): "high" | "medium" | "low" {
   if (score >= 65) return "high";
