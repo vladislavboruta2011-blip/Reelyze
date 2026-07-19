@@ -2,20 +2,20 @@
 
 import { useState } from "react";
 import { useMessages } from "../use-messages";
-import { OverflowMenu } from "./overflow-menu";
+import { OverflowMenu, type OverflowMenuItem } from "./overflow-menu";
 import { RenameAnalysisDialog } from "./rename-analysis-dialog";
+import { DeleteAnalysisDialog } from "./delete-analysis-dialog";
 
 // The per-row composition: owns which dialog is currently open and wires
-// it into the generic, reusable OverflowMenu primitive. Open and Delete
-// stay as their own separate, always-visible buttons
-// (app/my-analyses/page.tsx) — only Rename lives in this menu for now.
+// each into the generic, reusable OverflowMenu primitive. Open stays its
+// own always-visible button (app/my-analyses/page.tsx); Rename and Delete
+// both live in this menu.
 //
-// Deliberately the only seam that will need to change when Delete moves
-// into this menu in a later task: `items` below gains one more entry
-// (backed by its own controlled confirmation dialog, mirroring
-// RenameAnalysisDialog's shape), and page.tsx's standalone
-// DeleteAnalysisButton call is removed. OverflowMenu and
-// RenameAnalysisDialog themselves need no changes at all.
+// `items` is the stable extension point for future actions (Duplicate,
+// Share, Export, ...): each one is added the same way Delete was — a new
+// entry here backed by its own controlled dialog, conditionally mounted
+// below — with no restructuring of this component and no changes to
+// OverflowMenu itself.
 export function AnalysisActionsMenu({
   id,
   title,
@@ -26,26 +26,43 @@ export function AnalysisActionsMenu({
   const messages = useMessages();
   const actionsMenu = messages.myAnalyses.actionsMenu;
   const renameMessages = messages.myAnalyses.rename;
+  const deleteMessages = messages.myAnalyses.delete;
 
   const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
+  const items: OverflowMenuItem[] = [
+    {
+      key: "rename",
+      label: renameMessages.triggerLabel,
+      onSelect: () => setIsRenameDialogOpen(true),
+    },
+    {
+      key: "delete",
+      label: deleteMessages.triggerLabel,
+      variant: "destructive",
+      onSelect: () => setIsDeleteDialogOpen(true),
+    },
+  ];
 
   return (
     <>
       <OverflowMenu
         triggerLabel={`${actionsMenu.triggerLabel}: ${title}`}
-        items={[
-          {
-            key: "rename",
-            label: renameMessages.triggerLabel,
-            onSelect: () => setIsRenameDialogOpen(true),
-          },
-        ]}
+        items={items}
       />
       {isRenameDialogOpen && (
         <RenameAnalysisDialog
           id={id}
           title={title}
           onClose={() => setIsRenameDialogOpen(false)}
+        />
+      )}
+      {isDeleteDialogOpen && (
+        <DeleteAnalysisDialog
+          id={id}
+          title={title}
+          onClose={() => setIsDeleteDialogOpen(false)}
         />
       )}
     </>

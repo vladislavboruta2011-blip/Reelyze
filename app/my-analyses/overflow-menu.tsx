@@ -9,16 +9,20 @@ export type OverflowMenuItem = {
   label: string;
   onSelect: () => void;
   disabled?: boolean;
+  // The only generic extension destructive actions (e.g. Delete) need —
+  // styling only, no analysis-specific meaning lives here. Omitted/
+  // "default" renders identically to before this existed.
+  variant?: "default" | "destructive";
 };
 
 // Generic accessible menu-button primitive (ARIA "menu button" pattern) —
 // has no knowledge of analyses, Rename, or Delete at all, only a trigger
-// label and an items array. Deliberately the reusable seam: when Delete
-// moves into this menu later, only the caller's `items` array grows by one
-// entry — nothing here needs to change.
+// label and an items array. Deliberately the reusable seam: a caller adds
+// a new action by growing `items` by one entry — nothing here needs to
+// change.
 //
 // The dropdown is rendered via a portal to document.body (matching
-// app/sign-in-modal.tsx's / app/my-analyses/delete-analysis-button.tsx's
+// app/sign-in-modal.tsx's / app/my-analyses/delete-analysis-dialog.tsx's
 // own createPortal pattern), positioned from the trigger's live
 // getBoundingClientRect() rather than plain CSS-relative absolute
 // positioning — this row lives inside the desktop table's
@@ -189,7 +193,11 @@ export function OverflowMenu({
                   setIsOpen(false);
                   item.onSelect();
                 }}
-                className="flex h-9 w-full items-center rounded-[8px] px-3 text-left text-[13px] font-medium text-[#111827] transition hover:bg-[#F3E8FF] hover:text-[#7C3AED] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-[#111827]"
+                className={
+                  item.variant === "destructive"
+                    ? "flex h-9 w-full items-center rounded-[8px] px-3 text-left text-[13px] font-medium text-[#EF4444] transition hover:bg-[#FEF2F2] hover:text-[#DC2626] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-[#EF4444]"
+                    : "flex h-9 w-full items-center rounded-[8px] px-3 text-left text-[13px] font-medium text-[#111827] transition hover:bg-[#F3E8FF] hover:text-[#7C3AED] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-[#111827]"
+                }
               >
                 {item.label}
               </button>
