@@ -7,7 +7,15 @@ import {
   formatAnalysisCreatedAt,
   parseScoreSummary,
   type AnalysesListClient,
+  type MyAnalysesListItem,
 } from "../app/my-analyses/analyses-list";
+import {
+  PAGE_SIZE,
+  filterAnalysesByRisk,
+  filterAnalysesByTitle,
+  getTotalPages,
+  paginateAnalyses,
+} from "../app/my-analyses/analyses-search";
 
 let failures = 0;
 
@@ -98,8 +106,8 @@ async function checkQueryShape(): Promise<void> {
   );
 
   check(
-    "the query has a fixed limit",
-    calls.limitCount === 50
+    "the query has a fixed limit of 200 (raised from 50 to give client-side Pagination more to page through)",
+    calls.limitCount === 200
   );
 
   check(
@@ -255,6 +263,119 @@ function checkParseScoreSummary(): void {
         hook: 1,
         retentionRisk: 1,
       }) === null
+  );
+}
+
+function makeItem(overrides: Partial<MyAnalysesListItem> = {}): MyAnalysesListItem {
+  return {
+    id: "item-1",
+    title: "An analysis",
+    createdAt: "2026-07-17T12:00:00.000Z",
+    locale: "en",
+    scores: { overall: 80, hook: 80, retentionRisk: 10 },
+    ...overrides,
+  };
+}
+
+// Pure, dependency-free functions (no React/context) imported directly from
+// analyses-search.tsx and executed here — unlike the source-text-shape
+// checks elsewhere in this file (see checkDashboardShape's comment on why
+// this repo has no React/DOM test harness), these can be, and are, called
+// and asserted on directly.
+function checkPaginationHelpers(): void {
+  check("PAGE_SIZE is exactly 10", PAGE_SIZE === 10);
+
+  check(
+    "getTotalPages never returns fewer than 1 page, even for an empty list",
+    getTotalPages(0) === 1
+  );
+  check(
+    "getTotalPages rounds up a partial final page",
+    getTotalPages(10) === 1 &&
+      getTotalPages(11) === 2 &&
+      getTotalPages(25) === 3 &&
+      getTotalPages(200) === 20
+  );
+
+  const twentyFiveItems = Array.from({ length: 25 }, (_, index) =>
+    makeItem({ id: `item-${index + 1}`, title: `Analysis ${index + 1}` })
+  );
+
+  check(
+    "paginateAnalyses returns exactly PAGE_SIZE items for a full page",
+    paginateAnalyses(twentyFiveItems, 1).length === 10 &&
+      paginateAnalyses(twentyFiveItems, 1)[0]?.id === "item-1" &&
+      paginateAnalyses(twentyFiveItems, 1)[9]?.id === "item-10"
+  );
+  check(
+    "paginateAnalyses returns the remainder on the final partial page",
+    paginateAnalyses(twentyFiveItems, 3).length === 5 &&
+      paginateAnalyses(twentyFiveItems, 3)[0]?.id === "item-21" &&
+      paginateAnalyses(twentyFiveItems, 3)[4]?.id === "item-25"
+  );
+  check(
+    "paginateAnalyses returns an empty page past the end of the list (clamping is the caller's job, not this pure slice)",
+    paginateAnalyses(twentyFiveItems, 5).length === 0
+  );
+
+  check(
+    "default page is page 1 in spirit: paginateAnalyses(items, 1) is the natural starting page",
+    paginateAnalyses(twentyFiveItems, 1)[0]?.id === "item-1"
+  );
+
+  // Composition order: Search, then Risk Filter, then Pagination — over the
+  // *complete* combined Search+Filter result, never the raw list. Built so
+  // that doing Pagination first (or Search/Filter after) would produce a
+  // visibly different, wrong page: 12 matching and 12 non-matching items
+  // are interleaved, so any 10-item raw page mixes both — pre-paginating
+  // and then searching only ever finds a handful of matches per page,
+  // while searching first finds all 12 matches before paginating.
+  const mixedItems = Array.from({ length: 24 }, (_, index) =>
+    index % 2 === 0
+      ? makeItem({
+          id: `match-${index / 2 + 1}`,
+          title: `Hook analysis ${index / 2 + 1}`,
+          scores: { overall: 80, hook: 80, retentionRisk: 10 },
+        })
+      : makeItem({
+          id: `nomatch-${(index - 1) / 2 + 1}`,
+          title: `Retention piece ${(index - 1) / 2 + 1}`,
+          scores: { overall: 80, hook: 80, retentionRisk: 10 },
+        })
+  );
+
+  const searchedThenPaginated = paginateAnalyses(
+    filterAnalysesByRisk(filterAnalysesByTitle(mixedItems, "hook"), "all"),
+    1
+  );
+  const paginatedThenSearched = filterAnalysesByTitle(
+    paginateAnalyses(mixedItems, 1),
+    "hook"
+  );
+
+  check(
+    "pagination operates on the full Search+Filter result, not a pre-paginated slice",
+    searchedThenPaginated.length === 10 &&
+      searchedThenPaginated.every((item) => item.id.startsWith("match-")) &&
+      // Proof the order matters: pre-paginating page 1 of the raw,
+      // interleaved 24-item list (10 items, half match/half not) and only
+      // then searching "hook" finds far fewer matches than searching the
+      // complete list first.
+      paginatedThenSearched.length === 5
+  );
+
+  // Null-score filtering behavior is unchanged by adding Pagination: still
+  // visible under "all", still excluded from every specific tier.
+  const withNullScore = [
+    makeItem({ id: "has-score", scores: { overall: 80, hook: 80, retentionRisk: 70 } }),
+    makeItem({ id: "no-score", scores: null }),
+  ];
+
+  check(
+    "null-score rows remain visible under the All filter and excluded from a specific tier, unaffected by pagination",
+    filterAnalysesByRisk(withNullScore, "all").length === 2 &&
+      filterAnalysesByRisk(withNullScore, "high").length === 1 &&
+      filterAnalysesByRisk(withNullScore, "high")[0]?.id === "has-score"
   );
 }
 
@@ -522,7 +643,13 @@ function checkDashboardShape(): void {
     !combinedSource.includes("<select") &&
       (searchSource.match(/<input/g) ?? []).length === 1 &&
       !pageSource.includes("<input") &&
-      !/date|daterange|timerange/i.test(searchSource)
+      // Word-ish boundaries deliberately, not a bare /date/ substring test
+      // — "update" (used all over this file's own comments, e.g.
+      // router.refresh()/setState prose) contains "date" as a substring
+      // and would otherwise false-positive here.
+      !/type=["']date["']|date-?picker|date-?range|time-?range/i.test(
+        searchSource
+      )
   );
 
   check(
@@ -566,7 +693,7 @@ function checkSearchShape(): void {
     "search messages are threaded through props, not useMessages(), typed as a narrowed Pick of the real Messages shape",
     !searchSource.includes("useMessages(") &&
       searchSource.includes(
-        'Pick<Messages["myAnalyses"], "table" | "list" | "search" | "filters">'
+        'Pick<Messages["myAnalyses"], "table" | "list" | "search" | "filters" | "pagination">'
       )
   );
 
@@ -717,9 +844,26 @@ function checkFiltersShape(): void {
 
   check(
     "Search and the Risk filter compose with AND — both predicates run before either results view renders",
-    (searchSource.match(
-      /filterAnalysesByRisk\(\s*filterAnalysesByTitle\(items, query\),\s*riskFilter,\s*\)/g
-    ) ?? []).length === 2
+    (() => {
+      const composedCount = (
+        searchSource.match(
+          /filterAnalysesByRisk\(\s*filterAnalysesByTitle\(items, query\),\s*riskFilter,\s*\)/g
+        ) ?? []
+      ).length;
+      // Composition now lives once, centrally, inside
+      // useSearchedAndFilteredAnalyses (which Pagination also builds on —
+      // see checkPaginationShape) rather than being duplicated per
+      // breakpoint the way it briefly was pre-Pagination; both results
+      // components below call that one hook.
+      const bothComponentsUseSharedHook =
+        (
+          searchSource.match(
+            /const \{ pageItems, totalPages \} = useSearchedAndFilteredAnalyses\(items\);/g
+          ) ?? []
+        ).length === 2;
+
+      return composedCount === 1 && bothComponentsUseSharedHook;
+    })()
   );
 
   check(
@@ -830,9 +974,279 @@ function checkFiltersShape(): void {
   check(
     "no function-valued message is passed as a prop across the Server/Client boundary for the filter bar either — SearchMyAnalyses/SearchResults stay narrowed Pick<> types",
     searchSource.includes(
-      'Pick<Messages["myAnalyses"], "table" | "list" | "search" | "filters">'
+      'Pick<Messages["myAnalyses"], "table" | "list" | "search" | "filters" | "pagination">'
     ) &&
       pageSource.includes("filters: myAnalyses.filters,")
+  );
+}
+
+// Pagination structural checks — same source-shape convention as
+// checkSearchShape/checkFiltersShape above (no React/DOM test harness
+// exists here; the pure logic itself is covered directly and executably by
+// checkPaginationHelpers).
+function checkPaginationShape(): void {
+  const pageSource = readFileSync("app/my-analyses/page.tsx", "utf8");
+  const searchSource = readFileSync(
+    "app/my-analyses/analyses-search.tsx",
+    "utf8"
+  );
+  const analysesListSource = readFileSync(
+    "app/my-analyses/analyses-list.ts",
+    "utf8"
+  );
+
+  check(
+    "MY_ANALYSES_LIMIT is 200",
+    /MY_ANALYSES_LIMIT\s*=\s*200/.test(analysesListSource)
+  );
+
+  check(
+    "pagination is applied after Search and the Risk filter, over their complete combined result — never before",
+    (() => {
+      const fnStart = searchSource.indexOf(
+        "function useSearchedAndFilteredAnalyses"
+      );
+      // The function's own return type is a multi-line object literal
+      // ending in its own "\n}" before the real body opens (the body
+      // actually starts at "} {" — return-type close, then body open) —
+      // so the body's closing brace must be searched for *after* that
+      // point, not from fnStart directly.
+      const returnTypeCloseIndex =
+        fnStart >= 0 ? searchSource.indexOf("} {", fnStart) : -1;
+      const fnEnd =
+        returnTypeCloseIndex >= 0
+          ? searchSource.indexOf("\n}", returnTypeCloseIndex + 3)
+          : -1;
+      const body =
+        fnStart >= 0 && fnEnd > fnStart
+          ? searchSource.slice(fnStart, fnEnd)
+          : "";
+
+      // filterAnalysesByRisk( is the *outer* call and textually precedes
+      // its own nested filterAnalysesByTitle( argument — so comparing raw
+      // text positions would get evaluation order backwards. Instead,
+      // assert the actual nesting (Title search innermost, so it runs
+      // first; Risk filter wraps it into `combinedItems`) and that
+      // Pagination is applied to that exact combined value, not the raw
+      // `items`.
+      const hasSearchNestedInsideRiskFilter =
+        /const combinedItems = filterAnalysesByRisk\(\s*filterAnalysesByTitle\(items, query\),\s*riskFilter,\s*\);/.test(
+          body
+        );
+      const paginatesOverTheCombinedResult = /paginateAnalyses\(\s*combinedItems,/.test(
+        body
+      );
+
+      return hasSearchNestedInsideRiskFilter && paginatesOverTheCombinedResult;
+    })()
+  );
+
+  check(
+    "default page is 1",
+    searchSource.includes("useState(1)")
+  );
+
+  check(
+    "the query and risk filter changing resets page to 1 during AnalysesSearchProvider's own render, not inside a useEffect — this is same-component state (the Provider owns `page` and adjusts it directly), unlike the cross-component clamp below which correctly does use an effect",
+    /if \(lastResetFor\.query !== query \|\| lastResetFor\.riskFilter !== riskFilter\)/.test(
+      searchSource
+    ) &&
+      /setLastResetFor\(\{ query, riskFilter \}\);\s*setPage\(1\);/.test(
+        searchSource
+      ) &&
+      !/useEffect\(\(\) => \{\s*setPage\(1\)/.test(searchSource)
+  );
+
+  check(
+    "clearing the search query resets page to 1 because it changes `query` (no special-cased clear-vs-type distinction)",
+    (searchSource.match(/setQuery\(""\)/g) ?? []).length >= 2
+  );
+
+  check(
+    "selecting All resets page to 1 because it changes `riskFilter` (no special-cased All-vs-other distinction)",
+    searchSource.includes('setRiskFilter(value)')
+  );
+
+  check(
+    "the composed result shrinking clamps the current page instead of resetting it to 1 (a stale out-of-range page is pulled down to the new last page, not back to page 1)",
+    (() => {
+      const fnStart = searchSource.indexOf(
+        "function useSearchedAndFilteredAnalyses"
+      );
+      const returnTypeCloseIndex =
+        fnStart >= 0 ? searchSource.indexOf("} {", fnStart) : -1;
+      const fnEnd =
+        returnTypeCloseIndex >= 0
+          ? searchSource.indexOf("\n}", returnTypeCloseIndex + 3)
+          : -1;
+      const body =
+        fnStart >= 0 && fnEnd > fnStart
+          ? searchSource.slice(fnStart, fnEnd)
+          : "";
+
+      return (
+        body.includes("if (page > totalPages)") &&
+        body.includes("setPage(totalPages)") &&
+        body.includes("Math.min(page, totalPages)") &&
+        !body.includes("setPage(1)")
+      );
+    })()
+  );
+
+  // Regression guard: useSearchedAndFilteredAnalyses runs inside
+  // AnalysesSearchDesktopResults/AnalysesSearchMobileResults — different
+  // component instances than AnalysesSearchProvider, which actually owns
+  // `page`/`setPage`. Calling `setPage` synchronously in this hook's body
+  // (outside an effect) would update a *different* component's state
+  // during *this* component's render — exactly React's "Cannot update a
+  // component (AnalysesSearchProvider) while rendering a different
+  // component (AnalysesSearchDesktopResults/MobileResults)" hazard, not
+  // the safe "adjust your own state during render" pattern the Provider's
+  // own `lastResetFor` reset correctly uses above. This only ever
+  // reproduces once the composed result actually shrinks while the user is
+  // on a later page — normal browser smoke-testing on page 1 never
+  // triggers it, which is exactly why this needs a standing structural
+  // check rather than relying on it always being caught by hand.
+  check(
+    "regression guard: the cross-component page clamp only ever calls the Provider's setPage from inside a useEffect, never synchronously during a child component's render",
+    (() => {
+      const fnStart = searchSource.indexOf(
+        "function useSearchedAndFilteredAnalyses"
+      );
+      const returnTypeCloseIndex =
+        fnStart >= 0 ? searchSource.indexOf("} {", fnStart) : -1;
+      const fnEnd =
+        returnTypeCloseIndex >= 0
+          ? searchSource.indexOf("\n}", returnTypeCloseIndex + 3)
+          : -1;
+      const body =
+        fnStart >= 0 && fnEnd > fnStart
+          ? searchSource.slice(fnStart, fnEnd)
+          : "";
+
+      const effectMatch =
+        /useEffect\(\(\) => \{([\s\S]*?)\}, \[page, totalPages, setPage\]\);/.exec(
+          body
+        );
+      const effectBody = effectMatch ? effectMatch[1] : "";
+      const totalSetPageCalls = (body.match(/setPage\(/g) ?? []).length;
+
+      return (
+        effectMatch !== null &&
+        effectBody.includes("if (page > totalPages)") &&
+        effectBody.includes("setPage(totalPages)") &&
+        // Exactly one setPage(...) call in this whole child-rendered hook,
+        // and it's the one already confirmed to live inside the effect —
+        // so it categorically cannot also exist as a bare render-time call.
+        totalSetPageCalls === 1
+      );
+    })()
+  );
+
+  check(
+    "page can never go below 1 or above the total page count",
+    searchSource.includes("Math.min(page, totalPages)") &&
+      /getTotalPages[\s\S]{0,80}Math\.max\(1,/.test(searchSource)
+  );
+
+  check(
+    "Previous and Next are real <button> elements using the native disabled attribute at the page boundaries, not just a visual style",
+    /<button[\s\S]{0,40}disabled=\{page <= 1\}/.test(searchSource) &&
+      /<button[\s\S]{0,40}disabled=\{page >= totalPages\}/.test(searchSource)
+  );
+
+  check(
+    "pagination controls are wrapped in a labelled <nav> landmark with an accessible pagination label",
+    /<nav\s+aria-label=\{paginationMessages\.ariaLabel\}/.test(searchSource)
+  );
+
+  check(
+    "the Page X of Y indicator is announced via aria-live=\"polite\" without stealing focus (no manual .focus() call)",
+    searchSource.includes('aria-live="polite"') &&
+      !searchSource.includes(".focus()")
+  );
+
+  check(
+    "the entire pagination control is hidden (not just disabled) when the composed result has zero or one page",
+    /if \(totalPages <= 1\) \{\s*return null;\s*\}/.test(searchSource)
+  );
+
+  check(
+    "the Page X of Y text is built from plain string messages plus local numeric state, never a message function",
+    searchSource.includes(
+      "paginationMessages.pageLabel} {page} {paginationMessages.ofLabel}"
+    ) && !/pagination\.\w+\(/.test(searchSource)
+  );
+
+  check(
+    "no duplicated page-size constant or competing page-size threshold exists outside the one exported PAGE_SIZE",
+    (searchSource.match(/PAGE_SIZE\s*=\s*10/g) ?? []).length === 1 &&
+      !/\/\s*10\b/.test(
+        searchSource.slice(searchSource.indexOf("function paginateAnalyses"))
+      )
+  );
+
+  check(
+    "pagination state (page/setPage) lives on the one existing SearchContext, not a second provider — desktop and mobile share one page state",
+    (searchSource.match(/= createContext/g) ?? []).length === 1 &&
+      (searchSource.match(/function AnalysesSearchProvider/g) ?? [])
+        .length === 1 &&
+      (() => {
+        const typeStart = searchSource.indexOf("type SearchContextValue");
+        const typeEnd =
+          typeStart >= 0 ? searchSource.indexOf("};", typeStart) : -1;
+        const body =
+          typeStart >= 0 && typeEnd > typeStart
+            ? searchSource.slice(typeStart, typeEnd)
+            : "";
+
+        return body.includes("page") && body.includes("setPage");
+      })()
+  );
+
+  check(
+    "pagination controls are rendered once per breakpoint via the shared results components (no separate control mounted directly in page.tsx)",
+    (searchSource.match(/<PaginationControls\b/g) ?? []).length === 2 &&
+      !pageSource.includes("PaginationControls")
+  );
+
+  check(
+    "myAnalyses.pagination keys are covered for every launched locale, and are plain strings, not functions",
+    LAUNCHED_LOCALES.every((locale) => {
+      const pagination = getMessages(locale).myAnalyses.pagination;
+
+      return (
+        typeof pagination.ariaLabel === "string" &&
+        pagination.ariaLabel.length > 0 &&
+        typeof pagination.previousLabel === "string" &&
+        pagination.previousLabel.length > 0 &&
+        typeof pagination.nextLabel === "string" &&
+        pagination.nextLabel.length > 0 &&
+        typeof pagination.pageLabel === "string" &&
+        pagination.pageLabel.length > 0 &&
+        typeof pagination.ofLabel === "string" &&
+        pagination.ofLabel.length > 0
+      );
+    })
+  );
+
+  check(
+    "EN and RU pagination labels are actually localized (not identical strings)",
+    getMessages("en").myAnalyses.pagination.ariaLabel !==
+      getMessages("ru").myAnalyses.pagination.ariaLabel &&
+      getMessages("en").myAnalyses.pagination.previousLabel !==
+        getMessages("ru").myAnalyses.pagination.previousLabel &&
+      getMessages("en").myAnalyses.pagination.nextLabel !==
+        getMessages("ru").myAnalyses.pagination.nextLabel
+  );
+
+  check(
+    "only a narrow, explicitly-constructed plain object crosses the Server/Client boundary for pagination messages too — SearchMyAnalyses includes 'pagination', and page.tsx builds it as a plain field, never spreading the full myAnalyses tree",
+    searchSource.includes(
+      'Pick<Messages["myAnalyses"], "table" | "list" | "search" | "filters" | "pagination">'
+    ) &&
+      pageSource.includes("pagination: myAnalyses.pagination,") &&
+      !pageSource.includes("...myAnalyses")
   );
 }
 
@@ -844,12 +1258,14 @@ async function main(): Promise<void> {
   await checkDatabaseError();
   await checkUnexpectedClientError();
   checkParseScoreSummary();
+  checkPaginationHelpers();
   checkDateFormatting();
   checkMessageCoverage();
   checkPageSourceShape();
   checkDashboardShape();
   checkSearchShape();
   checkFiltersShape();
+  checkPaginationShape();
 
   if (failures > 0) {
     console.error(`\nMy Analyses tests: ${failures} failed`);

@@ -754,6 +754,13 @@ const enMessages = {
       noResultsCombinedDescription:
         "Try changing your search or selecting a different risk level.",
     },
+    pagination: {
+      ariaLabel: "Analyses pagination",
+      previousLabel: "Previous",
+      nextLabel: "Next",
+      pageLabel: "Page",
+      ofLabel: "of",
+    },
   },
 } as const;
 
@@ -1495,6 +1502,13 @@ const ruMessages = {
         "Нет анализов, соответствующих поиску и фильтру",
       noResultsCombinedDescription:
         "Попробуйте изменить поисковый запрос или выбрать другой уровень риска.",
+    },
+    pagination: {
+      ariaLabel: "Навигация по страницам анализов",
+      previousLabel: "Назад",
+      nextLabel: "Далее",
+      pageLabel: "Страница",
+      ofLabel: "из",
     },
   },
 } satisfies Messages;

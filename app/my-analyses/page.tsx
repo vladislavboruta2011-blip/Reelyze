@@ -99,9 +99,9 @@ function ErrorState({ myAnalyses }: { myAnalyses: Messages["myAnalyses"] }) {
 }
 
 // Open is implemented as its own standalone action; Rename and Delete both
-// live inside the row's overflow menu (see AnalysisActionsMenu). No rerun,
-// no search/filters/custom sorting, no pagination UI — those all land in
-// later PRs.
+// live inside the row's overflow menu (see AnalysisActionsMenu). Title
+// Search, the Risk filter, and Pagination all live in analyses-search.tsx.
+// No rerun or custom sorting — those remain out of scope.
 export default async function MyAnalysesPage() {
   const user = await getCurrentUserOrNull();
 
@@ -129,6 +129,7 @@ export default async function MyAnalysesPage() {
     list: myAnalyses.list,
     search: myAnalyses.search,
     filters: myAnalyses.filters,
+    pagination: myAnalyses.pagination,
   };
   const searchResults: SearchResults = {
     scoreCards: results.scoreCards,
