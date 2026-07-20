@@ -411,6 +411,39 @@ function checkMessageCoverage(): void {
   );
 
   check(
+    "myAnalyses.loading heading/description are covered, non-empty, and plain strings for every launched locale",
+    LAUNCHED_LOCALES.every((locale) => {
+      const loading = getMessages(locale).myAnalyses.loading;
+
+      return (
+        typeof loading.heading === "string" &&
+        loading.heading.length > 0 &&
+        typeof loading.description === "string" &&
+        loading.description.length > 0
+      );
+    })
+  );
+
+  check(
+    "myAnalyses.error.retryLabel is covered, non-empty, and a plain string for every launched locale",
+    LAUNCHED_LOCALES.every((locale) => {
+      const retryLabel = getMessages(locale).myAnalyses.error.retryLabel;
+
+      return typeof retryLabel === "string" && retryLabel.length > 0;
+    })
+  );
+
+  check(
+    "EN and RU loading heading/description and retry label are actually localized (not identical strings)",
+    getMessages("en").myAnalyses.loading.heading !==
+      getMessages("ru").myAnalyses.loading.heading &&
+      getMessages("en").myAnalyses.loading.description !==
+        getMessages("ru").myAnalyses.loading.description &&
+      getMessages("en").myAnalyses.error.retryLabel !==
+        getMessages("ru").myAnalyses.error.retryLabel
+  );
+
+  check(
     "myAnalyses subtitle and dashboard table column keys are covered for every launched locale",
     LAUNCHED_LOCALES.every((locale) => {
       const myAnalyses = getMessages(locale).myAnalyses;
@@ -508,12 +541,19 @@ function checkDashboardShape(): void {
   // The desktop table, mobile card, and their row cells were extracted
   // into analyses-search.tsx (alongside the search feature that now
   // drives which rows they show) — checks on that moved markup read the
-  // combined source of both files, not page.tsx alone.
+  // combined source of both files, not page.tsx alone. The Loading / Empty
+  // / Error states feature further extracted the list fetch and its
+  // Error/Empty branching into analyses-content.tsx (see that file's own
+  // comment), so ErrorState now lives there too.
   const searchSource = readFileSync(
     "app/my-analyses/analyses-search.tsx",
     "utf8"
   );
-  const combinedSource = `${pageSource}\n${searchSource}`;
+  const contentSource = readFileSync(
+    "app/my-analyses/analyses-content.tsx",
+    "utf8"
+  );
+  const combinedSource = `${pageSource}\n${searchSource}\n${contentSource}`;
 
   check(
     "a desktop sidebar shell exists with the Climpy logo",
@@ -654,9 +694,9 @@ function checkDashboardShape(): void {
 
   check(
     "the error state is announced via role=alert and stays localized (no raw technical detail)",
-    pageSource.includes('role="alert"') &&
-      pageSource.includes("myAnalyses.error.heading") &&
-      pageSource.includes("myAnalyses.error.description")
+    combinedSource.includes('role="alert"') &&
+      combinedSource.includes("myAnalyses.error.heading") &&
+      combinedSource.includes("myAnalyses.error.description")
   );
 
   check(
@@ -675,6 +715,15 @@ function checkSearchShape(): void {
     "app/my-analyses/analyses-search.tsx",
     "utf8"
   );
+  // AnalysesSearchBar/AnalysesFilterBar/AnalysesSearchDesktopResults/
+  // AnalysesSearchMobileResults are mounted from analyses-content.tsx (one
+  // DesktopAnalysesContent + one MobileAnalysesContent instance, each under
+  // its own <Suspense> in page.tsx — see analyses-content.tsx's own
+  // comment), not directly from page.tsx anymore.
+  const contentSource = readFileSync(
+    "app/my-analyses/analyses-content.tsx",
+    "utf8"
+  );
 
   check(
     "search state is shared via a single Context/Provider, not two independent desktop/mobile states",
@@ -686,7 +735,7 @@ function checkSearchShape(): void {
 
   check(
     "the search bar is rendered once per breakpoint, both reading the same shared context",
-    (pageSource.match(/<AnalysesSearchBar\b/g) ?? []).length === 2
+    (contentSource.match(/<AnalysesSearchBar\b/g) ?? []).length === 2
   );
 
   check(
@@ -767,7 +816,8 @@ function checkSearchShape(): void {
         getMessages("ru").myAnalyses.search.noResultsHeading
   );
 
-  // page.tsx (a Server Component) must build plain, narrowed objects
+  // analyses-content.tsx (also Server Components — DesktopAnalysesContent/
+  // MobileAnalysesContent) must build plain, narrowed objects
   // (searchMyAnalyses/searchResults) before handing them to these Client
   // Components — the full `myAnalyses`/`results` message trees contain
   // function-valued keys elsewhere (e.g. myAnalyses.delete
@@ -777,14 +827,15 @@ function checkSearchShape(): void {
   // "Functions cannot be passed directly to Client Components." the first
   // time the page actually renders (it's a force-dynamic route, so
   // `next build` never renders it to catch this). Scoped to just these
-  // three tags' own prop lists — EmptyState/ErrorState are Server
+  // four tags' own prop lists — EmptyState/ErrorState are Server
   // Components too, so their unrelated `myAnalyses={myAnalyses}` usage
-  // elsewhere in page.tsx is legitimate and must not trip this check.
+  // elsewhere in analyses-content.tsx is legitimate and must not trip this
+  // check.
   const searchClientCallSites = [
-    ...pageSource.matchAll(/<AnalysesSearchBar\b[\s\S]*?\/>/g),
-    ...pageSource.matchAll(/<AnalysesFilterBar\b[\s\S]*?\/>/g),
-    ...pageSource.matchAll(/<AnalysesSearchDesktopResults\b[\s\S]*?\/>/g),
-    ...pageSource.matchAll(/<AnalysesSearchMobileResults\b[\s\S]*?\/>/g),
+    ...contentSource.matchAll(/<AnalysesSearchBar\b[\s\S]*?\/>/g),
+    ...contentSource.matchAll(/<AnalysesFilterBar\b[\s\S]*?\/>/g),
+    ...contentSource.matchAll(/<AnalysesSearchDesktopResults\b[\s\S]*?\/>/g),
+    ...contentSource.matchAll(/<AnalysesSearchMobileResults\b[\s\S]*?\/>/g),
   ].map((match) => match[0]);
 
   check(
@@ -809,6 +860,10 @@ function checkFiltersShape(): void {
   );
   const scoreVisualsSource = readFileSync(
     "app/my-analyses/score-visuals.tsx",
+    "utf8"
+  );
+  const contentSource = readFileSync(
+    "app/my-analyses/analyses-content.tsx",
     "utf8"
   );
 
@@ -894,7 +949,7 @@ function checkFiltersShape(): void {
 
   check(
     "the filter bar is rendered once per breakpoint, sharing the same context as the search bar",
-    (pageSource.match(/<AnalysesFilterBar\b/g) ?? []).length === 2
+    (contentSource.match(/<AnalysesFilterBar\b/g) ?? []).length === 2
   );
 
   check(
@@ -976,7 +1031,13 @@ function checkFiltersShape(): void {
     searchSource.includes(
       'Pick<Messages["myAnalyses"], "table" | "list" | "search" | "filters" | "pagination">'
     ) &&
-      pageSource.includes("filters: myAnalyses.filters,")
+      contentSource.includes("filters: myAnalyses.filters,")
+  );
+
+  check(
+    "the filter bar is mounted from analyses-content.tsx only, never duplicated directly in page.tsx",
+    !pageSource.includes("<AnalysesFilterBar") &&
+      !pageSource.includes("filters: myAnalyses.filters,")
   );
 }
 
@@ -988,6 +1049,10 @@ function checkPaginationShape(): void {
   const pageSource = readFileSync("app/my-analyses/page.tsx", "utf8");
   const searchSource = readFileSync(
     "app/my-analyses/analyses-search.tsx",
+    "utf8"
+  );
+  const contentSource = readFileSync(
+    "app/my-analyses/analyses-content.tsx",
     "utf8"
   );
   const analysesListSource = readFileSync(
@@ -1205,9 +1270,10 @@ function checkPaginationShape(): void {
   );
 
   check(
-    "pagination controls are rendered once per breakpoint via the shared results components (no separate control mounted directly in page.tsx)",
+    "pagination controls are rendered once per breakpoint via the shared results components (no separate control mounted directly in page.tsx or analyses-content.tsx)",
     (searchSource.match(/<PaginationControls\b/g) ?? []).length === 2 &&
-      !pageSource.includes("PaginationControls")
+      !pageSource.includes("PaginationControls") &&
+      !contentSource.includes("PaginationControls")
   );
 
   check(
@@ -1241,12 +1307,224 @@ function checkPaginationShape(): void {
   );
 
   check(
-    "only a narrow, explicitly-constructed plain object crosses the Server/Client boundary for pagination messages too — SearchMyAnalyses includes 'pagination', and page.tsx builds it as a plain field, never spreading the full myAnalyses tree",
+    "only a narrow, explicitly-constructed plain object crosses the Server/Client boundary for pagination messages too — SearchMyAnalyses includes 'pagination', and analyses-content.tsx builds it as a plain field, never spreading the full myAnalyses tree",
     searchSource.includes(
       'Pick<Messages["myAnalyses"], "table" | "list" | "search" | "filters" | "pagination">'
     ) &&
-      pageSource.includes("pagination: myAnalyses.pagination,") &&
+      contentSource.includes("pagination: myAnalyses.pagination,") &&
+      !contentSource.includes("...myAnalyses") &&
       !pageSource.includes("...myAnalyses")
+  );
+}
+
+// Loading / Empty / Error states feature — same source-shape convention as
+// the other checkXShape functions above (no React/DOM test harness exists
+// here). Empty-state-vs-no-results and the list-fetch typed-result/inline
+// ErrorState behavior predate this feature and are already covered above
+// (checkEmptyState, checkDatabaseError, checkDashboardShape's role=alert
+// check); this function covers only what's new: the Loading fallback, the
+// Retry control, and the single-query architecture that makes both safe.
+function checkLoadingAndRetryShape(): void {
+  const pageSource = readFileSync("app/my-analyses/page.tsx", "utf8");
+  const contentSource = readFileSync(
+    "app/my-analyses/analyses-content.tsx",
+    "utf8"
+  );
+  const retrySource = readFileSync(
+    "app/my-analyses/retry-list-error.tsx",
+    "utf8"
+  );
+
+  check(
+    "the Suspense fallback is a narrowed Pick<Messages['myAnalyses'], 'loading'> object, not the full myAnalyses tree, and reads loading.heading/description",
+    pageSource.includes('Pick<Messages["myAnalyses"], "loading">') &&
+      pageSource.includes("myAnalyses.loading.heading") &&
+      pageSource.includes("myAnalyses.loading.description")
+  );
+
+  check(
+    "the loading card is announced via role=status and aria-live=polite — page.tsx no longer defines ErrorState (moved to analyses-content.tsx), so role=alert doesn't appear here at all",
+    /role="status"[\s\S]{0,120}aria-live="polite"/.test(pageSource) &&
+      !pageSource.includes('role="alert"')
+  );
+
+  check(
+    "no table-row or mobile-card skeleton was built for the loading state — just a small indicator, heading, and description, matching the Empty/Error card shape",
+    !/skeleton/i.test(pageSource) &&
+      !pageSource.includes("<table") &&
+      pageSource.includes("rounded-[18px] border border-[#E5E7EB] bg-white p-10 text-center")
+  );
+
+  check(
+    "the Suspense boundary is placed once per breakpoint around the analyses content, each with its own AnalysesLoadingCard fallback",
+    (pageSource.match(/<Suspense fallback=\{<AnalysesLoadingCard/g) ?? [])
+      .length === 2
+  );
+
+  check(
+    "the signed-out redirect happens before (outside) the data Suspense boundary, never inside it",
+    (() => {
+      const redirectIndex = pageSource.indexOf(
+        'redirect("/login?next=/my-analyses");'
+      );
+      const firstSuspenseIndex = pageSource.indexOf("<Suspense");
+
+      return (
+        redirectIndex >= 0 &&
+        firstSuspenseIndex > redirectIndex
+      );
+    })()
+  );
+
+  check(
+    "route-level error.tsx was deliberately not added for this feature — the expected list-fetch failure stays an inline typed-result branch",
+    (() => {
+      try {
+        readFileSync("app/my-analyses/error.tsx", "utf8");
+        return false;
+      } catch {
+        return true;
+      }
+    })()
+  );
+
+  check(
+    "fetchMyAnalyses is called from exactly one place (inside a cache()-wrapped zero-argument function in analyses-content.tsx), never directly from page.tsx or a second call site",
+    contentSource.includes('import { cache } from "react";') &&
+      /cache\(\s*async \(\): Promise<FetchMyAnalysesResult> => \{/.test(
+        contentSource
+      ) &&
+      (contentSource.match(/fetchMyAnalyses\(/g) ?? []).length === 1 &&
+      !pageSource.includes("fetchMyAnalyses")
+  );
+
+  check(
+    "both DesktopAnalysesContent and MobileAnalysesContent read the list through the one shared cache()-memoized accessor, not their own independent fetch",
+    (contentSource.match(/await getMyAnalysesResult\(\)/g) ?? []).length ===
+      2 &&
+      contentSource.includes("export async function DesktopAnalysesContent") &&
+      contentSource.includes("export async function MobileAnalysesContent")
+  );
+
+  check(
+    "the error state's Retry control calls router.refresh(), never window.location.reload() or a raw location refresh",
+    retrySource.includes("router.refresh()") &&
+      !retrySource.includes("location.reload") &&
+      !retrySource.includes("window.location")
+  );
+
+  check(
+    "Retry is a real <button>, natively disabled while a useTransition pending refresh is in flight (not a styled div or a disabled-looking class alone)",
+    /<button[\s\S]{0,60}disabled=\{isPending\}/.test(retrySource) &&
+      retrySource.includes("useTransition()") &&
+      retrySource.includes("startTransition(() => {")
+  );
+
+  check(
+    "Retry does not introduce a second pending-state label — it reuses the same label prop while disabled, no new 'Retrying...' string",
+    !/retrying/i.test(retrySource) && !/retrying/i.test(pageSource)
+  );
+
+  check(
+    "only a narrow, single string prop crosses into the Retry Client Component — never the wider myAnalyses/myAnalyses.error message subtree",
+    retrySource.includes("{ label: string }") &&
+      !retrySource.includes("Messages") &&
+      contentSource.includes("<RetryListErrorButton label={myAnalyses.error.retryLabel} />")
+  );
+
+  check(
+    "the Retry button keeps ErrorState's existing role=alert on its containing element",
+    (() => {
+      const errorStart = contentSource.indexOf("function ErrorState");
+      const errorEnd =
+        errorStart >= 0 ? contentSource.indexOf("\n}", errorStart) : -1;
+      const body =
+        errorStart >= 0 && errorEnd > errorStart
+          ? contentSource.slice(errorStart, errorEnd)
+          : "";
+
+      return (
+        body.includes('role="alert"') && body.includes("<RetryListErrorButton")
+      );
+    })()
+  );
+
+  check(
+    "the true EmptyState and the Search/Filter NoResults state are still two distinct implementations, in two different files, not merged into one",
+    contentSource.includes("function EmptyState") &&
+      !contentSource.includes("function NoResults") &&
+      (() => {
+        const searchSource = readFileSync(
+          "app/my-analyses/analyses-search.tsx",
+          "utf8"
+        );
+
+        return (
+          searchSource.includes("function NoResults") &&
+          !searchSource.includes("function EmptyState")
+        );
+      })()
+  );
+
+  check(
+    "the EmptyState New Analysis CTA is unchanged: a real Link to / using results.nav.newAnalysis, still gated on the true zero-items case only",
+    (() => {
+      // EmptyState's own params destructure across multiple lines (a plain
+      // "\n}" search would stop at the type annotation's closing brace, not
+      // the function's) — find the next function declaration instead, the
+      // same delimiter technique checkDashboardShape's OpenAnalysisButton
+      // check already uses for the identical reason.
+      const emptyStart = contentSource.indexOf("function EmptyState");
+      const emptyEnd =
+        emptyStart >= 0
+          ? contentSource.indexOf("\nfunction ", emptyStart + 1)
+          : -1;
+      const body =
+        emptyStart >= 0 && emptyEnd > emptyStart
+          ? contentSource.slice(emptyStart, emptyEnd)
+          : "";
+
+      return (
+        body.includes('<Link') &&
+        body.includes('href="/"') &&
+        body.includes("{newAnalysisLabel}") &&
+        // page.tsx builds newAnalysisLabel from results.nav.newAnalysis and
+        // threads it down as a prop through DesktopAnalysesContent/
+        // MobileAnalysesContent into EmptyState — analyses-content.tsx only
+        // ever forwards that already-resolved prop, never re-derives it.
+        pageSource.includes("newAnalysisLabel={results.nav.newAnalysis}") &&
+        contentSource.includes(
+          "newAnalysisLabel={newAnalysisLabel}"
+        )
+      );
+    })()
+  );
+
+  check(
+    "malformed-row handling is untouched by this feature — no new 'some items could not be shown' warning was added",
+    !/could not be shown/i.test(contentSource) &&
+      !/some items/i.test(contentSource)
+  );
+
+  check(
+    "Rename and Delete dialogs were not touched by this feature (still use router.refresh() on success, with no new global refresh indicator)",
+    (() => {
+      const renameSource = readFileSync(
+        "app/my-analyses/rename-analysis-dialog.tsx",
+        "utf8"
+      );
+      const deleteSource = readFileSync(
+        "app/my-analyses/delete-analysis-dialog.tsx",
+        "utf8"
+      );
+
+      return (
+        renameSource.includes("router.refresh();") &&
+        deleteSource.includes("router.refresh();") &&
+        !renameSource.includes("isRefreshing") &&
+        !deleteSource.includes("isRefreshing")
+      );
+    })()
   );
 }
 
@@ -1266,6 +1544,7 @@ async function main(): Promise<void> {
   checkSearchShape();
   checkFiltersShape();
   checkPaginationShape();
+  checkLoadingAndRetryShape();
 
   if (failures > 0) {
     console.error(`\nMy Analyses tests: ${failures} failed`);
