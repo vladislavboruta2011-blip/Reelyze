@@ -202,9 +202,9 @@ export default async function MyAnalysesPage() {
                 </div>
                 <Link
                   href="/"
-                  className="inline-flex h-[44px] shrink-0 items-center gap-2 rounded-full bg-[#7C3AED] px-5 text-[14px] font-semibold text-white transition hover:bg-[#6D28D9]"
+                  className="inline-flex h-[44px] shrink-0 items-center gap-2 rounded-full bg-[#7C3AED] px-5 text-[14px] font-semibold text-white transition hover:bg-[#6D28D9] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C3AED]"
                 >
-                  <PencilLine size={15} />
+                  <PencilLine size={16} />
                   {results.nav.newAnalysis}
                 </Link>
               </div>

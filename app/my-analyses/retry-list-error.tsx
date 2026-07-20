@@ -26,7 +26,7 @@ export function RetryListErrorButton({ label }: { label: string }) {
           router.refresh();
         });
       }}
-      className="mt-4 inline-flex h-10 items-center justify-center rounded-[10px] border border-[#7C3AED]/30 bg-white px-5 text-[13px] font-semibold text-[#7C3AED] transition hover:bg-[#F3E8FF] disabled:cursor-not-allowed disabled:opacity-60"
+      className="mt-4 inline-flex h-10 items-center justify-center rounded-[10px] border border-[#7C3AED]/30 bg-white px-5 text-[13px] font-semibold text-[#7C3AED] transition hover:bg-[#F3E8FF] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C3AED] disabled:cursor-not-allowed disabled:opacity-60"
     >
       {label}
     </button>

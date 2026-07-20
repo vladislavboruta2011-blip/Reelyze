@@ -1528,6 +1528,311 @@ function checkLoadingAndRetryShape(): void {
   );
 }
 
+// Final UI polish — same source-shape convention as the other checkXShape
+// functions above (no React/DOM test harness exists here). Scoped to each
+// control's own function body/class-string rather than one global count,
+// so a legitimate future addition of the branded focus ring elsewhere on
+// the page doesn't silently invalidate these checks (or vice versa).
+const BRANDED_FOCUS_VISIBLE =
+  "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C3AED]";
+
+// Extracts a top-level function's source by name, delimited by the next
+// top-level "function "/"export function "/"export async function "
+// declaration — mirrors the delimiter technique already used elsewhere in
+// this file (e.g. checkDashboardShape's OpenAnalysisButton check) for
+// functions whose own params span multiple lines, where a naive "\n}"
+// search would stop at the params' closing brace instead of the
+// function's.
+function extractFunctionSource(source: string, functionName: string): string {
+  const start = source.indexOf(`function ${functionName}`);
+
+  if (start < 0) {
+    return "";
+  }
+
+  const nextMatch = /\n(export )?(async )?function /.exec(
+    source.slice(start + 1)
+  );
+  const end = nextMatch ? start + 1 + nextMatch.index : source.length;
+
+  return source.slice(start, end);
+}
+
+function checkUiPolishShape(): void {
+  const pageSource = readFileSync("app/my-analyses/page.tsx", "utf8");
+  const searchSource = readFileSync(
+    "app/my-analyses/analyses-search.tsx",
+    "utf8"
+  );
+  const scoreVisualsSource = readFileSync(
+    "app/my-analyses/score-visuals.tsx",
+    "utf8"
+  );
+  const overflowMenuSource = readFileSync(
+    "app/my-analyses/overflow-menu.tsx",
+    "utf8"
+  );
+  const retrySource = readFileSync(
+    "app/my-analyses/retry-list-error.tsx",
+    "utf8"
+  );
+
+  const searchBarSource = extractFunctionSource(
+    searchSource,
+    "AnalysesSearchBar"
+  );
+
+  check(
+    "the search input has a visible focus replacement — outline-none is always paired with the branded focus-visible treatment, never left with no replacement",
+    searchBarSource.includes("outline-none") &&
+      searchBarSource.includes(BRANDED_FOCUS_VISIBLE)
+  );
+
+  check(
+    "the search bar's clear button also carries the branded focus-visible treatment",
+    (() => {
+      const clearButtonStart = searchBarSource.indexOf(
+        'onClick={() => setQuery("")}'
+      );
+      const clearButtonEnd =
+        clearButtonStart >= 0
+          ? searchBarSource.indexOf("</button>", clearButtonStart)
+          : -1;
+      const clearButtonSource =
+        clearButtonStart >= 0 && clearButtonEnd > clearButtonStart
+          ? searchBarSource.slice(clearButtonStart, clearButtonEnd)
+          : "";
+
+      return clearButtonSource.includes(BRANDED_FOCUS_VISIBLE);
+    })()
+  );
+
+  check(
+    "Risk Filter chips (both the active and inactive class branches) carry the branded focus-visible treatment",
+    (() => {
+      const filterBarSource = extractFunctionSource(
+        searchSource,
+        "AnalysesFilterBar"
+      );
+      const brandedCount = (
+        filterBarSource.match(
+          /focus-visible:outline-\[#7C3AED\]/g
+        ) ?? []
+      ).length;
+
+      // Both the isActive and the inactive className branches must carry
+      // it — not just one — since RISK_FILTER_OPTIONS.map renders every
+      // chip from this same ternary regardless of which branch is active.
+      return brandedCount === 2;
+    })()
+  );
+
+  check(
+    "Pagination Previous and Next both carry the branded focus-visible treatment, and disabled opacity matches the Rename/Delete/Retry pattern (opacity-60, not the old opacity-40)",
+    (() => {
+      const paginationSource = extractFunctionSource(
+        searchSource,
+        "PaginationControls"
+      );
+      const brandedCount = (
+        paginationSource.match(/focus-visible:outline-\[#7C3AED\]/g) ?? []
+      ).length;
+
+      return (
+        brandedCount === 2 &&
+        paginationSource.includes("disabled:opacity-60") &&
+        !paginationSource.includes("disabled:opacity-40") &&
+        // Boundary logic itself must be untouched by this feature.
+        paginationSource.includes("disabled={page <= 1}") &&
+        paginationSource.includes("disabled={page >= totalPages}")
+      );
+    })()
+  );
+
+  check(
+    "the Open action (shared by the desktop table and mobile card) carries the branded focus-visible treatment",
+    extractFunctionSource(searchSource, "OpenAnalysisButton").includes(
+      BRANDED_FOCUS_VISIBLE
+    )
+  );
+
+  check(
+    "the desktop header New Analysis CTA carries the branded focus-visible treatment and uses PencilLine size 16 (matching the sidebar scale, not the old odd size 15)",
+    (() => {
+      // page.tsx has four href="/" links (sidebar nav, this header CTA,
+      // the mobile top CTA, the mobile bottom nav) — "h-[44px] shrink-0" is
+      // this specific CTA's own unique className fragment, so anchoring on
+      // it (rather than the ambiguous href) can't accidentally match one
+      // of the other three links.
+      const headerStart = pageSource.indexOf("h-[44px] shrink-0");
+      const ctaEnd =
+        headerStart >= 0 ? pageSource.indexOf("</Link>", headerStart) : -1;
+      const ctaSource =
+        headerStart >= 0 && ctaEnd > headerStart
+          ? pageSource.slice(headerStart, ctaEnd)
+          : "";
+
+      return (
+        ctaSource.includes(BRANDED_FOCUS_VISIBLE) &&
+        ctaSource.includes("<PencilLine size={16} />")
+      );
+    })()
+  );
+
+  check(
+    "no PencilLine size=15 remains anywhere on the page — the desktop header CTA was the only such usage",
+    !pageSource.includes("<PencilLine size={15}")
+  );
+
+  check(
+    "the mobile bottom-navigation PencilLine icon size is unchanged at 14 — mobile icon sizing is deferred to the separate Mobile polish feature",
+    (() => {
+      const mobileStart = pageSource.indexOf('{/* MOBILE */}');
+      const mobileSection =
+        mobileStart >= 0 ? pageSource.slice(mobileStart) : "";
+
+      return (
+        mobileStart >= 0 &&
+        mobileSection.includes("<PencilLine size={14} />")
+      );
+    })()
+  );
+
+  check(
+    "the overflow-menu trigger button carries the branded focus-visible treatment",
+    (() => {
+      const triggerStart = overflowMenuSource.indexOf("<button\n        ref={triggerRef}");
+      const triggerEnd =
+        triggerStart >= 0
+          ? overflowMenuSource.indexOf("</button>", triggerStart)
+          : -1;
+      const triggerSource =
+        triggerStart >= 0 && triggerEnd > triggerStart
+          ? overflowMenuSource.slice(triggerStart, triggerEnd)
+          : "";
+
+      return triggerSource.includes(BRANDED_FOCUS_VISIBLE);
+    })()
+  );
+
+  check(
+    "both overflow-menu item class branches (destructive and default) carry the branded focus-visible treatment, without disturbing the existing ArrowUp/Down/Home/End keyboard-cycling logic",
+    (() => {
+      // Scoped to just the items.map ternary — the trigger button (checked
+      // separately above) also legitimately carries this same string, so
+      // counting across the whole file would over-count.
+      const ternaryStart = overflowMenuSource.indexOf(
+        'item.variant === "destructive"'
+      );
+      const ternaryEnd =
+        ternaryStart >= 0
+          ? overflowMenuSource.indexOf("{item.label}", ternaryStart)
+          : -1;
+      const ternarySource =
+        ternaryStart >= 0 && ternaryEnd > ternaryStart
+          ? overflowMenuSource.slice(ternaryStart, ternaryEnd)
+          : "";
+      const brandedCount = (
+        ternarySource.match(/focus-visible:outline-\[#7C3AED\]/g) ?? []
+      ).length;
+
+      return (
+        brandedCount === 2 &&
+        overflowMenuSource.includes("ArrowDown") &&
+        overflowMenuSource.includes("ArrowUp") &&
+        overflowMenuSource.includes('event.key === "Home"') &&
+        overflowMenuSource.includes('event.key === "End"')
+      );
+    })()
+  );
+
+  check(
+    "the Retry button carries the branded focus-visible treatment",
+    retrySource.includes(BRANDED_FOCUS_VISIBLE)
+  );
+
+  check(
+    "no focus-visible styling was added to any non-interactive element (ScoreRing/RiskIndicator/ScoreUnavailableBadge stay plain <div>/<span> with no focus ring)",
+    !scoreVisualsSource.includes("focus-visible")
+  );
+
+  check(
+    "no #9CA3AF usage remains anywhere in the My Analyses UI — every previously-identified informational/interactive usage (unavailable-score text, timestamps, search placeholder, clear-button foreground) was replaced with the AA-safe #6B7280, and no new third gray token was introduced",
+    !searchSource.includes("#9CA3AF") &&
+      !scoreVisualsSource.includes("#9CA3AF") &&
+      !pageSource.includes("#9CA3AF")
+  );
+
+  check(
+    "ScoreUnavailableBadge text uses the accessible #6B7280 muted color",
+    extractFunctionSource(
+      scoreVisualsSource,
+      "ScoreUnavailableBadge"
+    ).includes("text-[#6B7280]")
+  );
+
+  check(
+    "both the desktop table's and mobile card's timestamp text use the accessible #6B7280 muted color",
+    (() => {
+      const scriptCellSource = extractFunctionSource(searchSource, "ScriptCell");
+      const mobileCardSource = extractFunctionSource(
+        searchSource,
+        "AnalysisMobileCard"
+      );
+
+      return (
+        scriptCellSource.includes("text-[#6B7280] lg:hidden") &&
+        mobileCardSource.includes(
+          '<span className="text-[11px] text-[#6B7280]">'
+        )
+      );
+    })()
+  );
+
+  check(
+    "the search placeholder and the clear button's resting foreground both use the accessible #6B7280 color",
+    searchBarSource.includes("placeholder:text-[#6B7280]") &&
+      (() => {
+        const clearButtonStart = searchBarSource.indexOf(
+          'onClick={() => setQuery("")}'
+        );
+        const clearButtonEnd =
+          clearButtonStart >= 0
+            ? searchBarSource.indexOf("</button>", clearButtonStart)
+            : -1;
+        const clearButtonSource =
+          clearButtonStart >= 0 && clearButtonEnd > clearButtonStart
+            ? searchBarSource.slice(clearButtonStart, clearButtonEnd)
+            : "";
+
+        return clearButtonSource.includes("text-[#6B7280]");
+      })()
+  );
+
+  check(
+    "no result-count / 'Showing X of Y' element was added — explicitly out of scope for this feature",
+    !searchSource.includes("Showing") &&
+      !pageSource.includes("Showing") &&
+      !/\bresultCount\b|\bresultsCount\b/i.test(searchSource)
+  );
+
+  check(
+    "no shared Button/Chip/Card/focus-style primitive was extracted — every control keeps its own inline className, matching the explicit no-refactor scope for this feature",
+    !searchSource.includes("./button") &&
+      !searchSource.includes("./chip") &&
+      !pageSource.includes("./button") &&
+      !pageSource.includes("./chip")
+  );
+
+  check(
+    "Search, Risk Filter, and Pagination logic/thresholds are untouched by this feature",
+    searchSource.includes("item.title.toLowerCase().includes") &&
+      searchSource.includes('riskFilter === "all"') &&
+      searchSource.includes("riskTier(item.scores.retentionRisk) === riskFilter") &&
+      /PAGE_SIZE\s*=\s*10/.test(searchSource)
+  );
+}
+
 async function main(): Promise<void> {
   await checkQueryShape();
   await checkEmptyState();
@@ -1545,6 +1850,7 @@ async function main(): Promise<void> {
   checkFiltersShape();
   checkPaginationShape();
   checkLoadingAndRetryShape();
+  checkUiPolishShape();
 
   if (failures > 0) {
     console.error(`\nMy Analyses tests: ${failures} failed`);

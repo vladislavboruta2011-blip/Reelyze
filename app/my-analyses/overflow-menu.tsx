@@ -161,7 +161,7 @@ export function OverflowMenu({
         aria-expanded={isOpen}
         aria-label={triggerLabel}
         onClick={() => (isOpen ? closeMenu() : openMenu())}
-        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#E5E7EB] bg-white text-[#6B7280] transition hover:border-[#DDD6FE] hover:text-[#7C3AED]"
+        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#E5E7EB] bg-white text-[#6B7280] transition hover:border-[#DDD6FE] hover:text-[#7C3AED] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C3AED]"
       >
         <MoreVertical size={16} aria-hidden="true" />
       </button>
@@ -195,8 +195,8 @@ export function OverflowMenu({
                 }}
                 className={
                   item.variant === "destructive"
-                    ? "flex h-9 w-full items-center rounded-[8px] px-3 text-left text-[13px] font-medium text-[#EF4444] transition hover:bg-[#FEF2F2] hover:text-[#DC2626] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-[#EF4444]"
-                    : "flex h-9 w-full items-center rounded-[8px] px-3 text-left text-[13px] font-medium text-[#111827] transition hover:bg-[#F3E8FF] hover:text-[#7C3AED] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-[#111827]"
+                    ? "flex h-9 w-full items-center rounded-[8px] px-3 text-left text-[13px] font-medium text-[#EF4444] transition hover:bg-[#FEF2F2] hover:text-[#DC2626] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C3AED] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-[#EF4444]"
+                    : "flex h-9 w-full items-center rounded-[8px] px-3 text-left text-[13px] font-medium text-[#111827] transition hover:bg-[#F3E8FF] hover:text-[#7C3AED] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C3AED] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-[#111827]"
                 }
               >
                 {item.label}

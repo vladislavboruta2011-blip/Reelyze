@@ -72,7 +72,7 @@ function ScriptCell({
           <span className="rounded-full border border-[#E5E7EB] px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.06em] text-[#6B7280]">
             {localeLabel(item.locale)}
           </span>
-          <span className="text-[11px] text-[#9CA3AF] lg:hidden">
+          <span className="text-[11px] text-[#6B7280] lg:hidden">
             {formatAnalysisCreatedAt(item.createdAt)}
           </span>
         </div>
@@ -114,7 +114,7 @@ function OpenAnalysisButton({
       href={`/my-analyses/${id}`}
       aria-label={`${label}: ${title}`}
       className={[
-        "inline-flex h-8 shrink-0 items-center justify-center rounded-full border border-[#DDD6FE] bg-[#F3E8FF] px-3 text-[11px] font-semibold text-[#7C3AED] transition hover:bg-[#EDE9FE]",
+        "inline-flex h-8 shrink-0 items-center justify-center rounded-full border border-[#DDD6FE] bg-[#F3E8FF] px-3 text-[11px] font-semibold text-[#7C3AED] transition hover:bg-[#EDE9FE] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C3AED]",
         className,
       ].join(" ")}
     >
@@ -245,7 +245,7 @@ function AnalysisMobileCard({
             {item.title}
           </h2>
           <div className="mt-1.5 flex flex-wrap items-center gap-2">
-            <span className="text-[11px] text-[#9CA3AF]">
+            <span className="text-[11px] text-[#6B7280]">
               {formatAnalysisCreatedAt(item.createdAt)}
             </span>
             <span className="rounded-full border border-[#E5E7EB] px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.06em] text-[#6B7280]">
@@ -519,7 +519,7 @@ function PaginationControls({
         type="button"
         disabled={page <= 1}
         onClick={() => setPage(page - 1)}
-        className="inline-flex h-9 items-center justify-center rounded-full border border-[#E5E7EB] bg-white px-4 text-[13px] font-medium text-[#6B7280] transition hover:text-[#111827] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-[#6B7280]"
+        className="inline-flex h-9 items-center justify-center rounded-full border border-[#E5E7EB] bg-white px-4 text-[13px] font-medium text-[#6B7280] transition hover:text-[#111827] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C3AED] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:text-[#6B7280]"
       >
         {paginationMessages.previousLabel}
       </button>
@@ -534,7 +534,7 @@ function PaginationControls({
         type="button"
         disabled={page >= totalPages}
         onClick={() => setPage(page + 1)}
-        className="inline-flex h-9 items-center justify-center rounded-full border border-[#E5E7EB] bg-white px-4 text-[13px] font-medium text-[#6B7280] transition hover:text-[#111827] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-[#6B7280]"
+        className="inline-flex h-9 items-center justify-center rounded-full border border-[#E5E7EB] bg-white px-4 text-[13px] font-medium text-[#6B7280] transition hover:text-[#111827] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C3AED] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:text-[#6B7280]"
       >
         {paginationMessages.nextLabel}
       </button>
@@ -567,14 +567,14 @@ export function AnalysesSearchBar({
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         placeholder={searchMessages.placeholder}
-        className="h-full w-full bg-transparent text-[14px] text-[#111827] outline-none placeholder:text-[#9CA3AF]"
+        className="h-full w-full bg-transparent text-[14px] text-[#111827] outline-none placeholder:text-[#6B7280] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C3AED]"
       />
       {query.length > 0 && (
         <button
           type="button"
           onClick={() => setQuery("")}
           aria-label={searchMessages.clearLabel}
-          className="shrink-0 rounded-full p-1 text-[#9CA3AF] transition hover:bg-[#F3E8FF] hover:text-[#7C3AED]"
+          className="shrink-0 rounded-full p-1 text-[#6B7280] transition hover:bg-[#F3E8FF] hover:text-[#7C3AED] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C3AED]"
         >
           <X size={14} aria-hidden="true" />
         </button>
@@ -635,8 +635,8 @@ export function AnalysesFilterBar({
             onClick={() => setRiskFilter(value)}
             className={
               isActive
-                ? "inline-flex h-9 items-center justify-center rounded-full border border-[#DDD6FE] bg-[#F3E8FF] px-4 text-[13px] font-semibold text-[#7C3AED] transition"
-                : "inline-flex h-9 items-center justify-center rounded-full border border-[#E5E7EB] bg-white px-4 text-[13px] font-medium text-[#6B7280] transition hover:text-[#111827]"
+                ? "inline-flex h-9 items-center justify-center rounded-full border border-[#DDD6FE] bg-[#F3E8FF] px-4 text-[13px] font-semibold text-[#7C3AED] transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C3AED]"
+                : "inline-flex h-9 items-center justify-center rounded-full border border-[#E5E7EB] bg-white px-4 text-[13px] font-medium text-[#6B7280] transition hover:text-[#111827] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C3AED]"
             }
           >
             {labelFor(value)}
