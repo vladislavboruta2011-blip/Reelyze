@@ -114,7 +114,11 @@ function OpenAnalysisButton({
       href={`/my-analyses/${id}`}
       aria-label={`${label}: ${title}`}
       className={[
-        "inline-flex h-8 shrink-0 items-center justify-center rounded-full border border-[#DDD6FE] bg-[#F3E8FF] px-3 text-[11px] font-semibold text-[#7C3AED] transition hover:bg-[#EDE9FE] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C3AED]",
+        // h-10 by default (mobile — a bigger tap target for this per-row
+        // action on touch), lg:h-8 restores the exact desktop height this
+        // shared component (also used by the desktop table row) already
+        // had before this change.
+        "inline-flex h-10 shrink-0 items-center justify-center rounded-full border border-[#DDD6FE] bg-[#F3E8FF] px-3 text-[11px] font-semibold text-[#7C3AED] transition hover:bg-[#EDE9FE] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C3AED] lg:h-8",
         className,
       ].join(" ")}
     >
@@ -574,7 +578,7 @@ export function AnalysesSearchBar({
           type="button"
           onClick={() => setQuery("")}
           aria-label={searchMessages.clearLabel}
-          className="shrink-0 rounded-full p-1 text-[#6B7280] transition hover:bg-[#F3E8FF] hover:text-[#7C3AED] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C3AED]"
+          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[#6B7280] transition hover:bg-[#F3E8FF] hover:text-[#7C3AED] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C3AED]"
         >
           <X size={14} aria-hidden="true" />
         </button>

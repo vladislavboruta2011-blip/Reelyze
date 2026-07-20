@@ -1833,6 +1833,202 @@ function checkUiPolishShape(): void {
   );
 }
 
+// Mobile polish — same source-shape convention as the other checkXShape
+// functions above (no React/DOM test harness exists here). Scoped to each
+// control's own function body/class-string, mirroring
+// checkUiPolishShape's own approach.
+function checkMobilePolishShape(): void {
+  const searchSource = readFileSync(
+    "app/my-analyses/analyses-search.tsx",
+    "utf8"
+  );
+  const overflowMenuSource = readFileSync(
+    "app/my-analyses/overflow-menu.tsx",
+    "utf8"
+  );
+
+  const searchBarSource = extractFunctionSource(
+    searchSource,
+    "AnalysesSearchBar"
+  );
+
+  check(
+    "the search clear button has an explicit accessible hit area (h-8 w-8, not the old p-1-only sizing), with the same X icon and clear behavior unchanged",
+    (() => {
+      const clearButtonStart = searchBarSource.indexOf(
+        'onClick={() => setQuery("")}'
+      );
+      const clearButtonEnd =
+        clearButtonStart >= 0
+          ? searchBarSource.indexOf("</button>", clearButtonStart)
+          : -1;
+      const clearButtonSource =
+        clearButtonStart >= 0 && clearButtonEnd > clearButtonStart
+          ? searchBarSource.slice(clearButtonStart, clearButtonEnd)
+          : "";
+
+      return (
+        clearButtonSource.includes("h-8 w-8") &&
+        !clearButtonSource.includes(" p-1 ") &&
+        clearButtonSource.includes("<X size={14} aria-hidden=\"true\" />") &&
+        clearButtonSource.includes(BRANDED_FOCUS_VISIBLE)
+      );
+    })()
+  );
+
+  check(
+    "OpenAnalysisButton (shared by the desktop table row and the mobile card) is bigger by default for a mobile tap target, with an explicit lg:h-8 override restoring the exact pre-existing desktop height — no separate mobile-only component was created",
+    (() => {
+      const openButtonSource = extractFunctionSource(
+        searchSource,
+        "OpenAnalysisButton"
+      );
+
+      // Anchored on the override sitting immediately before the class
+      // string's own closing quote (`lg:h-8",`) rather than just
+      // `.includes("lg:h-8")` — this file's own explanatory comment above
+      // the className also mentions "lg:h-8" in prose, so a bare substring
+      // check would pass even if the real className lacked it.
+      return (
+        /\bh-10\b/.test(openButtonSource) &&
+        openButtonSource.includes('lg:h-8",')
+      );
+    })()
+  );
+
+  check(
+    "the overflow-menu trigger is bigger by default for a mobile tap target, with an explicit lg:h-8 lg:w-8 override restoring the exact pre-existing desktop size",
+    (() => {
+      const triggerStart = overflowMenuSource.indexOf(
+        "<button\n        ref={triggerRef}"
+      );
+      const triggerEnd =
+        triggerStart >= 0
+          ? overflowMenuSource.indexOf("</button>", triggerStart)
+          : -1;
+      const triggerSource =
+        triggerStart >= 0 && triggerEnd > triggerStart
+          ? overflowMenuSource.slice(triggerStart, triggerEnd)
+          : "";
+
+      // Anchored on the override sitting immediately before the
+      // className attribute's own closing quote (`lg:h-8 lg:w-8"`) —
+      // same rationale as the OpenAnalysisButton check above.
+      return (
+        /\bh-10 w-10\b/.test(triggerSource) &&
+        triggerSource.includes('lg:h-8 lg:w-8"')
+      );
+    })()
+  );
+
+  check(
+    "this feature did not touch card-row layout, long-title behavior, Risk Filter chips, Pagination, the mobile header CTA/sign-out, the Retry button, or the bottom navigation",
+    (() => {
+      const mobileCardSource = extractFunctionSource(
+        searchSource,
+        "AnalysisMobileCard"
+      );
+      const filterBarSource = extractFunctionSource(
+        searchSource,
+        "AnalysesFilterBar"
+      );
+      const paginationSource = extractFunctionSource(
+        searchSource,
+        "PaginationControls"
+      );
+      const retrySource = readFileSync(
+        "app/my-analyses/retry-list-error.tsx",
+        "utf8"
+      );
+      const signOutSource = readFileSync(
+        "app/my-analyses/sidebar-sign-out-button.tsx",
+        "utf8"
+      );
+      const pageSource = readFileSync("app/my-analyses/page.tsx", "utf8");
+
+      // Scoped to just the action row (scores + Open + overflow), not the
+      // whole card — AnalysisMobileCard's own top badge row already
+      // legitimately uses "flex flex-wrap items-center gap-2" (pre-dates
+      // this feature, for locale/timestamp badges), so a whole-function
+      // substring check would false-positive on that unrelated row.
+      const actionRowStart = mobileCardSource.indexOf(
+        "flex items-end justify-between gap-3"
+      );
+      const actionRowEnd =
+        actionRowStart >= 0
+          ? mobileCardSource.indexOf("</li>", actionRowStart)
+          : -1;
+      const actionRowSource =
+        actionRowStart >= 0 && actionRowEnd > actionRowStart
+          ? mobileCardSource.slice(actionRowStart, actionRowEnd)
+          : "";
+
+      return (
+        actionRowStart >= 0 &&
+        !actionRowSource.includes("flex-wrap") &&
+        mobileCardSource.includes('className="truncate text-[15px]') &&
+        filterBarSource.includes("h-9") &&
+        !filterBarSource.includes("h-10") &&
+        paginationSource.includes("h-9") &&
+        !paginationSource.includes("h-10") &&
+        retrySource.includes("h-10") &&
+        !retrySource.includes("h-11") &&
+        signOutSource.includes("h-9") &&
+        !signOutSource.includes("h-10") &&
+        pageSource.includes(
+          'className="inline-flex h-9 items-center justify-center rounded-full bg-[#7C3AED] px-4 text-[13px] font-semibold text-white"'
+        ) &&
+        pageSource.includes('h-[76px] border-t')
+      );
+    })()
+  );
+
+  check(
+    "no localization work was introduced — messages.ts is untouched by this feature (no new/changed message keys)",
+    (() => {
+      const messagesSource = readFileSync("lib/messages.ts", "utf8");
+
+      // A loose but sufficient guard: the exact known myAnalyses.loading /
+      // error.retryLabel keys from the prior feature must still be the
+      // most recently added myAnalyses-scoped keys — i.e. this feature
+      // didn't add anything new under myAnalyses in either locale block.
+      return (
+        messagesSource.includes("retryLabel: \"Try again\"") &&
+        messagesSource.includes("retryLabel: \"Повторить\"")
+      );
+    })()
+  );
+
+  check(
+    "no route-level loading.tsx or error.tsx was added, and no URL-based state (useSearchParams/router.push with query strings) was introduced for Search/Filter/Pagination",
+    (() => {
+      let hasLoadingFile = false;
+      let hasErrorFile = false;
+
+      try {
+        readFileSync("app/my-analyses/loading.tsx", "utf8");
+        hasLoadingFile = true;
+      } catch {
+        hasLoadingFile = false;
+      }
+
+      try {
+        readFileSync("app/my-analyses/error.tsx", "utf8");
+        hasErrorFile = true;
+      } catch {
+        hasErrorFile = false;
+      }
+
+      return (
+        !hasLoadingFile &&
+        !hasErrorFile &&
+        !searchSource.includes("useSearchParams") &&
+        !searchSource.includes("router.push")
+      );
+    })()
+  );
+}
+
 async function main(): Promise<void> {
   await checkQueryShape();
   await checkEmptyState();
@@ -1851,6 +2047,7 @@ async function main(): Promise<void> {
   checkPaginationShape();
   checkLoadingAndRetryShape();
   checkUiPolishShape();
+  checkMobilePolishShape();
 
   if (failures > 0) {
     console.error(`\nMy Analyses tests: ${failures} failed`);

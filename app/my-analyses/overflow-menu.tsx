@@ -161,7 +161,11 @@ export function OverflowMenu({
         aria-expanded={isOpen}
         aria-label={triggerLabel}
         onClick={() => (isOpen ? closeMenu() : openMenu())}
-        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#E5E7EB] bg-white text-[#6B7280] transition hover:border-[#DDD6FE] hover:text-[#7C3AED] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C3AED]"
+        // h-10 w-10 by default (mobile — a bigger tap target for this
+        // per-row trigger on touch), lg:h-8 lg:w-8 restores the exact
+        // desktop size this shared trigger (also used by the desktop table
+        // row) already had before this change.
+        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#E5E7EB] bg-white text-[#6B7280] transition hover:border-[#DDD6FE] hover:text-[#7C3AED] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C3AED] lg:h-8 lg:w-8"
       >
         <MoreVertical size={16} aria-hidden="true" />
       </button>
