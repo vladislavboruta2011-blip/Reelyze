@@ -65,7 +65,7 @@ export function ScoreRing({
 // same for every user.
 export function ScoreUnavailableBadge({ label }: { label: string }) {
   return (
-    <span className="inline-flex h-10 min-w-10 items-center justify-center rounded-full border border-dashed border-[#E5E7EB] px-2 text-[10px] font-medium text-[#9CA3AF]">
+    <span className="inline-flex h-10 min-w-10 items-center justify-center rounded-full border border-dashed border-[#E5E7EB] px-2 text-[10px] font-medium text-[#6B7280]">
       {label}
     </span>
   );
