@@ -1,22 +1,15 @@
 import Image from "next/image";
 import Link from "next/link";
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { FileText, HelpCircle, History, PencilLine } from "lucide-react";
+import { HelpCircle, History, Loader2, PencilLine } from "lucide-react";
 import { createSupabaseServerClient } from "../../lib/supabase/server";
 import { getMessages, type Messages } from "../../lib/messages";
 import { DEFAULT_LOCALE } from "../../lib/i18n";
 import { toSessionUser } from "../../lib/session-user";
-import { fetchMyAnalyses } from "./analyses-list";
 import { SidebarSignOutButton } from "./sidebar-sign-out-button";
-import {
-  AnalysesSearchProvider,
-  AnalysesSearchBar,
-  AnalysesFilterBar,
-  AnalysesSearchDesktopResults,
-  AnalysesSearchMobileResults,
-  type SearchMyAnalyses,
-  type SearchResults,
-} from "./analyses-search";
+import { AnalysesSearchProvider } from "./analyses-search";
+import { DesktopAnalysesContent, MobileAnalysesContent } from "./analyses-content";
 
 // Always re-runs the query on navigation/refresh — a newly saved analysis
 // must show up without a stale cached render. No real-time subscription is
@@ -54,45 +47,38 @@ function initialsFromName(name: string): string {
   return (first + last).toUpperCase();
 }
 
-function EmptyState({
+// The Suspense fallback for both DesktopAnalysesContent and
+// MobileAnalysesContent (analyses-content.tsx) — a static, non-interactive
+// card, so this stays a plain Server Component (no "use client" needed).
+// Deliberately the same rounded-card shape as analyses-content.tsx's
+// Empty/Error states for visual consistency, and deliberately just a small
+// spin icon plus heading and description — no per-row placeholder rows or
+// per-card mobile shapes, out of scope for this feature. The status/polite
+// ARIA pairing below (distinct from the alert role ErrorState uses) is the
+// correct pairing for a non-error, in-progress announcement.
+function AnalysesLoadingCard({
   myAnalyses,
-  newAnalysisLabel,
 }: {
-  myAnalyses: Messages["myAnalyses"];
-  newAnalysisLabel: string;
+  myAnalyses: Pick<Messages["myAnalyses"], "loading">;
 }) {
   return (
-    <div className="rounded-[18px] border border-[#E5E7EB] bg-white p-10 text-center">
+    <div
+      role="status"
+      aria-live="polite"
+      className="rounded-[18px] border border-[#E5E7EB] bg-white p-10 text-center"
+    >
       <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-[#DDD6FE] bg-[#F3E8FF]">
-        <FileText size={20} className="text-[#7C3AED]" aria-hidden="true" />
+        <Loader2
+          size={20}
+          className="animate-spin text-[#7C3AED]"
+          aria-hidden="true"
+        />
       </div>
       <h2 className="mt-4 text-[18px] font-semibold text-[#111827]">
-        {myAnalyses.empty.heading}
+        {myAnalyses.loading.heading}
       </h2>
       <p className="mx-auto mt-2 max-w-[360px] text-[14px] leading-[1.6] text-[#6B7280]">
-        {myAnalyses.empty.description}
-      </p>
-      <Link
-        href="/"
-        className="mt-6 inline-flex h-[44px] items-center justify-center rounded-[12px] bg-[#7C3AED] px-6 text-[14px] font-semibold text-white transition hover:bg-[#6D28D9]"
-      >
-        {newAnalysisLabel}
-      </Link>
-    </div>
-  );
-}
-
-function ErrorState({ myAnalyses }: { myAnalyses: Messages["myAnalyses"] }) {
-  return (
-    <div
-      role="alert"
-      className="rounded-[18px] border border-[#7C3AED]/30 bg-[#F3E8FF] p-8 text-center"
-    >
-      <p className="text-[15px] font-semibold text-[#7C3AED]">
-        {myAnalyses.error.heading}
-      </p>
-      <p className="mx-auto mt-2 max-w-[360px] text-[13px] text-[#6B7280]">
-        {myAnalyses.error.description}
+        {myAnalyses.loading.description}
       </p>
     </div>
   );
@@ -116,26 +102,6 @@ export default async function MyAnalysesPage() {
   const results = messages.results;
   const myAnalyses = messages.myAnalyses;
 
-  // Client Components can only receive plain serializable props — never
-  // functions (see analyses-search.tsx's comment on SearchMyAnalyses /
-  // SearchResults). `results` and `myAnalyses` above contain function-valued
-  // keys elsewhere (e.g. results.script.characterCount,
-  // myAnalyses.delete.dialogDescriptionWithTitle), so these plain objects —
-  // built from only the string subtrees the search components read — are
-  // what actually crosses the Server/Client boundary below, not the wider
-  // objects themselves.
-  const searchMyAnalyses: SearchMyAnalyses = {
-    table: myAnalyses.table,
-    list: myAnalyses.list,
-    search: myAnalyses.search,
-    filters: myAnalyses.filters,
-    pagination: myAnalyses.pagination,
-  };
-  const searchResults: SearchResults = {
-    scoreCards: results.scoreCards,
-    scoreLabels: results.scoreLabels,
-  };
-
   // Real authenticated user data only (name for the account area) — never
   // the email address, matching how AuthNav (app/auth-nav.tsx) already
   // avoids showing it anywhere in the UI. No avatar image is fetched: the
@@ -143,23 +109,15 @@ export default async function MyAnalysesPage() {
   // here makes an external image request.
   const sessionUser = toSessionUser(user);
 
-  // Session-bound, RLS-enforced client — the same one used to resolve the
-  // user above. Never the service-role client: RLS's
-  // analyses_select_own policy (auth.uid() = user_id) is what actually
-  // restricts this to the signed-in user's own rows, and no user id is
-  // ever passed into the query for that reason.
-  const supabase = await createSupabaseServerClient();
-  const result = await fetchMyAnalyses(supabase);
-
-  const content = !result.ok ? (
-    <ErrorState myAnalyses={myAnalyses} />
-  ) : result.items.length === 0 ? (
-    <EmptyState
-      myAnalyses={myAnalyses}
-      newAnalysisLabel={results.nav.newAnalysis}
-    />
-  ) : null;
-
+  // The analyses list query itself (and the narrow, function-free message
+  // objects Client Components further down need) now live in
+  // analyses-content.tsx, awaited lazily inside DesktopAnalysesContent /
+  // MobileAnalysesContent under the <Suspense> boundaries below — not here
+  // — so this chrome (sidebar, heading, "New Analysis" CTA, mobile nav)
+  // renders immediately instead of blocking on that fetch. See
+  // analyses-content.tsx's own comment for why there are two content
+  // components/boundaries (one per breakpoint) sharing one cache()-backed
+  // query rather than a single shared boundary.
   return (
     <AnalysesSearchProvider>
       <main className="min-h-screen bg-[#FAFAFA] text-[#111827]">
@@ -251,22 +209,13 @@ export default async function MyAnalysesPage() {
                 </Link>
               </div>
 
-              {content}
-
-              {result.ok && result.items.length > 0 && (
-                <>
-                  <AnalysesSearchBar myAnalyses={searchMyAnalyses} />
-                  <AnalysesFilterBar
-                    myAnalyses={searchMyAnalyses}
-                    results={searchResults}
-                  />
-                  <AnalysesSearchDesktopResults
-                    items={result.items}
-                    myAnalyses={searchMyAnalyses}
-                    results={searchResults}
-                  />
-                </>
-              )}
+              <Suspense fallback={<AnalysesLoadingCard myAnalyses={myAnalyses} />}>
+                <DesktopAnalysesContent
+                  myAnalyses={myAnalyses}
+                  results={results}
+                  newAnalysisLabel={results.nav.newAnalysis}
+                />
+              </Suspense>
             </div>
           </section>
         </div>
@@ -307,22 +256,13 @@ export default async function MyAnalysesPage() {
             </div>
 
             <div className="mt-6 px-5">
-              {content}
-
-              {result.ok && result.items.length > 0 && (
-                <>
-                  <AnalysesSearchBar myAnalyses={searchMyAnalyses} />
-                  <AnalysesFilterBar
-                    myAnalyses={searchMyAnalyses}
-                    results={searchResults}
-                  />
-                  <AnalysesSearchMobileResults
-                    items={result.items}
-                    myAnalyses={searchMyAnalyses}
-                    results={searchResults}
-                  />
-                </>
-              )}
+              <Suspense fallback={<AnalysesLoadingCard myAnalyses={myAnalyses} />}>
+                <MobileAnalysesContent
+                  myAnalyses={myAnalyses}
+                  results={results}
+                  newAnalysisLabel={results.nav.newAnalysis}
+                />
+              </Suspense>
             </div>
           </div>
 

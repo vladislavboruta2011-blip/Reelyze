@@ -679,9 +679,14 @@ const enMessages = {
       description:
         "Analyze a script and save it to see it listed here.",
     },
+    loading: {
+      heading: "Loading your analyses...",
+      description: "This should only take a moment.",
+    },
     error: {
       heading: "Could not load your analyses.",
       description: "Please refresh the page to try again.",
+      retryLabel: "Try again",
     },
     list: {
       scoreUnavailable: "Unavailable",
@@ -1426,9 +1431,14 @@ const ruMessages = {
       description:
         "Проанализируйте сценарий и сохраните его, чтобы увидеть здесь.",
     },
+    loading: {
+      heading: "Загружаем ваши анализы...",
+      description: "Это займёт всего мгновение.",
+    },
     error: {
       heading: "Не удалось загрузить ваши анализы.",
       description: "Обновите страницу, чтобы попробовать ещё раз.",
+      retryLabel: "Повторить",
     },
     list: {
       scoreUnavailable: "Недоступно",
