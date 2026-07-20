@@ -1,14 +1,15 @@
 import Link from "next/link";
 import { getMessages } from "../../../lib/messages";
-import { DEFAULT_LOCALE } from "../../../lib/i18n";
+import { getServerLocale } from "../../../lib/server-locale";
 
 // Renders whenever app/my-analyses/[id]/page.tsx calls notFound() — both
 // for an id that never existed and for one owned by another user (RLS
-// makes those indistinguishable; see fetch-analysis.ts). Locale isn't yet
-// threaded through server-rendered routes (LocaleProvider is client-only),
-// matching the same limitation already noted in app/my-analyses/page.tsx.
-export default function AnalysisNotFound() {
-  const messages = getMessages(DEFAULT_LOCALE);
+// makes those indistinguishable; see fetch-analysis.ts). Resolves the same
+// real locale app/my-analyses/page.tsx does, via the same climpy-locale
+// cookie — see lib/server-locale.ts.
+export default async function AnalysisNotFound() {
+  const locale = await getServerLocale();
+  const messages = getMessages(locale);
   const openMessages = messages.myAnalyses.open;
 
   return (

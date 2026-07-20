@@ -3,6 +3,7 @@ import Link from "next/link";
 import { FileText } from "lucide-react";
 import { createSupabaseServerClient } from "../../lib/supabase/server";
 import type { Messages } from "../../lib/messages";
+import type { Locale } from "../../lib/i18n";
 import { fetchMyAnalyses, type FetchMyAnalysesResult } from "./analyses-list";
 import {
   AnalysesSearchBar,
@@ -119,12 +120,20 @@ type AnalysesContentProps = {
   myAnalyses: Messages["myAnalyses"];
   results: Messages["results"];
   newAnalysisLabel: string;
+  // The already-resolved interface locale (see page.tsx's own comment on
+  // getServerLocale) — a plain string, not a message object, so it's
+  // threaded down as its own prop rather than folded into
+  // searchMyAnalyses/searchResults. Used only for date formatting
+  // (analyses-search.tsx's formatAnalysisCreatedAt call sites); it never
+  // changes which messages are shown, only how a date/timestamp renders.
+  locale: Locale;
 };
 
 export async function DesktopAnalysesContent({
   myAnalyses,
   results,
   newAnalysisLabel,
+  locale,
 }: AnalysesContentProps) {
   const result = await getMyAnalysesResult();
 
@@ -149,6 +158,7 @@ export async function DesktopAnalysesContent({
         items={result.items}
         myAnalyses={searchMyAnalyses}
         results={searchResults}
+        locale={locale}
       />
     </>
   );
@@ -158,6 +168,7 @@ export async function MobileAnalysesContent({
   myAnalyses,
   results,
   newAnalysisLabel,
+  locale,
 }: AnalysesContentProps) {
   const result = await getMyAnalysesResult();
 
@@ -182,6 +193,7 @@ export async function MobileAnalysesContent({
         items={result.items}
         myAnalyses={searchMyAnalyses}
         results={searchResults}
+        locale={locale}
       />
     </>
   );

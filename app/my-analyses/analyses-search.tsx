@@ -53,9 +53,11 @@ function localeLabel(locale: string): string {
 function ScriptCell({
   item,
   myAnalyses,
+  locale,
 }: {
   item: MyAnalysesListItem;
   myAnalyses: SearchMyAnalyses;
+  locale: Locale;
 }) {
   return (
     <div className="flex min-w-0 items-start gap-3">
@@ -73,7 +75,7 @@ function ScriptCell({
             {localeLabel(item.locale)}
           </span>
           <span className="text-[11px] text-[#6B7280] lg:hidden">
-            {formatAnalysisCreatedAt(item.createdAt)}
+            {formatAnalysisCreatedAt(item.createdAt, locale)}
           </span>
         </div>
       </div>
@@ -131,10 +133,12 @@ function AnalysesTable({
   items,
   myAnalyses,
   results,
+  locale,
 }: {
   items: MyAnalysesListItem[];
   myAnalyses: SearchMyAnalyses;
   results: SearchResults;
+  locale: Locale;
 }) {
   const columnHeaderClasses =
     "px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]";
@@ -174,10 +178,10 @@ function AnalysesTable({
                 scope="row"
                 className="max-w-[320px] px-5 py-4 text-left align-middle font-normal"
               >
-                <ScriptCell item={item} myAnalyses={myAnalyses} />
+                <ScriptCell item={item} myAnalyses={myAnalyses} locale={locale} />
               </th>
               <td className="px-5 py-4 align-middle text-[13px] text-[#6B7280]">
-                {formatAnalysisCreatedAt(item.createdAt)}
+                {formatAnalysisCreatedAt(item.createdAt, locale)}
               </td>
               <td className="px-5 py-4 align-middle text-center">
                 <div className="flex justify-center">
@@ -231,10 +235,12 @@ function AnalysisMobileCard({
   item,
   myAnalyses,
   results,
+  locale,
 }: {
   item: MyAnalysesListItem;
   myAnalyses: SearchMyAnalyses;
   results: SearchResults;
+  locale: Locale;
 }) {
   return (
     <li className="rounded-[18px] border border-[#E5E7EB] bg-white p-5">
@@ -250,7 +256,7 @@ function AnalysisMobileCard({
           </h2>
           <div className="mt-1.5 flex flex-wrap items-center gap-2">
             <span className="text-[11px] text-[#6B7280]">
-              {formatAnalysisCreatedAt(item.createdAt)}
+              {formatAnalysisCreatedAt(item.createdAt, locale)}
             </span>
             <span className="rounded-full border border-[#E5E7EB] px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.06em] text-[#6B7280]">
               {localeLabel(item.locale)}
@@ -716,10 +722,12 @@ export function AnalysesSearchDesktopResults({
   items,
   myAnalyses,
   results,
+  locale,
 }: {
   items: MyAnalysesListItem[];
   myAnalyses: SearchMyAnalyses;
   results: SearchResults;
+  locale: Locale;
 }) {
   const { pageItems, totalPages } = useSearchedAndFilteredAnalyses(items);
 
@@ -731,6 +739,7 @@ export function AnalysesSearchDesktopResults({
         items={pageItems}
         myAnalyses={myAnalyses}
         results={results}
+        locale={locale}
       />
       <PaginationControls myAnalyses={myAnalyses} totalPages={totalPages} />
     </>
@@ -741,10 +750,12 @@ export function AnalysesSearchMobileResults({
   items,
   myAnalyses,
   results,
+  locale,
 }: {
   items: MyAnalysesListItem[];
   myAnalyses: SearchMyAnalyses;
   results: SearchResults;
+  locale: Locale;
 }) {
   const { pageItems, totalPages } = useSearchedAndFilteredAnalyses(items);
 
@@ -759,6 +770,7 @@ export function AnalysesSearchMobileResults({
             item={item}
             myAnalyses={myAnalyses}
             results={results}
+            locale={locale}
           />
         ))}
       </ul>

@@ -425,6 +425,70 @@ function checkMessageCoverage(): void {
   );
 }
 
+// The opened-analysis route (this page.tsx plus not-found.tsx) used to
+// hardcode getMessages(DEFAULT_LOCALE), the exact same "not threaded
+// through server-rendered routes yet" gap app/my-analyses/page.tsx had —
+// now both resolve the real locale via the same lib/server-locale.ts
+// helper the list page uses, so the opened-analysis error state and the
+// not-found state stay consistent with the rest of the signed-in
+// experience instead of silently reverting to English.
+function checkServerLocaleResolutionShape(): void {
+  const pageSource = readFileSync("app/my-analyses/[id]/page.tsx", "utf8");
+  const notFoundSource = readFileSync(
+    "app/my-analyses/[id]/not-found.tsx",
+    "utf8"
+  );
+
+  check(
+    "the opened-analysis error state (page.tsx) no longer hardcodes getMessages(DEFAULT_LOCALE) — it resolves the real locale via getServerLocale()",
+    !pageSource.includes("getMessages(DEFAULT_LOCALE)") &&
+      pageSource.includes(
+        'import { getServerLocale } from "../../../lib/server-locale";'
+      ) &&
+      pageSource.includes("const locale = await getServerLocale();") &&
+      pageSource.includes("const messages = getMessages(locale);")
+  );
+
+  check(
+    "the not-found state no longer hardcodes getMessages(DEFAULT_LOCALE) either, resolves the same way, and is now an async component (required to await getServerLocale())",
+    !notFoundSource.includes("getMessages(DEFAULT_LOCALE)") &&
+      notFoundSource.includes(
+        'import { getServerLocale } from "../../../lib/server-locale";'
+      ) &&
+      notFoundSource.includes("const locale = await getServerLocale();") &&
+      notFoundSource.includes(
+        "export default async function AnalysisNotFound()"
+      )
+  );
+
+  check(
+    "both routes resolve locale through the exact same shared helper — no separate/duplicated cookie-reading logic invented per route",
+    (() => {
+      const serverLocaleSource = readFileSync(
+        "lib/server-locale.ts",
+        "utf8"
+      );
+
+      return (
+        serverLocaleSource.includes(
+          "export async function getServerLocale"
+        ) &&
+        pageSource.includes('from "../../../lib/server-locale"') &&
+        notFoundSource.includes('from "../../../lib/server-locale"')
+      );
+    })()
+  );
+
+  check(
+    "no Supabase query, RLS policy, schema, or service-role code was touched by this locale fix — only which locale getMessages() is called with changed",
+    !pageSource.includes("service") &&
+      !pageSource.includes(".rpc(") &&
+      pageSource.includes(
+        'import { createSupabaseServerClient } from "../../../lib/supabase/server";'
+      )
+  );
+}
+
 async function main(): Promise<void> {
   await checkOwnerAccess();
   await checkUnauthorizedOrMissingAccess();
@@ -437,6 +501,7 @@ async function main(): Promise<void> {
   checkResultsPageDedupShape();
   checkOpenButtonSourceShape();
   checkMessageCoverage();
+  checkServerLocaleResolutionShape();
 
   if (failures > 0) {
     console.error(`\nOpen Saved Analysis tests: ${failures} failed`);

@@ -1,3 +1,4 @@
+import { DEFAULT_LOCALE, type Locale } from "../../lib/i18n";
 import type { AnalysisV2Scores } from "../../engine/analysis-v2-schema";
 
 // Fixed cap on what a single request ever fetches — client-side Pagination
@@ -164,9 +165,25 @@ export async function fetchMyAnalyses(
   }
 }
 
-export function formatAnalysisCreatedAt(isoTimestamp: string): string {
+// Explicit, deterministic Intl locale identifiers rather than passing
+// `locale` straight through to Intl.DateTimeFormat — this keeps the actual
+// date/time formatting convention (e.g. day/month order, 12h vs 24h)
+// pinned to a specific region per launched locale, not whatever a bare
+// "en"/"ru" tag's runtime-dependent default region happens to resolve to.
+const INTL_DATE_LOCALE_TAG: Record<Locale, string> = {
+  en: "en-US",
+  ru: "ru-RU",
+  es: "es-ES",
+  "pt-BR": "pt-BR",
+  fr: "fr-FR",
+};
+
+export function formatAnalysisCreatedAt(
+  isoTimestamp: string,
+  locale: Locale = DEFAULT_LOCALE
+): string {
   try {
-    return new Intl.DateTimeFormat("en", {
+    return new Intl.DateTimeFormat(INTL_DATE_LOCALE_TAG[locale], {
       dateStyle: "medium",
       timeStyle: "short",
     }).format(new Date(isoTimestamp));

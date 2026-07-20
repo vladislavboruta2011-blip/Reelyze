@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
 import { getMessages } from "../../../lib/messages";
-import { DEFAULT_LOCALE } from "../../../lib/i18n";
+import { getServerLocale } from "../../../lib/server-locale";
 import {
   fetchAnalysisById,
   isValidAnalysisId,
@@ -91,10 +91,10 @@ export default async function OpenSavedAnalysisPage({
     notFound();
   }
 
-  // Locale isn't yet threaded through server-rendered routes
-  // (LocaleProvider is a client-only, localStorage-backed context) —
-  // matching app/my-analyses/page.tsx's own default-locale limitation.
-  const messages = getMessages(DEFAULT_LOCALE);
+  // Resolves the same real locale app/my-analyses/page.tsx does, via the
+  // same climpy-locale cookie — see lib/server-locale.ts.
+  const locale = await getServerLocale();
+  const messages = getMessages(locale);
   const openMessages = messages.myAnalyses.open;
 
   if (result.status === "database-error" || result.status === "invalid") {
