@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { HelpCircle, History, Loader2, PencilLine } from "lucide-react";
 import { createSupabaseServerClient } from "../../lib/supabase/server";
 import { getMessages, type Messages } from "../../lib/messages";
-import { DEFAULT_LOCALE } from "../../lib/i18n";
+import { getServerLocale } from "../../lib/server-locale";
 import { toSessionUser } from "../../lib/session-user";
 import { SidebarSignOutButton } from "./sidebar-sign-out-button";
 import { AnalysesSearchProvider } from "./analyses-search";
@@ -95,10 +95,15 @@ export default async function MyAnalysesPage() {
     redirect("/login?next=/my-analyses");
   }
 
-  // Locale isn't yet threaded through server-rendered routes (LocaleProvider
-  // is a client-only, localStorage-backed context) — this page uses the
-  // default locale until that's wired up.
-  const messages = getMessages(DEFAULT_LOCALE);
+  // LocaleProvider (a Client Component, localStorage-backed) also
+  // synchronizes a small climpy-locale cookie so this Server Component can
+  // resolve the same real locale — see lib/server-locale.ts and
+  // lib/i18n.ts's own comments on the cookie/localStorage sync lifecycle.
+  // Falls back safely to DEFAULT_LOCALE (via normalizeApiLocale) for a
+  // missing or invalid cookie, exactly like every other "never throws"
+  // locale-adjacent path in this codebase.
+  const locale = await getServerLocale();
+  const messages = getMessages(locale);
   const results = messages.results;
   const myAnalyses = messages.myAnalyses;
 
@@ -214,6 +219,7 @@ export default async function MyAnalysesPage() {
                   myAnalyses={myAnalyses}
                   results={results}
                   newAnalysisLabel={results.nav.newAnalysis}
+                  locale={locale}
                 />
               </Suspense>
             </div>
@@ -261,6 +267,7 @@ export default async function MyAnalysesPage() {
                   myAnalyses={myAnalyses}
                   results={results}
                   newAnalysisLabel={results.nav.newAnalysis}
+                  locale={locale}
                 />
               </Suspense>
             </div>

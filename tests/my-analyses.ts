@@ -2029,6 +2029,212 @@ function checkMobilePolishShape(): void {
   );
 }
 
+// My Analyses localization — same source-shape convention as the other
+// checkXShape functions above (no React/DOM test harness exists here).
+// The executable formatAnalysisCreatedAt checks below are the one part of
+// this feature that's a pure function, so those are exercised directly
+// rather than only inspected as source text.
+function checkLocalizationShape(): void {
+  const pageSource = readFileSync("app/my-analyses/page.tsx", "utf8");
+  const contentSource = readFileSync(
+    "app/my-analyses/analyses-content.tsx",
+    "utf8"
+  );
+  const searchSource = readFileSync(
+    "app/my-analyses/analyses-search.tsx",
+    "utf8"
+  );
+  const listSource = readFileSync(
+    "app/my-analyses/analyses-list.ts",
+    "utf8"
+  );
+
+  check(
+    "the fixed English/Russian mix bug is fixed: page.tsx no longer hardcodes getMessages(DEFAULT_LOCALE), and resolves the real locale via getServerLocale() instead",
+    !pageSource.includes("getMessages(DEFAULT_LOCALE)") &&
+      pageSource.includes(
+        'import { getServerLocale } from "../../lib/server-locale";'
+      ) &&
+      pageSource.includes("const locale = await getServerLocale();") &&
+      pageSource.includes("const messages = getMessages(locale);")
+  );
+
+  check(
+    "the resolved locale is threaded into both DesktopAnalysesContent and MobileAnalysesContent as a plain prop — never refetched or re-resolved per breakpoint",
+    (pageSource.match(/locale=\{locale\}/g) ?? []).length === 2
+  );
+
+  check(
+    "analyses-content.tsx's AnalysesContentProps declares locale as the plain Locale type (a string union), not a function, and forwards it unchanged into both results components",
+    contentSource.includes("locale: Locale;") &&
+      (contentSource.match(/locale=\{locale\}/g) ?? []).length === 2
+  );
+
+  check(
+    "every formatAnalysisCreatedAt call site in analyses-search.tsx now passes the resolved locale — none left calling it with only a timestamp",
+    (searchSource.match(/formatAnalysisCreatedAt\(item\.createdAt, locale\)/g) ?? [])
+      .length === 3 &&
+      !/formatAnalysisCreatedAt\(item\.createdAt\)(?!,)/.test(searchSource)
+  );
+
+  check(
+    "AnalysesSearchDesktopResults/MobileResults, AnalysesTable, AnalysisMobileCard, and ScriptCell all declare locale as a plain Locale prop (never a function type)",
+    (searchSource.match(/locale: Locale;?/g) ?? []).length >= 5
+  );
+
+  check(
+    "the per-analysis language badge (localeLabel(item.locale)) is untouched by this feature — it still reads the analysis row's own stored locale, never the interface locale",
+    (searchSource.match(/localeLabel\(item\.locale\)/g) ?? []).length === 2
+  );
+
+  check(
+    "user-created analysis titles are still rendered as plain, untranslated content — never passed through a message lookup or translation function",
+    searchSource.includes("{item.title}") &&
+      !/myAnalyses\.[a-zA-Z.]*\(item\.title\)/.test(searchSource) &&
+      !/messages\.[a-zA-Z.]*\(item\.title\)/.test(searchSource)
+  );
+
+  check(
+    "formatAnalysisCreatedAt now accepts an explicit locale parameter with deterministic en-US/ru-RU Intl tags, defaulting to DEFAULT_LOCALE, and still falls back to the raw ISO string on any formatting error",
+    listSource.includes('en: "en-US"') &&
+      listSource.includes('ru: "ru-RU"') &&
+      listSource.includes("locale: Locale = DEFAULT_LOCALE") &&
+      /catch\s*\{\s*return isoTimestamp;\s*\}/.test(listSource)
+  );
+
+  check(
+    "formatAnalysisCreatedAt actually renders different, locale-appropriate output for en vs ru for the same timestamp",
+    (() => {
+      const timestamp = "2026-03-05T14:30:00.000Z";
+      const enFormatted = formatAnalysisCreatedAt(timestamp, "en");
+      const ruFormatted = formatAnalysisCreatedAt(timestamp, "ru");
+
+      return (
+        enFormatted.length > 0 &&
+        ruFormatted.length > 0 &&
+        enFormatted !== ruFormatted &&
+        // A concrete, deterministic signal that these are genuinely
+        // locale-formatted, not just coincidentally different strings —
+        // English's medium date style spells the month, Russian's does
+        // not use "March" or "Mar" for it.
+        /Mar/.test(enFormatted) &&
+        !/Mar/.test(ruFormatted)
+      );
+    })()
+  );
+
+  check(
+    "formatAnalysisCreatedAt still falls back to the raw ISO string, unchanged, when given an unparseable timestamp — for both en and ru",
+    formatAnalysisCreatedAt("not-a-date", "en") === "not-a-date" &&
+      formatAnalysisCreatedAt("not-a-date", "ru") === "not-a-date"
+  );
+
+  check(
+    "formatAnalysisCreatedAt still works when called with no locale argument at all (defaults safely, backward compatible with any other caller)",
+    formatAnalysisCreatedAt("2026-03-05T14:30:00.000Z").length > 0
+  );
+
+  check(
+    "the [id] route (opened-analysis error state and not-found state) resolves the same real locale, via the same getServerLocale() helper — no separate/second locale-resolution path",
+    (() => {
+      const idPageSource = readFileSync(
+        "app/my-analyses/[id]/page.tsx",
+        "utf8"
+      );
+      const notFoundSource = readFileSync(
+        "app/my-analyses/[id]/not-found.tsx",
+        "utf8"
+      );
+
+      return (
+        !idPageSource.includes("getMessages(DEFAULT_LOCALE)") &&
+        idPageSource.includes(
+          'import { getServerLocale } from "../../../lib/server-locale";'
+        ) &&
+        idPageSource.includes("const locale = await getServerLocale();") &&
+        !notFoundSource.includes("getMessages(DEFAULT_LOCALE)") &&
+        notFoundSource.includes(
+          'import { getServerLocale } from "../../../lib/server-locale";'
+        ) &&
+        notFoundSource.includes(
+          "const locale = await getServerLocale();"
+        ) &&
+        // not-found.tsx's export must now be async — getServerLocale()
+        // returns a Promise, and a non-async component could never await
+        // it.
+        notFoundSource.includes(
+          "export default async function AnalysisNotFound()"
+        )
+      );
+    })()
+  );
+
+  check(
+    "the single shared cache()-backed accessor is untouched by this feature — still exactly two call sites (one per breakpoint), no new/duplicated fetch introduced by locale threading",
+    (contentSource.match(/await getMyAnalysesResult\(\)/g) ?? []).length === 2
+  );
+
+  check(
+    "lib/server-locale.ts is the one server-only piece of this feature — it imports next/headers, but lib/i18n.ts (imported by Client Components) never does",
+    (() => {
+      const serverLocaleSource = readFileSync(
+        "lib/server-locale.ts",
+        "utf8"
+      );
+      const i18nSource = readFileSync("lib/i18n.ts", "utf8");
+
+      return (
+        serverLocaleSource.includes('from "next/headers"') &&
+        !i18nSource.includes("next/headers")
+      );
+    })()
+  );
+
+  check(
+    "getServerLocale reuses normalizeApiLocale (the existing, already-tested strict server-side validation rule) rather than a new, separately-invented cookie-parsing rule",
+    readFileSync("lib/server-locale.ts", "utf8").includes(
+      "normalizeApiLocale(cookieStore.get(LOCALE_COOKIE_NAME)?.value)"
+    )
+  );
+
+  check(
+    "LocaleProvider writes the locale cookie in both the mount-sync effect and setLocale, keeping it synchronized with localStorage on every change, and guards the one-time migration refresh with a ref so it can only ever fire once",
+    (() => {
+      const providerSource = readFileSync(
+        "app/locale-provider.tsx",
+        "utf8"
+      );
+
+      return (
+        (providerSource.match(/document\.cookie = buildLocaleCookieString/g) ?? [])
+          .length === 2 &&
+        providerSource.includes("hasSyncedLocaleCookieRef") &&
+        providerSource.includes("hasSyncedLocaleCookieRef.current = true;") &&
+        // The refresh call must be reachable only through the ref guard —
+        // never unconditional.
+        /if \(!hasSyncedLocaleCookieRef\.current\) \{[\s\S]{0,120}router\.refresh\(\)/.test(
+          providerSource
+        )
+      );
+    })()
+  );
+
+  check(
+    "no Ukrainian locale was added — this feature is scoped to the two currently launched locales only",
+    LAUNCHED_LOCALES.length === 2 &&
+      LAUNCHED_LOCALES.includes("en") &&
+      LAUNCHED_LOCALES.includes("ru") &&
+      !(LAUNCHED_LOCALES as readonly string[]).includes("uk")
+  );
+
+  check(
+    "no LanguageSwitcher was added to My Analyses' own chrome — locale selection remains available only through the existing product locations",
+    !pageSource.includes("LanguageSwitcher") &&
+      !contentSource.includes("LanguageSwitcher") &&
+      !searchSource.includes("LanguageSwitcher")
+  );
+}
+
 async function main(): Promise<void> {
   await checkQueryShape();
   await checkEmptyState();
@@ -2048,6 +2254,7 @@ async function main(): Promise<void> {
   checkLoadingAndRetryShape();
   checkUiPolishShape();
   checkMobilePolishShape();
+  checkLocalizationShape();
 
   if (failures > 0) {
     console.error(`\nMy Analyses tests: ${failures} failed`);
