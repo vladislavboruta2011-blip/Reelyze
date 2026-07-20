@@ -386,11 +386,18 @@ function checkResultsPageDedupShape(): void {
 }
 
 function checkOpenButtonSourceShape(): void {
-  const listPageSource = readFileSync("app/my-analyses/page.tsx", "utf8");
+  // The Open action's markup moved out of page.tsx into
+  // analyses-search.tsx's shared OpenAnalysisButton (used by both the
+  // desktop table row and the mobile card) when the Search feature
+  // extracted row rendering — this check follows that move.
+  const searchSource = readFileSync(
+    "app/my-analyses/analyses-search.tsx",
+    "utf8"
+  );
 
   check(
     "the My Analyses Open action navigates to /my-analyses/[id] for the clicked row",
-    listPageSource.includes("href={`/my-analyses/${id}`}")
+    searchSource.includes("href={`/my-analyses/${id}`}")
   );
 }
 
