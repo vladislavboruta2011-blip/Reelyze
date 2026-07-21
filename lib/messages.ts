@@ -42,6 +42,9 @@ const enMessages = {
     signIn: "Sign in",
     signOut: "Sign out",
     myAnalyses: "My analyses",
+    // aria-label for the compact mobile-header menu trigger (see
+    // app/page.tsx's mobile Navbar) — the button itself is icon-only.
+    menu: "Menu",
   },
   landing: {
     nav: {
@@ -653,6 +656,89 @@ const enMessages = {
       errorDatabase: "Could not save your analysis. Please try again.",
       untitled: "Untitled analysis",
     },
+    askClimpy: {
+      entryButton: "Ask Climpy",
+      panelHeading: "Ask Climpy",
+      panelSubheading: "Ask about this analysis.",
+      closeLabel: "Close",
+      inputLabel: "Your question",
+      inputPlaceholder: "Ask about your hook, risk, or fixes...",
+      send: "Send",
+      sending: "Thinking...",
+      starterQuestionsHeading: "Try asking",
+      starterQuestions: {
+        whatToFixFirst: "What should I fix first?",
+        whyHookWeak: "Why is my hook weak?",
+        explainRiskiestPart: "Explain the riskiest part simply.",
+        rewriteRiskiestPart: "Rewrite the riskiest part without adding facts.",
+      },
+      actionLabel: "What to change",
+      exampleLabel: "Example",
+      originalLabel: "Original",
+      suggestedRewriteLabel: "Suggested rewrite",
+      rewriteUnavailable:
+        "Climpy can't safely rewrite this without more context from your script.",
+      capReached:
+        "You've reached the question limit for this analysis. Start a new analysis to keep asking.",
+      errorGeneric: "Climpy couldn't answer that. Please try again.",
+      errorRateLimited:
+        "You're asking a bit fast. Please wait a moment and try again.",
+      errorRequestInvalid:
+        "Something about that request wasn't right. Please try again.",
+      // Shown instead of the standard error text once the one approved
+      // manual Retry for a turn has ALSO failed (see page.tsx's
+      // sendAskClimpyRequest/hasBeenRetried) — Retry is hidden at that
+      // point (Phase 5 policy), so this message never offers another Retry
+      // action; the creator may ask a new question normally instead.
+      errorRetryFailed:
+        "Climpy couldn't get a valid response after trying again. Please wait a moment or ask the question in another way.",
+      // Shown only as a follow-up local reply when the immediately preceding
+      // visible event was a technical error and the next message is a short
+      // error-reference phrase ("Why?", "What happened?") — never sent to
+      // the model, never counted toward the six-answer cap. Distinct from
+      // errorGeneric (shown on the error itself) — this explains that the
+      // prior failure was technical, not caused by how the question was
+      // phrased.
+      errorTechnicalExplanation:
+        "That request failed because Climpy couldn't get a valid response. It wasn't caused by the way you asked. Try the request again.",
+      // Label for the retry action attached to a retryable failed request
+      // (shown on the error bubble itself, and again on the local
+      // technical-explanation reply above).
+      retryLabel: "Try again",
+      // Shown as a local reply (no API call, no cap consumption) when the
+      // creator types the approved rewrite-riskiest-part intent (see
+      // ask-climpy-local-intents.ts's classifyAskClimpyRewriteIntent) but no
+      // risky part is currently eligible for a safe rewrite — never a fake
+      // rewrite request sent to the model.
+      noEligibleRewriteExplanation:
+        "There's no validated risky part Climpy can safely rewrite right now. Try asking a specific question about your analysis instead.",
+      // Small, bounded set of local conversational replies — handled
+      // entirely client-side (no fetch, no model call, no cap consumption).
+      // See app/results/ask-climpy-local-intents.ts for the matching logic.
+      localIntents: {
+        greeting:
+          "Hi! Ask me about this analysis, and I'll help you decide what to fix.",
+        thanks: "You're welcome.",
+        acknowledgement: "Got it.",
+        farewell: "See you.",
+        capability:
+          "I can explain your scores and risky parts, help you decide what to fix first, simplify a recommendation, or rewrite one validated risky fragment without inventing facts.",
+      },
+      // Ask Climpy's own analysisLocale/AskClimpyRequest.locale are strictly
+      // "en" | "ru" (see engine/analysis-v2-schema.ts), so a mismatch here
+      // always pairs the same way for this interface locale — this is never
+      // shown when the analysis is also English, so it can safely name
+      // Russian directly rather than a generic "a different language".
+      // Content itself (mainTakeaway, riskyParts, suggestedFixes, prior
+      // conversation turns) is never translated — only NEW answers from
+      // here on use this interface's language.
+      localeMismatchNotice:
+        "This analysis was created in Russian. Climpy will explain it in English.",
+      emptyState:
+        "Ask a question about your hook, risky parts, or suggested fixes.",
+      poweredByNotice:
+        "Answers are grounded in this analysis and your script only.",
+    },
   },
   auth: {
     login: {
@@ -789,6 +875,7 @@ const ruMessages = {
     signIn: "Войти",
     signOut: "Выйти",
     myAnalyses: "Мои анализы",
+    menu: "Меню",
   },
   landing: {
     nav: {
@@ -1403,6 +1490,58 @@ const ruMessages = {
         "Этот анализ нельзя сохранить. Попробуйте проанализировать сценарий заново.",
       errorDatabase: "Не удалось сохранить анализ. Попробуйте ещё раз.",
       untitled: "Анализ без названия",
+    },
+    askClimpy: {
+      entryButton: "Спросить у Climpy",
+      panelHeading: "Спросить у Climpy",
+      panelSubheading: "Задайте вопрос об этом анализе.",
+      closeLabel: "Закрыть",
+      inputLabel: "Ваш вопрос",
+      inputPlaceholder: "Спросите про хук, риск или правки...",
+      send: "Отправить",
+      sending: "Думаю...",
+      starterQuestionsHeading: "Например",
+      starterQuestions: {
+        whatToFixFirst: "Что исправить в первую очередь?",
+        whyHookWeak: "Почему мой хук слабый?",
+        explainRiskiestPart: "Объясни самый рискованный момент простыми словами.",
+        rewriteRiskiestPart: "Перепиши самый рискованный момент, не добавляя фактов.",
+      },
+      actionLabel: "Что изменить",
+      exampleLabel: "Пример",
+      originalLabel: "Оригинал",
+      suggestedRewriteLabel: "Предлагаемый вариант",
+      rewriteUnavailable:
+        "Climpy не может безопасно переписать это без дополнительного контекста из сценария.",
+      capReached:
+        "Вы достигли лимита вопросов для этого анализа. Начните новый анализ, чтобы продолжить.",
+      errorGeneric: "Climpy не смог ответить. Попробуйте ещё раз.",
+      errorRateLimited:
+        "Вы спрашиваете слишком быстро. Подождите немного и попробуйте снова.",
+      errorRequestInvalid:
+        "С этим запросом что-то не так. Попробуйте ещё раз.",
+      errorRetryFailed:
+        "Climpy снова не смог получить корректный ответ. Подождите немного или сформулируйте вопрос иначе.",
+      errorTechnicalExplanation:
+        "Запрос завершился технической ошибкой ответа. Это произошло не из-за формулировки вашего вопроса. Попробуйте отправить запрос ещё раз.",
+      retryLabel: "Повторить",
+      noEligibleRewriteExplanation:
+        "Сейчас нет проверенного рискованного фрагмента, который Climpy может безопасно переписать. Попробуйте задать конкретный вопрос об анализе.",
+      localIntents: {
+        greeting:
+          "Привет! Спросите меня об этом анализе — я помогу понять, что исправить.",
+        thanks: "Пожалуйста.",
+        acknowledgement: "Хорошо.",
+        farewell: "До встречи.",
+        capability:
+          "Я могу объяснить ваши оценки и рискованные моменты, помочь понять, что исправить в первую очередь, упростить рекомендацию или переписать один проверенный рискованный фрагмент, не выдумывая факты.",
+      },
+      localeMismatchNotice:
+        "Этот анализ создан на английском. Climpy объяснит его на русском.",
+      emptyState:
+        "Задайте вопрос о хуке, рискованных моментах или предложенных правках.",
+      poweredByNotice:
+        "Ответы основаны только на этом анализе и вашем сценарии.",
     },
   },
   auth: {

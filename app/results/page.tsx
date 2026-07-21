@@ -57,6 +57,26 @@ import {
   writePendingSaveIntent,
 } from "./save-analysis";
 import { readAndClearReopenedAnalysisId } from "./reopened-analysis";
+import { ImprovedHookModal } from "./improved-hook-modal";
+import {
+  AskClimpyPanel,
+  type AskClimpyDisplayMessage,
+  type AskClimpyRetryableRequest,
+  type AskClimpyStarterQuestion,
+} from "./ask-climpy-panel";
+import {
+  classifyAskClimpyLocalIntent,
+  classifyAskClimpyRewriteIntent,
+  isAskClimpyErrorReferencePhrase,
+} from "./ask-climpy-local-intents";
+import {
+  ASK_CLIMPY_LIMITS,
+  buildAskClimpyAnalysisContext,
+  findRiskiestRiskyPartIndex,
+  isRiskyPartRewriteEligible,
+  type AskClimpyResponse,
+  type SelectedContext,
+} from "../../engine/ask-climpy-validation";
 import {
   SquarePen,
   PencilLine,
@@ -68,6 +88,7 @@ import {
   ChevronRight,
   Target,
   ShieldCheck,
+  Sparkles,
 } from "lucide-react";
 
 type ResultsPageAnalysis = AnalysisResult & {
@@ -173,6 +194,63 @@ function isValidImproveScriptSuccessPayload(
   );
 }
 
+// Client-side re-validation of the approved Ask Climpy response shape
+// (answer/action?/example?/cannotSafelyRewrite — no "rewrite" object, no
+// "status" field). This is deliberately shallow (it does not re-check
+// rewrite grounding, which is already enforced server-side by
+// validateAskClimpyModelResult) — it only guards against a malformed/
+// unexpected payload before it is rendered.
+function isValidAskClimpyResponse(value: unknown): value is AskClimpyResponse {
+  if (!value || typeof value !== "object") return false;
+
+  const payload = value as Record<string, unknown>;
+
+  if (typeof payload.answer !== "string" || payload.answer.trim().length === 0) {
+    return false;
+  }
+
+  if (typeof payload.cannotSafelyRewrite !== "boolean") return false;
+
+  if (
+    payload.action !== undefined &&
+    (typeof payload.action !== "string" || payload.action.trim().length === 0)
+  ) {
+    return false;
+  }
+
+  if (
+    payload.example !== undefined &&
+    (typeof payload.example !== "string" || payload.example.trim().length === 0)
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+// Replaces an existing message with the same `id` in place (preserving its
+// position) or appends `message` when no such id exists yet. Used by
+// sendAskClimpyRequest so a retried failure UPDATES the same error message
+// instead of appending a second, duplicate error block — the diagnosed
+// regression (one user-triggered submission followed by a failed Retry
+// produced two visually identical error blocks, since the retry path used
+// to mint a brand-new message id every time instead of reusing the
+// original failed turn's id).
+function upsertAskClimpyMessage(
+  previous: AskClimpyDisplayMessage[],
+  message: AskClimpyDisplayMessage
+): AskClimpyDisplayMessage[] {
+  const existingIndex = previous.findIndex((existing) => existing.id === message.id);
+
+  if (existingIndex === -1) {
+    return [...previous, message];
+  }
+
+  const next = [...previous];
+  next[existingIndex] = message;
+  return next;
+}
+
 function parseStoredImproveScriptCache(
   value: string
 ): StoredImproveScriptCache | null {
@@ -264,6 +342,35 @@ const [mobileScriptOpen, setMobileScriptOpen] = useState(false);
   const [isSaveSignInModalOpen, setIsSaveSignInModalOpen] = useState(false);
   const savedAnalysisIdRef = useRef<string | null>(null);
 
+  const [isAskClimpyOpen, setIsAskClimpyOpen] = useState(false);
+  const [askClimpyMessages, setAskClimpyMessages] = useState<
+    AskClimpyDisplayMessage[]
+  >([]);
+  const [askClimpyInput, setAskClimpyInput] = useState("");
+  const [isAskClimpyPending, setIsAskClimpyPending] = useState(false);
+  const [isAskClimpyCapped, setIsAskClimpyCapped] = useState(false);
+  // The id of the one assistant message (if any) that should currently play
+  // its word-by-word reveal animation — never more than one at a time, and
+  // only ever the message that was just accepted by the success branch of
+  // handleSendAskClimpy below. Cleared (a) by the panel itself once the
+  // reveal finishes, (b) on close (so reopening shows the complete answer,
+  // never a resumed/restarted animation), and (c) on analysis-identity
+  // change alongside the rest of the conversation reset.
+  const [askClimpyRevealMessageId, setAskClimpyRevealMessageId] = useState<
+    string | null
+  >(null);
+  const askClimpyAbortControllerRef = useRef<AbortController | null>(null);
+  const askClimpyRequestIdRef = useRef(0);
+  const askClimpyMountedRef = useRef(false);
+  // Synchronous re-entrancy guard for handleSendAskClimpy/handleRetryAskClimpy
+  // — closes the race where two submissions (Enter + click, a fast double
+  // click/tap, or a rapid double Retry click) both read isAskClimpyPending
+  // as false from the SAME pre-update render closure before React commits
+  // the first setIsAskClimpyPending(true). A ref mutates synchronously and
+  // is shared across every closure of this component instance, so it blocks
+  // a second call in the exact same tick that the state-based check cannot.
+  const askClimpyIsSubmittingRef = useRef(false);
+
     useEffect(() => {
     const timer = window.setTimeout(() => {
       try {
@@ -352,6 +459,60 @@ const [mobileScriptOpen, setMobileScriptOpen] = useState(false);
 
   const hasAnalyzedScript = savedScript.trim().length > 0;
   const activeScript = hasAnalyzedScript ? savedScript.trim() : fallbackScript;
+
+  // The smallest reliable stable identity for "this analysis" — a
+  // deterministic serialization of the active script plus the validated
+  // Analysis V2 result, following the same JSON.stringify-based fingerprint
+  // pattern already used by createImproveScriptFingerprint below (rather
+  // than introducing a new hashing utility). Deliberately excludes locale —
+  // switching languages must not clear the conversation — and is plain
+  // value equality, not React object-reference equality, so it does not
+  // depend on savedAnalysisV2 (or activeScript) being the exact same object
+  // across renders, only on having the same content.
+  const askClimpyAnalysisIdentityKey = useMemo(() => {
+    if (!savedAnalysisV2) return null;
+
+    return JSON.stringify({
+      script: activeScript,
+      result: savedAnalysisV2.result,
+    });
+  }, [activeScript, savedAnalysisV2]);
+
+  // Clears the Ask Climpy conversation only when the identity key above
+  // actually changes value — not on every render, and not merely because
+  // savedAnalysisV2 becomes a new object with the same content. Closing and
+  // reopening the panel for the SAME analysis must keep the conversation
+  // (see ask-climpy-panel.tsx), so the reset must key off analysis identity,
+  // not panel open/close. In practice /results is only ever reached via a
+  // fresh navigation and savedAnalysisV2 is set exactly once per mount (see
+  // the mount-only effect above), so this mostly guards a defensive edge
+  // case rather than a commonly hit path.
+  useEffect(() => {
+    if (!askClimpyMountedRef.current) {
+      askClimpyMountedRef.current = true;
+      return;
+    }
+
+    askClimpyAbortControllerRef.current?.abort();
+    askClimpyAbortControllerRef.current = null;
+    askClimpyRequestIdRef.current += 1;
+    setAskClimpyMessages([]);
+    setAskClimpyInput("");
+    setIsAskClimpyPending(false);
+    setIsAskClimpyCapped(false);
+    setIsAskClimpyOpen(false);
+    setAskClimpyRevealMessageId(null);
+  }, [askClimpyAnalysisIdentityKey]);
+
+  // Aborts any in-flight Ask Climpy request on unmount (navigating away from
+  // /results entirely) — the close button and the identity-reset effect
+  // above both already abort on their own triggers; this covers the third
+  // required case (see ask-climpy-panel.tsx's own comment).
+  useEffect(() => {
+    return () => {
+      askClimpyAbortControllerRef.current?.abort();
+    };
+  }, []);
 
   // Old saved analyses have no `locale` field — treat them as "en" rather
   // than assuming they match the current UI locale.
@@ -923,6 +1084,555 @@ const hookCopyButtonLabel =
     }, 2000);
   }
 
+  // Only offered for a validated Analysis V2 result — Ask Climpy grounds
+  // every answer in analysisContext fields that only exist on
+  // AnalysisV2Result, so the legacy client-only heuristic fallback
+  // (savedAnalysisV2 === null) has nothing valid to ground against.
+  // Exactly the four approved starter questions, each independently
+  // conditional — "What should I fix first?" is always offered; the other
+  // three only appear when they are actually relevant/eligible, so the
+  // final list is never more than four.
+  const askClimpyStarterQuestions = useMemo<AskClimpyStarterQuestion[]>(() => {
+    if (!savedAnalysisV2) return [];
+
+    const askClimpyMessagesText = results.askClimpy;
+    const analysisContext = buildAskClimpyAnalysisContext(
+      savedAnalysisV2.result,
+      savedAnalysisLocale
+    );
+
+    const starters: AskClimpyStarterQuestion[] = [
+      {
+        id: "whatToFixFirst",
+        label: askClimpyMessagesText.starterQuestions.whatToFixFirst,
+        question: askClimpyMessagesText.starterQuestions.whatToFixFirst,
+        selectedContext: { type: "general" },
+        requestRewrite: false,
+      },
+    ];
+
+    // Reuses the same hookDecision !== "keep" signal that already gates the
+    // production Improve Hook button (see shouldShowHookAction above) as
+    // the "a hook-focused question is relevant" condition.
+    if (savedAnalysisV2.result.hookDecision !== "keep") {
+      starters.push({
+        id: "whyHookWeak",
+        label: askClimpyMessagesText.starterQuestions.whyHookWeak,
+        question: askClimpyMessagesText.starterQuestions.whyHookWeak,
+        selectedContext: { type: "hookScore" },
+        requestRewrite: false,
+      });
+    }
+
+    // Both riskiest-part starters always refer to the SAME risky part (the
+    // highest-severity entry), so "explain" and "rewrite" never disagree
+    // about which part they mean.
+    const riskiestIndex = findRiskiestRiskyPartIndex(analysisContext.riskyParts);
+
+    if (riskiestIndex !== null) {
+      starters.push({
+        id: "explainRiskiestPart",
+        label: askClimpyMessagesText.starterQuestions.explainRiskiestPart,
+        question: askClimpyMessagesText.starterQuestions.explainRiskiestPart,
+        selectedContext: { type: "riskyPart", index: riskiestIndex },
+        requestRewrite: false,
+      });
+
+      const riskiestPart = analysisContext.riskyParts[riskiestIndex];
+
+      if (isRiskyPartRewriteEligible(riskiestPart, activeScript)) {
+        starters.push({
+          id: "rewriteRiskiestPart",
+          label: askClimpyMessagesText.starterQuestions.rewriteRiskiestPart,
+          question: askClimpyMessagesText.starterQuestions.rewriteRiskiestPart,
+          selectedContext: { type: "riskyPart", index: riskiestIndex },
+          requestRewrite: true,
+        });
+      }
+    }
+
+    return starters;
+  }, [savedAnalysisV2, results, activeScript, savedAnalysisLocale]);
+
+  function handleOpenAskClimpy() {
+    if (!savedAnalysisV2) return;
+    setIsAskClimpyOpen(true);
+  }
+
+  // Never gated on isAskClimpyPending — closing always succeeds and simply
+  // aborts whatever request was in flight, rather than blocking the user
+  // from closing the panel while Climpy is still "thinking".
+  function handleCloseAskClimpy() {
+    askClimpyAbortControllerRef.current?.abort();
+    askClimpyAbortControllerRef.current = null;
+    askClimpyRequestIdRef.current += 1;
+    setIsAskClimpyPending(false);
+    setIsAskClimpyOpen(false);
+    // Stops any active reveal animation immediately — reopening the same
+    // panel later must show the complete answer, never a resumed or
+    // restarted animation (the message text itself was already stored in
+    // full the moment it was accepted; only the visual reveal stops here).
+    setAskClimpyRevealMessageId(null);
+  }
+
+  // The actual network call — factored out of handleSendAskClimpy so
+  // handleRetryAskClimpy can resend the exact same failed request without
+  // pushing a second/duplicate user bubble (see AskClimpyRetryableRequest).
+  // Never appends a user message itself; the caller owns that.
+  async function sendAskClimpyRequest(
+    question: string,
+    selectedContext: SelectedContext,
+    requestRewrite: boolean,
+    messageIdRoot: string,
+    // True only when THIS call is itself the one manual Retry attempt for
+    // messageIdRoot (see handleRetryAskClimpy) — never set for the original
+    // send. Drives the approved retry-UX policy below: a first failure gets
+    // a visible Retry button; if that one manual retry ALSO fails, Retry is
+    // hidden entirely (never an unlimited "keep clicking" affordance) and a
+    // distinct "still failing" message replaces the standard one.
+    hasBeenRetried: boolean = false
+  ) {
+    if (!savedAnalysisV2) return;
+
+    const analysisContext = buildAskClimpyAnalysisContext(
+      savedAnalysisV2.result,
+      savedAnalysisLocale
+    );
+
+    const rewriteFragment =
+      requestRewrite && selectedContext.type === "riskyPart"
+        ? analysisContext.riskyParts[selectedContext.index]?.excerpt
+        : undefined;
+
+    if (requestRewrite && rewriteFragment === undefined) {
+      return;
+    }
+
+    // The retry metadata attached to an error/local message if this specific
+    // attempt fails — resending it later must reproduce this exact request
+    // (same question, selectedContext, requestRewrite, rewriteFragment) AND
+    // reuse the SAME messageIdRoot, so a retried failure updates this exact
+    // error message in place instead of appending a second, duplicate one
+    // (see upsertAskClimpyMessage above and handleRetryAskClimpy below).
+    const retryable: AskClimpyRetryableRequest = {
+      question,
+      selectedContext,
+      requestRewrite,
+      ...(rewriteFragment !== undefined ? { rewriteFragment } : {}),
+      messageIdRoot,
+    };
+
+    const history = askClimpyMessages
+      .filter((message) => message.role === "user" || message.role === "assistant")
+      .slice(-ASK_CLIMPY_LIMITS.maxHistoryMessages)
+      .map((message) => ({
+        role: message.role as "user" | "assistant",
+        content: message.content,
+      }));
+
+    askClimpyAbortControllerRef.current?.abort();
+    const controller = new AbortController();
+    askClimpyAbortControllerRef.current = controller;
+
+    const requestId = askClimpyRequestIdRef.current + 1;
+    askClimpyRequestIdRef.current = requestId;
+
+    setIsAskClimpyPending(true);
+
+    const askClimpyMessagesText = results.askClimpy;
+
+    try {
+      const response = await fetch("/api/ask-climpy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({
+          script: activeScript,
+          // The current interface locale — this is the language Ask Climpy
+          // must answer in, which may differ from analysisContext's own
+          // analysisLocale (the language the analysis prose was generated
+          // in). See ask-climpy-panel.tsx's locale-mismatch disclosure.
+          locale,
+          analysisContext,
+          selectedContext,
+          question,
+          history,
+          requestRewrite,
+          ...(rewriteFragment !== undefined ? { rewriteFragment } : {}),
+        }),
+      });
+
+      if (askClimpyRequestIdRef.current !== requestId) {
+        return;
+      }
+
+      const data: unknown = await response.json().catch(() => null);
+
+      if (!response.ok || !isValidAskClimpyResponse(data)) {
+        // Mapped purely from the HTTP status/category — the API's `reason`
+        // (see AskClimpyErrorResponse) is a technical/debug string and must
+        // never be rendered to the user directly, in any locale.
+        //
+        // 429 (Phase 6) is handled first and always the same way regardless
+        // of hasBeenRetried: its own localized rate-limit copy, and NEVER a
+        // clickable Retry — clicking Retry would just re-trigger the same
+        // limit; the creator should wait and can still ask a new question
+        // once the window clears (a fresh send re-checks the limit itself).
+        if (response.status === 429) {
+          setAskClimpyMessages((previous) =>
+            upsertAskClimpyMessage(previous, {
+              id: `${messageIdRoot}-error`,
+              role: "error",
+              content: askClimpyMessagesText.errorRateLimited,
+            })
+          );
+          return;
+        }
+
+        // Phase 5 retry-UX policy: the FIRST failure for this messageIdRoot
+        // gets the normal status-mapped error (a deterministic 400/413/415
+        // request-shape rejection gets its own copy; every other case —
+        // 502/503 or an unexpected status — falls back to the generic
+        // localized error) plus a visible Retry button. If this call IS
+        // that one manual Retry attempt and it ALSO failed, Retry is hidden
+        // entirely (no retryable attached) and the message is replaced with
+        // a distinct "still failing, try later or rephrase" copy — the
+        // creator is never invited to keep clicking indefinitely; a brand
+        // new question remains fully available afterward.
+        if (hasBeenRetried) {
+          setAskClimpyMessages((previous) =>
+            upsertAskClimpyMessage(previous, {
+              id: `${messageIdRoot}-error`,
+              role: "error",
+              content: askClimpyMessagesText.errorRetryFailed,
+            })
+          );
+          return;
+        }
+
+        const errorText =
+          response.status === 400 ||
+          response.status === 413 ||
+          response.status === 415
+            ? askClimpyMessagesText.errorRequestInvalid
+            : askClimpyMessagesText.errorGeneric;
+
+        // upsert (not append): the FIRST failure for this messageIdRoot has
+        // no existing message with this id yet, so this behaves exactly
+        // like the old unconditional append — but a RETRY of the same
+        // failed turn reuses this same id (see handleRetryAskClimpy), so a
+        // repeated failure updates that one error message in place instead
+        // of stacking a second, visually identical error block.
+        setAskClimpyMessages((previous) =>
+          upsertAskClimpyMessage(previous, {
+            id: `${messageIdRoot}-error`,
+            role: "error",
+            content: errorText,
+            retryable,
+          })
+        );
+        return;
+      }
+
+      // data: AskClimpyResponse — a valid, successful answer. This is the
+      // only branch that ever pushes an assistant-role message, so counting
+      // assistant messages below exactly implements "a slot is consumed
+      // only after a valid successful Ask Climpy response is accepted":
+      // network failures, timeouts, non-ok statuses, and aborted/superseded
+      // requests all return above without reaching this point.
+      const assistantMessageId = `${messageIdRoot}-answer`;
+
+      setAskClimpyMessages((previous) => {
+        // A successful Retry resolves/removes the prior error block for
+        // this exact turn (if any — a first-time success has none to
+        // remove) rather than leaving it behind alongside the new answer.
+        const withoutStaleError = previous.filter(
+          (message) => message.id !== `${messageIdRoot}-error`
+        );
+
+        const next: AskClimpyDisplayMessage[] = [
+          ...withoutStaleError,
+          {
+            id: assistantMessageId,
+            role: "assistant",
+            content: data.answer,
+            ...(data.action !== undefined ? { action: data.action } : {}),
+            ...(data.example !== undefined ? { example: data.example } : {}),
+            cannotSafelyRewrite: data.cannotSafelyRewrite,
+            ...(rewriteFragment !== undefined
+              ? { originalFragment: rewriteFragment }
+              : {}),
+          },
+        ];
+
+        const successfulAnswerCount = next.filter(
+          (message) => message.role === "assistant"
+        ).length;
+
+        if (
+          successfulAnswerCount >=
+          ASK_CLIMPY_LIMITS.maxSuccessfulAnswersPerAnalysis
+        ) {
+          setIsAskClimpyCapped(true);
+        }
+
+        return next;
+      });
+
+      // Triggers the panel's word-by-word reveal for exactly this message —
+      // the message text itself is already fully stored above; this only
+      // marks which message should currently animate its visual display.
+      setAskClimpyRevealMessageId(assistantMessageId);
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        return;
+      }
+
+      if (askClimpyRequestIdRef.current !== requestId) {
+        return;
+      }
+
+      // A thrown network/timeout exception follows the same Phase 5 policy
+      // as a non-ok HTTP response: hide Retry and swap in the "still
+      // failing" copy once this exception happens on the one manual retry
+      // attempt itself.
+      setAskClimpyMessages((previous) =>
+        upsertAskClimpyMessage(
+          previous,
+          hasBeenRetried
+            ? {
+                id: `${messageIdRoot}-error`,
+                role: "error",
+                content: askClimpyMessagesText.errorRetryFailed,
+              }
+            : {
+                id: `${messageIdRoot}-error`,
+                role: "error",
+                content: askClimpyMessagesText.errorGeneric,
+                retryable,
+              }
+        )
+      );
+    } finally {
+      if (askClimpyRequestIdRef.current === requestId) {
+        setIsAskClimpyPending(false);
+      }
+    }
+  }
+
+  function generateAskClimpyMessageId(prefix: string): string {
+    return typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `${prefix}-${Date.now()}`;
+  }
+
+  async function handleSendAskClimpy(
+    question: string,
+    selectedContext: SelectedContext,
+    requestRewrite: boolean
+  ) {
+    if (
+      !savedAnalysisV2 ||
+      isAskClimpyPending ||
+      isAskClimpyCapped ||
+      askClimpyIsSubmittingRef.current
+    ) {
+      return;
+    }
+
+    // Set synchronously, before any await — see askClimpyIsSubmittingRef's
+    // own comment. Cleared in the finally block below no matter which
+    // branch this call takes (local intent / error reference / network),
+    // so a second Enter/click/tap that slips in during the exact same tick
+    // is blocked immediately, closing the race the state-based guards above
+    // cannot (isAskClimpyPending only takes effect on the next render).
+    askClimpyIsSubmittingRef.current = true;
+
+    try {
+      const userMessageId = generateAskClimpyMessageId("ask-climpy-user");
+
+      // Phase 2A — a small, bounded set of courtesy/small-talk intents
+      // (greeting/thanks/acknowledgement/farewell/capability), matched by
+      // normalized exact/near-exact phrase only (see
+      // ask-climpy-local-intents.ts) — never a fetch, never counted toward
+      // the six-answer cap, always checked first regardless of conversation
+      // state.
+      const localIntent = classifyAskClimpyLocalIntent(question);
+
+      if (localIntent) {
+        const localMessageId = `${userMessageId}-local`;
+
+        setAskClimpyMessages((previous) => [
+          ...previous,
+          { id: userMessageId, role: "user", content: question },
+          {
+            id: localMessageId,
+            role: "local",
+            content: results.askClimpy.localIntents[localIntent],
+          },
+        ]);
+        setAskClimpyInput("");
+
+        // Triggers the SAME word-reveal presentation used for a model
+        // answer (just the faster "local" timing — see
+        // ask-climpy-reveal.ts) — the message text itself is already stored
+        // in full above; this only marks which message should currently
+        // animate its visual display.
+        setAskClimpyRevealMessageId(localMessageId);
+        return;
+      }
+
+      // Phase 3 — a short, explicit reference to "what just happened" (e.g.
+      // "Why?"/"Почему?") is answered locally, without calling the model,
+      // ONLY when the immediately preceding visible message is a technical
+      // error (never a successful answer) — see
+      // ask-climpy-local-intents.ts's isAskClimpyErrorReferencePhrase. The
+      // SAME phrases following a successful answer instead fall through to
+      // the normal API path below as an ordinary contextual follow-up (see
+      // buildAskClimpySystemPrompt's SHORT FOLLOW-UP QUESTIONS section).
+      const lastMessage = askClimpyMessages[askClimpyMessages.length - 1];
+
+      if (
+        lastMessage?.role === "error" &&
+        isAskClimpyErrorReferencePhrase(question)
+      ) {
+        const localMessageId = `${userMessageId}-local`;
+
+        setAskClimpyMessages((previous) => [
+          ...previous,
+          { id: userMessageId, role: "user", content: question },
+          {
+            id: localMessageId,
+            role: "local",
+            content: results.askClimpy.errorTechnicalExplanation,
+            retryable: lastMessage.retryable,
+          },
+        ]);
+        setAskClimpyInput("");
+        setAskClimpyRevealMessageId(localMessageId);
+        return;
+      }
+
+      // Phase 4 — the approved typed rewrite intent: a creator TYPING the
+      // same core action the "Rewrite the riskiest part" starter button
+      // already offers is recognized (normalized exact/near-exact phrase
+      // match only — see ask-climpy-local-intents.ts's
+      // classifyAskClimpyRewriteIntent), so they are never required to
+      // click only the button for this one approved action. Only consulted
+      // when the caller did not already resolve requestRewrite/
+      // selectedContext itself (i.e. never for the starter button's own
+      // call, which already passes requestRewrite: true directly) — this
+      // keeps starter-button behavior completely unchanged.
+      let effectiveSelectedContext = selectedContext;
+      let effectiveRequestRewrite = requestRewrite;
+
+      if (!requestRewrite && savedAnalysisV2) {
+        const rewriteIntent = classifyAskClimpyRewriteIntent(question);
+
+        if (rewriteIntent === "rewriteRiskiestPart") {
+          const analysisContext = buildAskClimpyAnalysisContext(
+            savedAnalysisV2.result,
+            savedAnalysisLocale
+          );
+          // The SAME deterministic riskiest-part index and eligibility
+          // check the starter button itself uses — never a fragment chosen
+          // from the question text, never broadened beyond validated
+          // riskyParts[index].excerpt.
+          const riskiestIndex = findRiskiestRiskyPartIndex(
+            analysisContext.riskyParts
+          );
+          const riskiestPart =
+            riskiestIndex !== null
+              ? analysisContext.riskyParts[riskiestIndex]
+              : undefined;
+
+          if (
+            riskiestIndex !== null &&
+            isRiskyPartRewriteEligible(riskiestPart, activeScript)
+          ) {
+            effectiveSelectedContext = {
+              type: "riskyPart",
+              index: riskiestIndex,
+            };
+            effectiveRequestRewrite = true;
+          } else {
+            // No eligible risky part — never a fake rewrite request; a
+            // local explanation only (no fetch, no cap consumption).
+            const localMessageId = `${userMessageId}-local`;
+
+            setAskClimpyMessages((previous) => [
+              ...previous,
+              { id: userMessageId, role: "user", content: question },
+              {
+                id: localMessageId,
+                role: "local",
+                content: results.askClimpy.noEligibleRewriteExplanation,
+              },
+            ]);
+            setAskClimpyInput("");
+            setAskClimpyRevealMessageId(localMessageId);
+            return;
+          }
+        }
+      }
+
+      setAskClimpyMessages((previous) => [
+        ...previous,
+        { id: userMessageId, role: "user", content: question },
+      ]);
+      setAskClimpyInput("");
+
+      await sendAskClimpyRequest(
+        question,
+        effectiveSelectedContext,
+        effectiveRequestRewrite,
+        userMessageId
+      );
+    } finally {
+      askClimpyIsSubmittingRef.current = false;
+    }
+  }
+
+  // Resends the exact failed request a "Retry" action is attached to —
+  // never adds a new user bubble (the original one is already in
+  // askClimpyMessages). Disabled while pending/capped by the panel itself
+  // (see ask-climpy-panel.tsx's isRetryDisabled); an obsolete retry can
+  // never fire after a new analysis, since that resets askClimpyMessages
+  // (and closes the panel) before this could be clicked again. Reuses the
+  // ORIGINAL failed turn's messageIdRoot (never mints a new one) so a
+  // repeated failure updates that same error message in place instead of
+  // appending a second, duplicate error block — see
+  // upsertAskClimpyMessage/sendAskClimpyRequest above. Always passes
+  // hasBeenRetried: true — this handler IS the one approved manual Retry
+  // attempt for a turn (Phase 5); if it also fails, sendAskClimpyRequest
+  // hides Retry and swaps in the "still failing" copy, so this function is
+  // never invoked a second time for the same turn (there is no button left
+  // to click).
+  async function handleRetryAskClimpy(retryable: AskClimpyRetryableRequest) {
+    if (
+      !savedAnalysisV2 ||
+      isAskClimpyPending ||
+      isAskClimpyCapped ||
+      askClimpyIsSubmittingRef.current
+    ) {
+      return;
+    }
+
+    askClimpyIsSubmittingRef.current = true;
+
+    try {
+      await sendAskClimpyRequest(
+        retryable.question,
+        retryable.selectedContext,
+        retryable.requestRewrite,
+        retryable.messageIdRoot,
+        true
+      );
+    } finally {
+      askClimpyIsSubmittingRef.current = false;
+    }
+  }
+
   // Performs the actual insert. Called either directly (already signed in)
   // or from the pending-save-intent effect below (just returned from the
   // Google OAuth redirect). Never called merely because a session appeared
@@ -1281,6 +1991,15 @@ const hookCopyButtonLabel =
                       <p className="mt-1 text-[13px] leading-[1.6] text-[#5B21B6]">{analysis.overall.description}</p>
                     </div>
                   </div>
+                  {savedAnalysisV2 && (
+                    <button
+                      onClick={handleOpenAskClimpy}
+                      className="mt-3 inline-flex h-[34px] items-center gap-2 rounded-[10px] border border-[#DDD6FE] bg-white px-3 text-[12.5px] font-semibold text-[#7C3AED] transition hover:bg-[#F3E8FF]"
+                    >
+                      <Sparkles size={14} />
+                      {results.askClimpy.entryButton}
+                    </button>
+                  )}
                 </div>
 
                 {/* Script + right column */}
@@ -1526,6 +2245,15 @@ const hookCopyButtonLabel =
                   >
                     <ShieldCheck size={15} />
                     {hookActionLabel}
+                  </button>
+                )}
+                {savedAnalysisV2 && (
+                  <button
+                    onClick={handleOpenAskClimpy}
+                    className="mt-3 w-full h-[40px] inline-flex items-center justify-center gap-2 rounded-[12px] border border-[#DDD6FE] bg-white text-[13px] font-semibold text-[#7C3AED] transition hover:bg-[#F3E8FF]"
+                  >
+                    <Sparkles size={14} />
+                    {results.askClimpy.entryButton}
                   </button>
                 )}
               </div>
@@ -1877,122 +2605,41 @@ const hookCopyButtonLabel =
       )}
 
       {isHookModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-[2px] px-[16px]">
-          {/* Desktop modal */}
-          <div className="relative hidden lg:block h-[410px] w-[560px] rounded-[20px] border border-[#E5E7EB] bg-white">
-            <button
-              onClick={() => setIsHookModalOpen(false)}
-              className="absolute right-[20px] top-[18px] text-[22px] font-normal leading-[24px] text-[#6B7280] transition hover:text-[#111827]"
-            >
-              x
-            </button>
+        <ImprovedHookModal
+          title={hookModalTitle}
+          description={hookModalDescription}
+          hookText={isImprovingHook ? results.hookModal.improving : modalHookText}
+          errorText={improveError || undefined}
+          reasonLabel={hookModalReasonLabel}
+          reasonText={
+            isImprovingHook
+              ? results.hookModal.rewritingDescription
+              : improvedHookReason
+          }
+          isCopyDisabled={isImprovingHook || Boolean(improveError)}
+          copyButtonLabel={copiedHook ? results.hookModal.copied : hookCopyButtonLabel}
+          closeLabel={results.hookModal.close}
+          onCopy={handleCopyHook}
+          onClose={() => setIsHookModalOpen(false)}
+        />
+      )}
 
-            <h2 className="absolute left-[30px] top-[30px] text-[22px] font-semibold leading-[24px] text-[#111827]">
-              {hookModalTitle}
-            </h2>
-
-            <p className="absolute left-[30px] top-[65px] w-[430px] text-[14px] font-normal leading-[22px] text-[#6B7280]">
-              {hookModalDescription}
-            </p>
-
-            <div className="absolute left-[30px] top-[115px] h-[86px] w-[460px] rounded-[14px] border border-[#E5E7EB] bg-[#F8F8FC] px-[16px] py-[14px]">
-              <p className="text-[15px] font-normal leading-[22px] text-[#111827]">
-                &ldquo;{isImprovingHook ? results.hookModal.improving : modalHookText}&rdquo;
-              </p>
-            </div>
-
-            <div className="absolute left-[30px] top-[220px] w-[500px] max-h-[115px] overflow-hidden">
-              {improveError ? (
-                <p className="mt-[6px] text-[13px] font-normal leading-[20px] text-[#7C3AED]">
-                  {improveError}
-                </p>
-              ) : (
-                <>
-                  <p className="mt-[6px] text-[14px] font-normal leading-[21px] text-[#6B7280] break-words whitespace-normal">
-                    {hookModalReasonLabel}
-                  </p>
-                  <p className="mt-[6px] text-[14px] font-normal leading-[21px] text-[#6B7280] break-words whitespace-normal">
-                    {isImprovingHook
-                      ? results.hookModal.rewritingDescription
-                      : improvedHookReason}
-                  </p>
-                </>
-              )}
-            </div>
-
-            <button
-              onClick={handleCopyHook}
-              disabled={isImprovingHook || Boolean(improveError)}
-              className="absolute left-[30px] top-[360px] h-[40px] w-[130px] rounded-[12px] border border-[#E5E7EB] bg-[#7C3AED] text-[14px] font-semibold leading-[24px] text-[#111827] transition hover:bg-[#6D28D9]"
-            >
-              {copiedHook ? results.hookModal.copied : hookCopyButtonLabel}
-            </button>
-
-            <button
-              onClick={() => setIsHookModalOpen(false)}
-              className="absolute left-[175px] top-[360px] h-[40px] w-[100px] rounded-[12px] border border-[#E5E7EB] bg-[#F8F8FC] text-[14px] font-semibold leading-[24px] text-[#111827] transition hover:bg-[#F3E8FF]"
-            >
-              {results.hookModal.close}
-            </button>
-          </div>
-
-          {/* Mobile modal */}
-          <div className="relative flex flex-col lg:hidden w-full max-w-[360px] rounded-[18px] border border-[#E5E7EB] bg-white p-[22px]">
-            <button
-              onClick={() => setIsHookModalOpen(false)}
-              className="absolute right-[16px] top-[14px] text-[20px] font-normal text-[#6B7280] focus:outline-none focus:ring-0"
-            >
-              x
-            </button>
-
-            <h2 className="text-[18px] font-semibold leading-[24px] text-[#111827] mb-[8px] pr-[24px]">
-              {hookModalTitle}
-            </h2>
-
-            <p className="text-[12px] font-normal leading-[20px] text-[#6B7280] mb-[14px]">
-              {hookModalDescription}
-            </p>
-
-            <div className="w-full rounded-[12px] border border-[#E5E7EB] bg-[#F8F8FC] px-[14px] py-[12px] mb-[14px]">
-              <p className="text-[13px] font-normal leading-[21px] text-[#111827] break-words">
-                &ldquo;{isImprovingHook ? results.hookModal.improving : modalHookText}&rdquo;
-              </p>
-            </div>
-
-            {improveError ? (
-              <p className="text-[12px] font-normal leading-[18px] text-[#7C3AED] mb-[16px]">
-                {improveError}
-              </p>
-            ) : (
-              <div className="mb-[16px]">
-                <p className="text-[12px] font-normal leading-[18px] text-[#6B7280]">
-                  {hookModalReasonLabel}
-                </p>
-                <p className="text-[12px] font-normal leading-[18px] text-[#6B7280] mt-[4px] break-words">
-                  {isImprovingHook
-                    ? results.hookModal.rewritingDescription
-                    : improvedHookReason}
-                </p>
-              </div>
-            )}
-
-            <div className="flex gap-[10px]">
-              <button
-                onClick={handleCopyHook}
-                disabled={isImprovingHook || Boolean(improveError)}
-                className="flex-1 h-[40px] rounded-[12px] border border-[#E5E7EB] bg-[#7C3AED] text-[13px] font-semibold text-[#111827] focus:outline-none focus:ring-0"
-              >
-                {copiedHook ? results.hookModal.copied : hookCopyButtonLabel}
-              </button>
-              <button
-                onClick={() => setIsHookModalOpen(false)}
-                className="flex-1 h-[40px] rounded-[12px] border border-[#E5E7EB] bg-[#F8F8FC] text-[13px] font-semibold text-[#111827] focus:outline-none focus:ring-0"
-              >
-                {results.hookModal.close}
-              </button>
-            </div>
-          </div>
-        </div>
+      {isAskClimpyOpen && savedAnalysisV2 && (
+        <AskClimpyPanel
+          askClimpy={results.askClimpy}
+          messages={askClimpyMessages}
+          isPending={isAskClimpyPending}
+          isCapped={isAskClimpyCapped}
+          starterQuestions={askClimpyStarterQuestions}
+          inputValue={askClimpyInput}
+          onInputChange={setAskClimpyInput}
+          onSend={handleSendAskClimpy}
+          onRetry={handleRetryAskClimpy}
+          onClose={handleCloseAskClimpy}
+          hasLocaleMismatch={hasLocaleMismatch}
+          revealMessageId={askClimpyRevealMessageId}
+          onRevealComplete={() => setAskClimpyRevealMessageId(null)}
+        />
       )}
 
       <SignInModal
