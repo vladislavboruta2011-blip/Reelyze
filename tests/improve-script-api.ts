@@ -307,22 +307,27 @@ async function main() {
 
         const payload = await response.json();
 
+        // The model diagnosed a real primaryProblem (that's why it chose
+        // "rewrite"), but its own candidate is only a light paraphrase —
+        // the diagnosed weakness remains unresolved. That is a diagnostic
+        // outcome now, never "the original is already fine" (preserve),
+        // and never the unchanged original presented as the result.
         if (
           response.status !== 200 ||
-          payload.status !== "preserve" ||
-          payload.improvedScript !== originalScript ||
+          payload.status !== "diagnostic" ||
+          payload.improvedScript === originalScript ||
           !Array.isArray(payload.changes) ||
-          payload.changes.length !== 0 ||
-          !/meaningful editorial improvement|preserv/i.test(
+          payload.changes.length === 0 ||
+          !/concrete|too broad|unsupported|payoff/i.test(
             payload.reason ?? ""
           )
         ) {
           throw new Error(
-            "Expected light paraphrase to preserve the exact original script"
+            "Expected light paraphrase to resolve to a diagnostic result, not preserve"
           );
         }
 
-        console.log("PRESERVE_LIGHT_PARAPHRASE_PASS");
+        console.log("DIAGNOSTIC_LIGHT_PARAPHRASE_PASS");
       }).catch((error) => {
         console.error(error instanceof Error ? error.message : error);
         process.exit(1);
@@ -341,15 +346,15 @@ async function main() {
   if (
     preserveLightParaphraseProbe.status === 0 &&
     preserveLightParaphraseProbe.stdout.includes(
-      "PRESERVE_LIGHT_PARAPHRASE_PASS"
+      "DIAGNOSTIC_LIGHT_PARAPHRASE_PASS"
     )
   ) {
     console.log(
-      "✅ PASS — Light paraphrase preserves the exact original script"
+      "✅ PASS — Light paraphrase resolves to a diagnostic result, not preserve"
     );
   } else {
     console.error(
-      "❌ FAIL — Light paraphrase must preserve the exact original script"
+      "❌ FAIL — Light paraphrase must resolve to a diagnostic result, not preserve"
     );
     console.error(
       preserveLightParaphraseProbe.stderr.trim() ||
@@ -436,22 +441,28 @@ async function main() {
 
         const payload = await response.json();
 
+        // Same principle as the light-paraphrase case above: a diagnosed
+        // primaryProblem plus a candidate that only paraphrases the same
+        // material means the weakness is still unresolved — diagnostic.
+        // This script already has concrete anchor material ("5 feet 7",
+        // "6 feet 2"), so it resolves to the candidate-quality diagnostic
+        // bucket (never claims material is missing when it visibly exists).
         if (
           response.status !== 200 ||
-          payload.status !== "preserve" ||
-          payload.improvedScript !== originalScript ||
+          payload.status !== "diagnostic" ||
+          payload.improvedScript === originalScript ||
           !Array.isArray(payload.changes) ||
-          payload.changes.length !== 0 ||
-          !/meaningful editorial improvement|preserv/i.test(
+          payload.changes.length === 0 ||
+          !/meaningfully stronger|concrete|too broad|unsupported|payoff|approximate|uncertain|exact/i.test(
             payload.reason ?? ""
           )
         ) {
           throw new Error(
-            "Expected production Messi paraphrase to preserve the exact original script"
+            "Expected production Messi paraphrase to resolve to a diagnostic result, not preserve"
           );
         }
 
-        console.log("PRESERVE_MESSI_PRODUCTION_PARAPHRASE_PASS");
+        console.log("DIAGNOSTIC_MESSI_PRODUCTION_PARAPHRASE_PASS");
       }).catch((error) => {
         console.error(error instanceof Error ? error.message : error);
         process.exit(1);
@@ -470,15 +481,15 @@ async function main() {
   if (
     preserveMessiProductionParaphraseProbe.status === 0 &&
     preserveMessiProductionParaphraseProbe.stdout.includes(
-      "PRESERVE_MESSI_PRODUCTION_PARAPHRASE_PASS"
+      "DIAGNOSTIC_MESSI_PRODUCTION_PARAPHRASE_PASS"
     )
   ) {
     console.log(
-      "✅ PASS — Production Messi paraphrase preserves the exact original script"
+      "✅ PASS — Production Messi paraphrase resolves to a diagnostic result, not preserve"
     );
   } else {
     console.error(
-      "❌ FAIL — Production Messi paraphrase must preserve the exact original script"
+      "❌ FAIL — Production Messi paraphrase must resolve to a diagnostic result, not preserve"
     );
     console.error(
       preserveMessiProductionParaphraseProbe.stderr.trim() ||
@@ -1101,8 +1112,9 @@ async function main() {
       }
 
       // 6) Refined-hook alignment rejection — the actual reported bug —
-      //    returns preserve, not a different question-style hook and not a
-      //    generic failure.
+      //    returns diagnostic (the hook weakness is real and still
+      //    unresolved), not a different question-style hook, not preserve,
+      //    and not a generic failure.
       {
         const refinedHook =
           "A small bakery raised the price of every pastry by 40%, and within one week, customer visits dropped by half.";
@@ -1141,26 +1153,25 @@ async function main() {
 
         if (
           status !== 200 ||
-          payload.status !== "preserve" ||
-          payload.improvedScript !== script ||
+          payload.status !== "diagnostic" ||
+          payload.improvedScript === script ||
           String(payload.improvedScript).includes(
             "Did you know"
           )
         ) {
           throw new Error(
-            "Expected a refined-hook misalignment to preserve the original, not surface a different question hook or a generic failure: " +
+            "Expected a refined-hook misalignment to resolve to diagnostic, not surface a different question hook, preserve, or a generic failure: " +
               JSON.stringify({ status, payload })
           );
         }
 
         console.log(
-          "✅ PASS — Refined-hook alignment rejection preserves the original instead of returning a different question hook or a generic failure"
+          "✅ PASS — Refined-hook alignment rejection resolves to diagnostic instead of returning a different question hook, preserve, or a generic failure"
         );
       }
 
-      // 7) ru locale: the same misalignment reaches the identical preserve
-      //    outcome, and improvedScript stays in English (the script's own
-      //    language), regardless of the UI locale.
+      // 7) ru locale: the same misalignment reaches the identical
+      //    diagnostic outcome, localized to Russian.
       {
         const refinedHook =
           "A small bakery raised the price of every pastry by 40%, and within one week, customer visits dropped by half.";
@@ -1197,17 +1208,18 @@ async function main() {
 
         if (
           status !== 200 ||
-          payload.status !== "preserve" ||
-          payload.improvedScript !== script
+          payload.status !== "diagnostic" ||
+          payload.improvedScript === script ||
+          !/[Ѐ-ӿ]/.test(String(payload.improvedScript))
         ) {
           throw new Error(
-            "Expected the ru locale to reach the identical preserve outcome and keep improvedScript in English: " +
+            "Expected the ru locale to reach the identical diagnostic outcome with Russian guidance text: " +
               JSON.stringify({ status, payload })
           );
         }
 
         console.log(
-          "✅ PASS — ru locale: refined-hook misalignment preserves the same English original script"
+          "✅ PASS — ru locale: refined-hook misalignment resolves to the same diagnostic outcome, localized to Russian"
         );
       }
 
@@ -1278,6 +1290,188 @@ async function main() {
 
         console.log(
           "✅ PASS — Structured failure log excludes script/title while keeping diagnostic fields"
+        );
+      }
+
+      // 10) Source-insufficient diagnostic (the original genuinely has no
+      //     grounded material anywhere): status stays diagnostic,
+      //     missingMaterial is populated, and the guidance text — not the
+      //     model's own candidate — is what reaches the client, localized
+      //     to the requested locale.
+      {
+        const vagueScript = [
+          "Today I’m going to tell you something interesting about Cristiano Ronaldo.",
+          "He trained for many years and became one of the best footballers in the world.",
+          "People admire his discipline, speed, and jumping ability.",
+          "But the most surprising part is how much higher he could jump than an average person.",
+        ].join(" ");
+
+        globalThis.fetch = (async () =>
+          chatCompletionResponse(
+            JSON.stringify({
+              editorialDecision: {
+                strategy: "rewrite",
+                primaryProblemScope: "hook",
+                primaryProblem:
+                  "The opening is a generic topic announcement instead of leading with the surprising jumping-ability fact.",
+                primaryProblemEvidence:
+                  "Today I’m going to tell you something interesting about Cristiano Ronaldo.",
+              },
+              candidateAudit: {
+                resolvedPrimaryProblem: false,
+                candidateMateriallyBetter: false,
+                regressionIntroduced: false,
+              },
+              improvedScript:
+                "Cristiano Ronaldo can jump much higher than an average person.",
+              changes: ["Moved the surprising claim to the opening."],
+              reason:
+                "The rewrite leads with the surprising claim instead of a generic announcement.",
+            })
+          )) as typeof fetch;
+
+        const { status, payload } = await callImproveScript(
+          { script: vagueScript, locale: "ru" },
+          "203.0.113.110"
+        );
+
+        if (
+          status !== 200 ||
+          payload.status !== "diagnostic" ||
+          !Array.isArray(payload.missingMaterial) ||
+          (payload.missingMaterial as unknown[]).length === 0 ||
+          !/[Ѐ-ӿ]/.test(String(payload.reason)) ||
+          !/[Ѐ-ӿ]/.test(String(payload.improvedScript))
+        ) {
+          throw new Error(
+            "Expected a genuinely material-lacking script to resolve to a diagnostic result with non-empty missingMaterial, localized to ru: " +
+              JSON.stringify({ status, payload })
+          );
+        }
+
+        console.log(
+          "✅ PASS — Source-insufficient diagnostic result carries non-empty missingMaterial, localized to the requested locale"
+        );
+      }
+
+      // 11) Candidate-quality diagnostic (the source already has adequate
+      //     grounded material; this specific candidate just wasn't strong
+      //     enough): missingMaterial is absent/empty, the client is told to
+      //     retry rather than add material, and the candidate's own
+      //     fabricated fact is discarded rather than surfaced as an
+      //     accepted improvement.
+      {
+        globalThis.fetch = (async () =>
+          chatCompletionResponse(
+            JSON.stringify({
+              editorialDecision: {
+                strategy: "rewrite",
+                primaryProblemScope: "hook",
+                primaryProblem:
+                  "The cause and its consequence are split across two sentences.",
+                primaryProblemEvidence:
+                  "Last month, a small bakery raised the price of every pastry by 40%.",
+              },
+              candidateAudit: {
+                resolvedPrimaryProblem: true,
+                candidateMateriallyBetter: false,
+                regressionIntroduced: false,
+              },
+              improvedScript:
+                "Last month, a small bakery raised the price of every pastry by 40%, and profits soared by 25% the same week.",
+              changes: [
+                "Combined the cause and consequence into one opening sentence.",
+              ],
+              reason:
+                "The rewrite compresses the opening for immediate impact.",
+            })
+          )) as typeof fetch;
+
+        const { status, payload } = await callImproveScript(
+          { locale: "ru" },
+          "203.0.113.111"
+        );
+
+        if (
+          status !== 200 ||
+          // Not "diagnostic" also rules out the candidate-quality outcome
+          // ever being mislabeled as "preserve" (or "improved"/"error").
+          payload.status !== "diagnostic" ||
+          (Array.isArray(payload.missingMaterial) &&
+            (payload.missingMaterial as unknown[]).length > 0) ||
+          String(payload.improvedScript).includes("25%") ||
+          !/[Ѐ-ӿ]/.test(String(payload.reason))
+        ) {
+          throw new Error(
+            "Expected an adequate-material script with a weak candidate to resolve to the candidate-quality diagnostic bucket, without missingMaterial and without surfacing the fabricated 25% figure: " +
+              JSON.stringify({ status, payload })
+          );
+        }
+
+        console.log(
+          "✅ PASS — Candidate-quality diagnostic result omits missingMaterial, tells the user to retry, and never surfaces the candidate's fabricated fact"
+        );
+      }
+
+      // 12) Manual-testing regression (Finding A): a genuinely vague,
+      //     anchor-free original where the model self-reports success but
+      //     fabricates a number must still resolve to the
+      //     source-insufficient diagnostic (missingMaterial populated),
+      //     not the candidate-quality "you have enough material" bucket —
+      //     even though the rejection itself is a safety-violation check
+      //     (unsupported number), not an audit-failure check.
+      {
+        const vagueScript = [
+          "Today I’m going to tell you something interesting about Cristiano Ronaldo.",
+          "He trained for many years and became one of the best footballers in the world.",
+          "People admire his discipline, speed, and jumping ability.",
+          "But the most surprising part is how much higher he could jump than an average person.",
+        ].join(" ");
+
+        globalThis.fetch = (async () =>
+          chatCompletionResponse(
+            JSON.stringify({
+              editorialDecision: {
+                strategy: "rewrite",
+                primaryProblemScope: "hook",
+                primaryProblem:
+                  "The opening is a generic topic announcement.",
+                primaryProblemEvidence:
+                  "Today I’m going to tell you something interesting about Cristiano Ronaldo.",
+              },
+              candidateAudit: {
+                resolvedPrimaryProblem: true,
+                candidateMateriallyBetter: true,
+                regressionIntroduced: false,
+              },
+              improvedScript:
+                "Cristiano Ronaldo can jump 78 centimeters higher than an average person.",
+              changes: ["Added the specific jump measurement."],
+              reason: "The rewrite adds the specific measurement.",
+            })
+          )) as typeof fetch;
+
+        const { status, payload } = await callImproveScript(
+          { script: vagueScript, locale: "ru" },
+          "203.0.113.112"
+        );
+
+        if (
+          status !== 200 ||
+          payload.status !== "diagnostic" ||
+          !Array.isArray(payload.missingMaterial) ||
+          (payload.missingMaterial as unknown[]).length === 0 ||
+          String(payload.improvedScript).includes("78") ||
+          !/[Ѐ-ӿ]/.test(String(payload.reason))
+        ) {
+          throw new Error(
+            "Expected a genuinely vague, anchor-free script rejected via the unsupported-number safety check to still resolve to the source-insufficient diagnostic (non-empty missingMaterial), not the candidate-quality bucket: " +
+              JSON.stringify({ status, payload })
+          );
+        }
+
+        console.log(
+          "✅ PASS — A vague, anchor-free source rejected via a safety-violation check still resolves to the source-insufficient diagnostic, not candidate-quality"
         );
       }
     } finally {

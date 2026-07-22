@@ -504,6 +504,7 @@ Either resolve the issue through a materially better grounded rewrite or preserv
 Do not silently ignore a validated required issue and restart the editorial diagnosis from zero.
 Do not invent or strengthen facts, numbers, measurements, people, events, examples, causes, outcomes, comparisons, certainty, consequences, or supported claims.
 Preserve the original topic, core idea, scope, uncertainty, meaning, and payoff material.
+If the original states a number or claim with a hedge word (around, about, roughly, approximately, nearly, almost, might, could), the rewrite must keep an equivalent hedge attached to that same claim — never state it as if it were exact or certain. Combining or reordering sentences must never accidentally drop a hedge word that was attached to a number or claim you kept.
 
 Before writing, internally evaluate the complete script as one connected viewer experience.
 
@@ -516,8 +517,9 @@ Determine:
 6. Whether the available material supports a rewrite that solves that problem without weakening an existing strength.
 7. Whether the honest strategy is "rewrite" or "preserve".
 
-Choose "preserve" when no concrete limiting problem can be proven, when the original already uses its material effectively, or when a candidate would not create a meaningful editorial improvement.
-Do not require or invent a primary problem, evidence, changes, or rewritten script for a preserve decision.
+Choose "preserve" ONLY when no concrete limiting problem can be proven, or the original already uses its material effectively — meaning a rewrite genuinely is not needed at all.
+"Preserve" must never be used merely because you doubt you can produce a meaningfully better candidate. If you CAN identify one specific limiting problem in the original (a generic opening, a vague premise, a missing payoff, an unfulfilled promise, or similar) but the script does not contain enough supported material to fix that exact problem without inventing a fact, number, name, cause, outcome, or payoff — that is still a real, provable limiting problem. In that case you must choose "rewrite", honestly report that primaryProblem and primaryProblemEvidence, attempt your best safe candidate using only supported material, and then set candidateAudit truthfully: resolvedPrimaryProblem and candidateMateriallyBetter must be false when your candidate could not actually fix it. Never use "preserve" as a way to avoid disclosing a real problem you could not safely solve — that outcome must go through "rewrite" and an honest candidateAudit instead, even when your candidate is weak.
+Do not require or invent a primary problem, evidence, changes, or rewritten script for a genuine preserve decision (one where no real limiting problem exists at all).
 
 Possible problems may include a weak opening, unclear promise, predictable progression, early payoff, weak ending, repetition, filler, unsupported meaning, or already-strong execution.
 These are examples, not fixed templates. Judge each script on its own material.
@@ -533,10 +535,9 @@ Primary problem scope:
 Improve the complete script, not only the first line.
 
 Approved refined hook integration:
-- When an Approved refined hook is provided, treat it as the already-selected opening for this rewrite.
-- Begin the improvedScript with that exact refined hook.
-- Do not rewrite, weaken, contradict, replace, or remove it.
-- Improve the remaining script around that opening using only supported source material.
+- When an Approved refined hook is provided, its facts and comparison are already approved — preserve what it states, never invent, drop, or change it.
+- You do not have to repeat its exact wording. You may compress, reorder, or restructure it (for example, combining it with the sentence that originally followed it) as long as the result: keeps the same grounded facts and comparison the approved hook describes; keeps every hedge/uncertainty word (around, about, roughly, approximately, nearly, might, could) attached to the same claims; is not turned into a question when the approved hook was not a question; and introduces no new fact, number, name, cause, or claim beyond what the approved hook and script already support.
+- Do not silently replace the approved hook's content with an unrelated opening or a riskier framing (a question hook, a dramatic audience reaction, or an unsupported tease).
 - The refined hook is not a new factual source. Every claim in it and in the rewrite must still be supported by the original script or title.
 
 A meaningful improvement may:
@@ -634,7 +635,7 @@ For a meaningful rewrite:
   "reason": "<specific explanation of the primary problem, the editorial decisions made, and why the complete rewrite is stronger without changing supported meaning>"
 }
 
-For an already-strong script or an uncertain improvement:
+For an already-strong script that genuinely has no provable limiting problem:
 {
   "editorialDecision": {
     "strategy": "preserve"
@@ -664,8 +665,8 @@ ${buildImproveScriptLanguageInstructions(locale)}`;
 ${title ? `Video title / topic:\n${title}\n\n` : ""}${refinedHook ? `Approved refined hook — keep this exact opening if strategy is rewrite:\n${refinedHook}\n\n` : ""}${validatedAnalysisContext ? `Validated Analysis V2 context — explicitly evaluate this grounded editorial hypothesis:\n${validatedAnalysisContext}\n\n` : ""}Original script:
 ${script}
 
-Choose preserve when the original is already strong or when a rewrite would not create a meaningful editorial improvement.
-Choose rewrite only when one specific supported problem can be solved using the material above.
+Choose preserve ONLY when the original is already strong and genuinely has no provable limiting problem.
+Choose rewrite whenever you can identify one specific, real limiting problem in the original — even if the material above turns out not to be enough to fix it. In that case, still choose rewrite, name the problem honestly, attempt your best safe candidate, and set candidateAudit to reflect the true outcome (false where the candidate does not actually resolve it) rather than defaulting to preserve.
 When validated analysis contains a required issue, evaluate that issue directly instead of independently replacing it with an unrelated diagnosis.
 Do not invent any new facts, numbers, measurements, examples, causes, or outcomes.
 Return only valid JSON matching the required schema.`;

@@ -2531,26 +2531,45 @@ const hookCopyButtonLabel =
             </button>
 
             <h2 className="pr-8 text-[20px] font-semibold text-[#111827] sm:text-[22px]">
-              {improvedScriptMissingMaterial.length > 0
-                ? results.improveScriptModal.needsMoreMaterialTitle
+              {improveScriptStatus === "diagnostic"
+                ? results.improveScriptModal.diagnosticTitle
                 : improveScriptStatus === "preserve"
                   ? results.improveScriptModal.originalPreservedTitle
                   : results.improveScriptModal.improvedTitle}
             </h2>
 
             <p className="mt-2 text-[13px] leading-5 text-[#6B7280] sm:text-[14px]">
-              {improveScriptStatus === "preserve"
-                ? results.improveScriptModal.preservedDescription
-                : results.improveScriptModal.defaultDescription}
+              {improveScriptStatus === "diagnostic"
+                ? // Two distinct diagnostic causes, two distinct messages —
+                  // missingMaterial is only ever populated when the source
+                  // genuinely lacks concrete material (see
+                  // engine/improve-script.ts's buildFailedCandidateDiagnosticResponse).
+                  // A candidate-quality diagnostic (material was adequate,
+                  // this attempt just wasn't strong enough) must never claim
+                  // facts are missing when they visibly are not.
+                  improvedScriptMissingMaterial.length > 0
+                  ? results.improveScriptModal.diagnosticDescription
+                  : results.improveScriptModal.diagnosticRetryDescription
+                : improveScriptStatus === "preserve"
+                  ? results.improveScriptModal.preservedDescription
+                  : results.improveScriptModal.defaultDescription}
             </p>
 
-            <div className="mt-5 max-h-[300px] overflow-y-auto whitespace-pre-wrap rounded-[14px] border border-[#E5E7EB] bg-[#F8F8FC] p-4 text-[13px] leading-6 text-[#111827] sm:text-[14px]">
-              {isImprovingScript
-                ? results.improveScriptModal.improving
-                : improveScriptError
-                  ? results.improveScriptModal.noScriptGenerated
-                  : improvedScript}
-            </div>
+            {/* A successful diagnostic result never shows a script-preview
+                box — there is no unchanged/improved script to display, only
+                the reason + "what to add" guidance below. Loading and error
+                states still use this box for their own status text. */}
+            {(isImprovingScript ||
+              improveScriptError ||
+              improveScriptStatus !== "diagnostic") && (
+              <div className="mt-5 max-h-[300px] overflow-y-auto whitespace-pre-wrap rounded-[14px] border border-[#E5E7EB] bg-[#F8F8FC] p-4 text-[13px] leading-6 text-[#111827] sm:text-[14px]">
+                {isImprovingScript
+                  ? results.improveScriptModal.improving
+                  : improveScriptError
+                    ? results.improveScriptModal.noScriptGenerated
+                    : improvedScript}
+              </div>
+            )}
 
             {improveScriptError ? (
               <p className="mt-4 text-[13px] leading-5 text-[#7C3AED]">
@@ -2581,17 +2600,19 @@ const hookCopyButtonLabel =
             )}
 
             <div className="mt-6 flex gap-3">
-              <button
-                onClick={handleCopyImprovedScript}
-                disabled={
-                  isImprovingScript || Boolean(improveScriptError)
-                }
-                className="h-[42px] flex-1 rounded-[12px] bg-[#7C3AED] text-[13px] font-semibold text-white transition hover:bg-[#6D28D9] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {copiedScript ? results.improveScriptModal.copied : improveScriptStatus === "preserve"
-                ? results.improveScriptModal.copyOriginal
-                : results.improveScriptModal.copyScript}
-              </button>
+              {improveScriptStatus !== "diagnostic" && (
+                <button
+                  onClick={handleCopyImprovedScript}
+                  disabled={
+                    isImprovingScript || Boolean(improveScriptError)
+                  }
+                  className="h-[42px] flex-1 rounded-[12px] bg-[#7C3AED] text-[13px] font-semibold text-white transition hover:bg-[#6D28D9] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {copiedScript ? results.improveScriptModal.copied : improveScriptStatus === "preserve"
+                  ? results.improveScriptModal.copyOriginal
+                  : results.improveScriptModal.copyScript}
+                </button>
+              )}
 
               <button
                 onClick={() => setIsScriptModalOpen(false)}

@@ -7,7 +7,28 @@ import {
   buildImproveScriptPreserveResponse,
   parseImproveScriptResponse,
   shouldDiagnoseImproveScript,
+  type ImproveScriptResult,
 } from "../engine/improve-script";
+
+// The exact grounded Ronaldo script from the diagnosed false-diagnostic
+// regression: a specific measurement (9 feet 7 inches), a grounded
+// comparison (7 feet 6 inches), a calculated difference already stated in
+// the script (roughly 2 feet), and a delivered payoff (why the jump is
+// unusual) — adequate material for a real "improved" outcome, not
+// "insufficient grounding".
+const RONALDO_GROUNDED_SCRIPT = [
+  "Most people would never expect Cristiano Ronaldo’s head to reach around 9 feet 7 inches above the ground.",
+  "An average person jumping might reach about 7 feet 6 inches.",
+  "That means Ronaldo reached roughly 2 feet higher, which is what made the jump so unusual.",
+].join(" ");
+
+const RONALDO_GROUNDED_PRIMARY_PROBLEM = {
+  scope: "hook",
+  problem:
+    "The opening sentence states a concrete cause but defers its consequence to the next sentence, reducing hook immediacy and delivery alignment.",
+  evidence:
+    "Most people would never expect Cristiano Ronaldo’s head to reach around 9 feet 7 inches above the ground.",
+};
 
 type TestCase = {
   name: string;
@@ -269,17 +290,19 @@ const tests: TestCase[] = [
     },
   },
   {
-    name: "rewrite with only casing punctuation and whitespace changes preserves the original instead of failing",
+    name: "rewrite with only casing punctuation and whitespace changes resolves to diagnostic instead of failing",
     run: () => {
       const script = [
         "The valve stayed closed for 12 seconds.",
         "That delay changed the final reading.",
       ].join("\n");
 
-      // A surface-only rewrite is not a material improvement — the original
-      // is known-safe, so this must resolve to an honest preserve result,
-      // the same conclusion as the candidateAudit and light-paraphrase
-      // checks reach elsewhere, not an opaque failure.
+      // A surface-only rewrite is not a material improvement — the model
+      // itself diagnosed a real primaryProblem (that is why it chose
+      // "rewrite"), but its own candidate made no actual change, so the
+      // diagnosed weakness remains unresolved. That is a diagnostic
+      // outcome, not "the original is already fine" — not an opaque
+      // failure either.
       const result = parseImproveScriptResponse(
         JSON.stringify({
           editorialDecision: {
@@ -306,8 +329,12 @@ const tests: TestCase[] = [
         script
       );
 
-      assert.equal(result.status, "preserve");
-      assert.equal(result.improvedScript, script);
+      // The original already has concrete material ("12 seconds") — this is
+      // a candidate-quality failure, not source insufficiency, so it must
+      // NOT claim material is missing.
+      assert.equal(result.status, "diagnostic");
+      assert.notEqual(result.improvedScript, script);
+      assert.equal(result.missingMaterial, undefined);
     },
   },
   {
@@ -554,7 +581,7 @@ const tests: TestCase[] = [
     },
   },
   {
-    name: "production Messi light paraphrase with unchanged progression and payoff should preserve the original",
+    name: "production Messi light paraphrase with unchanged progression and payoff resolves to diagnostic",
     run: () => {
       const script = [
         "If Messi had Ronaldo’s vertical jump, how high would he actually reach?",
@@ -590,13 +617,12 @@ const tests: TestCase[] = [
         script
       );
 
-      assert.equal(result.status, "preserve");
-      assert.equal(result.improvedScript, script);
-      assert.deepEqual(result.changes, []);
+      assert.equal(result.status, "diagnostic");
+      assert.notEqual(result.improvedScript, script);
     },
   },
   {
-    name: "light paraphrase with unchanged progression and payoff should preserve the original",
+    name: "light paraphrase with unchanged progression and payoff resolves to diagnostic",
     run: () => {
       const script = [
         "Most defenders watch the ball when Ronaldo jumps.",
@@ -632,12 +658,12 @@ const tests: TestCase[] = [
         script
       );
 
-      assert.equal(result.status, "preserve");
-      assert.equal(result.improvedScript, script);
+      assert.equal(result.status, "diagnostic");
+      assert.notEqual(result.improvedScript, script);
     },
   },
     {
-      name: "candidate audit vetoes rewrites that do not prove a material improvement",
+      name: "candidate audit vetoes rewrites that do not prove a material improvement: regression protects the original (preserve), everything else is an unresolved diagnosed weakness (diagnostic)",
       run: () => {
         const script = [
           "Most people miss what actually changed the test.",
@@ -700,18 +726,22 @@ const tests: TestCase[] = [
           )
         );
 
+        // !resolvedPrimaryProblem and !candidateMateriallyBetter (with no
+        // regression) both mean the diagnosed weakness is still unresolved
+        // — diagnostic, not preserve. regressionIntroduced specifically
+        // means the candidate made something WORSE, which is exactly the
+        // "strong original, worse candidate" case that stays preserve.
         assert.deepEqual(
           results.map((result) => result.status),
-          ["preserve", "preserve", "preserve"]
+          ["diagnostic", "diagnostic", "preserve"]
         );
-        assert.deepEqual(
-          results.map((result) => result.improvedScript),
-          [script, script, script]
-        );
+        assert.notEqual(results[0].improvedScript, script);
+        assert.notEqual(results[1].improvedScript, script);
+        assert.equal(results[2].improvedScript, script);
       },
     },
     {
-      name: "body-scoped rewrite that changes a protected original hook should preserve the original",
+      name: "body-scoped rewrite that changes a protected original hook resolves to diagnostic",
       run: () => {
         const script = [
           "Haaland is NOT HUMAN and I can PROVE IT.",
@@ -750,9 +780,12 @@ const tests: TestCase[] = [
           script
         );
 
-        assert.equal(result.status, "preserve");
-        assert.equal(result.improvedScript, script);
-        assert.deepEqual(result.changes, []);
+        // The diagnosed problem was in the body, not the hook — a candidate
+        // that changes the (already-fine) hook anyway is unsafe, but the
+        // body/payoff weakness itself is real and still unresolved, so this
+        // is diagnostic, not "the original needs no changes."
+        assert.equal(result.status, "diagnostic");
+        assert.notEqual(result.improvedScript, script);
       },
     },
     {
@@ -849,7 +882,7 @@ const tests: TestCase[] = [
     },
   },
   {
-    name: "rewrite that replaces an approved refined hook preserves the original instead of failing",
+    name: "rewrite that restructures (rather than repeats verbatim) an approved refined hook is accepted when it still reuses the same grounded material",
     run: () => {
       const script = [
         "Before we start, you need to understand one important thing.",
@@ -860,10 +893,11 @@ const tests: TestCase[] = [
       const refinedHook =
         "The valve stayed closed for 12 seconds before pressure forced it open.";
 
-      // The original script is known-safe, so a rewrite that ignores the
-      // already-approved refined hook must resolve to an honest preserve
-      // result — the same conclusion the candidateAudit check reaches for
-      // an unaccepted candidate — not an opaque 5xx-triggering failure.
+      // The candidate does not repeat the approved hook verbatim, but it
+      // reuses the exact same grounded fact (12 seconds, the valve,
+      // pressure forcing it open) while removing the generic filler
+      // opening — a legitimate restructuring, not an abandoned hook (see
+      // abandonsApprovedRefinedHook).
       const result = parseImproveScriptResponse(
         JSON.stringify({
           editorialDecision: {
@@ -894,12 +928,12 @@ const tests: TestCase[] = [
         refinedHook
       );
 
-      assert.equal(result.status, "preserve");
-      assert.equal(result.improvedScript, script);
+      assert.equal(result.status, "improved");
+      assert.match(result.improvedScript, /12 seconds/);
     },
   },
   {
-    name: "a model-invented 'Did you know' question hook cannot silently replace an approved direct factual refined hook — preserves instead of failing",
+    name: "a model-invented 'Did you know' question hook cannot silently replace an approved direct factual refined hook — resolves to diagnostic instead of failing",
     run: () => {
       const script = [
         "Here is a story about a bakery.",
@@ -943,10 +977,11 @@ const tests: TestCase[] = [
       );
 
       // A question-style opener must not silently override an approved
-      // direct factual refined hook — the safe outcome is the verified
-      // original, not the model's unapproved substitute and not a failure.
-      assert.equal(result.status, "preserve");
-      assert.equal(result.improvedScript, script);
+      // direct factual refined hook — the safe outcome is an honest
+      // diagnostic (the hook weakness is real and still unresolved), never
+      // the model's unapproved substitute and never a failure.
+      assert.equal(result.status, "diagnostic");
+      assert.notEqual(result.improvedScript, script);
       assert.equal(
         result.improvedScript.includes("Did you know"),
         false
@@ -1114,7 +1149,7 @@ const tests: TestCase[] = [
     },
   },
   {
-    name: "refined-hook enforcement rejects a mismatched question-style rewrite identically under en and ru locale",
+    name: "refined-hook enforcement resolves a mismatched question-style rewrite to diagnostic identically under en and ru locale",
     run: () => {
       const script = [
         "Here is a story about a bakery.",
@@ -1162,12 +1197,715 @@ const tests: TestCase[] = [
         "ru"
       );
 
-      assert.equal(enResult.status, "preserve");
-      assert.equal(ruResult.status, "preserve");
-      // improvedScript is always the verified original script, in its own
-      // language, regardless of the UI locale.
-      assert.equal(enResult.improvedScript, script);
-      assert.equal(ruResult.improvedScript, script);
+      assert.equal(enResult.status, "diagnostic");
+      assert.equal(ruResult.status, "diagnostic");
+      // improvedScript is never the model's unapproved substitute, and the
+      // diagnostic guidance text itself is locale-appropriate.
+      assert.notEqual(enResult.improvedScript, script);
+      assert.notEqual(ruResult.improvedScript, script);
+      assert.doesNotMatch(enResult.improvedScript, /[Ѐ-ӿ]/);
+      assert.match(ruResult.improvedScript, /[Ѐ-ӿ]/);
+    },
+  },
+
+  // ── Phase 8 regression matrix: Ronaldo script + generalization ────────
+  {
+    name: "[Matrix A] Weak Ronaldo script + insufficient grounded material resolves to diagnostic, never preserve, never an unchanged-original-as-improved result",
+    run: () => {
+      const script = [
+        "Today I’m going to tell you something interesting about Cristiano Ronaldo.",
+        "He trained for many years and became one of the best footballers in the world.",
+        "People admire his discipline, speed, and jumping ability.",
+        "But the most surprising part is how much higher he could jump than an average person.",
+      ].join(" ");
+
+      // The model attempted "rewrite" (it diagnosed a real primary problem —
+      // the generic opening), but its own candidate only relocates the same
+      // vague "much higher than an average person" claim — no new concrete
+      // material, exactly the diagnosed live regression.
+      const result = parseImproveScriptResponse(
+        JSON.stringify({
+          editorialDecision: {
+            strategy: "rewrite",
+            primaryProblemScope: "hook",
+            primaryProblem:
+              "The opening is a generic topic announcement instead of leading with the surprising jumping-ability fact.",
+            primaryProblemEvidence:
+              "Today I’m going to tell you something interesting about Cristiano Ronaldo.",
+          },
+          candidateAudit: {
+            resolvedPrimaryProblem: false,
+            candidateMateriallyBetter: false,
+            regressionIntroduced: false,
+          },
+          improvedScript: [
+            "Cristiano Ronaldo can jump much higher than an average person.",
+            "He trained for many years and became one of the best footballers in the world.",
+            "People admire his discipline, speed, and jumping ability.",
+          ].join(" "),
+          changes: ["Moved the surprising claim to the opening."],
+          reason: "The rewrite leads with the surprising claim instead of a generic announcement.",
+        }),
+        script
+      );
+
+      assert.equal(result.status, "diagnostic");
+      assert.notEqual(result.status, "preserve");
+      assert.notEqual(
+        result.improvedScript,
+        script,
+        "A diagnostic result must never present the unchanged weak original as the (implicitly successful) result"
+      );
+      assert.ok(result.missingMaterial && result.missingMaterial.length > 0);
+      assert.match(result.reason, /concrete|payoff|unsupported|too broad/i);
+    },
+  },
+  {
+    name: "[Matrix D] Strong original + a candidate that actively regresses it still resolves to preserve, with an \"already effective\" explanation, not \"the model failed\"",
+    run: () => {
+      const script = [
+        "Nobody expected the bridge to collapse in under four seconds.",
+        "Investigators found a single bolt had sheared under normal load.",
+        "That one bolt was rated for half the weight the bridge actually carried.",
+      ].join(" ");
+
+      const result = parseImproveScriptResponse(
+        JSON.stringify({
+          editorialDecision: {
+            strategy: "rewrite",
+            primaryProblemScope: "payoff",
+            primaryProblem:
+              "The ending could land slightly more forcefully.",
+            primaryProblemEvidence:
+              "That one bolt was rated for half the weight the bridge actually carried.",
+          },
+          candidateAudit: {
+            resolvedPrimaryProblem: true,
+            candidateMateriallyBetter: true,
+            // The candidate weakened an existing strength (removed the
+            // concrete "four seconds" detail) — a genuine regression.
+            regressionIntroduced: true,
+          },
+          improvedScript: [
+            "Nobody expected the bridge to collapse so fast.",
+            "Investigators found a single bolt had sheared under normal load.",
+            "That bolt could not handle the real weight.",
+          ].join(" "),
+          changes: ["Rephrased the ending."],
+          reason: "The rewrite makes the ending punchier.",
+        }),
+        script
+      );
+
+      assert.equal(result.status, "preserve");
+      assert.equal(result.improvedScript, script);
+      assert.match(result.reason, /already works well|not add meaningful value/i);
+      assert.doesNotMatch(result.reason, /failed|could not/i);
+    },
+  },
+  {
+    name: "[Matrix E] Weak Ronaldo script + a genuinely grounded rewrite (existing measurement pulled forward) remains improved",
+    run: () => {
+      const script = [
+        "Today I’m going to tell you something interesting about Cristiano Ronaldo.",
+        "He can jump 80 centimeters higher than an average person.",
+        "People admire his discipline, speed, and jumping ability.",
+      ].join(" ");
+
+      const result = parseImproveScriptResponse(
+        JSON.stringify({
+          editorialDecision: {
+            strategy: "rewrite",
+            primaryProblemScope: "hook",
+            primaryProblem:
+              "The opening is a generic topic announcement instead of leading with the concrete jump measurement.",
+            primaryProblemEvidence:
+              "Today I’m going to tell you something interesting about Cristiano Ronaldo.",
+          },
+          candidateAudit: {
+            resolvedPrimaryProblem: true,
+            candidateMateriallyBetter: true,
+            regressionIntroduced: false,
+          },
+          improvedScript: [
+            "Cristiano Ronaldo can jump 80 centimeters higher than an average person.",
+            "People admire his discipline, speed, and jumping ability.",
+          ].join(" "),
+          changes: [
+            "Led with the existing 80-centimeter measurement instead of the generic announcement.",
+          ],
+          reason:
+            "The rewrite leads with the concrete, already-supported measurement.",
+        }),
+        script
+      );
+
+      assert.equal(result.status, "improved");
+      assert.match(result.improvedScript, /80 centimeters/);
+    },
+  },
+  {
+    name: "[Matrix F] A candidate that invents an unsupported fact for the weak Ronaldo script is still diagnostic (via the unsupported-number safety check), never fabricated as a rewrite",
+    run: () => {
+      const script = [
+        "Today I’m going to tell you something interesting about Cristiano Ronaldo.",
+        "He trained for many years and became one of the best footballers in the world.",
+        "But the most surprising part is how much higher he could jump than an average person.",
+      ].join(" ");
+
+      const result = parseImproveScriptResponse(
+        JSON.stringify({
+          editorialDecision: {
+            strategy: "rewrite",
+            primaryProblemScope: "hook",
+            primaryProblem:
+              "The opening is a generic topic announcement.",
+            primaryProblemEvidence:
+              "Today I’m going to tell you something interesting about Cristiano Ronaldo.",
+          },
+          candidateAudit: {
+            resolvedPrimaryProblem: true,
+            candidateMateriallyBetter: true,
+            regressionIntroduced: false,
+          },
+          improvedScript: [
+            "Cristiano Ronaldo can jump 78 centimeters higher than an average person.",
+            "He trained for many years and became one of the best footballers in the world.",
+          ].join(" "),
+          changes: ["Added the exact jump measurement."],
+          reason: "The rewrite adds the specific measurement.",
+        }),
+        script
+      );
+
+      assert.equal(result.status, "diagnostic");
+      assert.doesNotMatch(result.improvedScript, /78 centimeters/);
+    },
+  },
+  {
+    // Manual-testing regression (Finding A): a safety-violation rejection
+    // (unsupported number/cause/hedge) currently reaches the
+    // candidate-quality diagnostic bucket unconditionally, via
+    // buildSafetyViolationDiagnosticResponse, WITHOUT ever checking whether
+    // the original script actually contains hard-anchor material — unlike
+    // buildFailedCandidateDiagnosticResponse's audit-failure path, which
+    // does check. For a genuinely vague, anchor-free original, this
+    // produces a false "you have enough material, try again" diagnostic
+    // instead of the honest "add concrete material" diagnostic.
+    name: "[Matrix H] A genuinely vague, anchor-free original where the candidate fabricates a number still resolves to the source-insufficient diagnostic (missingMaterial present), not the candidate-quality bucket",
+    run: () => {
+      const script = [
+        "Today I’m going to tell you something interesting about Cristiano Ronaldo.",
+        "He trained for many years and became one of the best footballers in the world.",
+        "People admire his discipline, speed, and jumping ability.",
+        "But the most surprising part is how much higher he could jump than an average person.",
+      ].join(" ");
+
+      const result = parseImproveScriptResponse(
+        JSON.stringify({
+          editorialDecision: {
+            strategy: "rewrite",
+            primaryProblemScope: "hook",
+            primaryProblem:
+              "The opening is a generic topic announcement.",
+            primaryProblemEvidence:
+              "Today I’m going to tell you something interesting about Cristiano Ronaldo.",
+          },
+          candidateAudit: {
+            resolvedPrimaryProblem: true,
+            candidateMateriallyBetter: true,
+            regressionIntroduced: false,
+          },
+          improvedScript:
+            "Cristiano Ronaldo can jump 78 centimeters higher than an average person.",
+          changes: ["Added the specific jump measurement."],
+          reason: "The rewrite adds the specific measurement.",
+        }),
+        script
+      );
+
+      assert.equal(result.status, "diagnostic");
+      assert.doesNotMatch(result.improvedScript, /78 centimeters/);
+      assert.ok(
+        result.missingMaterial && result.missingMaterial.length > 0,
+        "A genuinely anchor-free original must resolve to the source-insufficient diagnostic (non-empty missingMaterial), not the candidate-quality bucket"
+      );
+      assert.doesNotMatch(
+        result.reason,
+        /enough material|meaningfully stronger this time/i
+      );
+    },
+  },
+  {
+    // Phase 4 requirement: hard-anchor classification must not be fooled by
+    // vague duration/comparison language OR by a bare unit word with no
+    // actual quantity attached, while still recognizing genuine numbers,
+    // number+unit pairs, and supported causal statements. Every case below
+    // uses an identical failed candidateAudit (all false) so the ONLY
+    // variable is whether the ORIGINAL script itself contains hard-anchor
+    // material — isolating containsHardAnchorMaterial's classification
+    // from any other part of the dispatch.
+    name: "[Matrix I] Hard-anchor classification: vague duration/comparison language and bare unit words without a quantity resolve to source-insufficient; explicit numbers, number+unit pairs, and causal statements remain grounded",
+    run: () => {
+      function classify(script: string): ImproveScriptResult {
+        return parseImproveScriptResponse(
+          JSON.stringify({
+            editorialDecision: {
+              strategy: "rewrite",
+              primaryProblemScope: "hook",
+              primaryProblem: "The opening could be stronger.",
+              primaryProblemEvidence: script,
+            },
+            candidateAudit: {
+              resolvedPrimaryProblem: false,
+              candidateMateriallyBetter: false,
+              regressionIntroduced: false,
+            },
+            improvedScript: "A rewritten version of the same script.",
+            changes: ["Attempted a rewrite."],
+            reason: "The rewrite attempts to improve the opening.",
+          }),
+          script
+        );
+      }
+
+      // Should remain source-insufficient (missingMaterial present).
+      const manyYears = classify("He trained for many years.");
+      assert.ok(
+        manyYears.missingMaterial && manyYears.missingMaterial.length > 0,
+        "Vague duration language ('many years') must not by itself count as a hard anchor"
+      );
+
+      const muchHigher = classify(
+        "He could jump much higher than an average person."
+      );
+      assert.ok(
+        muchHigher.missingMaterial && muchHigher.missingMaterial.length > 0,
+        "Generic comparative language without a grounded value must not count as enough material"
+      );
+
+      const bareUnitWord = classify(
+        "He could jump several feet into the air."
+      );
+      assert.ok(
+        bareUnitWord.missingMaterial && bareUnitWord.missingMaterial.length > 0,
+        "A bare unit word ('feet') without an actual supported quantity must not automatically make a source concrete"
+      );
+
+      // Should still count as grounded (missingMaterial absent).
+      const explicitDecimal = classify("His foot reached about 2.38 meters.");
+      assert.equal(
+        explicitDecimal.missingMaterial,
+        undefined,
+        "An explicit number + unit relationship must remain a valid hard anchor"
+      );
+
+      const explicitYears = classify("He trained for 15 years.");
+      assert.equal(
+        explicitYears.missingMaterial,
+        undefined,
+        "An explicit number must remain a valid hard anchor"
+      );
+
+      const explicitSeconds = classify(
+        "The valve stayed closed for 12 seconds."
+      );
+      assert.equal(
+        explicitSeconds.missingMaterial,
+        undefined,
+        "An explicit number + unit relationship must remain a valid hard anchor"
+      );
+
+      const causalStatement = classify(
+        "The bridge collapsed because a single bolt failed under normal load."
+      );
+      assert.equal(
+        causalStatement.missingMaterial,
+        undefined,
+        "A supported cause-and-effect statement must remain a valid hard anchor"
+      );
+    },
+  },
+  {
+    name: "[Matrix F] A word-quantified invented measurement (\"almost a foot higher\") is caught too, not just digit-based ones — the exact live regression found during manual verification",
+    run: () => {
+      const script = [
+        "Today I’m going to tell you something interesting about Cristiano Ronaldo.",
+        "He trained for many years and became one of the best footballers in the world.",
+        "People admire his discipline, speed, and jumping ability.",
+        "But the most surprising part is how much higher he could jump than an average person.",
+      ].join(" ");
+
+      const result = parseImproveScriptResponse(
+        JSON.stringify({
+          editorialDecision: {
+            strategy: "rewrite",
+            primaryProblemScope: "body",
+            primaryProblem:
+              "The progression lacks specific details about Ronaldo's jumping ability compared to an average person.",
+            primaryProblemEvidence:
+              "But the most surprising part is how much higher he could jump than an average person.",
+          },
+          candidateAudit: {
+            resolvedPrimaryProblem: true,
+            candidateMateriallyBetter: true,
+            regressionIntroduced: false,
+          },
+          improvedScript: [
+            "Today I’m going to tell you something interesting about Cristiano Ronaldo.",
+            "He trained for many years and became one of the best footballers in the world.",
+            "People admire his discipline, speed, and jumping ability.",
+            "Did you know he can jump almost a foot higher than the average person? That’s what sets him apart from many athletes.",
+          ].join(" "),
+          changes: [
+            "Added a specific comparison of Ronaldo's jump height to the average person's jump height.",
+          ],
+          reason:
+            "The original script lacked specific details about how much higher Ronaldo can jump, so the rewrite adds this detail.",
+        }),
+        script
+      );
+
+      assert.equal(result.status, "diagnostic");
+      assert.doesNotMatch(result.improvedScript, /a foot/i);
+    },
+  },
+  {
+    name: "[Matrix B] A question-style reordering of the exact same vague claim (no invented number, honest-but-wrong candidateAudit) still resolves to diagnostic — the exact live regression found during manual verification",
+    run: () => {
+      const script = [
+        "Today I’m going to tell you something interesting about Cristiano Ronaldo.",
+        "He trained for many years and became one of the best footballers in the world.",
+        "People admire his discipline, speed, and jumping ability.",
+        "But the most surprising part is how much higher he could jump than an average person.",
+      ].join(" ");
+
+      // The model's own candidateAudit claims success, and no unsupported
+      // number/cause was introduced (nothing for those checks to catch),
+      // but the "rewrite" is only a thematic reordering of the SAME vague
+      // claim into a question — no new concrete material anywhere.
+      const result = parseImproveScriptResponse(
+        JSON.stringify({
+          editorialDecision: {
+            strategy: "rewrite",
+            primaryProblemScope: "hook",
+            primaryProblem:
+              "The opening lacks immediate engagement and specificity about Ronaldo's achievements.",
+            primaryProblemEvidence:
+              "Today I’m going to tell you something interesting about Cristiano Ronaldo.",
+          },
+          candidateAudit: {
+            resolvedPrimaryProblem: true,
+            candidateMateriallyBetter: true,
+            regressionIntroduced: false,
+          },
+          improvedScript: [
+            "Did you know Cristiano Ronaldo can jump higher than most people?",
+            "After years of intense training, he became one of the best footballers in the world.",
+            "People admire his discipline, speed, and incredible jumping ability.",
+            "But the most surprising part is just how much higher he could jump than an average person.",
+          ].join(" "),
+          changes: [
+            "Replaced the generic opening with a more engaging question.",
+            "Reordered the sentences for a smoother flow.",
+          ],
+          reason:
+            "The original opening was too generic; starting with a question makes it more intriguing.",
+        }),
+        script
+      );
+
+      assert.equal(result.status, "diagnostic");
+      assert.notEqual(result.status, "improved");
+      assert.ok(result.missingMaterial && result.missingMaterial.length > 0);
+    },
+  },
+
+  // ── Phase 7 regression matrix: false-diagnostic-on-grounded-script fix ──
+  {
+    name: "[Matrix A] Grounded Ronaldo script + a candidate that combines cause/consequence while preserving all hedges resolves to improved, not diagnostic",
+    run: () => {
+      const result = parseImproveScriptResponse(
+        JSON.stringify({
+          editorialDecision: {
+            strategy: "rewrite",
+            primaryProblemScope: RONALDO_GROUNDED_PRIMARY_PROBLEM.scope,
+            primaryProblem: RONALDO_GROUNDED_PRIMARY_PROBLEM.problem,
+            primaryProblemEvidence: RONALDO_GROUNDED_PRIMARY_PROBLEM.evidence,
+          },
+          candidateAudit: {
+            resolvedPrimaryProblem: true,
+            candidateMateriallyBetter: true,
+            regressionIntroduced: false,
+          },
+          improvedScript:
+            "Cristiano Ronaldo’s head once reached around 9 feet 7 inches above the ground — roughly 2 feet higher than an average person might reach while jumping, about 7 feet 6 inches. That difference is what made his leap so unusual.",
+          changes: [
+            "Combined the measurement and the comparison into the opening so the payoff lands immediately.",
+            "Kept every hedge word from the original.",
+          ],
+          reason:
+            "The rewrite leads with the concrete measurement and comparison instead of splitting them across two sentences, while keeping every approximate/uncertain qualifier from the original.",
+        }),
+        RONALDO_GROUNDED_SCRIPT
+      );
+
+      assert.equal(result.status, "improved");
+      assert.notEqual(result.status, "diagnostic");
+      assert.notEqual(result.status, "preserve");
+      assert.match(result.improvedScript, /9 feet 7 inches/);
+      assert.match(result.improvedScript, /7 feet 6 inches/);
+      assert.match(result.improvedScript, /2 feet/);
+      assert.match(result.improvedScript, /\baround\b/i);
+      assert.match(result.improvedScript, /\bmight\b/i);
+      assert.match(result.improvedScript, /\babout\b/i);
+      assert.match(result.improvedScript, /\broughly\b/i);
+    },
+  },
+  {
+    name: "[Matrix B] A candidate that introduces no new facts but reorganizes/combines existing measurements is accepted as meaningful, not rejected for \"adding no concrete material\"",
+    run: () => {
+      const result = parseImproveScriptResponse(
+        JSON.stringify({
+          editorialDecision: {
+            strategy: "rewrite",
+            primaryProblemScope: RONALDO_GROUNDED_PRIMARY_PROBLEM.scope,
+            primaryProblem: RONALDO_GROUNDED_PRIMARY_PROBLEM.problem,
+            primaryProblemEvidence: RONALDO_GROUNDED_PRIMARY_PROBLEM.evidence,
+          },
+          candidateAudit: {
+            resolvedPrimaryProblem: true,
+            candidateMateriallyBetter: true,
+            regressionIntroduced: false,
+          },
+          improvedScript:
+            "Cristiano Ronaldo’s head once reached around 9 feet 7 inches above the ground — roughly 2 feet higher than an average person might reach while jumping, about 7 feet 6 inches. That difference is what made his leap so unusual.",
+          changes: ["Moved the existing measurements into the opening; no new facts were added."],
+          reason: "Every number already existed in the original script — only the order changed.",
+        }),
+        RONALDO_GROUNDED_SCRIPT
+      );
+
+      assert.equal(result.status, "improved");
+    },
+  },
+  {
+    name: "[Matrix C] An awkward, overloaded candidate that the model itself flags as not materially better resolves to the candidate-quality diagnostic — never mislabeled as insufficient source material",
+    run: () => {
+      const result = parseImproveScriptResponse(
+        JSON.stringify({
+          editorialDecision: {
+            strategy: "rewrite",
+            primaryProblemScope: RONALDO_GROUNDED_PRIMARY_PROBLEM.scope,
+            primaryProblem: RONALDO_GROUNDED_PRIMARY_PROBLEM.problem,
+            primaryProblemEvidence: RONALDO_GROUNDED_PRIMARY_PROBLEM.evidence,
+          },
+          candidateAudit: {
+            // The model's own honest self-audit: this awkward, overloaded
+            // single-sentence candidate did not actually resolve the
+            // diagnosed problem well enough.
+            resolvedPrimaryProblem: true,
+            candidateMateriallyBetter: false,
+            regressionIntroduced: false,
+          },
+          improvedScript:
+            "Most people would never expect that Cristiano Ronaldo, who trained for years to become one of the best footballers alive, could send his head around 9 feet 7 inches above the ground, roughly 2 feet more than an average person might reach about 7 feet 6 inches while jumping, which is what made it so unusual and surprising to everyone who saw it.",
+          changes: ["Combined every fact into a single sentence."],
+          reason: "The rewrite combines all details into one sentence.",
+        }),
+        RONALDO_GROUNDED_SCRIPT
+      );
+
+      assert.equal(result.status, "diagnostic");
+      assert.notEqual(result.status, "preserve");
+      // The source visibly has adequate material (the measurements) — must
+      // never claim material is missing.
+      assert.equal(result.missingMaterial, undefined);
+      assert.doesNotMatch(result.reason, /needs a more concrete fact|comparison, event, or payoff/i);
+    },
+  },
+  {
+    name: "[Matrix D] Truly insufficient source (the earlier vague Ronaldo script, no measurements) still resolves to diagnostic with a correct missing-material explanation",
+    run: () => {
+      const vagueScript = [
+        "Today I’m going to tell you something interesting about Cristiano Ronaldo.",
+        "He trained for many years and became one of the best footballers in the world.",
+        "People admire his discipline, speed, and jumping ability.",
+        "But the most surprising part is how much higher he could jump than an average person.",
+      ].join(" ");
+
+      const result = parseImproveScriptResponse(
+        JSON.stringify({
+          editorialDecision: {
+            strategy: "rewrite",
+            primaryProblemScope: "hook",
+            primaryProblem:
+              "The opening is a generic topic announcement instead of leading with the surprising jumping-ability fact.",
+            primaryProblemEvidence:
+              "Today I’m going to tell you something interesting about Cristiano Ronaldo.",
+          },
+          candidateAudit: {
+            resolvedPrimaryProblem: false,
+            candidateMateriallyBetter: false,
+            regressionIntroduced: false,
+          },
+          improvedScript:
+            "Cristiano Ronaldo can jump much higher than an average person.",
+          changes: ["Moved the surprising claim to the opening."],
+          reason: "The rewrite leads with the surprising claim instead of a generic announcement.",
+        }),
+        vagueScript
+      );
+
+      assert.equal(result.status, "diagnostic");
+      assert.notEqual(result.status, "improved");
+      assert.ok(result.missingMaterial && result.missingMaterial.length > 0);
+      assert.match(result.reason, /concrete|payoff|unsupported|too broad/i);
+    },
+  },
+  {
+    name: "[Matrix E] Strong original + a worse candidate: preserve remains valid",
+    run: () => {
+      const script = [
+        "Nobody expected the bridge to collapse in under four seconds.",
+        "Investigators found a single bolt had sheared under normal load.",
+        "That one bolt was rated for half the weight the bridge actually carried.",
+      ].join(" ");
+
+      const result = parseImproveScriptResponse(
+        JSON.stringify({
+          editorialDecision: {
+            strategy: "rewrite",
+            primaryProblemScope: "payoff",
+            primaryProblem: "The ending could land slightly more forcefully.",
+            primaryProblemEvidence:
+              "That one bolt was rated for half the weight the bridge actually carried.",
+          },
+          candidateAudit: {
+            resolvedPrimaryProblem: true,
+            candidateMateriallyBetter: true,
+            regressionIntroduced: true,
+          },
+          improvedScript: [
+            "Nobody expected the bridge to collapse so fast.",
+            "Investigators found a single bolt had sheared under normal load.",
+            "That bolt could not handle the real weight.",
+          ].join(" "),
+          changes: ["Rephrased the ending."],
+          reason: "The rewrite makes the ending punchier.",
+        }),
+        script
+      );
+
+      assert.equal(result.status, "preserve");
+      assert.equal(result.improvedScript, script);
+    },
+  },
+  {
+    name: "[Matrix F] Light paraphrase with sufficient material: weak candidate rejected without mislabeling the source, a corrected grounded candidate succeeds on a later attempt",
+    run: () => {
+      const weakResult = parseImproveScriptResponse(
+        JSON.stringify({
+          editorialDecision: {
+            strategy: "rewrite",
+            primaryProblemScope: RONALDO_GROUNDED_PRIMARY_PROBLEM.scope,
+            primaryProblem: RONALDO_GROUNDED_PRIMARY_PROBLEM.problem,
+            primaryProblemEvidence: RONALDO_GROUNDED_PRIMARY_PROBLEM.evidence,
+          },
+          candidateAudit: {
+            resolvedPrimaryProblem: true,
+            candidateMateriallyBetter: true,
+            regressionIntroduced: false,
+          },
+          improvedScript: [
+            "Most people would never expect Cristiano Ronaldo’s head to reach around 9 feet 7 inches above the ground.",
+            "An average person jumping might reach about 7 feet 6 inches.",
+            "That means Ronaldo reached roughly 2 feet higher, and that is quite unusual indeed.",
+          ].join(" "),
+          changes: ["Rephrased the ending slightly."],
+          reason: "The rewrite rephrases the ending for emphasis.",
+        }),
+        RONALDO_GROUNDED_SCRIPT
+      );
+
+      assert.equal(weakResult.status, "diagnostic");
+      assert.equal(weakResult.missingMaterial, undefined);
+
+      const correctedResult = parseImproveScriptResponse(
+        JSON.stringify({
+          editorialDecision: {
+            strategy: "rewrite",
+            primaryProblemScope: RONALDO_GROUNDED_PRIMARY_PROBLEM.scope,
+            primaryProblem: RONALDO_GROUNDED_PRIMARY_PROBLEM.problem,
+            primaryProblemEvidence: RONALDO_GROUNDED_PRIMARY_PROBLEM.evidence,
+          },
+          candidateAudit: {
+            resolvedPrimaryProblem: true,
+            candidateMateriallyBetter: true,
+            regressionIntroduced: false,
+          },
+          improvedScript:
+            "Cristiano Ronaldo’s head once reached around 9 feet 7 inches above the ground — roughly 2 feet higher than an average person might reach while jumping, about 7 feet 6 inches. That difference is what made his leap so unusual.",
+          changes: ["Combined the measurement and comparison into the opening."],
+          reason: "The rewrite leads with the concrete measurement and comparison.",
+        }),
+        RONALDO_GROUNDED_SCRIPT
+      );
+
+      assert.equal(correctedResult.status, "improved");
+    },
+  },
+  {
+    name: "[Matrix G] Uncertainty preservation: rejects \"around X → exactly X\", \"might reach → reaches\", and \"roughly X → X exactly\"",
+    run: () => {
+      const baseResponse = {
+        editorialDecision: {
+          strategy: "rewrite",
+          primaryProblemScope: RONALDO_GROUNDED_PRIMARY_PROBLEM.scope,
+          primaryProblem: RONALDO_GROUNDED_PRIMARY_PROBLEM.problem,
+          primaryProblemEvidence: RONALDO_GROUNDED_PRIMARY_PROBLEM.evidence,
+        },
+        candidateAudit: {
+          resolvedPrimaryProblem: true,
+          candidateMateriallyBetter: true,
+          regressionIntroduced: false,
+        },
+        changes: ["Combined the cause and consequence."],
+        reason: "The rewrite combines the cause and consequence into one sentence.",
+      };
+
+      const exactHeight = parseImproveScriptResponse(
+        JSON.stringify({
+          ...baseResponse,
+          improvedScript:
+            "Cristiano Ronaldo’s head reaches exactly 9 feet 7 inches above the ground, roughly 2 feet higher than an average person might reach while jumping, about 7 feet 6 inches.",
+        }),
+        RONALDO_GROUNDED_SCRIPT
+      );
+      assert.equal(exactHeight.status, "diagnostic");
+      assert.match(exactHeight.reason, /approximate|uncertain|exact/i);
+
+      const droppedMight = parseImproveScriptResponse(
+        JSON.stringify({
+          ...baseResponse,
+          improvedScript:
+            "Cristiano Ronaldo’s head reaches around 9 feet 7 inches above the ground, roughly 2 feet higher than an average person reaches while jumping, about 7 feet 6 inches.",
+        }),
+        RONALDO_GROUNDED_SCRIPT
+      );
+      assert.equal(droppedMight.status, "diagnostic");
+      assert.match(droppedMight.reason, /approximate|uncertain|exact/i);
+
+      const exactDifference = parseImproveScriptResponse(
+        JSON.stringify({
+          ...baseResponse,
+          improvedScript:
+            "Cristiano Ronaldo’s head reaches around 9 feet 7 inches above the ground, 2 feet exactly higher than an average person might reach while jumping, about 7 feet 6 inches.",
+        }),
+        RONALDO_GROUNDED_SCRIPT
+      );
+      assert.equal(exactDifference.status, "diagnostic");
+      assert.match(exactDifference.reason, /approximate|uncertain|exact/i);
     },
   },
 ];
