@@ -370,6 +370,48 @@ export async function defaultAnalysisV2ModelCaller(
   };
 }
 
+// Shared between buildAnalysisV2RetryUserPrompt (the always-taken first
+// retry) and buildAnalysisV2FinalTargetedRetryUserPrompt (the second retry,
+// only reachable for a fixed set of OTHER validation reasons — see
+// isAnalysisV2FinalTargetedRetryReason). A request can reach the final
+// targeted retry because of a completely different issue, restructure the
+// hook while fixing that issue, and reintroduce a measurement-subject
+// reassignment with no reminder to avoid it — this helper is called from
+// both builders so that reminder is never missing from either stage, and
+// the wording can never drift between them.
+function buildMeasurementSubjectRetryGuidance(): string[] {
+  return [
+    "Specific correction:",
+    "The previous suggestedHook kept a number and its unit from the script but attached it to a different concrete subject than the one the script actually measures — for example moving a measurement from a body part onto the surrounding event, action, or person instead of keeping it on that exact body part or object.",
+    "Identify exactly which person, object, or body part the script says the number measures, and keep the rewritten hook's grammatical subject for that number the same one — do not transfer it to the containing action, event, location, or a different, broader person or entity.",
+    "You may reorder the sentence, add an accompanying event or context clause, or omit the number entirely, but if you keep the number you must keep it attached to the same measured subject.",
+    "Do not add a generic intensifier or a second \"Here's why\"-style bridge sentence while making this correction — prefer one concise sentence that states the concrete fact with its correct subject."
+  ];
+}
+
+// Shared for the same reason as buildMeasurementSubjectRetryGuidance above:
+// a retry triggered by an unrelated validation failure can still rewrite
+// suggestedHook, and without this reminder that rewrite could drift into
+// the interface locale instead of staying in the submitted script's own
+// language.
+function buildSuggestedHookSourceLanguageReminder(): string {
+  return "The suggestedHook is rewritten script text. Keep it in the same language as the submitted script, even when the analysis explanations use another locale.";
+}
+
+// Compact, unconditional counterpart to buildMeasurementSubjectRetryGuidance
+// above — pushed in EVERY retry regardless of which reason triggered it,
+// exactly like buildSuggestedHookSourceLanguageReminder. The detailed helper
+// only fires when the measurement-subject reason is the CURRENT one; this
+// one covers the other case: restructuring suggestedHook to fix a
+// completely unrelated problem (verdict, scoring, causal explanation, an
+// unrelated hook rewrite, etc.) can still accidentally reassign an explicit
+// measurement to the wrong subject even when that was never the original
+// complaint. Shared by both retry builders so the wording never drifts
+// between them.
+function buildMeasurementSubjectCompactReminder(): string {
+  return "If suggestedHook contains a number with a unit (a height, distance, speed, weight, or similar), keep it attached to the exact person, object, or body part the script says it measures — never move it onto a different action, event, goal, location, or broader entity. Reordering the sentence is allowed, omitting the measurement is allowed, but reassigning its subject is not.";
+}
+
 function buildAnalysisV2RetryUserPrompt(
   originalUserPrompt: string,
   validationReason: string
@@ -379,8 +421,16 @@ function buildAnalysisV2RetryUserPrompt(
     /\b(?:overlooked|little-known|secret|surprising|unique|nobody talks about|almost nobody talks about|almost nobody knows|rarely discussed|original)\b/i.test(
       originalUserPrompt
     );
+  const isMeasurementSubjectReason =
+    validationReason.includes(
+      "assigns an explicit measurement to a different subject"
+    );
 
-  if (
+  if (isMeasurementSubjectReason) {
+    specificGuidance.push(
+      ...buildMeasurementSubjectRetryGuidance()
+    );
+  } else if (
     validationReason.includes(
       "unrevealed specific opening promise"
     )
@@ -533,6 +583,20 @@ function buildAnalysisV2RetryUserPrompt(
     }
   }
 
+  // The detailed buildMeasurementSubjectRetryGuidance() branch above already
+  // covers this invariant (and more) when it is the current reason — only
+  // add the compact reminder here when that detailed guidance was NOT
+  // already included, to avoid redundant duplication in the same prompt.
+  if (!isMeasurementSubjectReason) {
+    specificGuidance.push(
+      buildMeasurementSubjectCompactReminder()
+    );
+  }
+
+  specificGuidance.push(
+    buildSuggestedHookSourceLanguageReminder()
+  );
+
   return [
     originalUserPrompt,
     "",
@@ -549,6 +613,9 @@ function isAnalysisV2FinalTargetedRetryReason(
   validationReason: string
 ): boolean {
   return (
+    validationReason.includes(
+      "assigns an explicit measurement to a different subject"
+    ) ||
     validationReason.includes(
       "complete causal explanation in an unpunctuated script"
     ) ||
@@ -600,8 +667,16 @@ function buildAnalysisV2FinalTargetedRetryUserPrompt(
     /\[(?:music|applause|noise|sound)\]/i.test(
       originalUserPrompt
     );
+  const isMeasurementSubjectReason =
+    validationReason.includes(
+      "assigns an explicit measurement to a different subject"
+    );
 
-  if (
+  if (isMeasurementSubjectReason) {
+    specificGuidance.push(
+      ...buildMeasurementSubjectRetryGuidance()
+    );
+  } else if (
     validationReason.includes(
       "complete causal explanation in an unpunctuated script"
     )
@@ -718,7 +793,18 @@ function buildAnalysisV2FinalTargetedRetryUserPrompt(
     "Mixed path: derived overall must be from 46 through 84, there must be at least one grounded riskyPart, and there must be at least one non-optional suggestedFix supported by the same evidence.",
     "Never return verdict strong while retaining any riskyPart, risky scene, or non-optional suggestedFix.",
     "Do not correct only the verdict. Make the component scores, derived totals, feedback arrays, scene statuses, hook decision, and summary describe the same evidence.",
-    "Recalculate all three public scores from the supplied scoreComponents immediately before returning the final JSON."
+    "Recalculate all three public scores from the supplied scoreComponents immediately before returning the final JSON.",
+    // Applies regardless of which correction above triggered this retry —
+    // restructuring suggestedHook to fix an unrelated problem (verdict,
+    // scoring, causal explanation, etc.) can accidentally reassign an
+    // explicit measurement to the wrong subject even when that was never
+    // the original complaint. Deliberately unconditional (unlike the first
+    // retry's suppression) — this is the last attempt, so the redundancy
+    // with the detailed guidance above when isMeasurementSubjectReason is
+    // true is acceptable belt-and-suspenders reinforcement rather than
+    // unwanted duplication.
+    buildMeasurementSubjectCompactReminder(),
+    buildSuggestedHookSourceLanguageReminder()
   );
 
   if (originalPromptHasTranscriptMarkers) {

@@ -1250,6 +1250,213 @@ function suggestedHookIntroducesUnsupportedClaimStrength(
   );
 }
 
+// Cross-topic guard against a specific regression class: the model keeps a
+// number/unit measurement from the script but silently reassigns it to a
+// different concrete subject than the one the script actually measures (for
+// example moving "his foot reached 2.38 meters" onto "the bicycle kick" or
+// "the goal"). This is narrower than a general subject/object parser — it
+// only fires when an explicit "<subject> <measurement verb> <number>
+// <unit>" relationship is recoverable with high confidence from both the
+// script and the hook, and only compares the head noun immediately
+// governing that specific measurement. It intentionally has no knowledge of
+// Ronaldo, football, or any other topic.
+const MEASUREMENT_UNIT_PATTERN =
+  "met(?:er|re)s?|feet|foot|kilomet(?:er|re)s?|miles?|inches?|centimet(?:er|re)s?";
+
+const MEASUREMENT_CLAUSE_PATTERN = new RegExp(
+  `^(.*?)\\b(reached|reaches|travell?ed|travels?|stood|stands?|rose to|rises to|climbed to|climbs to|measured)\\s+(?:about\\s+|approximately\\s+|nearly\\s+|almost\\s+|roughly\\s+)?(\\d+(?:\\.\\d+)?)\\s*(${MEASUREMENT_UNIT_PATTERN})\\b`,
+  "i"
+);
+
+const MEASUREMENT_HEAD_NOUN_STOP_PREPOSITIONS = new Set([
+  "against",
+  "in",
+  "at",
+  "during",
+  "near",
+  "over",
+  "under",
+  "behind",
+  "before",
+  "after",
+  "since",
+  "for",
+  "with",
+  "without",
+  "by",
+  "from",
+  "of",
+  "on",
+  "through",
+  "throughout",
+  "across",
+  "into",
+  "onto",
+  "upon",
+]);
+
+// Words that can end a subject phrase without identifying a concrete,
+// comparable entity — extracting one of these is treated the same as
+// failing to extract a head noun at all (fail open).
+const MEASUREMENT_HEAD_NOUN_NON_ENTITY_WORDS = new Set([
+  "it",
+  "this",
+  "that",
+  "these",
+  "those",
+  "one",
+  "thing",
+  "things",
+  "there",
+  "what",
+]);
+
+function normalizeMeasurementUnit(unit: string): string {
+  const lower = unit.toLowerCase();
+
+  if (/^met(?:er|re)s?$/.test(lower)) return "meters";
+  if (/^(?:feet|foot)$/.test(lower)) return "feet";
+  if (/^kilomet(?:er|re)s?$/.test(lower)) return "kilometers";
+  if (/^miles?$/.test(lower)) return "miles";
+  if (/^inch(?:es)?$/.test(lower)) return "inches";
+  if (/^centimet(?:er|re)s?$/.test(lower)) return "centimeters";
+
+  return lower;
+}
+
+function extractMeasuredEntityHeadNoun(
+  subjectPhrase: string
+): string | null {
+  const words = subjectPhrase
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (words.length === 0) return null;
+
+  let cutIndex = words.length;
+
+  for (let index = 0; index < words.length; index += 1) {
+    const bareWord = words[index]
+      .toLowerCase()
+      .replace(/[^a-z]/g, "");
+
+    if (
+      MEASUREMENT_HEAD_NOUN_STOP_PREPOSITIONS.has(
+        bareWord
+      )
+    ) {
+      cutIndex = index;
+      break;
+    }
+  }
+
+  const headWords = words.slice(0, cutIndex);
+
+  if (headWords.length === 0) return null;
+
+  const lastWord = headWords[headWords.length - 1]
+    .toLowerCase()
+    .replace(/^[^a-z]+|[^a-z]+$/g, "");
+
+  if (
+    lastWord.length < 2 ||
+    MEASUREMENT_HEAD_NOUN_NON_ENTITY_WORDS.has(lastWord)
+  ) {
+    return null;
+  }
+
+  return lastWord;
+}
+
+interface ExtractedMeasurementRelationship {
+  number: string;
+  unit: string;
+  headNoun: string;
+}
+
+function extractMeasurementRelationships(
+  text: string
+): ExtractedMeasurementRelationship[] {
+  const relationships: ExtractedMeasurementRelationship[] =
+    [];
+
+  // A period is only treated as a clause boundary when it is NOT a decimal
+  // point (i.e. not directly followed by a digit) — otherwise "2.38" would
+  // be split into "2" and "38", destroying the very number this function
+  // exists to extract.
+  const clauses = text.split(/[!?,]|\.(?!\d)/);
+
+  for (const clause of clauses) {
+    const match =
+      MEASUREMENT_CLAUSE_PATTERN.exec(clause);
+
+    if (!match) continue;
+
+    const headNoun = extractMeasuredEntityHeadNoun(
+      match[1]
+    );
+
+    if (!headNoun) continue;
+
+    relationships.push({
+      number: match[3],
+      unit: normalizeMeasurementUnit(match[4]),
+      headNoun,
+    });
+  }
+
+  return relationships;
+}
+
+// Fails open (returns false) whenever the relationship cannot be recovered
+// with high confidence from either side, whenever the hook omits the
+// measurement entirely, or whenever the source script itself associates the
+// same number/unit with more than one distinct entity. Fails closed only
+// when the script has exactly one confidently-identified subject for that
+// specific number/unit and the hook reuses the same number/unit under a
+// different head noun.
+export function suggestedHookReassignsExplicitMeasurement(
+  suggestedHook: string,
+  script: string
+): boolean {
+  const scriptRelationships =
+    extractMeasurementRelationships(script);
+
+  if (scriptRelationships.length === 0) return false;
+
+  const hookRelationships =
+    extractMeasurementRelationships(suggestedHook);
+
+  if (hookRelationships.length === 0) return false;
+
+  return hookRelationships.some((hookRelationship) => {
+    const matchingScriptRelationships =
+      scriptRelationships.filter(
+        (relationship) =>
+          relationship.number ===
+            hookRelationship.number &&
+          relationship.unit === hookRelationship.unit
+      );
+
+    if (matchingScriptRelationships.length === 0) {
+      return false;
+    }
+
+    const distinctSourceHeadNouns = new Set(
+      matchingScriptRelationships.map(
+        (relationship) => relationship.headNoun
+      )
+    );
+
+    if (distinctSourceHeadNouns.size > 1) return false;
+
+    const [sourceHeadNoun] = distinctSourceHeadNouns;
+
+    return hookRelationship.headNoun !== sourceHeadNoun;
+  });
+}
+
 function normalizeWhitespace(value: string): string {
   return value.trim().replace(/\s+/g, " ");
 }
@@ -2545,6 +2752,20 @@ export function validateAnalysisV2Result(
       ok: false,
       reason:
         "suggestedHook strengthens a factual claim beyond the submitted script.",
+    };
+  }
+
+  if (
+    hasSuggestedHook &&
+    suggestedHookReassignsExplicitMeasurement(
+      raw.suggestedHook as string,
+      script
+    )
+  ) {
+    return {
+      ok: false,
+      reason:
+        "The suggested hook assigns an explicit measurement to a different subject than the source script. Preserve which person, object, or body part the number measures.",
     };
   }
 

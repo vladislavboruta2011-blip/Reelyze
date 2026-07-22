@@ -369,6 +369,1468 @@ const tests: TestCase[] = [
   },
 
   {
+    // Regression coverage for the live-model failure: prompt hardening
+    // alone reduced hype/bridge filler but did not stop the model from
+    // reassigning an explicit measurement ("2.38 meters") from the script's
+    // actual measured subject ("his foot") onto a different concrete
+    // subject ("the bicycle kick"). This exercises the full runtime
+    // pipeline (not just the narrow validator in isolation) to confirm the
+    // corrective retry actually triggers, receives the exact live invalid
+    // hook's defect, and that a corrected candidate is accepted using the
+    // existing bounded retry policy — no extra model call introduced.
+    name: "runAnalysisV2 retries once and accepts a corrected hook after a live-reported measurement-subject reassignment",
+    run: async () => {
+      let callCount = 0;
+      const userPrompts: string[] = [];
+
+      const ronaldoScript =
+        "Today I want to tell you something very interesting about Cristiano Ronaldo's 2018 bicycle kick against Juventus, where his foot reached about 2.38 meters. The goal happened in the Champions League, and he lifted his body almost horizontally before striking the ball. That unusual height is why the goal is still remembered as one of the most athletic finishes of his career.";
+
+      const createRonaldoRewriteResult = (
+        suggestedHook: string
+      ): Record<string, unknown> => ({
+        scriptType: "narrative_event",
+        verdict: "mixed",
+        scores: {
+          overall: 68,
+          hook: 55,
+          retentionRisk: 48,
+        },
+        hookDecision: "rewrite",
+        hookAssessment:
+          "The opening delays the concrete measurement behind a generic framing sentence instead of leading with it.",
+        suggestedHook,
+        riskyParts: [
+          {
+            excerpt:
+              "Today I want to tell you something very interesting about Cristiano Ronaldo's 2018 bicycle kick against Juventus, where his foot reached about 2.38 meters.",
+            reason:
+              "The concrete measurement is delayed behind a generic framing opener instead of leading the hook.",
+            severity: "medium",
+          },
+        ],
+        suggestedFixes: [
+          {
+            target: "hook",
+            suggestion:
+              "Open directly with the concrete measurement already in the script instead of a generic framing sentence.",
+            optional: false,
+          },
+        ],
+        scenes: [
+          {
+            excerpt:
+              "Today I want to tell you something very interesting about Cristiano Ronaldo's 2018 bicycle kick against Juventus, where his foot reached about 2.38 meters.",
+            label: "Opening",
+            status: "risky",
+          },
+          {
+            excerpt:
+              "The goal happened in the Champions League, and he lifted his body almost horizontally before striking the ball.",
+            label: "Context",
+            status: "average",
+          },
+          {
+            excerpt:
+              "That unusual height is why the goal is still remembered as one of the most athletic finishes of his career.",
+            label: "Resolution",
+            status: "strong",
+          },
+        ],
+        mainTakeaway:
+          "The script has a strong grounded fact, but the hook delays it behind a generic opener instead of leading with the measurement.",
+      });
+
+      const invalidHook =
+        "Cristiano Ronaldo's 2018 bicycle kick against Juventus reached about 2.38 meters, making it one of the most athletic finishes of his career.";
+      const correctedHook =
+        "Cristiano Ronaldo's foot reached about 2.38 meters during his 2018 bicycle kick against Juventus.";
+
+      const modelCaller: AnalysisV2ModelCaller =
+        async (_systemPrompt, userPrompt) => {
+          callCount += 1;
+          userPrompts.push(userPrompt);
+
+          return {
+            raw: JSON.stringify(
+              createRonaldoRewriteResult(
+                callCount === 1
+                  ? invalidHook
+                  : correctedHook
+              )
+            ),
+            modelUsed: "mock-model",
+          };
+        };
+
+      const result = await runAnalysisV2(
+        ronaldoScript,
+        "Ronaldo bicycle kick",
+        modelCaller
+      );
+
+      assert.equal(result.ok, true);
+      assert.equal(result.status, 200);
+      assert.equal(
+        callCount,
+        2,
+        "expected exactly one corrective retry — no extra model call beyond the existing retry policy"
+      );
+
+      if (result.ok) {
+        assert.equal(
+          result.response.result.suggestedHook,
+          correctedHook
+        );
+      }
+
+      assert.match(
+        userPrompts[1] ?? "",
+        /assigns an explicit measurement to a different subject/i
+      );
+      assert.match(
+        userPrompts[1] ?? "",
+        /keep the rewritten hook's grammatical subject for that number the same/i
+      );
+      assert.match(
+        userPrompts[1] ?? "",
+        /the suggestedhook is rewritten script text\. keep it in the same language as the submitted script/i
+      );
+
+      // The internal validation reason must never reach the user-facing
+      // response — only the generic error message does, and only on a
+      // final (non-retried) failure.
+      const responseText = JSON.stringify(result.response);
+      assert.doesNotMatch(
+        responseText,
+        /assigns an explicit measurement to a different subject/i
+      );
+    },
+  },
+
+  {
+    // The measurement-subject guard must never block a hook that keeps the
+    // measurement on its correct subject — confirms no false positive on a
+    // clean first attempt (zero retries).
+    name: "runAnalysisV2 accepts a grounded hook rewrite that correctly preserves the measured subject on the first attempt",
+    run: async () => {
+      let callCount = 0;
+
+      const ronaldoScript =
+        "Today I want to tell you something very interesting about Cristiano Ronaldo's 2018 bicycle kick against Juventus, where his foot reached about 2.38 meters. The goal happened in the Champions League, and he lifted his body almost horizontally before striking the ball. That unusual height is why the goal is still remembered as one of the most athletic finishes of his career.";
+
+      const validResult = {
+        scriptType: "narrative_event",
+        verdict: "mixed",
+        scores: {
+          overall: 68,
+          hook: 55,
+          retentionRisk: 48,
+        },
+        hookDecision: "rewrite",
+        hookAssessment:
+          "The opening delays the concrete measurement behind a generic framing sentence instead of leading with it.",
+        suggestedHook:
+          "Cristiano Ronaldo's foot reached about 2.38 meters during his 2018 bicycle kick against Juventus.",
+        riskyParts: [
+          {
+            excerpt:
+              "Today I want to tell you something very interesting about Cristiano Ronaldo's 2018 bicycle kick against Juventus, where his foot reached about 2.38 meters.",
+            reason:
+              "The concrete measurement is delayed behind a generic framing opener instead of leading the hook.",
+            severity: "medium",
+          },
+        ],
+        suggestedFixes: [
+          {
+            target: "hook",
+            suggestion:
+              "Open directly with the concrete measurement already in the script instead of a generic framing sentence.",
+            optional: false,
+          },
+        ],
+        scenes: [
+          {
+            excerpt:
+              "Today I want to tell you something very interesting about Cristiano Ronaldo's 2018 bicycle kick against Juventus, where his foot reached about 2.38 meters.",
+            label: "Opening",
+            status: "risky",
+          },
+          {
+            excerpt:
+              "The goal happened in the Champions League, and he lifted his body almost horizontally before striking the ball.",
+            label: "Context",
+            status: "average",
+          },
+          {
+            excerpt:
+              "That unusual height is why the goal is still remembered as one of the most athletic finishes of his career.",
+            label: "Resolution",
+            status: "strong",
+          },
+        ],
+        mainTakeaway:
+          "The script has a strong grounded fact, but the hook delays it behind a generic opener instead of leading with the measurement.",
+      };
+
+      const modelCaller: AnalysisV2ModelCaller =
+        async () => {
+          callCount += 1;
+
+          return {
+            raw: JSON.stringify(validResult),
+            modelUsed: "mock-model",
+          };
+        };
+
+      const result = await runAnalysisV2(
+        ronaldoScript,
+        "Ronaldo bicycle kick",
+        modelCaller
+      );
+
+      assert.equal(result.ok, true);
+      assert.equal(callCount, 1);
+    },
+  },
+
+  {
+    // Regression coverage for the diagnosed pipeline gap: the final
+    // targeted retry (attempt 1 -> attempt 2) can be triggered by a
+    // completely unrelated validation reason (here, a mixed-verdict/score
+    // mismatch), and restructuring the hook to fix THAT problem could
+    // silently reassign the measurement's subject with no reminder not to.
+    // This proves the reminder is now present in that prompt even though
+    // the reason that triggered escalation was never the measurement one.
+    name: "runAnalysisV2 includes the measurement-subject reminder in the final targeted retry even when a different validation reason triggered it, and accepts a corrected final candidate",
+    run: async () => {
+      let callCount = 0;
+      const userPrompts: string[] = [];
+
+      const ronaldoScript =
+        "Today I want to tell you something very interesting about Cristiano Ronaldo's 2018 bicycle kick against Juventus, where his foot reached about 2.38 meters. The goal happened in the Champions League, and he lifted his body almost horizontally before striking the ball. That unusual height is why the goal is still remembered as one of the most athletic finishes of his career.";
+
+      const invalidHook =
+        "Cristiano Ronaldo's 2018 bicycle kick against Juventus reached about 2.38 meters, making it one of the most athletic finishes of his career.";
+      const correctedHook =
+        "Cristiano Ronaldo's foot reached about 2.38 meters during his 2018 bicycle kick against Juventus.";
+
+      const baseResult = (
+        suggestedHook: string,
+        overall: number
+      ): Record<string, unknown> => ({
+        scriptType: "narrative_event",
+        verdict: "mixed",
+        scores: {
+          overall,
+          hook: 55,
+          retentionRisk: 48,
+        },
+        hookDecision: "rewrite",
+        hookAssessment:
+          "The opening delays the concrete measurement behind a generic framing sentence instead of leading with it.",
+        suggestedHook,
+        riskyParts: [
+          {
+            excerpt:
+              "Today I want to tell you something very interesting about Cristiano Ronaldo's 2018 bicycle kick against Juventus, where his foot reached about 2.38 meters.",
+            reason:
+              "The concrete measurement is delayed behind a generic framing opener instead of leading the hook.",
+            severity: "medium",
+          },
+        ],
+        suggestedFixes: [
+          {
+            target: "hook",
+            suggestion:
+              "Open directly with the concrete measurement already in the script instead of a generic framing sentence.",
+            optional: false,
+          },
+        ],
+        scenes: [
+          {
+            excerpt:
+              "Today I want to tell you something very interesting about Cristiano Ronaldo's 2018 bicycle kick against Juventus, where his foot reached about 2.38 meters.",
+            label: "Opening",
+            status: "risky",
+          },
+          {
+            excerpt:
+              "The goal happened in the Champions League, and he lifted his body almost horizontally before striking the ball.",
+            label: "Context",
+            status: "average",
+          },
+          {
+            excerpt:
+              "That unusual height is why the goal is still remembered as one of the most athletic finishes of his career.",
+            label: "Resolution",
+            status: "strong",
+          },
+        ],
+        mainTakeaway:
+          "The script has a strong grounded fact, but the hook delays it behind a generic opener instead of leading with the measurement.",
+      });
+
+      const modelCaller: AnalysisV2ModelCaller =
+        async (_systemPrompt, userPrompt) => {
+          callCount += 1;
+          userPrompts.push(userPrompt);
+
+          if (callCount === 1) {
+            // Attempt 1 fails on the measurement-subject validator itself.
+            return {
+              raw: JSON.stringify(
+                baseResult(invalidHook, 68)
+              ),
+              modelUsed: "mock-model",
+            };
+          }
+
+          if (callCount === 2) {
+            // Attempt 2 fixes the subject but introduces an UNRELATED
+            // defect (overall score outside the valid mixed range) that
+            // is one of the fixed finalTargetedRetry-eligible reasons —
+            // this is what actually triggers the final targeted retry.
+            return {
+              raw: JSON.stringify(
+                baseResult(correctedHook, 90)
+              ),
+              modelUsed: "mock-model",
+            };
+          }
+
+          // Attempt 3 (the final targeted retry's own output): fully
+          // corrected — subject preserved AND overall back in range.
+          return {
+            raw: JSON.stringify(
+              baseResult(correctedHook, 68)
+            ),
+            modelUsed: "mock-model",
+          };
+        };
+
+      const result = await runAnalysisV2(
+        ronaldoScript,
+        "Ronaldo bicycle kick",
+        modelCaller
+      );
+
+      assert.equal(result.ok, true);
+      assert.equal(result.status, 200);
+      assert.equal(
+        callCount,
+        3,
+        "expected exactly 3 model calls — the existing retry policy, not an added attempt"
+      );
+
+      if (result.ok) {
+        assert.equal(
+          result.response.result.suggestedHook,
+          correctedHook
+        );
+      }
+
+      // Attempt 2's retry prompt (built from attempt 1's own reason) still
+      // carries the measurement-subject guidance.
+      assert.match(
+        userPrompts[1] ?? "",
+        /assigns an explicit measurement to a different subject/i
+      );
+
+      // Attempt 3's prompt is the FINAL targeted retry, built from attempt
+      // 2's reason — a mixed-verdict/score mismatch, NOT the measurement
+      // reason. It must still carry the measurement-subject reminder (the
+      // fix under test), plus the guidance for the reason that actually
+      // triggered it (no regression to existing final-retry behavior).
+      const finalRetryPrompt = userPrompts[2] ?? "";
+
+      assert.match(
+        finalRetryPrompt,
+        /mixed verdict is inconsistent/i
+      );
+      assert.doesNotMatch(
+        finalRetryPrompt,
+        /assigns an explicit measurement to a different subject/i
+      );
+      assert.match(
+        finalRetryPrompt,
+        /keep it attached to the exact person, object, or body part the script says it measures/i
+      );
+      assert.match(
+        finalRetryPrompt,
+        /the suggestedhook is rewritten script text\. keep it in the same language as the submitted script/i
+      );
+
+      // The internal validation reason must never reach the user-facing
+      // response.
+      const responseText = JSON.stringify(result.response);
+      assert.doesNotMatch(
+        responseText,
+        /assigns an explicit measurement to a different subject/i
+      );
+      assert.doesNotMatch(
+        responseText,
+        /mixed verdict is inconsistent/i
+      );
+    },
+  },
+
+  {
+    // The other side of the same regression: if the final targeted retry's
+    // own candidate STILL reassigns the measurement despite the reminder,
+    // the request must fail safely — exactly 3 calls, a generic public
+    // error, and no internal reason leaked — never a 4th model call.
+    name: "runAnalysisV2 fails safely after exactly 3 attempts when the final targeted retry candidate still reassigns the measurement",
+    run: async () => {
+      let callCount = 0;
+
+      const ronaldoScript =
+        "Today I want to tell you something very interesting about Cristiano Ronaldo's 2018 bicycle kick against Juventus, where his foot reached about 2.38 meters. The goal happened in the Champions League, and he lifted his body almost horizontally before striking the ball. That unusual height is why the goal is still remembered as one of the most athletic finishes of his career.";
+
+      const invalidHook =
+        "Cristiano Ronaldo's 2018 bicycle kick against Juventus reached about 2.38 meters, making it one of the most athletic finishes of his career.";
+      const correctedHook =
+        "Cristiano Ronaldo's foot reached about 2.38 meters during his 2018 bicycle kick against Juventus.";
+
+      const baseResult = (
+        suggestedHook: string,
+        overall: number
+      ): Record<string, unknown> => ({
+        scriptType: "narrative_event",
+        verdict: "mixed",
+        scores: {
+          overall,
+          hook: 55,
+          retentionRisk: 48,
+        },
+        hookDecision: "rewrite",
+        hookAssessment:
+          "The opening delays the concrete measurement behind a generic framing sentence instead of leading with it.",
+        suggestedHook,
+        riskyParts: [
+          {
+            excerpt:
+              "Today I want to tell you something very interesting about Cristiano Ronaldo's 2018 bicycle kick against Juventus, where his foot reached about 2.38 meters.",
+            reason:
+              "The concrete measurement is delayed behind a generic framing opener instead of leading the hook.",
+            severity: "medium",
+          },
+        ],
+        suggestedFixes: [
+          {
+            target: "hook",
+            suggestion:
+              "Open directly with the concrete measurement already in the script instead of a generic framing sentence.",
+            optional: false,
+          },
+        ],
+        scenes: [
+          {
+            excerpt:
+              "Today I want to tell you something very interesting about Cristiano Ronaldo's 2018 bicycle kick against Juventus, where his foot reached about 2.38 meters.",
+            label: "Opening",
+            status: "risky",
+          },
+          {
+            excerpt:
+              "The goal happened in the Champions League, and he lifted his body almost horizontally before striking the ball.",
+            label: "Context",
+            status: "average",
+          },
+          {
+            excerpt:
+              "That unusual height is why the goal is still remembered as one of the most athletic finishes of his career.",
+            label: "Resolution",
+            status: "strong",
+          },
+        ],
+        mainTakeaway:
+          "The script has a strong grounded fact, but the hook delays it behind a generic opener instead of leading with the measurement.",
+      });
+
+      const modelCaller: AnalysisV2ModelCaller =
+        async () => {
+          callCount += 1;
+
+          if (callCount === 1) {
+            return {
+              raw: JSON.stringify(
+                baseResult(invalidHook, 68)
+              ),
+              modelUsed: "mock-model",
+            };
+          }
+
+          if (callCount === 2) {
+            return {
+              raw: JSON.stringify(
+                baseResult(correctedHook, 90)
+              ),
+              modelUsed: "mock-model",
+            };
+          }
+
+          // Attempt 3 still reassigns the measurement despite the reminder
+          // — the request must give up safely, not retry a 4th time.
+          return {
+            raw: JSON.stringify(
+              baseResult(invalidHook, 68)
+            ),
+            modelUsed: "mock-model",
+          };
+        };
+
+      const result = await runAnalysisV2(
+        ronaldoScript,
+        "Ronaldo bicycle kick",
+        modelCaller
+      );
+
+      assert.equal(result.ok, false);
+      assert.equal(result.status, 502);
+      assert.equal(
+        callCount,
+        3,
+        "must give up after exactly 3 attempts — no 4th model call"
+      );
+
+      if (!result.ok) {
+        assert.deepEqual(result.response, {
+          status: "error",
+          reason:
+            "Analysis V2 returned an invalid analysis.",
+        });
+      }
+
+      const responseText = JSON.stringify(result.response);
+      assert.doesNotMatch(
+        responseText,
+        /assigns an explicit measurement to a different subject/i
+      );
+      assert.doesNotMatch(
+        responseText,
+        /foot|kick|Juventus|Ronaldo/i
+      );
+    },
+  },
+
+  {
+    // Regression coverage for the live-reported language-policy bug: an
+    // English script analyzed with the Russian interface locale returned a
+    // suggestedHook translated into Russian, which also silently defeated
+    // the measurement-subject validator (it could not compare an English
+    // source relationship against a Russian hook). This confirms the
+    // accepted pipeline path keeps a correct English suggestedHook exactly
+    // as returned — untranslated, untouched, subject preserved on "foot" —
+    // while the Russian explanatory fields pass through unchanged, and that
+    // this combination is accepted on the first attempt with zero retries.
+    name: "runAnalysisV2 accepts an English suggestedHook unchanged for an English script analyzed under the Russian interface locale (Ronaldo regression)",
+    run: async () => {
+      let callCount = 0;
+
+      const ronaldoScript =
+        "Today I want to tell you something very interesting about Cristiano Ronaldo's 2018 bicycle kick against Juventus, where his foot reached about 2.38 meters. The goal happened in the Champions League, and he lifted his body almost horizontally before striking the ball. That unusual height is why the goal is still remembered as one of the most athletic finishes of his career.";
+
+      const englishHook =
+        "Cristiano Ronaldo's foot reached about 2.38 meters during his 2018 bicycle kick against Juventus.";
+
+      const validResultWithRussianExplanations = {
+        scriptType: "narrative_event",
+        verdict: "mixed",
+        scores: {
+          overall: 68,
+          hook: 55,
+          retentionRisk: 48,
+        },
+        hookDecision: "rewrite",
+        hookAssessment:
+          "Открытие откладывает конкретное измерение за общей вступительной фразой вместо того, чтобы вести с него.",
+        suggestedHook: englishHook,
+        riskyParts: [
+          {
+            excerpt:
+              "Today I want to tell you something very interesting about Cristiano Ronaldo's 2018 bicycle kick against Juventus, where his foot reached about 2.38 meters.",
+            reason:
+              "Конкретное измерение задержано за общим вступительным открытием вместо того, чтобы вести хук.",
+            severity: "medium",
+          },
+        ],
+        suggestedFixes: [
+          {
+            target: "hook",
+            suggestion:
+              "Начните сразу с конкретного измерения, уже присутствующего в сценарии, вместо общего вступительного предложения.",
+            optional: false,
+          },
+        ],
+        scenes: [
+          {
+            excerpt:
+              "Today I want to tell you something very interesting about Cristiano Ronaldo's 2018 bicycle kick against Juventus, where his foot reached about 2.38 meters.",
+            label: "Открытие",
+            status: "risky",
+          },
+          {
+            excerpt:
+              "The goal happened in the Champions League, and he lifted his body almost horizontally before striking the ball.",
+            label: "Контекст",
+            status: "average",
+          },
+          {
+            excerpt:
+              "That unusual height is why the goal is still remembered as one of the most athletic finishes of his career.",
+            label: "Развязка",
+            status: "strong",
+          },
+        ],
+        mainTakeaway:
+          "В сценарии есть сильный обоснованный факт, но хук откладывает его за общим вступлением вместо того, чтобы вести с измерения.",
+      };
+
+      const modelCaller: AnalysisV2ModelCaller =
+        async () => {
+          callCount += 1;
+
+          return {
+            raw: JSON.stringify(
+              validResultWithRussianExplanations
+            ),
+            modelUsed: "mock-model",
+          };
+        };
+
+      const result = await runAnalysisV2(
+        ronaldoScript,
+        "Ronaldo bicycle kick",
+        modelCaller,
+        "ru"
+      );
+
+      assert.equal(result.ok, true);
+      assert.equal(result.status, 200);
+      assert.equal(
+        callCount,
+        1,
+        "a correct English hook alongside Russian explanations must be accepted on the first attempt"
+      );
+
+      if (result.ok) {
+        assert.equal(
+          result.response.result.suggestedHook,
+          englishHook,
+          "suggestedHook must remain in English exactly as returned, never translated toward the ru interface locale"
+        );
+        assert.equal(
+          result.response.result.hookAssessment,
+          validResultWithRussianExplanations.hookAssessment,
+          "hookAssessment must remain in the ru interface locale, untouched"
+        );
+        assert.equal(result.response.locale, "ru");
+      }
+    },
+  },
+
+  {
+    // Retry-gate regression: before the fix, isAnalysisV2FinalTargetedRetryReason
+    // did not recognize the measurement-subject reason, so a request whose
+    // FIRST RETRY (attempt 1, not attempt 0) still reassigned the measurement
+    // would give up after exactly 2 model calls, never reaching the final
+    // targeted retry — even though a more detailed, dedicated guidance
+    // branch for this exact reason already existed there. This proves the
+    // gate now lets that failure escalate to the existing (not a new) final
+    // targeted retry, and that a corrected third candidate is accepted.
+    name: "runAnalysisV2 escalates an attempt-1 measurement-subject failure to the final targeted retry (retry-gate fix) and accepts a corrected third candidate",
+    run: async () => {
+      let callCount = 0;
+      const userPrompts: string[] = [];
+
+      const ronaldoScript =
+        "Today I want to tell you something very interesting about Cristiano Ronaldo's 2018 bicycle kick against Juventus, where his foot reached about 2.38 meters. The goal happened in the Champions League, and he lifted his body almost horizontally before striking the ball. That unusual height is why the goal is still remembered as one of the most athletic finishes of his career.";
+
+      const invalidHook =
+        "Cristiano Ronaldo's 2018 bicycle kick against Juventus reached about 2.38 meters, making it one of the most athletic finishes of his career.";
+      const correctedHook =
+        "Cristiano Ronaldo's foot reached about 2.38 meters during his 2018 bicycle kick against Juventus.";
+
+      const baseResult = (
+        suggestedHook: string
+      ): Record<string, unknown> => ({
+        scriptType: "narrative_event",
+        verdict: "mixed",
+        scores: {
+          overall: 68,
+          hook: 55,
+          retentionRisk: 48,
+        },
+        hookDecision: "rewrite",
+        hookAssessment:
+          "The opening delays the concrete measurement behind a generic framing sentence instead of leading with it.",
+        suggestedHook,
+        riskyParts: [
+          {
+            excerpt:
+              "Today I want to tell you something very interesting about Cristiano Ronaldo's 2018 bicycle kick against Juventus, where his foot reached about 2.38 meters.",
+            reason:
+              "The concrete measurement is delayed behind a generic framing opener instead of leading the hook.",
+            severity: "medium",
+          },
+        ],
+        suggestedFixes: [
+          {
+            target: "hook",
+            suggestion:
+              "Open directly with the concrete measurement already in the script instead of a generic framing sentence.",
+            optional: false,
+          },
+        ],
+        scenes: [
+          {
+            excerpt:
+              "Today I want to tell you something very interesting about Cristiano Ronaldo's 2018 bicycle kick against Juventus, where his foot reached about 2.38 meters.",
+            label: "Opening",
+            status: "risky",
+          },
+          {
+            excerpt:
+              "The goal happened in the Champions League, and he lifted his body almost horizontally before striking the ball.",
+            label: "Context",
+            status: "average",
+          },
+          {
+            excerpt:
+              "That unusual height is why the goal is still remembered as one of the most athletic finishes of his career.",
+            label: "Resolution",
+            status: "strong",
+          },
+        ],
+        mainTakeaway:
+          "The script has a strong grounded fact, but the hook delays it behind a generic opener instead of leading with the measurement.",
+      });
+
+      const modelCaller: AnalysisV2ModelCaller =
+        async (_systemPrompt, userPrompt) => {
+          callCount += 1;
+          userPrompts.push(userPrompt);
+
+          if (callCount <= 2) {
+            // Attempt 0 AND attempt 1 (the first retry's own output) both
+            // reassign the measurement — before the fix, attempt 1's
+            // failure would end the request right here.
+            return {
+              raw: JSON.stringify(baseResult(invalidHook)),
+              modelUsed: "mock-model",
+            };
+          }
+
+          // Attempt 2 (the final targeted retry's own output): corrected.
+          return {
+            raw: JSON.stringify(baseResult(correctedHook)),
+            modelUsed: "mock-model",
+          };
+        };
+
+      const result = await runAnalysisV2(
+        ronaldoScript,
+        "Ronaldo bicycle kick",
+        modelCaller
+      );
+
+      assert.equal(result.ok, true);
+      assert.equal(result.status, 200);
+      assert.equal(
+        callCount,
+        3,
+        "the attempt-1 measurement-subject failure must escalate to exactly one final targeted retry — no 4th call"
+      );
+
+      if (result.ok) {
+        assert.equal(
+          result.response.result.suggestedHook,
+          correctedHook
+        );
+      }
+
+      // userPrompts[2] is the final targeted retry's prompt, built from
+      // attempt 1's own (measurement-subject) reason.
+      assert.match(
+        userPrompts[2] ?? "",
+        /assigns an explicit measurement to a different subject/i
+      );
+      assert.match(
+        userPrompts[2] ?? "",
+        /identify exactly which person, object, or body part the script says the number measures/i,
+        "the detailed measurement guidance must appear in the final targeted retry when it is the triggering reason"
+      );
+
+      const responseText = JSON.stringify(result.response);
+      assert.doesNotMatch(
+        responseText,
+        /assigns an explicit measurement to a different subject/i
+      );
+    },
+  },
+
+  {
+    // The other side of the gate fix: if the final targeted retry's own
+    // candidate STILL reassigns the measurement, the request must still
+    // fail safely at exactly 3 attempts — the gate fix must not create a
+    // 4th call or change the public error contract.
+    name: "runAnalysisV2 fails safely at exactly 3 attempts when an attempt-1 measurement-subject failure escalates but the final candidate is still invalid",
+    run: async () => {
+      let callCount = 0;
+
+      const ronaldoScript =
+        "Today I want to tell you something very interesting about Cristiano Ronaldo's 2018 bicycle kick against Juventus, where his foot reached about 2.38 meters. The goal happened in the Champions League, and he lifted his body almost horizontally before striking the ball. That unusual height is why the goal is still remembered as one of the most athletic finishes of his career.";
+
+      const invalidHook =
+        "Cristiano Ronaldo's 2018 bicycle kick against Juventus reached about 2.38 meters, making it one of the most athletic finishes of his career.";
+
+      const baseResult = (): Record<string, unknown> => ({
+        scriptType: "narrative_event",
+        verdict: "mixed",
+        scores: {
+          overall: 68,
+          hook: 55,
+          retentionRisk: 48,
+        },
+        hookDecision: "rewrite",
+        hookAssessment:
+          "The opening delays the concrete measurement behind a generic framing sentence instead of leading with it.",
+        suggestedHook: invalidHook,
+        riskyParts: [
+          {
+            excerpt:
+              "Today I want to tell you something very interesting about Cristiano Ronaldo's 2018 bicycle kick against Juventus, where his foot reached about 2.38 meters.",
+            reason:
+              "The concrete measurement is delayed behind a generic framing opener instead of leading the hook.",
+            severity: "medium",
+          },
+        ],
+        suggestedFixes: [
+          {
+            target: "hook",
+            suggestion:
+              "Open directly with the concrete measurement already in the script instead of a generic framing sentence.",
+            optional: false,
+          },
+        ],
+        scenes: [
+          {
+            excerpt:
+              "Today I want to tell you something very interesting about Cristiano Ronaldo's 2018 bicycle kick against Juventus, where his foot reached about 2.38 meters.",
+            label: "Opening",
+            status: "risky",
+          },
+          {
+            excerpt:
+              "The goal happened in the Champions League, and he lifted his body almost horizontally before striking the ball.",
+            label: "Context",
+            status: "average",
+          },
+          {
+            excerpt:
+              "That unusual height is why the goal is still remembered as one of the most athletic finishes of his career.",
+            label: "Resolution",
+            status: "strong",
+          },
+        ],
+        mainTakeaway:
+          "The script has a strong grounded fact, but the hook delays it behind a generic opener instead of leading with the measurement.",
+      });
+
+      const modelCaller: AnalysisV2ModelCaller =
+        async () => {
+          callCount += 1;
+
+          return {
+            raw: JSON.stringify(baseResult()),
+            modelUsed: "mock-model",
+          };
+        };
+
+      const result = await runAnalysisV2(
+        ronaldoScript,
+        "Ronaldo bicycle kick",
+        modelCaller
+      );
+
+      assert.equal(result.ok, false);
+      assert.equal(result.status, 502);
+      assert.equal(
+        callCount,
+        3,
+        "must give up after exactly 3 attempts — the gate fix must never add a 4th model call"
+      );
+
+      if (!result.ok) {
+        assert.deepEqual(result.response, {
+          status: "error",
+          reason:
+            "Analysis V2 returned an invalid analysis.",
+        });
+      }
+
+      const responseText = JSON.stringify(result.response);
+      assert.doesNotMatch(
+        responseText,
+        /assigns an explicit measurement to a different subject/i
+      );
+      assert.doesNotMatch(
+        responseText,
+        /foot|kick|Juventus|Ronaldo/i
+      );
+    },
+  },
+
+  {
+    // First-retry reminder coverage: the compact reminder must appear even
+    // when attempt 0 failed for a completely unrelated reason (the gap this
+    // task closes), and must NOT be redundantly duplicated alongside the
+    // detailed guidance when the measurement-subject reason is itself the
+    // trigger.
+    name: "buildAnalysisV2RetryUserPrompt (first retry) carries the compact measurement reminder for an unrelated trigger, and the detailed guidance without duplication for the measurement-subject trigger",
+    run: async () => {
+      const originalityScript =
+        "These are three overlooked productivity habits that almost nobody talks about. Put your phone in another room because notifications pull your attention away. Write down one priority because a long task list splits your focus. Then work for 25 minutes because a short timer makes starting feel easier.";
+
+      // Case 1: attempt 0 fails for an UNRELATED reason (parallel-advice
+      // list-escalation misclassification, an existing supported reason).
+      // The first retry it triggers must still carry the compact reminder.
+      let callCountUnrelated = 0;
+      const unrelatedUserPrompts: string[] = [];
+
+      const modelCallerUnrelated: AnalysisV2ModelCaller =
+        async (_systemPrompt, userPrompt) => {
+          callCountUnrelated += 1;
+          unrelatedUserPrompts.push(userPrompt);
+
+          if (callCountUnrelated === 1) {
+            return {
+              raw: JSON.stringify({
+                scriptType: "list_escalation",
+                verdict: "strong",
+                scores: {
+                  overall: 82,
+                  hook: 70,
+                  retentionRisk: 30,
+                },
+                hookDecision: "keep",
+                hookAssessment:
+                  "The hook is clear and specific.",
+                suggestedHook: null,
+                riskyParts: [],
+                suggestedFixes: [],
+                scenes: [
+                  {
+                    excerpt: originalityScript,
+                    label: "Habits",
+                    status: "strong",
+                  },
+                ],
+                mainTakeaway:
+                  "The three habits are clear and actionable.",
+              }),
+              modelUsed: "mock-model",
+            };
+          }
+
+          return {
+            raw: JSON.stringify({
+              scriptType: "how_to",
+              verdict: "mixed",
+              scores: {
+                overall: 68,
+                hook: 55,
+                retentionRisk: 48,
+              },
+              hookDecision: "refine",
+              hookAssessment:
+                "The hook makes an unsupported novelty claim.",
+              suggestedHook:
+                "Three productivity habits that actually work.",
+              riskyParts: [
+                {
+                  excerpt:
+                    "These are three overlooked productivity habits that almost nobody talks about.",
+                  reason:
+                    "Unsupported novelty claim not backed by less-obvious material.",
+                  severity: "medium",
+                },
+              ],
+              suggestedFixes: [
+                {
+                  target: "hook",
+                  suggestion:
+                    "Remove the overlooked/nobody-talks-about claim.",
+                  optional: false,
+                },
+              ],
+              scenes: [
+                {
+                  excerpt: originalityScript,
+                  label: "Habits",
+                  status: "average",
+                },
+              ],
+              mainTakeaway:
+                "The habits are conventional, so the novelty claim is unsupported.",
+            }),
+            modelUsed: "mock-model",
+          };
+        };
+
+      const unrelatedResult = await runAnalysisV2(
+        originalityScript,
+        "Productivity habits",
+        modelCallerUnrelated
+      );
+
+      assert.equal(unrelatedResult.ok, true);
+      assert.equal(callCountUnrelated, 2);
+      assert.match(
+        unrelatedUserPrompts[1] ?? "",
+        /must be classified as how_to or generic_advice/i
+      );
+      assert.match(
+        unrelatedUserPrompts[1] ?? "",
+        /never move it onto a different action, event, goal, location, or broader entity/i,
+        "the compact measurement reminder must appear in the first retry even for an unrelated trigger"
+      );
+      assert.doesNotMatch(
+        unrelatedUserPrompts[1] ?? "",
+        /identify exactly which person, object, or body part the script says the number measures/i,
+        "the detailed measurement guidance must not appear when it was not the triggering reason"
+      );
+
+      // Case 2: attempt 0 fails specifically on the measurement-subject
+      // reason — the first retry must carry the detailed guidance, and must
+      // NOT also carry the redundant compact reminder in the same prompt.
+      const ronaldoScript =
+        "Today I want to tell you something very interesting about Cristiano Ronaldo's 2018 bicycle kick against Juventus, where his foot reached about 2.38 meters. The goal happened in the Champions League, and he lifted his body almost horizontally before striking the ball. That unusual height is why the goal is still remembered as one of the most athletic finishes of his career.";
+
+      const invalidHook =
+        "Cristiano Ronaldo's 2018 bicycle kick against Juventus reached about 2.38 meters, making it one of the most athletic finishes of his career.";
+      const correctedHook =
+        "Cristiano Ronaldo's foot reached about 2.38 meters during his 2018 bicycle kick against Juventus.";
+
+      const baseResult = (
+        suggestedHook: string
+      ): Record<string, unknown> => ({
+        scriptType: "narrative_event",
+        verdict: "mixed",
+        scores: {
+          overall: 68,
+          hook: 55,
+          retentionRisk: 48,
+        },
+        hookDecision: "rewrite",
+        hookAssessment:
+          "The opening delays the concrete measurement behind a generic framing sentence instead of leading with it.",
+        suggestedHook,
+        riskyParts: [
+          {
+            excerpt:
+              "Today I want to tell you something very interesting about Cristiano Ronaldo's 2018 bicycle kick against Juventus, where his foot reached about 2.38 meters.",
+            reason:
+              "The concrete measurement is delayed behind a generic framing opener instead of leading the hook.",
+            severity: "medium",
+          },
+        ],
+        suggestedFixes: [
+          {
+            target: "hook",
+            suggestion:
+              "Open directly with the concrete measurement already in the script instead of a generic framing sentence.",
+            optional: false,
+          },
+        ],
+        scenes: [
+          {
+            excerpt:
+              "Today I want to tell you something very interesting about Cristiano Ronaldo's 2018 bicycle kick against Juventus, where his foot reached about 2.38 meters.",
+            label: "Opening",
+            status: "risky",
+          },
+          {
+            excerpt:
+              "The goal happened in the Champions League, and he lifted his body almost horizontally before striking the ball.",
+            label: "Context",
+            status: "average",
+          },
+          {
+            excerpt:
+              "That unusual height is why the goal is still remembered as one of the most athletic finishes of his career.",
+            label: "Resolution",
+            status: "strong",
+          },
+        ],
+        mainTakeaway:
+          "The script has a strong grounded fact, but the hook delays it behind a generic opener instead of leading with the measurement.",
+      });
+
+      let callCountMeasurement = 0;
+      const measurementUserPrompts: string[] = [];
+
+      const modelCallerMeasurement: AnalysisV2ModelCaller =
+        async (_systemPrompt, userPrompt) => {
+          callCountMeasurement += 1;
+          measurementUserPrompts.push(userPrompt);
+
+          return {
+            raw: JSON.stringify(
+              baseResult(
+                callCountMeasurement === 1
+                  ? invalidHook
+                  : correctedHook
+              )
+            ),
+            modelUsed: "mock-model",
+          };
+        };
+
+      const measurementResult = await runAnalysisV2(
+        ronaldoScript,
+        "Ronaldo bicycle kick",
+        modelCallerMeasurement
+      );
+
+      assert.equal(measurementResult.ok, true);
+      assert.equal(callCountMeasurement, 2);
+      assert.match(
+        measurementUserPrompts[1] ?? "",
+        /identify exactly which person, object, or body part the script says the number measures/i
+      );
+
+      const detailedOccurrences = (
+        measurementUserPrompts[1] ?? ""
+      ).match(
+        /never move it onto a different action, event, goal, location, or broader entity/gi
+      );
+
+      assert.equal(
+        detailedOccurrences,
+        null,
+        "the compact reminder must not be redundantly duplicated in the first retry when the detailed guidance already covers the same trigger"
+      );
+    },
+  },
+
+  {
+    // Final-retry reminder coverage: the compact reminder must remain
+    // present in the final targeted retry regardless of the triggering
+    // reason (unlike the first retry, this redundancy is intentional at the
+    // last attempt), and the detailed guidance must still appear when the
+    // triggering reason is specifically the measurement-subject one.
+    name: "buildAnalysisV2FinalTargetedRetryUserPrompt carries the compact reminder unconditionally, plus the detailed guidance when triggered by the measurement-subject reason",
+    run: async () => {
+      const ronaldoScript =
+        "Today I want to tell you something very interesting about Cristiano Ronaldo's 2018 bicycle kick against Juventus, where his foot reached about 2.38 meters. The goal happened in the Champions League, and he lifted his body almost horizontally before striking the ball. That unusual height is why the goal is still remembered as one of the most athletic finishes of his career.";
+
+      const invalidHook =
+        "Cristiano Ronaldo's 2018 bicycle kick against Juventus reached about 2.38 meters, making it one of the most athletic finishes of his career.";
+      const correctedHook =
+        "Cristiano Ronaldo's foot reached about 2.38 meters during his 2018 bicycle kick against Juventus.";
+
+      const baseResult = (
+        suggestedHook: string
+      ): Record<string, unknown> => ({
+        scriptType: "narrative_event",
+        verdict: "mixed",
+        scores: {
+          overall: 68,
+          hook: 55,
+          retentionRisk: 48,
+        },
+        hookDecision: "rewrite",
+        hookAssessment:
+          "The opening delays the concrete measurement behind a generic framing sentence instead of leading with it.",
+        suggestedHook,
+        riskyParts: [
+          {
+            excerpt:
+              "Today I want to tell you something very interesting about Cristiano Ronaldo's 2018 bicycle kick against Juventus, where his foot reached about 2.38 meters.",
+            reason:
+              "The concrete measurement is delayed behind a generic framing opener instead of leading the hook.",
+            severity: "medium",
+          },
+        ],
+        suggestedFixes: [
+          {
+            target: "hook",
+            suggestion:
+              "Open directly with the concrete measurement already in the script instead of a generic framing sentence.",
+            optional: false,
+          },
+        ],
+        scenes: [
+          {
+            excerpt:
+              "Today I want to tell you something very interesting about Cristiano Ronaldo's 2018 bicycle kick against Juventus, where his foot reached about 2.38 meters.",
+            label: "Opening",
+            status: "risky",
+          },
+          {
+            excerpt:
+              "The goal happened in the Champions League, and he lifted his body almost horizontally before striking the ball.",
+            label: "Context",
+            status: "average",
+          },
+          {
+            excerpt:
+              "That unusual height is why the goal is still remembered as one of the most athletic finishes of his career.",
+            label: "Resolution",
+            status: "strong",
+          },
+        ],
+        mainTakeaway:
+          "The script has a strong grounded fact, but the hook delays it behind a generic opener instead of leading with the measurement.",
+      });
+
+      let callCount = 0;
+      const userPrompts: string[] = [];
+
+      const modelCaller: AnalysisV2ModelCaller =
+        async (_systemPrompt, userPrompt) => {
+          callCount += 1;
+          userPrompts.push(userPrompt);
+
+          if (callCount <= 2) {
+            return {
+              raw: JSON.stringify(baseResult(invalidHook)),
+              modelUsed: "mock-model",
+            };
+          }
+
+          return {
+            raw: JSON.stringify(baseResult(correctedHook)),
+            modelUsed: "mock-model",
+          };
+        };
+
+      const result = await runAnalysisV2(
+        ronaldoScript,
+        "Ronaldo bicycle kick",
+        modelCaller
+      );
+
+      assert.equal(result.ok, true);
+      assert.equal(callCount, 3);
+
+      const finalRetryPrompt = userPrompts[2] ?? "";
+
+      assert.match(
+        finalRetryPrompt,
+        /never move it onto a different action, event, goal, location, or broader entity/i,
+        "the compact reminder must be present in the final targeted retry"
+      );
+      assert.match(
+        finalRetryPrompt,
+        /identify exactly which person, object, or body part the script says the number measures/i,
+        "the detailed guidance must also be present when triggered by the measurement-subject reason"
+      );
+    },
+  },
+
+  {
+    // Full regression path: attempt 0 fails on an unrelated gate-eligible
+    // reason (mixed-verdict/score inconsistency), attempt 1 (the first
+    // retry's own output) reassigns the measurement from foot to bicycle
+    // kick, and attempt 2 (now reachable thanks to the gate fix) preserves
+    // foot and succeeds — all under the Russian interface locale, proving
+    // suggestedHook stays English while explanations stay Russian
+    // throughout the whole corrected chain.
+    name: "Ronaldo regression: attempt-0 unrelated failure, attempt-1 measurement reassignment, attempt-2 corrected success, under the RU interface locale",
+    run: async () => {
+      let callCount = 0;
+      const userPrompts: string[] = [];
+
+      const ronaldoScript =
+        "Today I want to tell you something very interesting about Cristiano Ronaldo's 2018 bicycle kick against Juventus, where his foot reached about 2.38 meters. The goal happened in the Champions League, and he lifted his body almost horizontally before striking the ball. That unusual height is why the goal is still remembered as one of the most athletic finishes of his career.";
+
+      const invalidHook =
+        "Cristiano Ronaldo's 2018 bicycle kick against Juventus reached about 2.38 meters, making it one of the most athletic finishes of his career.";
+      const correctedHook =
+        "Cristiano Ronaldo's foot reached about 2.38 meters during his 2018 bicycle kick against Juventus.";
+
+      const russianHookAssessment =
+        "Открытие откладывает конкретное измерение за общей вступительной фразой вместо того, чтобы вести с него.";
+      const russianMainTakeaway =
+        "В сценарии есть сильный обоснованный факт, но хук откладывает его за общим вступлением вместо того, чтобы вести с измерения.";
+
+      const baseResult = (
+        suggestedHook: string | null,
+        overall: number
+      ): Record<string, unknown> => ({
+        scriptType: "narrative_event",
+        verdict: "mixed",
+        scores: {
+          overall,
+          hook: 55,
+          retentionRisk: 48,
+        },
+        hookDecision: "rewrite",
+        hookAssessment: russianHookAssessment,
+        suggestedHook,
+        riskyParts: [
+          {
+            excerpt:
+              "Today I want to tell you something very interesting about Cristiano Ronaldo's 2018 bicycle kick against Juventus, where his foot reached about 2.38 meters.",
+            reason:
+              "Конкретное измерение задержано за общим вступительным открытием вместо того, чтобы вести хук.",
+            severity: "medium",
+          },
+        ],
+        suggestedFixes: [
+          {
+            target: "hook",
+            suggestion:
+              "Начните сразу с конкретного измерения, уже присутствующего в сценарии, вместо общего вступительного предложения.",
+            optional: false,
+          },
+        ],
+        scenes: [
+          {
+            excerpt:
+              "Today I want to tell you something very interesting about Cristiano Ronaldo's 2018 bicycle kick against Juventus, where his foot reached about 2.38 meters.",
+            label: "Открытие",
+            status: "risky",
+          },
+          {
+            excerpt:
+              "The goal happened in the Champions League, and he lifted his body almost horizontally before striking the ball.",
+            label: "Контекст",
+            status: "average",
+          },
+          {
+            excerpt:
+              "That unusual height is why the goal is still remembered as one of the most athletic finishes of his career.",
+            label: "Развязка",
+            status: "strong",
+          },
+        ],
+        mainTakeaway: russianMainTakeaway,
+      });
+
+      const modelCaller: AnalysisV2ModelCaller =
+        async (_systemPrompt, userPrompt) => {
+          callCount += 1;
+          userPrompts.push(userPrompt);
+
+          if (callCount === 1) {
+            // Attempt 0: fails on an unrelated gate-eligible reason — the
+            // overall score (90) is outside the mixed range (46-84) for a
+            // mixed verdict, a "verdict is inconsistent with the supplied
+            // scores" failure.
+            return {
+              raw: JSON.stringify(
+                baseResult(correctedHook, 90)
+              ),
+              modelUsed: "mock-model",
+            };
+          }
+
+          if (callCount === 2) {
+            // Attempt 1 (the first retry's own output): the verdict/score
+            // problem is fixed, but the measurement is now reassigned.
+            return {
+              raw: JSON.stringify(
+                baseResult(invalidHook, 68)
+              ),
+              modelUsed: "mock-model",
+            };
+          }
+
+          // Attempt 2 (the final targeted retry's own output): both
+          // problems corrected.
+          return {
+            raw: JSON.stringify(
+              baseResult(correctedHook, 68)
+            ),
+            modelUsed: "mock-model",
+          };
+        };
+
+      const result = await runAnalysisV2(
+        ronaldoScript,
+        "Ronaldo bicycle kick",
+        modelCaller,
+        "ru"
+      );
+
+      assert.equal(result.ok, true);
+      assert.equal(result.status, 200);
+      assert.equal(
+        callCount,
+        3,
+        "expected exactly 3 model calls for this corrected chain"
+      );
+
+      // First retry (attempt 0 -> attempt 1), triggered by the unrelated
+      // verdict/score reason, must still carry the compact measurement
+      // invariant.
+      assert.match(
+        userPrompts[1] ?? "",
+        /verdict is inconsistent with the supplied/i
+      );
+      assert.match(
+        userPrompts[1] ?? "",
+        /never move it onto a different action, event, goal, location, or broader entity/i
+      );
+
+      // Final targeted retry (attempt 1 -> attempt 2), triggered by the
+      // measurement-subject reason, must carry both the detailed
+      // corrective instructions and the compact reminder.
+      assert.match(
+        userPrompts[2] ?? "",
+        /assigns an explicit measurement to a different subject/i
+      );
+      assert.match(
+        userPrompts[2] ?? "",
+        /identify exactly which person, object, or body part the script says the number measures/i
+      );
+      assert.match(
+        userPrompts[2] ?? "",
+        /never move it onto a different action, event, goal, location, or broader entity/i
+      );
+
+      if (result.ok) {
+        assert.equal(
+          result.response.result.suggestedHook,
+          correctedHook,
+          "suggestedHook must remain English"
+        );
+        assert.match(
+          result.response.result.suggestedHook ?? "",
+          /foot/i
+        );
+        assert.doesNotMatch(
+          result.response.result.suggestedHook ?? "",
+          /bicycle kick reached|kick.*reached about 2\.38/i
+        );
+        assert.equal(
+          result.response.result.hookAssessment,
+          russianHookAssessment
+        );
+        assert.equal(
+          result.response.result.mainTakeaway,
+          russianMainTakeaway
+        );
+        assert.equal(result.response.locale, "ru");
+      }
+
+      const responseText = JSON.stringify(result.response);
+      assert.doesNotMatch(
+        responseText,
+        /assigns an explicit measurement to a different subject/i
+      );
+      assert.doesNotMatch(
+        responseText,
+        /verdict is inconsistent with the supplied/i
+      );
+    },
+  },
+
+  {
     name: "runAnalysisV2 gives grounded retry guidance after parallel list misclassification",
     run: async () => {
       const originalityScript =
@@ -489,6 +1951,11 @@ const tests: TestCase[] = [
       assert.match(
         retryPrompt,
         /use hookDecision refine or rewrite rather than keep/i
+      );
+      assert.match(
+        retryPrompt,
+        /the suggestedhook is rewritten script text\. keep it in the same language as the submitted script/i,
+        "the source-language reminder must appear in the first retry even when an unrelated validation reason triggered it"
       );
 
       if (result.ok) {

@@ -580,6 +580,110 @@ const localeChecks = [
       ),
   },
   {
+    name: "ru prompt separates source-language fields from interface-locale fields",
+    check: () => {
+      assert.ok(
+        ruPrompt.includes("SOURCE-LANGUAGE FIELDS")
+      );
+      assert.ok(
+        ruPrompt.includes("INTERFACE-LOCALE FIELDS")
+      );
+      // Order matters: suggestedHook's source-language rule must be
+      // established before the interface-locale instruction, not merely
+      // present somewhere in the same section.
+      assert.ok(
+        ruPrompt.indexOf("SOURCE-LANGUAGE FIELDS") <
+          ruPrompt.indexOf("INTERFACE-LOCALE FIELDS")
+      );
+    },
+  },
+  {
+    name: "en prompt separates source-language fields from interface-locale fields",
+    check: () => {
+      assert.ok(
+        enPrompt.includes("SOURCE-LANGUAGE FIELDS")
+      );
+      assert.ok(
+        enPrompt.includes("INTERFACE-LOCALE FIELDS")
+      );
+    },
+  },
+  {
+    name: "ru prompt (English script + Russian interface) requires suggestedHook to stay in the script's own language, never translated to Russian",
+    check: () => {
+      assert.ok(
+        ruPrompt.includes(
+          "For suggestedHook specifically: preserve the script's own language exactly, even when the requested analysis locale is Russian."
+        )
+      );
+      assert.ok(
+        ruPrompt.includes(
+          "Do not translate its names, sentences, measurements, or phrasing toward Russian"
+        )
+      );
+    },
+  },
+  {
+    name: "en prompt (Russian script + English interface) requires suggestedHook to stay in the script's own language, never translated to English",
+    check: () => {
+      assert.ok(
+        enPrompt.includes(
+          "For suggestedHook specifically: preserve the script's own language exactly, even when the requested analysis locale is English."
+        )
+      );
+      assert.ok(
+        enPrompt.includes(
+          "Do not translate its names, sentences, measurements, or phrasing toward English"
+        )
+      );
+    },
+  },
+  {
+    name: "suggestedHook must remain in the script's own language under both locales (same-language cases: EN script + EN interface, RU script + RU interface are both covered by the same script-relative rule)",
+    check: () => {
+      assert.ok(
+        enPrompt.includes(
+          "suggestedHook must remain in the script's own language in both cases."
+        )
+      );
+      assert.ok(
+        ruPrompt.includes(
+          "suggestedHook must remain in the script's own language in both cases."
+        )
+      );
+    },
+  },
+  {
+    name: "suggestedHook silent pre-finalization audit includes a language-preservation check, not just grounding/subject checks",
+    check: () => {
+      assert.ok(
+        enPrompt.includes(
+          "Is the candidate written in the exact same language as the submitted script, with no word, name, number, or sentence translated toward the requested analysis locale?"
+        )
+      );
+      assert.ok(
+        ruPrompt.includes(
+          "Is the candidate written in the exact same language as the submitted script, with no word, name, number, or sentence translated toward the requested analysis locale?"
+        )
+      );
+    },
+  },
+  {
+    name: "the suggestedHook 'must never' list forbids translating the hook into the requested analysis locale",
+    check: () => {
+      assert.ok(
+        enPrompt.includes(
+          "be translated into the requested analysis locale when that locale differs from the submitted script's own language"
+        )
+      );
+      assert.ok(
+        ruPrompt.includes(
+          "be translated into the requested analysis locale when that locale differs from the submitted script's own language"
+        )
+      );
+    },
+  },
+  {
     name: "ru prompt gives Russian versions of the GROUNDING section's exact allowed forms",
     check: () => {
       assert.ok(

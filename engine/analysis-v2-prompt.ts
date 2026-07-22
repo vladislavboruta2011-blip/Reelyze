@@ -38,15 +38,29 @@ When the GROUNDING section's two exact allowed forms apply, write them in Russia
   return `
 LANGUAGE
 
+The submitted script's language and the requested analysis locale (${languageName}) are independent of each other and will often differ. Every generated field belongs to exactly one of the two groups below — never let one group's language leak into the other.
+
+SOURCE-LANGUAGE FIELDS
+
+These must stay in the same language as the submitted script, never translated toward ${languageName}:
+- suggestedHook
+- riskyParts[].excerpt
+- scenes[].excerpt
+- any other rewritten or quoted script text
+
+Do not translate suggestedHook, riskyParts[].excerpt, or scenes[].excerpt. Copy them exactly from the submitted script and keep them in the script's original language — never translate the script itself.
+
+For suggestedHook specifically: preserve the script's own language exactly, even when the requested analysis locale is ${languageName}. Do not translate its names, sentences, measurements, or phrasing toward ${languageName} — only improve the hook editorially (wording, ordering, specificity) while staying inside its original language, and keep every grounding and grammatical-subject rule defined earlier in this prompt.
+
+INTERFACE-LOCALE FIELDS
+
 Write every user-facing prose explanation field in ${languageName}: hookAssessment, mainTakeaway, riskyParts[].reason, suggestedFixes[].suggestion, and scenes[].label.
 
 Keep every JSON key name and every enum value (scriptType, verdict, hookDecision, riskyParts[].severity, suggestedFixes[].target, scenes[].status) in English exactly as defined in this prompt, regardless of the explanation language.
 
-Do not translate suggestedHook, riskyParts[].excerpt, or scenes[].excerpt. Copy them exactly from the submitted script and keep them in the script's original language — never translate the script itself.
-
 Do not translate the names of real people, brands, products, or teams that appear in the script.
 
-The choice of explanation language must never change scoreComponents, verdict, hookDecision, or any other editorial decision — it only changes which language the explanation prose is written in. An analysis of the same script in English and in ${languageName} must reach the identical scores and editorial decisions.${groundingFormsInstruction}`;
+The choice of explanation language must never change scoreComponents, verdict, hookDecision, or any other editorial decision — it only changes which language the explanation prose is written in. An analysis of the same script in English and in ${languageName} must reach the identical scores and editorial decisions. suggestedHook must remain in the script's own language in both cases.${groundingFormsInstruction}`;
 }
 
 export function buildAnalysisV2SystemPrompt(
@@ -307,6 +321,7 @@ Before returning refine or rewrite, compare the candidate against the original o
 Before finalizing suggestedHook, silently audit the candidate against every item below and revise it internally if any item fails. Never expose this reasoning, and never mention the audit itself in hookAssessment or any other field:
 - Is every name, number, unit, date, opponent, and action grounded exactly in the script, with nothing invented?
 - Is the grammatical subject of every action and measurement exactly the one the script assigns it to, never transferred to a broader event, a different person, or a different body part or object?
+- Is the candidate written in the exact same language as the submitted script, with no word, name, number, or sentence translated toward the requested analysis locale?
 - Does the first sentence already contain the strongest available concrete detail, stated directly?
 - Is any phrase generic filler, hedging, or hype that could be deleted without losing meaning?
 - Is a "Here's why" or other bridge phrase present without being strictly necessary, when the hook could already stand alone as one sentence?
@@ -328,6 +343,7 @@ A suggestedHook must never:
 - A suggestedHook must not state the explanation and then promise to explain that same explanation.
 - assign an action, distance, height, speed, weight, or other measurement to a different grammatical subject than the one the script actually gives it — if the script states that a specific body part or object reached a measurement during an action, the rewrite must keep that same body part or object as the thing that reached it, never the action or event itself.
 - promise a mystery, comparison, explanation, or outcome that the rest of the submitted script does not actually deliver.
+- be translated into the requested analysis locale when that locale differs from the submitted script's own language — it must stay in the script's original language exactly, even though hookAssessment and the other explanatory fields are written in that locale.
 
 When hookDecision is refine or rewrite, hookAssessment must describe the actual editorial change in plain, concrete terms — for example, removed generic introductory filler, moved the concrete fact into the opening, corrected the grammatical subject of an action, or shortened the hook. hookAssessment must never claim guaranteed higher retention, guaranteed views, that the suggestedHook is perfect, or that any change has already been applied to the creator's script — it only describes a suggested rewrite the creator can choose to use.
 
