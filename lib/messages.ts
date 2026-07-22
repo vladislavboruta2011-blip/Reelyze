@@ -590,11 +590,27 @@ const enMessages = {
       fallbackTitle: "Climpy Script Review",
     },
     improveScriptModal: {
-      needsMoreMaterialTitle: "Script Needs More Material",
       originalPreservedTitle: "Original Script Preserved",
       improvedTitle: "Improved Script",
+      // Diagnostic state: shown whenever Improve Script could not produce a
+      // meaningfully stronger, safe result — whether the script was too
+      // generic to attempt at all, or a rewrite was attempted but failed to
+      // materially resolve the diagnosed weakness (a light paraphrase, a
+      // close copy, or a candidate that didn't survive the safety/quality
+      // checks). This is a distinct outcome from "preserve" (which means
+      // the original itself needs no change) — never implies the original
+      // is good, and never shows the original as if it were the result.
+      diagnosticTitle: "Climpy couldn't safely improve this script yet",
+      diagnosticDescription:
+        "The script needs a more concrete fact, comparison, event, or payoff before Climpy can create a meaningfully stronger version without inventing information.",
+      // Distinct from diagnosticDescription above: shown when the script
+      // already has enough concrete material but this specific attempt
+      // wasn't a strong enough improvement — never implies facts are
+      // missing when they visibly are not.
+      diagnosticRetryDescription:
+        "Climpy has enough material to work with, but this attempt wasn't a strong enough improvement. Try running Improve Script again.",
       preservedDescription:
-        "Climpy kept your original because the generated rewrite did not make a meaningful editorial improvement.",
+        "Climpy kept your original script — it already works well, and a rewrite would not add meaningful value.",
       defaultDescription:
         "Climpy rewrites the complete Short while preserving the facts in your original script.",
       improving: "Improving the full script...",
@@ -1425,11 +1441,15 @@ const ruMessages = {
       fallbackTitle: "Разбор сценария Climpy",
     },
     improveScriptModal: {
-      needsMoreMaterialTitle: "Сценарию нужно больше материала",
       originalPreservedTitle: "Исходный сценарий сохранён",
       improvedTitle: "Улучшенный сценарий",
+      diagnosticTitle: "Climpy пока не может безопасно улучшить этот сценарий",
+      diagnosticDescription:
+        "Сценарию не хватает конкретного факта, сравнения, события или развязки, чтобы Climpy мог создать заметно более сильную версию без выдумывания информации.",
+      diagnosticRetryDescription:
+        "В сценарии достаточно материала, но эта попытка не стала заметным улучшением. Попробуйте запустить улучшение сценария ещё раз.",
       preservedDescription:
-        "Climpy сохранил ваш исходный вариант, потому что сгенерированная версия не давала значимого улучшения.",
+        "Climpy сохранил ваш исходный сценарий — он уже работает хорошо, и переписывание не добавило бы значимой ценности.",
       defaultDescription:
         "Climpy переписывает весь Short, сохраняя факты из вашего исходного сценария.",
       improving: "Улучшаем весь сценарий...",

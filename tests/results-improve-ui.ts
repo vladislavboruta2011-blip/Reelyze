@@ -852,7 +852,7 @@ const presentsPreservedOriginalHonestly =
   source.includes("results.improveScriptModal.copyOriginal") &&
   messagesSource.includes('originalPreservedTitle: "Original Script Preserved"') &&
   messagesSource.includes(
-    "the generated rewrite did not make a meaningful editorial improvement"
+    "it already works well, and a rewrite would not add meaningful value"
   ) &&
   messagesSource.includes('copyOriginal: "Copy Original"');
 
@@ -878,7 +878,94 @@ if (
   failures += 1;
 }
 
+// ── Diagnostic state (weak original / insufficient material) ─────────────
+// Distinct from "preserve": must never show the unchanged script as if it
+// were a successful result, and must never offer "Copy Original" as the
+// primary CTA — see engine/improve-script.ts's preserve/diagnostic split.
+const presentsDiagnosticHonestly =
+  source.includes(
+    'improveScriptStatus === "diagnostic"\n                ? results.improveScriptModal.diagnosticTitle'
+  ) &&
+  source.includes("results.improveScriptModal.diagnosticDescription") &&
+  source.includes("results.improveScriptModal.diagnosticRetryDescription") &&
+  // The script-preview box is skipped entirely for a successful diagnostic
+  // result (no loading, no error) — never shows the unchanged script.
+  source.includes(
+    "improveScriptStatus !== \"diagnostic\") && ("
+  ) &&
+  // The copy button is not rendered at all for diagnostic — no "Copy
+  // Original" primary CTA, and no disabled copy button either.
+  /\{improveScriptStatus !== "diagnostic" && \(\s*<button\s*\n\s*onClick=\{handleCopyImprovedScript\}/.test(
+    source
+  ) &&
+  messagesSource.includes(
+    'diagnosticTitle: "Climpy couldn\'t safely improve this script yet"'
+  ) &&
+  messagesSource.includes(
+    "The script needs a more concrete fact, comparison, event, or payoff before Climpy can create a meaningfully stronger version without inventing information."
+  ) &&
+  messagesSource.includes(
+    'diagnosticTitle: "Climpy пока не может безопасно улучшить этот сценарий"'
+  ) &&
+  messagesSource.includes(
+    "Сценарию не хватает конкретного факта, сравнения, события или развязки"
+  ) &&
+  // The retired needsMoreMaterialTitle key must not linger unused.
+  !messagesSource.includes("needsMoreMaterialTitle") &&
+  !source.includes("needsMoreMaterialTitle");
 
+if (presentsDiagnosticHonestly) {
+  console.log(
+    "✅ PASS — Improve Script presents a diagnostic (weak original, insufficient material) result honestly, distinct from preserve"
+  );
+} else {
+  console.error(
+    "❌ FAIL — Diagnostic responses must show diagnostic-specific title/description, hide the script-preview box and Copy button, and never label the unchanged script as improved"
+  );
+  failures += 1;
+}
+
+const closeIsAlwaysAvailableInDiagnosticState =
+  // The Close button itself is never conditionally hidden — it is the one
+  // action always available, including in the diagnostic state.
+  !/\{improveScriptStatus !== "diagnostic" && \([\s\S]{0,400}setIsScriptModalOpen\(false\)\}\s*\n\s*className="h-\[42px\] flex-1 rounded-\[12px\] border/.test(
+    source
+  ) &&
+  source.includes("onClick={() => setIsScriptModalOpen(false)}") &&
+  source.includes("{results.improveScriptModal.close}");
+
+if (closeIsAlwaysAvailableInDiagnosticState) {
+  console.log(
+    "✅ PASS — Close remains available as the primary action in the diagnostic state"
+  );
+} else {
+  console.error(
+    "❌ FAIL — Close must remain available (not hidden alongside the copy button) when the result is diagnostic"
+  );
+  failures += 1;
+}
+
+// ── Phase 7 H: source-insufficient vs candidate-quality diagnostic copy ──
+// The two diagnostic causes (missing material vs. a candidate that just
+// wasn't strong enough despite adequate material) must render distinct
+// descriptions — never claim facts are missing when improvedScriptMissingMaterial
+// is empty (see engine/improve-script.ts's buildFailedCandidateDiagnosticResponse).
+const distinguishesDiagnosticCauses =
+  source.includes("improvedScriptMissingMaterial.length > 0") &&
+  source.includes("results.improveScriptModal.diagnosticRetryDescription") &&
+  messagesSource.includes("diagnosticRetryDescription:") &&
+  messagesSource.split("diagnosticRetryDescription:").length - 1 === 2;
+
+if (distinguishesDiagnosticCauses) {
+  console.log(
+    "✅ PASS — Source-insufficient and candidate-quality diagnostic outcomes render distinct descriptions"
+  );
+} else {
+  console.error(
+    "❌ FAIL — Diagnostic description must differ between \"source lacks material\" and \"candidate wasn't strong enough despite adequate material\""
+  );
+  failures += 1;
+}
 
 const forwardsValidatedAnalysisToImproveScript =
   refinedHookHandler.includes("analysisResult:") &&
