@@ -38,8 +38,7 @@ function checkOldOverflowingRowIsGone(): void {
   check(
     "AuthNav is no longer imported/rendered directly inside the MOBILE LAYOUT block (only the desktop Navbar still uses it)",
     (() => {
-      const mobileWrapperMarker =
-        '<div className="relative block min-h-screen overflow-x-hidden bg-[#FAFAFA] lg:hidden">';
+      const mobileWrapperMarker = MOBILE_WRAPPER_MARKER;
       const mobileStart = pageSource.indexOf(mobileWrapperMarker);
       const mobileBlock =
         mobileStart >= 0 ? pageSource.slice(mobileStart) : "";
@@ -51,7 +50,9 @@ function checkOldOverflowingRowIsGone(): void {
 // --- Bounded-width mobile structure -------------------------------------
 
 const MOBILE_WRAPPER_MARKER =
-  '<div className="relative block min-h-screen overflow-x-hidden bg-[#FAFAFA] lg:hidden">';
+  '<div className="relative block min-h-screen overflow-x-hidden bg-[#FAFAFA] min-[900px]:hidden">';
+const DESKTOP_WRAPPER_MARKER =
+  '<div className="hidden min-[900px]:block">';
 
 function checkBoundedWidthStructure(): void {
   check(
@@ -181,9 +182,96 @@ function checkDesktopNavUnchanged(): void {
   );
 
   check(
-    "The desktop layout wrapper (hidden lg:block) and the mobile layout wrapper (lg:hidden) remain the complementary breakpoint pair — no overlap window where both could render simultaneously",
-    pageSource.includes('<div className="hidden lg:block">') &&
-      /lg:hidden"/.test(pageSource)
+    "The desktop layout wrapper (hidden min-[900px]:block) and the mobile layout wrapper (min-[900px]:hidden) remain the complementary breakpoint pair — no overlap window where both could render simultaneously, and neither is still gated on the default lg (1024px) breakpoint",
+    pageSource.includes(DESKTOP_WRAPPER_MARKER) &&
+      pageSource.includes(MOBILE_WRAPPER_MARKER) &&
+      !pageSource.includes('<div className="hidden lg:block">') &&
+      !/relative block min-h-screen overflow-x-hidden bg-\[#FAFAFA\] lg:hidden/.test(
+        pageSource
+      )
+  );
+}
+
+// --- Responsive breakpoint contract (compact-desktop/tablet fix) -------
+//
+// Regression coverage for the reported bug: a non-maximized Chrome window
+// in the ~900-1023px range showed the phone-width MOBILE LAYOUT (hamburger,
+// max-w-[430px] hero) instead of a compact desktop/tablet presentation,
+// because the switch was gated on the default lg breakpoint (1024px). These
+// checks validate the actual responsive INTENT (the numeric threshold and
+// its relationship to the true-mobile band and the tablet-width fix), not
+// just the literal min-[900px] string, so a future regression to 1024px —
+// or any other value outside the required 769-900px window — is caught
+// even if someone keeps the min-[...] syntax but changes the number.
+
+function extractBreakpointPx(marker: string): number | null {
+  const match = /min-\[(\d+)px\]/.exec(marker);
+  return match ? Number(match[1]) : null;
+}
+
+function checkResponsiveBreakpointContract(): void {
+  const desktopBreakpoint = extractBreakpointPx(
+    DESKTOP_WRAPPER_MARKER
+  );
+  const mobileBreakpoint = extractBreakpointPx(
+    MOBILE_WRAPPER_MARKER
+  );
+
+  check(
+    "The desktop-layout wrapper switches on at a genuine compact-desktop width (900-1023px), not delayed until the default lg breakpoint (1024px) that caused the reported bug",
+    desktopBreakpoint !== null &&
+      desktopBreakpoint >= 900 &&
+      desktopBreakpoint < 1024
+  );
+
+  check(
+    "The mobile-layout wrapper hides at the exact same width the desktop wrapper appears — no gap or overlap window between the two",
+    desktopBreakpoint !== null &&
+      mobileBreakpoint !== null &&
+      desktopBreakpoint === mobileBreakpoint
+  );
+
+  check(
+    "The chosen breakpoint stays above the true-mobile band (>768px) — it does not eliminate or shrink the existing 320-767px mobile experience",
+    desktopBreakpoint !== null && desktopBreakpoint > 768
+  );
+
+  check(
+    "The desktop Navbar's own internal md:flex (768px) reveal for nav links/actions is already satisfied by the time the desktop wrapper itself becomes visible — no dead zone where the desktop wrapper is visible but its nav links are still hidden",
+    desktopBreakpoint !== null && desktopBreakpoint >= 768
+  );
+}
+
+// --- Tablet band is not artificially phone-width ------------------------
+
+function checkTabletWidthNotPhoneConstrained(): void {
+  check(
+    "The mobile-layout tree's outer content container widens past the 430px true-mobile cap once the viewport reaches the tablet band (md/768px) that this same tree still serves below the 900px switch, instead of staying phone-width all the way up to the desktop switch",
+    (() => {
+      const start = pageSource.indexOf(MOBILE_WRAPPER_MARKER);
+      const snippet =
+        start >= 0 ? pageSource.slice(start, start + 1300) : "";
+      const widerMatch = /md:max-w-\[(\d+)px\]/.exec(snippet);
+
+      return (
+        snippet.includes("max-w-[430px]") &&
+        widerMatch !== null &&
+        Number(widerMatch[1]) > 430
+      );
+    })()
+  );
+
+  check(
+    "The true-mobile cap (max-w-[430px]) remains the plain, unqualified base value in its original position — the wider tablet override is additive via a responsive variant, not a replacement of the existing mobile design",
+    (() => {
+      const start = pageSource.indexOf(MOBILE_WRAPPER_MARKER);
+      const snippet =
+        start >= 0 ? pageSource.slice(start, start + 1300) : "";
+      return (
+        snippet.includes("w-full max-w-[430px] flex-col") &&
+        !snippet.includes("md:max-w-[430px]")
+      );
+    })()
   );
 }
 
@@ -259,7 +347,7 @@ function checkNoDuplicateControlsAtSameBreakpoint(): void {
   );
 
   check(
-    "LanguageSwitcher is rendered exactly twice — once for desktop (inside the hidden lg:block wrapper) and once for mobile (inside the lg:hidden wrapper) — never both visible at the same breakpoint",
+    "LanguageSwitcher is rendered exactly twice — once for desktop (inside the hidden min-[900px]:block wrapper) and once for mobile (inside the min-[900px]:hidden wrapper) — never both visible at the same breakpoint",
     (pageSource.match(/<LanguageSwitcher \/>/g) ?? []).length === 2
   );
 }
@@ -330,6 +418,8 @@ async function main(): Promise<void> {
   checkLogoVisible();
   checkAllActionsReachableViaMenu();
   checkDesktopNavUnchanged();
+  checkResponsiveBreakpointContract();
+  checkTabletWidthNotPhoneConstrained();
   checkMenuAccessibility();
   checkNoDuplicateControlsAtSameBreakpoint();
   checkLocalization();
