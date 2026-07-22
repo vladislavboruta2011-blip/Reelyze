@@ -12,6 +12,8 @@ import {
   type AnalysisV2SuccessResponse,
 } from "@/engine/analysis-v2-schema";
 import {
+  ANALYSIS_V2_KEEP_REQUIRED_HOOK_FIX_REASON,
+  ANALYSIS_V2_MAIN_TAKEAWAY_CONSISTENCY_REASON,
   normalizeAnalysisV2CompleteCausalExplanationModelResult,
   parseAnalysisV2Json,
   repairAnalysisV2MainTakeawayForScoreBreakdown,
@@ -654,7 +656,27 @@ function isAnalysisV2FinalTargetedRetryReason(
     ) ||
     validationReason.includes(
       "cannot coexist with a Strong hook score"
-    )
+    ) ||
+    // The deterministic repair (repairAnalysisV2MainTakeawayForScoreBreakdown)
+    // already handles the common case by itself, patching only the
+    // mainTakeaway text — but when the same response also has an unrelated,
+    // independent defect elsewhere (masked behind this reason because
+    // validation returns on the first failure it finds), that text-only
+    // patch cannot fix it and the repaired result still fails
+    // re-validation. This final targeted attempt is the fallback for that
+    // case: it gives the model one genuine full attempt, not just a
+    // patched string, to resolve the complete response.
+    validationReason ===
+      ANALYSIS_V2_MAIN_TAKEAWAY_CONSISTENCY_REASON ||
+    // A keep hookDecision contradicting a required hook-targeted fix is a
+    // deterministic, unambiguous structural contradiction — the same class
+    // of clean, correctable inconsistency as the other reasons above, not
+    // an editorial judgment call. No deterministic repair exists for it
+    // (correcting it would require deciding whether to drop the fix,
+    // optionalize it, or change hookDecision to refine/rewrite — all
+    // genuine editorial choices), so the model itself must resolve it.
+    validationReason ===
+      ANALYSIS_V2_KEEP_REQUIRED_HOOK_FIX_REASON
   );
 }
 
@@ -783,6 +805,35 @@ function buildAnalysisV2FinalTargetedRetryUserPrompt(
       "Do not append examples, candidate implications, affected groups, mechanisms, or clauses beginning with such as, for example, including, or like.",
       'Alternatively, remove the word "verified" and write a grounded contextualized fix using only information already present in the submitted script.',
       "If the script already fulfills the intended explanation and payoff, remove the riskyPart and required suggestedFix instead of forcing external factual material."
+    );
+  } else if (
+    validationReason ===
+    ANALYSIS_V2_MAIN_TAKEAWAY_CONSISTENCY_REASON
+  ) {
+    specificGuidance.push(
+      "The overall score is below 80, so mainTakeaway must explain the real reason the score is not higher.",
+      "Identify the lowest-scoring overall component from scoreComponents.overall (premiseAppeal, openingPromise, progression, or payoff) — if more than one component ties for lowest, name any one of the tied components.",
+      "Explain in mainTakeaway how that specific component limited the overall score, using wording that names the component (for example: premise/idea, opening promise/hook, progression/structure, or payoff/ending) together with a limitation term (for example: limits, weak, low, holds back, insufficient).",
+      "Do not invent a different weakness than the actual lowest-scoring component — the explanation must match the same lowest-scoring component identified by the score breakdown, not a generic or unrelated observation.",
+      "Do not claim the script has no material or meaningful limitations while the overall score is below 80.",
+      "This correction is about the mainTakeaway text only — do not change scoreComponents, verdict, hookDecision, riskyParts, suggestedFixes, or scenes to work around it unless those fields have their own independent, genuine defect.",
+      // Live-observed follow-on regression: a candidate that simplifies
+      // hookDecision to keep while correcting mainTakeaway is otherwise
+      // valid, but keep cannot coexist with a required (non-optional)
+      // suggestedFix targeting hook — that specific combination is exactly
+      // the "independent, genuine defect" the line above allows fixing.
+      "If hookDecision is (or becomes) keep, it cannot coexist with a required (non-optional) suggestedFix targeting hook — if that combination is present, remove the hook fix, make it optional, or change hookDecision to refine or rewrite with an accompanying suggestedHook."
+    );
+  } else if (
+    validationReason ===
+    ANALYSIS_V2_KEEP_REQUIRED_HOOK_FIX_REASON
+  ) {
+    specificGuidance.push(
+      "hookDecision is keep, but the response also includes a required (non-optional) suggestedFix targeting hook — these two cannot coexist.",
+      "Choose exactly one resolution: either make that hook-targeted fix optional (optional: true), remove it entirely if the hook genuinely needs no action, or change hookDecision to refine or rewrite and include an accompanying suggestedHook.",
+      "Decide honestly whether the hook is actually fine (keep, with no required hook fix) or genuinely needs work (refine or rewrite, with suggestedHook and the fix retained) — do not keep both halves of the contradiction.",
+      "Do not add a suggestedHook while hookDecision remains keep — suggestedHook must stay null for keep.",
+      "Leave every unrelated field (scoreComponents, verdict, riskyParts, other suggestedFixes, scenes, mainTakeaway) unchanged unless it has its own independent, genuine defect."
     );
   }
 
@@ -936,7 +987,7 @@ export async function runAnalysisV2(
     if (!resultValidation.ok) {
       if (
         resultValidation.reason ===
-        "For an overall score below 80, mainTakeaway must identify the lowest-scoring overall component and explain how it limited the score."
+        ANALYSIS_V2_MAIN_TAKEAWAY_CONSISTENCY_REASON
       ) {
         const repairedModelResult =
           repairAnalysisV2MainTakeawayForScoreBreakdown(
