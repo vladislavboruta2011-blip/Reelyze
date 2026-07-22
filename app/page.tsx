@@ -1297,8 +1297,14 @@ export default function HomePage() {
     >
       {/* ══════════════════════════════════
           DESKTOP LAYOUT
+          Threshold is a custom min-[900px] variant, not the default lg
+          (1024px) breakpoint: a non-maximized desktop/tablet window in the
+          ~900-1023px range must already get the desktop nav and a
+          sensible-width hero, not the phone-width MOBILE LAYOUT below. Every
+          other lg: (1024px) usage inside these sections (two-column grids,
+          etc.) is untouched and continues to refine at 1024px as before.
       ══════════════════════════════════ */}
-      <div className="hidden lg:block">
+      <div className="hidden min-[900px]:block">
         <div className="relative overflow-hidden">
           <BackgroundDecor />
           <Navbar />
@@ -1322,13 +1328,20 @@ export default function HomePage() {
 
             {/* ══════════════════════════════════
           MOBILE LAYOUT
+          Hidden from min-[900px] up (the complementary half of the pair
+          above), not lg:hidden — see the note on the DESKTOP LAYOUT wrapper.
       ══════════════════════════════════ */}
-      <div className="relative block min-h-screen overflow-x-hidden bg-[#FAFAFA] lg:hidden">
+      <div className="relative block min-h-screen overflow-x-hidden bg-[#FAFAFA] min-[900px]:hidden">
         <div className="pointer-events-none absolute left-1/2 top-[-140px] h-[320px] w-[320px] -translate-x-1/2 rounded-full bg-[#7C3AED]/[0.10] blur-[95px]" />
         <div className="pointer-events-none absolute right-[-140px] top-[420px] h-[280px] w-[280px] rounded-full bg-[#6D28D9]/[0.07] blur-[100px]" />
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(124,58,237,0.08)_1px,transparent_1px)] [background-size:26px_26px] opacity-[0.10]" />
 
-        <div className="relative z-10 mx-auto flex w-full max-w-[430px] flex-col px-5 pb-14">
+        {/* max-w-[430px] is unchanged for true mobile (below md/768px, per
+            the existing design). md:max-w-[640px] only widens the OUTER
+            container once the viewport reaches the 768-899px tablet band
+            still served by this tree, so that band no longer reads as a
+            narrow phone-width column centered in extra whitespace. */}
+        <div className="relative z-10 mx-auto flex w-full max-w-[430px] flex-col px-5 pb-14 md:max-w-[640px]">
           {/* Header */}
           <div className="flex items-center justify-between pt-7">
                         <Link href="/" className="flex items-center gap-2.5">
