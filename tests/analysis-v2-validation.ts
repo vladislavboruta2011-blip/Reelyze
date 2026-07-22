@@ -445,6 +445,105 @@ const tests: TestCase[] = [
       },
     },
     {
+      // Existing tie contract (getLowestOverallComponentKeys returns every
+      // key tied for lowest; mainTakeawayExplainsLowestOverallComponent
+      // accepts naming ANY one of them via .some()) — not a new policy,
+      // just regression coverage for behavior that already exists.
+      name: "tie: naming only one of two tied-lowest components is enough to pass validation",
+      run: () => {
+        const modelResult = createComponentModelResult();
+        const scoreComponents = modelResult.scoreComponents as {
+          overall: Record<string, number>;
+        };
+
+        scoreComponents.overall = {
+          premiseAppeal: 15,
+          openingPromise: 20,
+          progression: 21,
+          payoff: 15,
+        };
+        modelResult.mainTakeaway =
+          "The script is clear, but its premise appeal limits the overall score because the idea has limited audience pull.";
+
+        const result = validateAnalysisV2ModelResult(
+          modelResult,
+          script
+        );
+
+        if (!result.ok) {
+          throw new Error(result.reason);
+        }
+      },
+    },
+    {
+      name: "tie: naming neither of two tied-lowest components still fails validation",
+      run: () => {
+        const modelResult = createComponentModelResult();
+        const scoreComponents = modelResult.scoreComponents as {
+          overall: Record<string, number>;
+        };
+
+        scoreComponents.overall = {
+          premiseAppeal: 15,
+          openingPromise: 20,
+          progression: 21,
+          payoff: 15,
+        };
+        modelResult.mainTakeaway =
+          "The script is clear and mostly works well.";
+
+        const result = validateAnalysisV2ModelResult(
+          modelResult,
+          script
+        );
+
+        assert.equal(result.ok, false);
+      },
+    },
+    {
+      name: "tie: repair joins both tied-lowest component labels together instead of picking just one",
+      run: () => {
+        const modelResult = createComponentModelResult();
+        const scoreComponents = modelResult.scoreComponents as {
+          overall: Record<string, number>;
+        };
+
+        scoreComponents.overall = {
+          premiseAppeal: 15,
+          openingPromise: 20,
+          progression: 21,
+          payoff: 15,
+        };
+        modelResult.mainTakeaway =
+          "The script is clear and mostly works well.";
+
+        const repaired =
+          repairAnalysisV2MainTakeawayForScoreBreakdown(
+            modelResult
+          );
+
+        assert.notEqual(repaired, null);
+
+        const result = validateAnalysisV2ModelResult(
+          repaired,
+          script
+        );
+
+        if (!result.ok) {
+          throw new Error(result.reason);
+        }
+
+        assert.match(
+          result.value.mainTakeaway,
+          /premise appeal/i
+        );
+        assert.match(
+          result.value.mainTakeaway,
+          /payoff/i
+        );
+      },
+    },
+    {
       name: "ru: accepts a below-80 Russian takeaway that explains the lowest overall component in Russian",
       run: () => {
         // This is the actual root cause behind English fallback text
@@ -2129,6 +2228,95 @@ const tests: TestCase[] = [
       );
 
       assert.equal(result.ok, false);
+    },
+  },
+
+  {
+    // Existing keep contract, made explicit rather than incidental: keep
+    // with no hook-targeted fix at all remains valid.
+    name: "keep contract: no hook fix at all is valid",
+    run: () => {
+      const value = createMixedResult();
+
+      value.hookDecision = "keep";
+      value.suggestedFixes = [
+        {
+          target: "clarity",
+          suggestion:
+            "Connect this instruction directly to the soaking step so the sequence is easier to follow.",
+          optional: false,
+        },
+      ];
+
+      const result = validateAnalysisV2Result(
+        value,
+        script
+      );
+
+      assert.equal(result.ok, true);
+    },
+  },
+  {
+    // Only a HOOK-targeted, non-optional fix is forbidden alongside keep —
+    // a required body/payoff-area fix follows the exact existing contract
+    // and remains valid.
+    name: "keep contract: a required non-hook (payoff-area) fix is valid",
+    run: () => {
+      const value = createMixedResult();
+
+      value.hookDecision = "keep";
+      value.suggestedFixes = [
+        {
+          target: "payoff",
+          suggestion:
+            "Add a verified consequence or implication that explains why this matters.",
+          optional: false,
+        },
+      ];
+
+      const result = validateAnalysisV2Result(
+        value,
+        script
+      );
+
+      assert.equal(result.ok, true);
+    },
+  },
+  {
+    // An OPTIONAL hook-targeted fix alongside keep is not the same
+    // contradiction the validator rejects — only a required (non-optional)
+    // hook fix is forbidden.
+    name: "keep contract: optional hook-targeted advice is valid",
+    run: () => {
+      const value = createMixedResult();
+
+      value.hookDecision = "keep";
+      // A mixed result still needs its own non-optional fix somewhere —
+      // this keeps the required "clarity" fix from the baseline and adds
+      // an OPTIONAL hook fix alongside it, isolating exactly what this
+      // test checks: an optional (not required) hook fix does not trip
+      // the keep/required-hook-fix contradiction.
+      value.suggestedFixes = [
+        {
+          target: "clarity",
+          suggestion:
+            "Connect this instruction directly to the soaking step so the sequence is easier to follow.",
+          optional: false,
+        },
+        {
+          target: "hook",
+          suggestion:
+            "Optionally tighten the opening phrasing for pacing.",
+          optional: true,
+        },
+      ];
+
+      const result = validateAnalysisV2Result(
+        value,
+        script
+      );
+
+      assert.equal(result.ok, true);
     },
   },
 

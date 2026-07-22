@@ -2451,6 +2451,18 @@ export function repairAnalysisV2MainTakeawayForScoreBreakdown(
   };
 }
 
+// Exported so callers (the analyze-v2 route's final-targeted-retry
+// eligibility gate and its repair-dispatch check) can classify this exact
+// reason without duplicating the literal string.
+export const ANALYSIS_V2_MAIN_TAKEAWAY_CONSISTENCY_REASON =
+  "For an overall score below 80, mainTakeaway must identify the lowest-scoring overall component and explain how it limited the score.";
+
+// Exported for the same reason as ANALYSIS_V2_MAIN_TAKEAWAY_CONSISTENCY_REASON
+// above — lets the route's final-targeted-retry eligibility gate classify
+// this exact reason without duplicating the literal string.
+export const ANALYSIS_V2_KEEP_REQUIRED_HOOK_FIX_REASON =
+  "A keep hook decision cannot contain a required hook fix.";
+
 function mainTakeawayExplainsLowestOverallComponent(
   mainTakeaway: string,
   breakdown: AnalysisV2ScoreBreakdown,
@@ -2937,7 +2949,7 @@ export function validateAnalysisV2Result(
       return {
         ok: false,
         reason:
-          "For an overall score below 80, mainTakeaway must identify the lowest-scoring overall component and explain how it limited the score.",
+          ANALYSIS_V2_MAIN_TAKEAWAY_CONSISTENCY_REASON,
       };
     }
   }
@@ -3046,7 +3058,7 @@ export function validateAnalysisV2Result(
     return {
       ok: false,
       reason:
-        "A keep hook decision cannot contain a required hook fix.",
+        ANALYSIS_V2_KEEP_REQUIRED_HOOK_FIX_REASON,
     };
   }
 

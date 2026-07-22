@@ -1283,6 +1283,1426 @@ const tests: TestCase[] = [
   },
 
   {
+    // Finding B regression: the exact manually-tested script (grounded
+    // measurement + comparison + payoff) with a mainTakeaway that never
+    // names the lowest-scoring overall component. The deterministic repair
+    // (repairAnalysisV2MainTakeawayForScoreBreakdown) fixes the mainTakeaway
+    // TEXT successfully, but this fixture also has an unrelated, genuinely
+    // separate defect (the opening's cause/consequence split across two
+    // sentences is not flagged as a grounded opening riskyPart) that was
+    // masked behind the mainTakeaway failure and only surfaces on
+    // re-validation — proving the repair alone cannot always resolve this
+    // reason. Before the gate fix, attempt 1's identical failure would end
+    // the request right here with a raw 502.
+    name: "runAnalysisV2 escalates an attempt-1 mainTakeaway-consistency failure to the final targeted retry (retry-gate fix) and accepts a corrected third candidate",
+    run: async () => {
+      let callCount = 0;
+      const userPrompts: string[] = [];
+
+      const measurementScript =
+        "Most people would never expect Cristiano Ronaldo’s head to reach around 9 feet 7 inches above the ground. An average person jumping might reach about 7 feet 6 inches. That means Ronaldo reached roughly 2 feet higher, which is what made the jump so unusual.";
+
+      const flawedResult = (): Record<string, unknown> => ({
+        scriptType: "narrative_event",
+        verdict: "mixed",
+        scoreComponents: {
+          overall: {
+            premiseAppeal: 18,
+            openingPromise: 15,
+            progression: 20,
+            payoff: 10,
+          },
+          hook: {
+            immediacy: 18,
+            specificity: 18,
+            viewerPull: 17,
+            deliveryAlignment: 17,
+          },
+          retentionRisk: {
+            openingFriction: 10,
+            progressionRisk: 10,
+            predictabilityRisk: 10,
+            payoffRisk: 15,
+          },
+        },
+        hookDecision: "refine",
+        hookAssessment:
+          "The hook states a grounded measurement comparison.",
+        suggestedHook:
+          "Cristiano Ronaldo once jumped so high his head reached around 9 feet 7 inches off the ground.",
+        riskyParts: [
+          {
+            excerpt:
+              "That means Ronaldo reached roughly 2 feet higher, which is what made the jump so unusual.",
+            reason:
+              "The ending states the difference but does not add a stronger payoff beyond restating the comparison.",
+            severity: "medium",
+          },
+        ],
+        suggestedFixes: [
+          {
+            target: "payoff",
+            optional: false,
+            suggestion:
+              "Add a verified consequence or implication that explains why this matters.",
+          },
+        ],
+        scenes: [
+          {
+            excerpt:
+              "Most people would never expect Cristiano Ronaldo’s head to reach around 9 feet 7 inches above the ground.",
+            label: "Hook",
+            status: "strong",
+          },
+          {
+            excerpt:
+              "An average person jumping might reach about 7 feet 6 inches.",
+            label: "Comparison",
+            status: "strong",
+          },
+          {
+            excerpt:
+              "That means Ronaldo reached roughly 2 feet higher, which is what made the jump so unusual.",
+            label: "Payoff",
+            status: "risky",
+          },
+        ],
+        // Never names "payoff" (the lowest component) or explains a
+        // limitation — this is the exact confirmed Finding B reason.
+        mainTakeaway:
+          "This script is engaging and mostly works well as a Short.",
+      });
+
+      const correctedResult = (): Record<string, unknown> => ({
+        scriptType: "narrative_event",
+        verdict: "mixed",
+        scoreComponents: {
+          overall: {
+            premiseAppeal: 18,
+            openingPromise: 15,
+            progression: 20,
+            payoff: 15,
+          },
+          hook: {
+            immediacy: 18,
+            specificity: 18,
+            viewerPull: 17,
+            deliveryAlignment: 18,
+          },
+          retentionRisk: {
+            openingFriction: 10,
+            progressionRisk: 10,
+            predictabilityRisk: 10,
+            payoffRisk: 12,
+          },
+        },
+        hookDecision: "refine",
+        hookAssessment:
+          "The hook states a grounded measurement but defers the comparison payoff to the next sentence.",
+        suggestedHook:
+          "Cristiano Ronaldo once jumped so high his head reached around 9 feet 7 inches off the ground — roughly 2 feet higher than an average person might reach, about 7 feet 6 inches.",
+        riskyParts: [
+          {
+            excerpt:
+              "Most people would never expect Cristiano Ronaldo’s head to reach around 9 feet 7 inches above the ground.",
+            reason:
+              "The opening states the measurement but defers the comparison and consequence to the next two sentences, reducing hook immediacy.",
+            severity: "medium",
+          },
+        ],
+        suggestedFixes: [
+          {
+            target: "hook",
+            optional: false,
+            suggestion:
+              "Combine the measurement and the comparison into the opening sentence so the payoff lands immediately.",
+          },
+        ],
+        scenes: [
+          {
+            excerpt:
+              "Most people would never expect Cristiano Ronaldo’s head to reach around 9 feet 7 inches above the ground.",
+            label: "Hook",
+            status: "risky",
+          },
+          {
+            excerpt:
+              "An average person jumping might reach about 7 feet 6 inches.",
+            label: "Comparison",
+            status: "strong",
+          },
+          {
+            excerpt:
+              "That means Ronaldo reached roughly 2 feet higher, which is what made the jump so unusual.",
+            label: "Payoff",
+            status: "strong",
+          },
+        ],
+        // Names "payoff" (the lowest component) and explains the limitation.
+        mainTakeaway:
+          "The script is understandable, but its payoff limits the overall score because the ending payoff does not deliver a strong enough viewer reward.",
+      });
+
+      const modelCaller: AnalysisV2ModelCaller =
+        async (_systemPrompt, userPrompt) => {
+          callCount += 1;
+          userPrompts.push(userPrompt);
+
+          if (callCount <= 2) {
+            // Attempt 0 AND attempt 1 (the first retry's own output) both
+            // keep the same generic mainTakeaway — before the fix, attempt
+            // 1's failure would end the request right here.
+            return {
+              raw: JSON.stringify(flawedResult()),
+              modelUsed: "mock-model",
+            };
+          }
+
+          // Attempt 2 (the final targeted retry's own output): corrected.
+          return {
+            raw: JSON.stringify(correctedResult()),
+            modelUsed: "mock-model",
+          };
+        };
+
+      const result = await runAnalysisV2(
+        measurementScript,
+        "Ronaldo jump height",
+        modelCaller
+      );
+
+      assert.equal(result.ok, true);
+      assert.equal(result.status, 200);
+      assert.equal(
+        callCount,
+        3,
+        "the attempt-1 mainTakeaway-consistency failure must escalate to exactly one final targeted retry — no 4th call"
+      );
+
+      if (result.ok) {
+        assert.equal(
+          result.response.result.mainTakeaway,
+          correctedResult().mainTakeaway
+        );
+      }
+
+      // userPrompts[2] is the final targeted retry's prompt, built from
+      // attempt 1's own (mainTakeaway-consistency) reason.
+      const finalRetryPrompt = userPrompts[2] ?? "";
+
+      assert.match(
+        finalRetryPrompt,
+        /mainTakeaway must identify the lowest-scoring overall component/i
+      );
+      assert.match(
+        finalRetryPrompt,
+        /identify the lowest-scoring overall component/i,
+        "the final targeted retry must instruct the model to identify the lowest-scoring overall component"
+      );
+      assert.match(
+        finalRetryPrompt,
+        /explain (?:in mainTakeaway )?how (?:it|that (?:specific )?component) limited the overall score/i,
+        "the final targeted retry must instruct the model to explain how the lowest component limited the score"
+      );
+      assert.match(
+        finalRetryPrompt,
+        /do not invent a different weakness|the same lowest-scoring component identified by the score breakdown/i,
+        "the final targeted retry must instruct the model not to invent a different weakness than the actual lowest component"
+      );
+
+      const responseText = JSON.stringify(result.response);
+      assert.doesNotMatch(
+        responseText,
+        /mainTakeaway must identify the lowest-scoring overall component/i
+      );
+    },
+  },
+
+  {
+    // The other side of the same gate fix: if the final targeted retry's
+    // own candidate STILL keeps a mainTakeaway that fails to name the
+    // lowest-scoring component, the request must fail safely — exactly 3
+    // calls, the existing generic public 502, and no internal validation
+    // reason leaked — never a 4th model call.
+    name: "runAnalysisV2 fails safely at exactly 3 attempts when an attempt-1 mainTakeaway-consistency failure escalates but the final candidate is still invalid",
+    run: async () => {
+      let callCount = 0;
+
+      const measurementScript =
+        "Most people would never expect Cristiano Ronaldo’s head to reach around 9 feet 7 inches above the ground. An average person jumping might reach about 7 feet 6 inches. That means Ronaldo reached roughly 2 feet higher, which is what made the jump so unusual.";
+
+      const flawedResult = (): Record<string, unknown> => ({
+        scriptType: "narrative_event",
+        verdict: "mixed",
+        scoreComponents: {
+          overall: {
+            premiseAppeal: 18,
+            openingPromise: 15,
+            progression: 20,
+            payoff: 10,
+          },
+          hook: {
+            immediacy: 18,
+            specificity: 18,
+            viewerPull: 17,
+            deliveryAlignment: 17,
+          },
+          retentionRisk: {
+            openingFriction: 10,
+            progressionRisk: 10,
+            predictabilityRisk: 10,
+            payoffRisk: 15,
+          },
+        },
+        hookDecision: "refine",
+        hookAssessment:
+          "The hook states a grounded measurement comparison.",
+        suggestedHook:
+          "Cristiano Ronaldo once jumped so high his head reached around 9 feet 7 inches off the ground.",
+        riskyParts: [
+          {
+            excerpt:
+              "That means Ronaldo reached roughly 2 feet higher, which is what made the jump so unusual.",
+            reason:
+              "The ending states the difference but does not add a stronger payoff beyond restating the comparison.",
+            severity: "medium",
+          },
+        ],
+        suggestedFixes: [
+          {
+            target: "payoff",
+            optional: false,
+            suggestion:
+              "Add a verified consequence or implication that explains why this matters.",
+          },
+        ],
+        scenes: [
+          {
+            excerpt:
+              "Most people would never expect Cristiano Ronaldo’s head to reach around 9 feet 7 inches above the ground.",
+            label: "Hook",
+            status: "strong",
+          },
+          {
+            excerpt:
+              "An average person jumping might reach about 7 feet 6 inches.",
+            label: "Comparison",
+            status: "strong",
+          },
+          {
+            excerpt:
+              "That means Ronaldo reached roughly 2 feet higher, which is what made the jump so unusual.",
+            label: "Payoff",
+            status: "risky",
+          },
+        ],
+        mainTakeaway:
+          "This script is engaging and mostly works well as a Short.",
+      });
+
+      const modelCaller: AnalysisV2ModelCaller =
+        async () => {
+          callCount += 1;
+
+          return {
+            raw: JSON.stringify(flawedResult()),
+            modelUsed: "mock-model",
+          };
+        };
+
+      const result = await runAnalysisV2(
+        measurementScript,
+        "Ronaldo jump height",
+        modelCaller
+      );
+
+      assert.equal(result.ok, false);
+      assert.equal(result.status, 502);
+      assert.equal(
+        callCount,
+        3,
+        "must give up after exactly 3 attempts — the gate fix must never add a 4th model call"
+      );
+
+      if (!result.ok) {
+        assert.deepEqual(result.response, {
+          status: "error",
+          reason:
+            "Analysis V2 returned an invalid analysis.",
+        });
+      }
+
+      const responseText = JSON.stringify(result.response);
+      assert.doesNotMatch(
+        responseText,
+        /mainTakeaway must identify the lowest-scoring overall component/i
+      );
+      assert.doesNotMatch(
+        responseText,
+        /payoff|Ronaldo|9 feet 7 inches/i
+      );
+    },
+  },
+
+  {
+    // Live-observed follow-on regression: the mainTakeaway gate fix removed
+    // the premature 2-attempt failure, but the final targeted retry's OWN
+    // guidance never told the model that hookDecision "keep" cannot coexist
+    // with a required (non-optional) hook-targeted suggestedFix — so a
+    // model correcting mainTakeaway while simplifying hookDecision to
+    // "keep" (without also removing/optionalizing the accompanying hook
+    // fix) still produces a self-contradictory final candidate. This mock
+    // model reads the actual final-retry prompt at call time: it only
+    // returns the safe, contradiction-free candidate once that prompt
+    // explicitly states the keep/required-hook-fix invariant.
+    name: "runAnalysisV2's mainTakeaway final targeted retry carries the keep/required-hook-fix invariant, so a corrected third candidate that simplifies hookDecision to keep is accepted",
+    run: async () => {
+      let callCount = 0;
+      const userPrompts: string[] = [];
+
+      // Deliberately a script with NO hook-timing structural requirement
+      // (unlike the Ronaldo measurement script used elsewhere in this
+      // file, whose cause/consequence split across two sentences forces
+      // hookDecision to be refine/rewrite) — this isolates the
+      // keep/required-hook-fix contract cleanly, with keep genuinely valid
+      // for this script's hook.
+      const bridgeScript =
+        "A new pedestrian bridge in the city cracked under normal foot traffic last spring. Investigators found a single support beam was rated for half the expected load. The city has not yet announced repairs.";
+
+      const flawedMainTakeawayResult = (): Record<string, unknown> => ({
+        scriptType: "narrative_event",
+        verdict: "mixed",
+        scoreComponents: {
+          overall: {
+            premiseAppeal: 18,
+            openingPromise: 15,
+            progression: 20,
+            payoff: 10,
+          },
+          hook: {
+            immediacy: 18,
+            specificity: 18,
+            viewerPull: 17,
+            deliveryAlignment: 18,
+          },
+          retentionRisk: {
+            openingFriction: 10,
+            progressionRisk: 10,
+            predictabilityRisk: 10,
+            payoffRisk: 15,
+          },
+        },
+        hookDecision: "keep",
+        hookAssessment:
+          "The hook states a grounded structural failure with a concrete cause.",
+        suggestedHook: null,
+        riskyParts: [
+          {
+            excerpt:
+              "The city has not yet announced repairs.",
+            reason:
+              "The ending states the outcome but does not add a stronger payoff beyond restating the situation.",
+            severity: "medium",
+          },
+        ],
+        // Deliberately empty: a mixed result needs at least one non-optional
+        // fix somewhere, an orthogonal requirement unrelated to hookDecision.
+        // This is the "hidden secondary defect" that masks behind the
+        // mainTakeaway failure and survives the deterministic mainTakeaway
+        // repair (which only rewrites mainTakeaway text) — without it, the
+        // repair would resolve this fixture completely on the first
+        // attempt, before ever reaching the final targeted retry this test
+        // needs to exercise.
+        suggestedFixes: [],
+        scenes: [
+          {
+            excerpt:
+              "A new pedestrian bridge in the city cracked under normal foot traffic last spring.",
+            label: "Hook",
+            status: "strong",
+          },
+          {
+            excerpt:
+              "Investigators found a single support beam was rated for half the expected load.",
+            label: "Cause",
+            status: "strong",
+          },
+          {
+            excerpt:
+              "The city has not yet announced repairs.",
+            label: "Payoff",
+            status: "risky",
+          },
+        ],
+        mainTakeaway:
+          "This script is engaging and mostly works well as a Short.",
+      });
+
+      // The model corrects mainTakeaway and adds the now-missing
+      // non-optional fix on its third attempt but — unless the prompt
+      // explicitly warns against it — targets that fix at hook while
+      // leaving hookDecision as keep.
+      const contradictoryKeepCandidate = (): Record<string, unknown> => {
+        const base = flawedMainTakeawayResult();
+        return {
+          ...base,
+          suggestedFixes: [
+            {
+              target: "hook",
+              optional: false,
+              suggestion:
+                "Combine the cause and outcome into the opening sentence.",
+            },
+          ],
+          mainTakeaway:
+            "The script is understandable, but its payoff limits the overall score because the ending payoff does not deliver a strong enough viewer reward.",
+        };
+      };
+
+      const correctedKeepCandidate = (): Record<string, unknown> => {
+        const base = flawedMainTakeawayResult();
+        return {
+          ...base,
+          suggestedFixes: [
+            {
+              target: "payoff",
+              optional: false,
+              suggestion:
+                "Add a verified consequence or implication that explains why this matters.",
+            },
+          ],
+          mainTakeaway:
+            "The script is understandable, but its payoff limits the overall score because the ending payoff does not deliver a strong enough viewer reward.",
+        };
+      };
+
+      // The exact invariant sentence this test requires the final targeted
+      // retry prompt to state — matched verbatim against the guidance text
+      // added for this fix, the same way other tests match exact phrases
+      // from the production prompt-builder functions.
+      const KEEP_INVARIANT_MARKER =
+        "cannot coexist with a required (non-optional) suggestedFix targeting hook";
+
+      const modelCaller: AnalysisV2ModelCaller =
+        async (_systemPrompt, userPrompt) => {
+          callCount += 1;
+          userPrompts.push(userPrompt);
+
+          if (callCount <= 2) {
+            // Attempt 0 AND attempt 1 both keep the same generic
+            // mainTakeaway, escalating to the final targeted retry.
+            return {
+              raw: JSON.stringify(flawedMainTakeawayResult()),
+              modelUsed: "mock-model",
+            };
+          }
+
+          // Attempt 2 (the final targeted retry's own output): whether the
+          // simulated model avoids the keep/required-hook-fix contradiction
+          // depends on whether its own prompt actually told it to.
+          const promptStatesInvariant = userPrompt.includes(
+            KEEP_INVARIANT_MARKER
+          );
+
+          return {
+            raw: JSON.stringify(
+              promptStatesInvariant
+                ? correctedKeepCandidate()
+                : contradictoryKeepCandidate()
+            ),
+            modelUsed: "mock-model",
+          };
+        };
+
+      const result = await runAnalysisV2(
+        bridgeScript,
+        "Bridge collapse",
+        modelCaller
+      );
+
+      assert.equal(result.ok, true);
+      assert.equal(result.status, 200);
+      assert.equal(
+        callCount,
+        3,
+        "must resolve within the existing 3-call maximum — no 4th call"
+      );
+
+      if (result.ok) {
+        assert.equal(
+          result.response.result.hookDecision,
+          "keep"
+        );
+        assert.ok(
+          !result.response.result.suggestedHook,
+          "suggestedHook must be absent/null for a keep decision"
+        );
+        assert.equal(
+          result.response.result.suggestedFixes.some(
+            (fix: { target: string; optional: boolean }) =>
+              fix.target === "hook" && !fix.optional
+          ),
+          false,
+          "the accepted result must not carry a required hook-targeted fix alongside hookDecision keep"
+        );
+      }
+
+      const finalRetryPrompt = userPrompts[2] ?? "";
+      assert.match(
+        finalRetryPrompt,
+        /keep/i
+      );
+      assert.ok(
+        finalRetryPrompt.includes(KEEP_INVARIANT_MARKER),
+        "the final targeted retry prompt must explicitly state that hookDecision keep cannot coexist with a required hook-targeted fix"
+      );
+
+      const responseText = JSON.stringify(result.response);
+      assert.doesNotMatch(
+        responseText,
+        /A keep hook decision cannot contain a required hook fix/i
+      );
+    },
+  },
+
+  {
+    // The other side of the same fix: if the model ignores the invariant on
+    // every attempt (including the final targeted retry), the request must
+    // still fail safely — exactly 3 calls, the existing generic public 502,
+    // and no internal validation reason leaked — never a 4th model call.
+    name: "runAnalysisV2 fails safely at exactly 3 attempts when the final targeted retry candidate still contradicts keep with a required hook fix",
+    run: async () => {
+      let callCount = 0;
+
+      // Same script as the success-case test above — no hook-timing
+      // structural requirement, so keep is genuinely valid and the
+      // keep/required-hook-fix contradiction is the only issue in play.
+      const bridgeScript =
+        "A new pedestrian bridge in the city cracked under normal foot traffic last spring. Investigators found a single support beam was rated for half the expected load. The city has not yet announced repairs.";
+
+      const contradictoryResult = (): Record<string, unknown> => ({
+        scriptType: "narrative_event",
+        verdict: "mixed",
+        scoreComponents: {
+          overall: {
+            premiseAppeal: 18,
+            openingPromise: 15,
+            progression: 20,
+            payoff: 10,
+          },
+          hook: {
+            immediacy: 18,
+            specificity: 18,
+            viewerPull: 17,
+            deliveryAlignment: 18,
+          },
+          retentionRisk: {
+            openingFriction: 10,
+            progressionRisk: 10,
+            predictabilityRisk: 10,
+            payoffRisk: 15,
+          },
+        },
+        hookDecision: "keep",
+        hookAssessment:
+          "The hook states a grounded structural failure with a concrete cause.",
+        suggestedHook: null,
+        riskyParts: [
+          {
+            excerpt:
+              "The city has not yet announced repairs.",
+            reason:
+              "The ending states the outcome but does not add a stronger payoff beyond restating the situation.",
+            severity: "medium",
+          },
+        ],
+        suggestedFixes: [
+          {
+            target: "hook",
+            optional: false,
+            suggestion:
+              "Combine the cause and outcome into the opening sentence.",
+          },
+        ],
+        scenes: [
+          {
+            excerpt:
+              "A new pedestrian bridge in the city cracked under normal foot traffic last spring.",
+            label: "Hook",
+            status: "strong",
+          },
+          {
+            excerpt:
+              "Investigators found a single support beam was rated for half the expected load.",
+            label: "Cause",
+            status: "strong",
+          },
+          {
+            excerpt:
+              "The city has not yet announced repairs.",
+            label: "Payoff",
+            status: "risky",
+          },
+        ],
+        // Deliberately already-consistent with the lowest-scoring component
+        // (payoff) — this isolates the keep/required-hook-fix contradiction
+        // as the ONLY failure reason on every attempt; an inconsistent
+        // mainTakeaway here would mask it behind the earlier mainTakeaway
+        // check instead.
+        mainTakeaway:
+          "The script is understandable, but its payoff limits the overall score because the ending payoff does not deliver a strong enough viewer reward.",
+      });
+
+      const modelCaller: AnalysisV2ModelCaller =
+        async () => {
+          callCount += 1;
+
+          return {
+            raw: JSON.stringify(contradictoryResult()),
+            modelUsed: "mock-model",
+          };
+        };
+
+      const result = await runAnalysisV2(
+        bridgeScript,
+        "Bridge collapse",
+        modelCaller
+      );
+
+      assert.equal(result.ok, false);
+      assert.equal(result.status, 502);
+      assert.equal(
+        callCount,
+        3,
+        "must give up after exactly 3 attempts — never a 4th model call"
+      );
+
+      if (!result.ok) {
+        assert.deepEqual(result.response, {
+          status: "error",
+          reason:
+            "Analysis V2 returned an invalid analysis.",
+        });
+      }
+
+      const responseText = JSON.stringify(result.response);
+      assert.doesNotMatch(
+        responseText,
+        /A keep hook decision cannot contain a required hook fix/i
+      );
+      assert.doesNotMatch(
+        responseText,
+        /payoff|bridge|support beam/i
+      );
+    },
+  },
+
+  {
+    // Retry-gate coverage for the DIRECT occurrence of this reason (as
+    // opposed to Test A's mainTakeaway-escalation path): when the
+    // keep/required-hook-fix contradiction is itself the reason on attempt
+    // 1, it must be eligible to escalate to the final targeted retry, the
+    // same as every other already-supported structural reason.
+    name: "runAnalysisV2 escalates an attempt-1 keep/required-hook-fix failure to the final targeted retry and accepts a corrected third candidate",
+    run: async () => {
+      let callCount = 0;
+      const userPrompts: string[] = [];
+
+      // Same script as Tests A/B above — no hook-timing structural
+      // requirement, so keep is genuinely valid and the
+      // keep/required-hook-fix contradiction is the only issue in play.
+      const bridgeScript =
+        "A new pedestrian bridge in the city cracked under normal foot traffic last spring. Investigators found a single support beam was rated for half the expected load. The city has not yet announced repairs.";
+
+      const baseResult = (
+        overrides: Record<string, unknown>
+      ): Record<string, unknown> => ({
+        scriptType: "narrative_event",
+        verdict: "mixed",
+        scoreComponents: {
+          overall: {
+            premiseAppeal: 18,
+            openingPromise: 15,
+            progression: 20,
+            payoff: 10,
+          },
+          hook: {
+            immediacy: 18,
+            specificity: 18,
+            viewerPull: 17,
+            deliveryAlignment: 18,
+          },
+          retentionRisk: {
+            openingFriction: 10,
+            progressionRisk: 10,
+            predictabilityRisk: 10,
+            payoffRisk: 15,
+          },
+        },
+        hookAssessment:
+          "The hook states a grounded structural failure with a concrete cause.",
+        riskyParts: [
+          {
+            excerpt:
+              "The city has not yet announced repairs.",
+            reason:
+              "The ending states the outcome but does not add a stronger payoff beyond restating the situation.",
+            severity: "medium",
+          },
+        ],
+        scenes: [
+          {
+            excerpt:
+              "A new pedestrian bridge in the city cracked under normal foot traffic last spring.",
+            label: "Hook",
+            status: "strong",
+          },
+          {
+            excerpt:
+              "Investigators found a single support beam was rated for half the expected load.",
+            label: "Cause",
+            status: "strong",
+          },
+          {
+            excerpt:
+              "The city has not yet announced repairs.",
+            label: "Payoff",
+            status: "risky",
+          },
+        ],
+        // Already consistent with the lowest-scoring component (payoff) on
+        // every attempt — isolates the keep/required-hook-fix contradiction
+        // as the only failure reason, exactly like Test B above.
+        mainTakeaway:
+          "The script is understandable, but its payoff limits the overall score because the ending payoff does not deliver a strong enough viewer reward.",
+        ...overrides,
+      });
+
+      const contradictoryResult = () =>
+        baseResult({
+          hookDecision: "keep",
+          suggestedHook: null,
+          suggestedFixes: [
+            {
+              target: "hook",
+              optional: false,
+              suggestion:
+                "Combine the cause and outcome into the opening sentence.",
+            },
+          ],
+        });
+
+      const correctedResult = () =>
+        baseResult({
+          hookDecision: "keep",
+          suggestedHook: null,
+          suggestedFixes: [
+            {
+              target: "payoff",
+              optional: false,
+              suggestion:
+                "Add a verified consequence or implication that explains why this matters.",
+            },
+          ],
+        });
+
+      const modelCaller: AnalysisV2ModelCaller =
+        async (_systemPrompt, userPrompt) => {
+          callCount += 1;
+          userPrompts.push(userPrompt);
+
+          if (callCount <= 2) {
+            // Attempt 0 AND attempt 1 both keep the same contradiction.
+            return {
+              raw: JSON.stringify(contradictoryResult()),
+              modelUsed: "mock-model",
+            };
+          }
+
+          // Attempt 2 (the final targeted retry's own output): corrected.
+          return {
+            raw: JSON.stringify(correctedResult()),
+            modelUsed: "mock-model",
+          };
+        };
+
+      const result = await runAnalysisV2(
+        bridgeScript,
+        "Bridge collapse",
+        modelCaller
+      );
+
+      assert.equal(result.ok, true);
+      assert.equal(result.status, 200);
+      assert.equal(
+        callCount,
+        3,
+        "the attempt-1 keep/required-hook-fix failure must escalate to exactly one final targeted retry — no 4th call"
+      );
+
+      if (result.ok) {
+        assert.equal(
+          result.response.result.hookDecision,
+          "keep"
+        );
+      }
+
+      const finalRetryPrompt = userPrompts[2] ?? "";
+      assert.match(
+        finalRetryPrompt,
+        /A keep hook decision cannot contain a required hook fix/i
+      );
+
+      const responseText = JSON.stringify(result.response);
+      assert.doesNotMatch(
+        responseText,
+        /A keep hook decision cannot contain a required hook fix/i
+      );
+    },
+  },
+
+  {
+    // Cross-validator drift investigation, Test 1: attempt 1 fails on
+    // keep/required-hook-fix (NOT mainTakeaway), so the final targeted
+    // retry prompt is built from the KEEP branch — which does not contain
+    // mainTakeaway-specific guidance. If the model's third candidate then
+    // fixes keep/fix but introduces a FRESH mainTakeaway inconsistency, the
+    // deterministic mainTakeaway repair (which runs unconditionally
+    // whenever this exact reason occurs, regardless of which prompt
+    // produced the candidate or which attempt number it is) still catches
+    // and fixes it. This proves the system self-heals here even though the
+    // final-retry prompt itself carried no mainTakeaway reminder.
+    name: "cross-validator drift: a keep/fix-triggered final retry whose candidate introduces a fresh mainTakeaway defect is still repaired and accepted",
+    run: async () => {
+      let callCount = 0;
+      const userPrompts: string[] = [];
+
+      const bridgeScript =
+        "A new pedestrian bridge in the city cracked under normal foot traffic last spring. Investigators found a single support beam was rated for half the expected load. The city has not yet announced repairs.";
+
+      const baseResult = (
+        overrides: Record<string, unknown>
+      ): Record<string, unknown> => ({
+        scriptType: "narrative_event",
+        verdict: "mixed",
+        scoreComponents: {
+          overall: {
+            premiseAppeal: 18,
+            openingPromise: 15,
+            progression: 20,
+            payoff: 10,
+          },
+          hook: {
+            immediacy: 18,
+            specificity: 18,
+            viewerPull: 17,
+            deliveryAlignment: 18,
+          },
+          retentionRisk: {
+            openingFriction: 10,
+            progressionRisk: 10,
+            predictabilityRisk: 10,
+            payoffRisk: 15,
+          },
+        },
+        hookAssessment:
+          "The hook states a grounded structural failure with a concrete cause.",
+        riskyParts: [
+          {
+            excerpt:
+              "The city has not yet announced repairs.",
+            reason:
+              "The ending states the outcome but does not add a stronger payoff beyond restating the situation.",
+            severity: "medium",
+          },
+        ],
+        scenes: [
+          {
+            excerpt:
+              "A new pedestrian bridge in the city cracked under normal foot traffic last spring.",
+            label: "Hook",
+            status: "strong",
+          },
+          {
+            excerpt:
+              "Investigators found a single support beam was rated for half the expected load.",
+            label: "Cause",
+            status: "strong",
+          },
+          {
+            excerpt:
+              "The city has not yet announced repairs.",
+            label: "Payoff",
+            status: "risky",
+          },
+        ],
+        ...overrides,
+      });
+
+      // Attempts 0 and 1: keep + required hook fix (mainTakeaway already
+      // consistent — isolates the keep/fix contradiction as the only
+      // failure, escalating via the KEEP branch, not the mainTakeaway one).
+      const keepFixContradiction = () =>
+        baseResult({
+          hookDecision: "keep",
+          suggestedHook: null,
+          suggestedFixes: [
+            {
+              target: "hook",
+              optional: false,
+              suggestion:
+                "Combine the cause and outcome into the opening sentence.",
+            },
+          ],
+          mainTakeaway:
+            "The script is understandable, but its payoff limits the overall score because the ending payoff does not deliver a strong enough viewer reward.",
+        });
+
+      // Attempt 2: fixes keep/fix (payoff-targeted fix instead of hook),
+      // but reverts to a generic mainTakeaway that does not name the
+      // lowest-scoring component.
+      const freshMainTakeawayDefect = () =>
+        baseResult({
+          hookDecision: "keep",
+          suggestedHook: null,
+          suggestedFixes: [
+            {
+              target: "payoff",
+              optional: false,
+              suggestion:
+                "Add a verified consequence or implication that explains why this matters.",
+            },
+          ],
+          mainTakeaway:
+            "This script is engaging and mostly works well as a Short.",
+        });
+
+      const modelCaller: AnalysisV2ModelCaller =
+        async (_systemPrompt, userPrompt) => {
+          callCount += 1;
+          userPrompts.push(userPrompt);
+
+          if (callCount <= 2) {
+            return {
+              raw: JSON.stringify(keepFixContradiction()),
+              modelUsed: "mock-model",
+            };
+          }
+
+          return {
+            raw: JSON.stringify(freshMainTakeawayDefect()),
+            modelUsed: "mock-model",
+          };
+        };
+
+      const result = await runAnalysisV2(
+        bridgeScript,
+        "Bridge collapse",
+        modelCaller
+      );
+
+      // Confirms the drift premise: the final retry prompt was built from
+      // the keep/fix reason, NOT the mainTakeaway reason — it carries the
+      // keep invariant but not mainTakeaway-specific guidance.
+      const finalRetryPrompt = userPrompts[2] ?? "";
+      assert.match(
+        finalRetryPrompt,
+        /A keep hook decision cannot contain a required hook fix/i
+      );
+      assert.doesNotMatch(
+        finalRetryPrompt,
+        /identify the lowest-scoring overall component/i
+      );
+
+      // Despite the missing prompt-level reminder, the deterministic
+      // mainTakeaway repair — which runs unconditionally on any attempt
+      // whenever this exact reason occurs — still resolves it.
+      assert.equal(result.ok, true);
+      assert.equal(result.status, 200);
+      assert.equal(
+        callCount,
+        3,
+        "no 4th call — the repair resolves attempt 2's own output in place"
+      );
+
+      if (result.ok) {
+        assert.equal(
+          result.response.result.hookDecision,
+          "keep"
+        );
+        assert.match(
+          result.response.result.mainTakeaway,
+          /payoff/i
+        );
+      }
+    },
+  },
+
+  {
+    // Cross-validator drift investigation, Test 2: a mainTakeaway defect
+    // with NO coexisting issue is deterministically repairable on whatever
+    // attempt it first occurs — proven by tracing the actual contract
+    // rather than assuming a 3-call scenario. Because the repair check
+    // runs unconditionally, before any attempt-number branching, a "clean"
+    // mainTakeaway defect (nothing else wrong) can never survive to a
+    // second real model call: it resolves in exactly ONE call, regardless
+    // of which attempt number would otherwise have produced it. This is
+    // the correct, intended behavior — not a gap — and this test locks it
+    // in as a regression guard.
+    name: "cross-validator drift: a mainTakeaway-only defect with no coexisting issue is always repaired on the very first attempt, never surviving to a second call",
+    run: async () => {
+      let callCount = 0;
+
+      const bridgeScript =
+        "A new pedestrian bridge in the city cracked under normal foot traffic last spring. Investigators found a single support beam was rated for half the expected load. The city has not yet announced repairs.";
+
+      const flawedResult = (): Record<string, unknown> => ({
+        scriptType: "narrative_event",
+        verdict: "mixed",
+        scoreComponents: {
+          overall: {
+            premiseAppeal: 18,
+            openingPromise: 15,
+            progression: 20,
+            payoff: 10,
+          },
+          hook: {
+            immediacy: 18,
+            specificity: 18,
+            viewerPull: 17,
+            deliveryAlignment: 18,
+          },
+          retentionRisk: {
+            openingFriction: 10,
+            progressionRisk: 10,
+            predictabilityRisk: 10,
+            payoffRisk: 15,
+          },
+        },
+        hookDecision: "keep",
+        suggestedHook: null,
+        hookAssessment:
+          "The hook states a grounded structural failure with a concrete cause.",
+        riskyParts: [
+          {
+            excerpt:
+              "The city has not yet announced repairs.",
+            reason:
+              "The ending states the outcome but does not add a stronger payoff beyond restating the situation.",
+            severity: "medium",
+          },
+        ],
+        suggestedFixes: [
+          {
+            target: "payoff",
+            optional: false,
+            suggestion:
+              "Add a verified consequence or implication that explains why this matters.",
+          },
+        ],
+        scenes: [
+          {
+            excerpt:
+              "A new pedestrian bridge in the city cracked under normal foot traffic last spring.",
+            label: "Hook",
+            status: "strong",
+          },
+          {
+            excerpt:
+              "Investigators found a single support beam was rated for half the expected load.",
+            label: "Cause",
+            status: "strong",
+          },
+          {
+            excerpt:
+              "The city has not yet announced repairs.",
+            label: "Payoff",
+            status: "risky",
+          },
+        ],
+        mainTakeaway:
+          "This script is engaging and mostly works well as a Short.",
+      });
+
+      const modelCaller: AnalysisV2ModelCaller =
+        async () => {
+          callCount += 1;
+
+          return {
+            raw: JSON.stringify(flawedResult()),
+            modelUsed: "mock-model",
+          };
+        };
+
+      const result = await runAnalysisV2(
+        bridgeScript,
+        "Bridge collapse",
+        modelCaller
+      );
+
+      assert.equal(result.ok, true);
+      assert.equal(result.status, 200);
+      assert.equal(
+        callCount,
+        1,
+        "a mainTakeaway-only defect with nothing else wrong must resolve via repair on the first attempt, not survive to a retry"
+      );
+
+      if (result.ok) {
+        assert.match(
+          result.response.result.mainTakeaway,
+          /payoff/i
+        );
+      }
+    },
+  },
+
+  {
+    // Cross-validator drift investigation, Test 3: when the mainTakeaway
+    // repair's OWN revalidation exposes a genuinely different, independent
+    // defect (here: an orthogonal "mixed verdict needs a non-optional fix"
+    // requirement, masked behind the mainTakeaway check because validation
+    // returns on the first failure encountered), the terminal log/response
+    // reason is STILL reported as the original mainTakeaway reason — never
+    // the true final blocking defect. This documents the existing log
+    // semantics: the reported terminal reason reflects what triggered the
+    // repair attempt, not necessarily what actually kept blocking it.
+    name: "cross-validator drift: a mainTakeaway defect masking an independent, unrepairable defect still fails safely, with the terminal reason reflecting the masked (not the true) cause",
+    run: async () => {
+      let callCount = 0;
+
+      const bridgeScript =
+        "A new pedestrian bridge in the city cracked under normal foot traffic last spring. Investigators found a single support beam was rated for half the expected load. The city has not yet announced repairs.";
+
+      const flawedResult = (): Record<string, unknown> => ({
+        scriptType: "narrative_event",
+        verdict: "mixed",
+        scoreComponents: {
+          overall: {
+            premiseAppeal: 18,
+            openingPromise: 15,
+            progression: 20,
+            payoff: 10,
+          },
+          hook: {
+            immediacy: 18,
+            specificity: 18,
+            viewerPull: 17,
+            deliveryAlignment: 18,
+          },
+          retentionRisk: {
+            openingFriction: 10,
+            progressionRisk: 10,
+            predictabilityRisk: 10,
+            payoffRisk: 15,
+          },
+        },
+        hookDecision: "keep",
+        suggestedHook: null,
+        hookAssessment:
+          "The hook states a grounded structural failure with a concrete cause.",
+        riskyParts: [
+          {
+            excerpt:
+              "The city has not yet announced repairs.",
+            reason:
+              "The ending states the outcome but does not add a stronger payoff beyond restating the situation.",
+            severity: "medium",
+          },
+        ],
+        // Orthogonal, independent defect: a mixed result requires at least
+        // one non-optional suggestedFix somewhere. Repair only ever
+        // rewrites mainTakeaway, so it cannot resolve this on its own —
+        // and no other check in this fixture masks it, so it is the true,
+        // sole blocker on every attempt.
+        suggestedFixes: [],
+        scenes: [
+          {
+            excerpt:
+              "A new pedestrian bridge in the city cracked under normal foot traffic last spring.",
+            label: "Hook",
+            status: "strong",
+          },
+          {
+            excerpt:
+              "Investigators found a single support beam was rated for half the expected load.",
+            label: "Cause",
+            status: "strong",
+          },
+          {
+            excerpt:
+              "The city has not yet announced repairs.",
+            label: "Payoff",
+            status: "risky",
+          },
+        ],
+        mainTakeaway:
+          "This script is engaging and mostly works well as a Short.",
+      });
+
+      const modelCaller: AnalysisV2ModelCaller =
+        async () => {
+          callCount += 1;
+
+          return {
+            raw: JSON.stringify(flawedResult()),
+            modelUsed: "mock-model",
+          };
+        };
+
+      const result = await runAnalysisV2(
+        bridgeScript,
+        "Bridge collapse",
+        modelCaller
+      );
+
+      assert.equal(result.ok, false);
+      assert.equal(result.status, 502);
+      assert.equal(
+        callCount,
+        3,
+        "never a 4th call, even though the true blocker is unrelated to mainTakeaway"
+      );
+
+      if (!result.ok) {
+        assert.deepEqual(result.response, {
+          status: "error",
+          reason:
+            "Analysis V2 returned an invalid analysis.",
+        });
+      }
+
+      const responseText = JSON.stringify(result.response);
+      assert.doesNotMatch(
+        responseText,
+        /mainTakeaway must identify the lowest-scoring overall component/i
+      );
+      assert.doesNotMatch(
+        responseText,
+        /non-optional suggested fix/i
+      );
+    },
+  },
+
+  {
+    // Cross-validator drift investigation, Test 4: the RU-locale path for
+    // the same "clean, sole mainTakeaway defect" shape resolves the same
+    // way as EN — one call, correct component named in Russian, no extra
+    // model call.
+    name: "cross-validator drift: RU locale mainTakeaway repair resolves on the first attempt with the correct component named in Russian",
+    run: async () => {
+      let callCount = 0;
+
+      const bridgeScriptRu =
+        "Новый пешеходный мост в городе треснул при обычной пешеходной нагрузке прошлой весной. Следователи обнаружили, что одна опорная балка была рассчитана только на половину ожидаемой нагрузки. Город пока не объявил о ремонте.";
+
+      const flawedResult = (): Record<string, unknown> => ({
+        scriptType: "narrative_event",
+        verdict: "mixed",
+        scoreComponents: {
+          overall: {
+            premiseAppeal: 18,
+            openingPromise: 15,
+            progression: 20,
+            payoff: 10,
+          },
+          hook: {
+            immediacy: 18,
+            specificity: 18,
+            viewerPull: 17,
+            deliveryAlignment: 18,
+          },
+          retentionRisk: {
+            openingFriction: 10,
+            progressionRisk: 10,
+            predictabilityRisk: 10,
+            payoffRisk: 15,
+          },
+        },
+        hookDecision: "keep",
+        suggestedHook: null,
+        hookAssessment:
+          "Хук содержит обоснованный факт о структурном повреждении.",
+        riskyParts: [
+          {
+            excerpt: "Город пока не объявил о ремонте.",
+            reason:
+              "Концовка констатирует факт, но не добавляет более сильной развязки.",
+            severity: "medium",
+          },
+        ],
+        // Exact canonical allowed neutral-diagnostic RU form — must match
+        // verbatim, not a free paraphrase.
+        suggestedFixes: [
+          {
+            target: "payoff",
+            optional: false,
+            suggestion:
+              "Добавьте проверенное следствие или значение, которое объясняет, почему это важно.",
+          },
+        ],
+        scenes: [
+          {
+            excerpt:
+              "Новый пешеходный мост в городе треснул при обычной пешеходной нагрузке прошлой весной.",
+            label: "Хук",
+            status: "strong",
+          },
+          {
+            excerpt:
+              "Следователи обнаружили, что одна опорная балка была рассчитана только на половину ожидаемой нагрузки.",
+            label: "Причина",
+            status: "strong",
+          },
+          {
+            excerpt: "Город пока не объявил о ремонте.",
+            label: "Развязка",
+            status: "risky",
+          },
+        ],
+        mainTakeaway:
+          "Этот сценарий интересен и в целом хорошо работает как Shorts.",
+      });
+
+      const modelCaller: AnalysisV2ModelCaller =
+        async () => {
+          callCount += 1;
+
+          return {
+            raw: JSON.stringify(flawedResult()),
+            modelUsed: "mock-model",
+          };
+        };
+
+      const result = await runAnalysisV2(
+        bridgeScriptRu,
+        "Обрушение моста",
+        modelCaller,
+        "ru"
+      );
+
+      assert.equal(result.ok, true);
+      assert.equal(result.status, 200);
+      assert.equal(
+        callCount,
+        1,
+        "resolves via repair on the first attempt, same as EN"
+      );
+
+      if (result.ok) {
+        assert.match(
+          result.response.result.mainTakeaway,
+          /развязк/i
+        );
+        assert.doesNotMatch(
+          result.response.result.mainTakeaway,
+          /[a-zA-Z]{4,}/
+        );
+      }
+    },
+  },
+
+  {
     // First-retry reminder coverage: the compact reminder must appear even
     // when attempt 0 failed for a completely unrelated reason (the gap this
     // task closes), and must NOT be redundantly duplicated alongside the
