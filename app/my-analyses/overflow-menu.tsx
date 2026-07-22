@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { MoreVertical } from "lucide-react";
+import { MoreVertical, type LucideIcon } from "lucide-react";
 
 export type OverflowMenuItem = {
   key: string;
@@ -31,9 +31,15 @@ export type OverflowMenuItem = {
 export function OverflowMenu({
   triggerLabel,
   items,
+  // Defaults to the original "more actions" affordance (per-row overflow —
+  // its existing every call site) — a caller reusing this for a top-level
+  // navigation/hamburger menu (e.g. the landing page's mobile header) may
+  // pass a more conventional icon (e.g. lucide-react's Menu) instead.
+  icon: Icon = MoreVertical,
 }: {
   triggerLabel: string;
   items: OverflowMenuItem[];
+  icon?: LucideIcon;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [position, setPosition] = useState<{ top: number; right: number } | null>(
@@ -43,6 +49,7 @@ export function OverflowMenu({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const menuId = useId();
 
   function openMenu() {
     const rect = triggerRef.current?.getBoundingClientRect();
@@ -159,6 +166,7 @@ export function OverflowMenu({
         type="button"
         aria-haspopup="menu"
         aria-expanded={isOpen}
+        aria-controls={menuId}
         aria-label={triggerLabel}
         onClick={() => (isOpen ? closeMenu() : openMenu())}
         // h-10 w-10 by default (mobile — a bigger tap target for this
@@ -167,13 +175,14 @@ export function OverflowMenu({
         // row) already had before this change.
         className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#E5E7EB] bg-white text-[#6B7280] transition hover:border-[#DDD6FE] hover:text-[#7C3AED] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C3AED] lg:h-8 lg:w-8"
       >
-        <MoreVertical size={16} aria-hidden="true" />
+        <Icon size={16} aria-hidden="true" />
       </button>
 
       {isOpen &&
         position &&
         createPortal(
           <div
+            id={menuId}
             ref={menuRef}
             role="menu"
             aria-label={triggerLabel}

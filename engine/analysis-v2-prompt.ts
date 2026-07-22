@@ -38,15 +38,29 @@ When the GROUNDING section's two exact allowed forms apply, write them in Russia
   return `
 LANGUAGE
 
+The submitted script's language and the requested analysis locale (${languageName}) are independent of each other and will often differ. Every generated field belongs to exactly one of the two groups below — never let one group's language leak into the other.
+
+SOURCE-LANGUAGE FIELDS
+
+These must stay in the same language as the submitted script, never translated toward ${languageName}:
+- suggestedHook
+- riskyParts[].excerpt
+- scenes[].excerpt
+- any other rewritten or quoted script text
+
+Do not translate suggestedHook, riskyParts[].excerpt, or scenes[].excerpt. Copy them exactly from the submitted script and keep them in the script's original language — never translate the script itself.
+
+For suggestedHook specifically: preserve the script's own language exactly, even when the requested analysis locale is ${languageName}. Do not translate its names, sentences, measurements, or phrasing toward ${languageName} — only improve the hook editorially (wording, ordering, specificity) while staying inside its original language, and keep every grounding and grammatical-subject rule defined earlier in this prompt.
+
+INTERFACE-LOCALE FIELDS
+
 Write every user-facing prose explanation field in ${languageName}: hookAssessment, mainTakeaway, riskyParts[].reason, suggestedFixes[].suggestion, and scenes[].label.
 
 Keep every JSON key name and every enum value (scriptType, verdict, hookDecision, riskyParts[].severity, suggestedFixes[].target, scenes[].status) in English exactly as defined in this prompt, regardless of the explanation language.
 
-Do not translate suggestedHook, riskyParts[].excerpt, or scenes[].excerpt. Copy them exactly from the submitted script and keep them in the script's original language — never translate the script itself.
-
 Do not translate the names of real people, brands, products, or teams that appear in the script.
 
-The choice of explanation language must never change scoreComponents, verdict, hookDecision, or any other editorial decision — it only changes which language the explanation prose is written in. An analysis of the same script in English and in ${languageName} must reach the identical scores and editorial decisions.${groundingFormsInstruction}`;
+The choice of explanation language must never change scoreComponents, verdict, hookDecision, or any other editorial decision — it only changes which language the explanation prose is written in. An analysis of the same script in English and in ${languageName} must reach the identical scores and editorial decisions. suggestedHook must remain in the script's own language in both cases.${groundingFormsInstruction}`;
 }
 
 export function buildAnalysisV2SystemPrompt(
@@ -268,9 +282,13 @@ ${ANALYSIS_V2_HOOK_DECISIONS.join(", ")}
 
 Hook rewrite style:
 - Avoid talking-head dependent phrases such as "Let's find out", "Let's see", "Watch until the end", or "I will show you" unless the submitted script clearly uses a creator-on-camera talking-head style.
-- For neutral voiceover or faceless Shorts, avoid presenter language. When improving a hook, use a context-appropriate curiosity-driving continuation that naturally fits the script.
-- Good examples include: "Here's why.", "Here's what actually happens.", "The answer is surprising.", "The answer isn't what you'd expect.", "The real reason is unexpected.", "The explanation comes down to one thing.", "Most people get this wrong.", and "The truth is more interesting."
-- Choose the continuation that best matches the topic and tone instead of repeating the same phrase every time.
+- Preserve the exact grammatical subject and object of every action, measurement, or claim exactly as the script states them. Never transfer an action or a measurement (a height, distance, speed, weight, or similar) to a different subject than the one the script actually assigns it to — for example, if the script says a body part reached a height during an action, the rewrite must keep that same body part, not the action or event itself, as the thing that reached it.
+- When the script already contains a concrete, specific, named fact (a number, measurement, date, named opponent, or similarly concrete detail), lead with that fact directly in the first sentence — do not delay it behind a generic opener, a topic announcement, or a hedge such as "something very interesting."
+- Do not automatically append a second sentence as a generic curiosity bridge. Phrases such as "Here's why", "Here's how", "What happened next", "Here's what actually happens", "The answer is surprising", or similar template continuations must only appear when the remaining script explicitly delivers that exact promise, and even then only when the first sentence's concrete fact is not already a complete, sufficient hook on its own.
+- Prefer the shortest hook that already contains the named subject, the concrete action, and enough context to understand it. Add a second sentence only when it contributes a distinct, necessary, grounded detail the first sentence could not include — never merely to manufacture suspense or curiosity.
+- Do not add a generic intensifier such as incredible, amazing, unbelievable, shocking, or legendary when the concrete fact itself is already the strongest available detail. A concrete number, name, or measurement is a stronger hook than a generic adjective describing it. This does not ban every adjective — a grounded one that adds meaning beyond the specific fact is still allowed.
+- Do not force a question, a suspenseful bridge, or a "but then" contrast when a direct factual statement is already the strongest available hook for this script.
+- For neutral voiceover or faceless Shorts, avoid presenter language, but never replace direct factual specificity with vague curiosity phrasing merely to sound more engaging.
 - Do not add direct presenter language when the original script is written as narration, documentary, explanation, comparison, or faceless voiceover.
 
 keep
@@ -300,7 +318,19 @@ Before returning refine or rewrite, compare the candidate against the original o
 - length and ease of comprehension
 - absence of unsupported claims
 
-Return keep unless the candidate is clearly better overall.
+Before finalizing suggestedHook, silently audit the candidate against every item below and revise it internally if any item fails. Never expose this reasoning, and never mention the audit itself in hookAssessment or any other field:
+- Is every name, number, unit, date, opponent, and action grounded exactly in the script, with nothing invented?
+- Is the grammatical subject of every action and measurement exactly the one the script assigns it to, never transferred to a broader event, a different person, or a different body part or object?
+- Is the candidate written in the exact same language as the submitted script, with no word, name, number, or sentence translated toward the requested analysis locale?
+- Does the first sentence already contain the strongest available concrete detail, stated directly?
+- Is any phrase generic filler, hedging, or hype that could be deleted without losing meaning?
+- Is a "Here's why" or other bridge phrase present without being strictly necessary, when the hook could already stand alone as one sentence?
+- Can two sentences be reduced to one without losing a distinct, necessary grounded promise?
+- Does the candidate add specificity, or does it only add hype, drama, or a generic evaluative adjective in place of a concrete detail?
+- Does the remainder of the script actually deliver everything the hook promises, with no invented mystery, comparison, explanation, or certainty beyond what the script supports?
+- Is the candidate meaningfully stronger than the original through at least one concrete editorial operation — removes filler, reaches the premise faster, improves specificity, fixes clarity, corrects the grammatical subject, or reduces unnecessary wording — and not merely a paraphrase or added hype?
+
+Return keep unless the candidate is clearly better overall after that audit.
 
 A suggestedHook must never:
 - become less clear than the original
@@ -311,6 +341,11 @@ A suggestedHook must never:
 - become longer without a clear benefit
 - contradict the hookAssessment
 - A suggestedHook must not state the explanation and then promise to explain that same explanation.
+- assign an action, distance, height, speed, weight, or other measurement to a different grammatical subject than the one the script actually gives it — if the script states that a specific body part or object reached a measurement during an action, the rewrite must keep that same body part or object as the thing that reached it, never the action or event itself.
+- promise a mystery, comparison, explanation, or outcome that the rest of the submitted script does not actually deliver.
+- be translated into the requested analysis locale when that locale differs from the submitted script's own language — it must stay in the script's original language exactly, even though hookAssessment and the other explanatory fields are written in that locale.
+
+When hookDecision is refine or rewrite, hookAssessment must describe the actual editorial change in plain, concrete terms — for example, removed generic introductory filler, moved the concrete fact into the opening, corrected the grammatical subject of an action, or shortened the hook. hookAssessment must never claim guaranteed higher retention, guaranteed views, that the suggestedHook is perfect, or that any change has already been applied to the creator's script — it only describes a suggested rewrite the creator can choose to use.
 
 WARNING CALIBRATION
 

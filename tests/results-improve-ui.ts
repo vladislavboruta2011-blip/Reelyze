@@ -7,6 +7,17 @@ const uiComponentsSource = readFileSync(
   "app/results/ui-components.tsx",
   "utf8"
 );
+// The Improved Hook modal was extracted into its own component (see the
+// mobile-header/Improved-Hook-modal-scrolling fix) — one unified responsive
+// implementation instead of separate desktop/mobile JSX blocks duplicated
+// inline in page.tsx. Its own focused tests live in
+// tests/improved-hook-modal.ts; the two checks below that used to count
+// "appears twice" (once per duplicated block) are updated to reflect the
+// new single-instance structure.
+const improvedHookModalSource = readFileSync(
+  "app/results/improved-hook-modal.tsx",
+  "utf8"
+);
 let failures = 0;
 
 console.log("\nReelyze Improve Hook UI Regression Tests\n");
@@ -128,17 +139,26 @@ if (hasSafeModalHookText) {
   failures += 1;
 }
 
-const copyGuardCount =
-  source.split("disabled={isImprovingHook || Boolean(improveError)}").length - 1;
+// page.tsx computes the guard once and passes it into the single unified
+// ImprovedHookModal instance (isCopyDisabled={isImprovingHook ||
+// Boolean(improveError)}); the modal itself applies it to its one Copy
+// button (disabled={isCopyDisabled}) — no longer two separately-duplicated
+// desktop/mobile buttons to keep in sync.
+const copyGuardWiredIntoModal = source.includes(
+  "isCopyDisabled={isImprovingHook || Boolean(improveError)}"
+);
+const copyGuardAppliedInModal =
+  improvedHookModalSource.split("disabled={isCopyDisabled}").length - 1 === 1;
 
 if (
   source.includes("if (isImprovingHook || improveError) return;") &&
-  copyGuardCount === 2
+  copyGuardWiredIntoModal &&
+  copyGuardAppliedInModal
 ) {
   console.log("✅ PASS — Copy actions are blocked while loading and after an error");
 } else {
   console.error(
-    `❌ FAIL — Expected guarded copy handler and two disabled copy buttons, found ${copyGuardCount} disabled buttons`
+    "❌ FAIL — Expected a guarded copy handler, the guard wired into ImprovedHookModal, and applied to its one Copy button"
   );
   failures += 1;
 }
@@ -567,17 +587,24 @@ if (preservesLegacyHookActionFallback) {
   failures += 1;
 }
 
+// Desktop and mobile now share the exact same rendered instance (one
+// unified ImprovedHookModal), so title/description/reasonLabel are computed
+// once in page.tsx and passed into that ONE component call — never two
+// separately-duplicated JSX blocks that could drift apart. A single prop
+// wiring site is a STRONGER guarantee of parity than the old "appears
+// twice, hopefully identically" check.
 const hasDecisionSpecificModalCopy =
   source.includes("const hookModalTitle =") &&
   source.includes("const hookModalDescription =") &&
   source.includes("const hookModalReasonLabel =") &&
-  source.split("{hookModalTitle}").length - 1 === 2 &&
-  source.split("{hookModalDescription}").length - 1 === 2 &&
-  source.split("{hookModalReasonLabel}").length - 1 === 2;
+  source.includes("title={hookModalTitle}") &&
+  source.includes("description={hookModalDescription}") &&
+  source.includes("reasonLabel={hookModalReasonLabel}") &&
+  source.split("<ImprovedHookModal").length - 1 === 1;
 
 if (hasDecisionSpecificModalCopy) {
   console.log(
-    "✅ PASS — Desktop and mobile hook modals share decision-specific copy"
+    "✅ PASS — Desktop and mobile hook modals share decision-specific copy (one unified modal instance)"
   );
 } else {
   console.error(

@@ -3,10 +3,17 @@
 import Image from "next/image";
 import { Inter } from "next/font/google";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AuthNav } from "./auth-nav";
 import { LanguageSwitcher } from "./language-switcher";
+import { SignInModal } from "./sign-in-modal";
+import { useSession } from "./session-provider";
+import {
+  OverflowMenu,
+  type OverflowMenuItem,
+} from "./my-analyses/overflow-menu";
+import { supabaseBrowser } from "../lib/supabase/browser";
 import { useMessages } from "./use-messages";
 import { useLocale } from "./locale-provider";
 import {
@@ -24,6 +31,7 @@ import {
   Clock3,
   Lightbulb,
   Lock,
+  Menu,
   Play,
   ShieldCheck,
   Sparkles,
@@ -974,12 +982,61 @@ function FooterSection() {
 
 export default function HomePage() {
   const router = useRouter();
+  const pathname = usePathname();
   const { locale } = useLocale();
   const messages = useMessages();
+  const { user } = useSession();
   const [script, setScript] = useState("");
   const [title, setTitle] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analyzeError, setAnalyzeError] = useState("");
+
+  // Mobile-header compact menu (see the MOBILE LAYOUT header below) — the
+  // same underlying actions AuthNav already exposes (Results/My Analyses/
+  // Sign in/Sign out), just reachable through one accessible menu button
+  // instead of every pill/button forced into one un-wrapped row, which
+  // overflowed the viewport at ~390-400px. No new destinations, no
+  // duplicated auth logic: this calls the exact same supabaseBrowser sign-
+  // out and reuses the exact same SignInModal AuthNav itself uses.
+  const [isMobileSignInModalOpen, setIsMobileSignInModalOpen] = useState(false);
+  const [isMobileSigningOut, setIsMobileSigningOut] = useState(false);
+
+  async function handleMobileSignOut() {
+    if (isMobileSigningOut) return;
+
+    setIsMobileSigningOut(true);
+    await supabaseBrowser.auth.signOut();
+    setIsMobileSigningOut(false);
+  }
+
+  const mobileMenuItems: OverflowMenuItem[] = [
+    {
+      key: "results",
+      label: messages.landing.nav.results,
+      onSelect: () => router.push("/results"),
+    },
+    ...(user
+      ? [
+          {
+            key: "myAnalyses",
+            label: messages.common.myAnalyses,
+            onSelect: () => router.push("/my-analyses"),
+          },
+          {
+            key: "signOut",
+            label: messages.common.signOut,
+            onSelect: handleMobileSignOut,
+            disabled: isMobileSigningOut,
+          },
+        ]
+      : [
+          {
+            key: "signIn",
+            label: messages.common.signIn,
+            onSelect: () => setIsMobileSignInModalOpen(true),
+          },
+        ]),
+  ];
 
   // Elastic/rubber-band overscroll reveals the root <body> background, not
   // page content — <main> always paints its own opaque light background over
@@ -1288,17 +1345,30 @@ export default function HomePage() {
 </span>
             </Link>
 
+            {/* Compact mobile header (root cause of the diagnosed ~390-
+                400px overflow: the old row packed LanguageSwitcher +
+                AuthNav (1-2 pills) + a "Results" link, un-wrapped, into one
+                row alongside the logo — easily exceeding the available
+                width, worse still when signed in). Only the language
+                control stays inline; every other action (Results, My
+                Analyses, Sign in/out) moves into one accessible menu — see
+                app/my-analyses/overflow-menu.tsx (reused as-is, not a
+                second navigation system). */}
             <div className="flex items-center gap-2">
               <LanguageSwitcher />
-              <AuthNav />
-              <Link
-                href="/results"
-                className="inline-flex h-[34px] items-center justify-center rounded-full border border-[#E5E7EB] bg-white/80 px-4 text-[12px] font-semibold text-[#6B7280]"
-              >
-                {messages.landing.nav.results}
-              </Link>
+              <OverflowMenu
+                triggerLabel={messages.common.menu}
+                items={mobileMenuItems}
+                icon={Menu}
+              />
             </div>
           </div>
+
+          <SignInModal
+            isOpen={isMobileSignInModalOpen}
+            onClose={() => setIsMobileSignInModalOpen(false)}
+            nextPath={pathname}
+          />
 
           {/* Hero */}
           <section className="pt-12">
