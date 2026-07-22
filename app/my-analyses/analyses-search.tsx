@@ -265,7 +265,13 @@ function AnalysisMobileCard({
         </div>
       </div>
 
-      <div className="mt-4 flex items-end justify-between gap-3">
+      {/* Permanently stacked (score/risk row, then a separate actions row)
+          rather than one row that only sometimes fits — a robust structural
+          layout that doesn't depend on measuring content width, safe across
+          320–1023px. This card is never rendered on desktop (the desktop
+          table is the separate AnalysesTable component above), so there is
+          no lg: variant to preserve here. */}
+      <div className="mt-4 flex flex-col gap-3">
         <div className="flex items-center gap-4">
           <div className="flex flex-col items-center gap-1">
             <ScoreCell
@@ -306,6 +312,7 @@ function AnalysisMobileCard({
             id={item.id}
             title={item.title}
             label={myAnalyses.table.open}
+            className="flex-1"
           />
           <AnalysisActionsMenu id={item.id} title={item.title} />
         </div>
@@ -521,9 +528,16 @@ function PaginationControls({
   }
 
   return (
+    // flex-wrap (mobile/tablet, below lg) makes this intrinsically
+    // wrap-safe rather than depending on a specific viewport width: the
+    // page-indicator span is forced onto its own full-width row via
+    // order-first + w-full, so Previous/Next always end up sharing a
+    // predictable second row together instead of one of them stranding
+    // alone. lg: restores the exact original single-row layout/order/gap
+    // for desktop, which shares this same component.
     <nav
       aria-label={paginationMessages.ariaLabel}
-      className="mt-4 flex items-center justify-center gap-4"
+      className="mt-4 flex flex-wrap items-center justify-center gap-3 lg:flex-nowrap lg:gap-4"
     >
       <button
         type="button"
@@ -535,7 +549,7 @@ function PaginationControls({
       </button>
       <span
         aria-live="polite"
-        className="text-[13px] font-medium text-[#6B7280]"
+        className="order-first w-full text-center text-[13px] font-medium text-[#6B7280] lg:order-none lg:w-auto"
       >
         {paginationMessages.pageLabel} {page} {paginationMessages.ofLabel}{" "}
         {totalPages}

@@ -657,7 +657,11 @@ function checkDashboardShape(): void {
 
   check(
     "a mobile card structure exists (stacked list, not a squeezed table) and stays hidden on desktop",
-    /block lg:hidden/.test(pageSource) &&
+    // Tolerates the mobile-polish feature's own overflow-x-hidden class
+    // sitting between "block" and "lg:hidden" — the two are no longer
+    // adjacent, so a literal "block lg:hidden" substring/regex no longer
+    // matches even though the same semantic wrapper is still present.
+    /\bblock\b[^"]*\blg:hidden\b/.test(pageSource) &&
       combinedSource.includes("function AnalysisMobileCard")
   );
 
@@ -1271,9 +1275,12 @@ function checkPaginationShape(): void {
 
   check(
     "pagination controls are rendered once per breakpoint via the shared results components (no separate control mounted directly in page.tsx or analyses-content.tsx)",
+    // Checks actual JSX usage (the "<PaginationControls" render call), not a
+    // bare substring mention — page.tsx's mobile-polish comments legitimately
+    // reference the component *by name* in prose without ever rendering it.
     (searchSource.match(/<PaginationControls\b/g) ?? []).length === 2 &&
-      !pageSource.includes("PaginationControls") &&
-      !contentSource.includes("PaginationControls")
+      !pageSource.includes("<PaginationControls") &&
+      !contentSource.includes("<PaginationControls")
   );
 
   check(
@@ -2143,7 +2150,7 @@ function checkMobilePolishShape(): void {
   );
 
   check(
-    "this feature did not touch card-row layout, long-title behavior, Risk Filter chips, Pagination, the mobile header CTA/sign-out, or the bottom navigation (the Retry button's own height is intentionally updated by the final-UI-polish feature — see its dedicated checks below)",
+    "this feature did not touch long-title behavior, Risk Filter chips, Pagination button heights, or the mobile header CTA/sign-out (the mobile card's action-row layout and the bottom navigation's height/padding are intentionally updated by the mobile-polish feature — see its dedicated checks below)",
     (() => {
       const mobileCardSource = extractFunctionSource(
         searchSource,
@@ -2163,26 +2170,7 @@ function checkMobilePolishShape(): void {
       );
       const pageSource = readFileSync("app/my-analyses/page.tsx", "utf8");
 
-      // Scoped to just the action row (scores + Open + overflow), not the
-      // whole card — AnalysisMobileCard's own top badge row already
-      // legitimately uses "flex flex-wrap items-center gap-2" (pre-dates
-      // this feature, for locale/timestamp badges), so a whole-function
-      // substring check would false-positive on that unrelated row.
-      const actionRowStart = mobileCardSource.indexOf(
-        "flex items-end justify-between gap-3"
-      );
-      const actionRowEnd =
-        actionRowStart >= 0
-          ? mobileCardSource.indexOf("</li>", actionRowStart)
-          : -1;
-      const actionRowSource =
-        actionRowStart >= 0 && actionRowEnd > actionRowStart
-          ? mobileCardSource.slice(actionRowStart, actionRowEnd)
-          : "";
-
       return (
-        actionRowStart >= 0 &&
-        !actionRowSource.includes("flex-wrap") &&
         mobileCardSource.includes('className="truncate text-[15px]') &&
         filterBarSource.includes("h-9") &&
         !filterBarSource.includes("h-10") &&
@@ -2192,8 +2180,7 @@ function checkMobilePolishShape(): void {
         !signOutSource.includes("h-10") &&
         pageSource.includes(
           'className="inline-flex h-9 items-center justify-center rounded-full bg-[#7C3AED] px-4 text-[13px] font-semibold text-white"'
-        ) &&
-        pageSource.includes('h-[76px] border-t')
+        )
       );
     })()
   );
@@ -2241,6 +2228,268 @@ function checkMobilePolishShape(): void {
         !searchSource.includes("router.push")
       );
     })()
+  );
+
+  // --- Tablet-width / overflow-safety / card-stack / pagination-wrap -----
+
+  const pageSource = readFileSync("app/my-analyses/page.tsx", "utf8");
+
+  check(
+    "the mobile wrapper has an overflow-x-hidden safety boundary, still shows/hides via the same block/lg:hidden pair, and the desktop tree is still hidden lg:flex",
+    pageSource.includes('className="block overflow-x-hidden lg:hidden"') &&
+      pageSource.includes('className="hidden lg:flex"')
+  );
+
+  check(
+    "the mobile content shell widens to max-w-[640px] at md (tablet widths below lg), while keeping the existing max-w-[430px] phone cap as the base",
+    (() => {
+      const shellStart = pageSource.indexOf(
+        'className="mx-auto w-full max-w-[430px]'
+      );
+      const shellEnd =
+        shellStart >= 0 ? pageSource.indexOf('"', shellStart + 11) : -1;
+      const shellClass =
+        shellStart >= 0 && shellEnd > shellStart
+          ? pageSource.slice(shellStart, shellEnd)
+          : "";
+
+      return (
+        shellClass.includes("max-w-[430px]") &&
+        shellClass.includes("md:max-w-[640px]")
+      );
+    })()
+  );
+
+  check(
+    "the bottom-navigation inner container uses the exact same tablet cap (max-w-[430px] base, md:max-w-[640px]) as the content shell — no width mismatch between scrollable content and the fixed nav",
+    (() => {
+      const navInnerStart = pageSource.indexOf(
+        'className="mx-auto flex h-[76px] w-full max-w-[430px]'
+      );
+      const navInnerEnd =
+        navInnerStart >= 0 ? pageSource.indexOf('"', navInnerStart + 11) : -1;
+      const navInnerClass =
+        navInnerStart >= 0 && navInnerEnd > navInnerStart
+          ? pageSource.slice(navInnerStart, navInnerEnd)
+          : "";
+
+      return (
+        navInnerClass.includes("max-w-[430px]") &&
+        navInnerClass.includes("md:max-w-[640px]")
+      );
+    })()
+  );
+
+  check(
+    "no two-column card grid was introduced at any width, and the lg breakpoint remains the one and only desktop/mobile switch — no new md:/tablet-specific breakpoint switch was added",
+    !pageSource.includes("grid-cols-2") &&
+      !searchSource.includes("grid-cols-2") &&
+      !pageSource.includes("md:hidden") &&
+      !pageSource.includes("md:block") &&
+      !pageSource.includes("md:flex")
+  );
+
+  check(
+    "AnalysisMobileCard's lower section is structurally two separate rows (a score/risk row, then a full actions row) rather than one row that only sometimes fits — a permanent stack, not a responsive one, since this card is never rendered on desktop",
+    (() => {
+      const mobileCardSource = extractFunctionSource(
+        searchSource,
+        "AnalysisMobileCard"
+      );
+
+      return (
+        mobileCardSource.includes(
+          'className="mt-4 flex flex-col gap-3"'
+        ) &&
+        mobileCardSource.includes('className="flex items-center gap-4"') &&
+        mobileCardSource.includes('className="flex items-center gap-2"')
+      );
+    })()
+  );
+
+  check(
+    "the Open Analysis button flex-grows to fill the mobile actions row (via a className prop passed only at this call site), while the overflow trigger keeps its fixed h-10 w-10 touch target and the desktop table's own OpenAnalysisButton call site is untouched",
+    (() => {
+      const mobileCardSource = extractFunctionSource(
+        searchSource,
+        "AnalysisMobileCard"
+      );
+      const desktopTableSource = extractFunctionSource(
+        searchSource,
+        "AnalysesTable"
+      );
+
+      return (
+        mobileCardSource.includes(
+          '<OpenAnalysisButton\n            id={item.id}\n            title={item.title}\n            label={myAnalyses.table.open}\n            className="flex-1"\n          />'
+        ) &&
+        !desktopTableSource.includes('className="flex-1"') &&
+        /\bh-10 w-10\b/.test(overflowMenuSource) &&
+        overflowMenuSource.includes('lg:h-8 lg:w-8"')
+      );
+    })()
+  );
+
+  check(
+    "no score, risk, label, button, or menu was removed from the mobile card — ScoreCell (overall/hook), RiskIndicator/ScoreUnavailableBadge, OpenAnalysisButton, and AnalysisActionsMenu are all still present exactly once each",
+    (() => {
+      const mobileCardSource = extractFunctionSource(
+        searchSource,
+        "AnalysisMobileCard"
+      );
+
+      return (
+        (mobileCardSource.match(/<ScoreCell/g) ?? []).length === 2 &&
+        mobileCardSource.includes("<RiskIndicator") &&
+        mobileCardSource.includes("<ScoreUnavailableBadge") &&
+        mobileCardSource.includes("<OpenAnalysisButton") &&
+        mobileCardSource.includes("<AnalysisActionsMenu")
+      );
+    })()
+  );
+
+  check(
+    "the desktop table (AnalysesTable) is completely untouched by the mobile card restructuring — still its own separate component, still a <table>, still rendering scores/risk/actions in table cells",
+    (() => {
+      const desktopTableSource = extractFunctionSource(
+        searchSource,
+        "AnalysesTable"
+      );
+
+      return (
+        desktopTableSource.includes("<table") &&
+        !desktopTableSource.includes("flex-col gap-3") &&
+        desktopTableSource.includes("<OpenAnalysisButton") &&
+        desktopTableSource.includes("<AnalysisActionsMenu")
+      );
+    })()
+  );
+
+  check(
+    "PaginationControls wraps safely below lg (flex-wrap, the page-indicator forced onto its own full-width row via order-first + w-full so Previous/Next always share a predictable second row) while lg: restores the exact original single-row, single-order, gap-4 desktop layout",
+    (() => {
+      const paginationSource = extractFunctionSource(
+        searchSource,
+        "PaginationControls"
+      );
+
+      return (
+        paginationSource.includes(
+          'className="mt-4 flex flex-wrap items-center justify-center gap-3 lg:flex-nowrap lg:gap-4"'
+        ) &&
+        paginationSource.includes(
+          'className="order-first w-full text-center text-[13px] font-medium text-[#6B7280] lg:order-none lg:w-auto"'
+        )
+      );
+    })()
+  );
+
+  check(
+    "pagination's own math, disabled logic, aria-live announcement, and exact labels are unchanged by the wrap-safety restructuring",
+    (() => {
+      const paginationSource = extractFunctionSource(
+        searchSource,
+        "PaginationControls"
+      );
+
+      return (
+        paginationSource.includes("if (totalPages <= 1)") &&
+        paginationSource.includes("return null;") &&
+        paginationSource.includes("disabled={page <= 1}") &&
+        paginationSource.includes("disabled={page >= totalPages}") &&
+        paginationSource.includes("onClick={() => setPage(page - 1)}") &&
+        paginationSource.includes("onClick={() => setPage(page + 1)}") &&
+        paginationSource.includes('aria-live="polite"') &&
+        paginationSource.includes("{paginationMessages.previousLabel}") &&
+        paginationSource.includes("{paginationMessages.nextLabel}") &&
+        paginationSource.includes(
+          "{paginationMessages.pageLabel} {page} {paginationMessages.ofLabel}"
+        )
+      );
+    })()
+  );
+
+  check(
+    "the fixed bottom navigation includes env(safe-area-inset-bottom) as reserved bottom clearance, still uses z-50, and its three destinations/active-state markup are unchanged",
+    (() => {
+      const navStart = pageSource.indexOf("{/* Total height is");
+      const navEnd =
+        navStart >= 0 ? pageSource.indexOf("</div>\n        </div>", navStart) : -1;
+      const navSource =
+        navStart >= 0 && navEnd > navStart
+          ? pageSource.slice(navStart, navEnd)
+          : "";
+
+      return (
+        navSource.includes("h-[calc(76px+env(safe-area-inset-bottom))]") &&
+        navSource.includes("pb-[env(safe-area-inset-bottom)]") &&
+        navSource.includes("z-50") &&
+        navSource.includes('aria-current="page"') &&
+        navSource.includes("<PencilLine size={14} />") &&
+        navSource.includes("<History size={14} />") &&
+        navSource.includes("<HelpCircle size={14} />") &&
+        navSource.includes("{results.nav.newAnalysisMobileNav}") &&
+        navSource.includes("{messages.common.myAnalyses}") &&
+        navSource.includes("{messages.landing.nav.howItWorks}")
+      );
+    })()
+  );
+
+  check(
+    "the mobile content shell's bottom padding was widened to clear the safe-area-extended bottom nav (calc(100px+env(safe-area-inset-bottom)), not a bare new pixel value)",
+    pageSource.includes(
+      "pb-[calc(100px+env(safe-area-inset-bottom))]"
+    ) && !pageSource.includes('pb-[100px]"')
+  );
+
+  check(
+    "the filter-chip row (already flex-wrap, already overflow-safe) was left unchanged by this feature — no horizontal-scroll chips, abbreviated labels, hidden filters, or logic changes were introduced",
+    (() => {
+      const filterBarSource = extractFunctionSource(
+        searchSource,
+        "AnalysesFilterBar"
+      );
+
+      return (
+        filterBarSource.includes(
+          'className="mb-4 flex flex-wrap items-center gap-2"'
+        ) &&
+        !filterBarSource.includes("overflow-x-auto") &&
+        !filterBarSource.includes("overflow-x-scroll")
+      );
+    })()
+  );
+
+  check(
+    "Rename and Delete dialogs were not touched by this mobile-polish feature — no max-height/overflow-y-auto was added without a reproduced defect",
+    (() => {
+      const renameSource = readFileSync(
+        "app/my-analyses/rename-analysis-dialog.tsx",
+        "utf8"
+      );
+      const deleteSource = readFileSync(
+        "app/my-analyses/delete-analysis-dialog.tsx",
+        "utf8"
+      );
+
+      return (
+        !renameSource.includes("max-h-") &&
+        !renameSource.includes("overflow-y-auto") &&
+        !deleteSource.includes("max-h-") &&
+        !deleteSource.includes("overflow-y-auto") &&
+        renameSource.includes("max-w-[420px]") &&
+        deleteSource.includes("max-w-[420px]")
+      );
+    })()
+  );
+
+  check(
+    "Search, Risk Filter AND logic, pagination math, and rename/delete are still driven by the same unchanged functions this feature never touched",
+    searchSource.includes("function filterAnalysesByTitle") &&
+      searchSource.includes("function filterAnalysesByRisk") &&
+      searchSource.includes("function paginateAnalyses") &&
+      searchSource.includes("function getTotalPages") &&
+      /PAGE_SIZE\s*=\s*10/.test(searchSource)
   );
 }
 

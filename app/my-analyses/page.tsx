@@ -227,8 +227,19 @@ export default async function MyAnalysesPage() {
         </div>
 
         {/* MOBILE */}
-        <div className="block lg:hidden">
-          <div className="mx-auto w-full max-w-[430px] pb-[100px]">
+        {/* overflow-x-hidden is the safety boundary, not the fix — the card
+            (analyses-search.tsx's AnalysisMobileCard) and pagination
+            (PaginationControls) are made intrinsically wrap-safe below;
+            this only guards against any other accidental child overflow
+            turning into full-page horizontal scroll, matching the same
+            safeguard the landing page's own mobile tree already uses. */}
+        <div className="block overflow-x-hidden lg:hidden">
+          {/* max-w-[430px] is unchanged for true mobile (below md/768px, per
+              the existing design). md:max-w-[640px] widens the OUTER
+              single-column shell for tablet-width screens (768–1023px, still
+              rendered by this mobile tree since the lg switch is untouched) —
+              a practical cap short of the full viewport, not a card grid. */}
+          <div className="mx-auto w-full max-w-[430px] pb-[calc(100px+env(safe-area-inset-bottom))] md:max-w-[640px]">
             <div className="flex items-center justify-center gap-2.5 px-5 pt-9 pb-3">
               <Image
                 src="/logo.png"
@@ -273,8 +284,16 @@ export default async function MyAnalysesPage() {
             </div>
           </div>
 
-          <div className="fixed bottom-0 left-0 right-0 z-50 h-[76px] border-t border-[#E5E7EB] bg-[#FAFAFA]/95 backdrop-blur-[8px]">
-            <div className="mx-auto flex h-full w-full max-w-[430px] items-center justify-between px-5">
+          {/* Total height is the existing 76px of usable nav content plus
+              env(safe-area-inset-bottom) (0 on devices without a home
+              indicator/notch) — the matching bottom-padding utility on this
+              same element consumes exactly that extra height as reserved
+              bottom clearance, so the inner h-[76px] row below still renders
+              at its original visual size/position, just with a safe cushion
+              beneath it instead of sitting flush against the true viewport
+              edge. */}
+          <div className="fixed bottom-0 left-0 right-0 z-50 h-[calc(76px+env(safe-area-inset-bottom))] border-t border-[#E5E7EB] bg-[#FAFAFA]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-[8px]">
+            <div className="mx-auto flex h-[76px] w-full max-w-[430px] items-center justify-between px-5 md:max-w-[640px]">
               <Link
                 href="/"
                 className="flex h-[46px] flex-1 items-center justify-center gap-1.5 rounded-[12px] text-[12px] font-semibold text-[#6B7280]"
