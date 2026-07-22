@@ -1,6 +1,6 @@
 import { cache } from "react";
 import Link from "next/link";
-import { FileText } from "lucide-react";
+import { FileText, TriangleAlert } from "lucide-react";
 import { createSupabaseServerClient } from "../../lib/supabase/server";
 import type { Messages } from "../../lib/messages";
 import type { Locale } from "../../lib/i18n";
@@ -77,16 +77,28 @@ function EmptyState({
 // only its single `label` string prop crosses that boundary, never this
 // wider myAnalyses.error subtree (which also holds heading/description,
 // read directly here since ErrorState itself is a Server Component).
+//
+// Visually aligned with EmptyState/AnalysesLoadingCard/NoResults (same
+// card shape, icon-circle treatment, and heading/description typography)
+// — only the icon and copy differ; role="alert" and every message/behavior
+// are unchanged.
 function ErrorState({ myAnalyses }: { myAnalyses: Pick<Messages["myAnalyses"], "error"> }) {
   return (
     <div
       role="alert"
-      className="rounded-[18px] border border-[#7C3AED]/30 bg-[#F3E8FF] p-8 text-center"
+      className="rounded-[18px] border border-[#E5E7EB] bg-white p-10 text-center"
     >
-      <p className="text-[15px] font-semibold text-[#7C3AED]">
+      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-[#DDD6FE] bg-[#F3E8FF]">
+        <TriangleAlert
+          size={20}
+          className="text-[#7C3AED]"
+          aria-hidden="true"
+        />
+      </div>
+      <h2 className="mt-4 text-[18px] font-semibold text-[#111827]">
         {myAnalyses.error.heading}
-      </p>
-      <p className="mx-auto mt-2 max-w-[360px] text-[13px] text-[#6B7280]">
+      </h2>
+      <p className="mx-auto mt-2 max-w-[360px] text-[14px] leading-[1.6] text-[#6B7280]">
         {myAnalyses.error.description}
       </p>
       <RetryListErrorButton label={myAnalyses.error.retryLabel} />

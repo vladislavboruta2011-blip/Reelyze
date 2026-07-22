@@ -1831,6 +1831,227 @@ function checkUiPolishShape(): void {
       searchSource.includes("riskTier(item.scores.retentionRisk) === riskFilter") &&
       /PAGE_SIZE\s*=\s*10/.test(searchSource)
   );
+
+  // --- Final UI polish: ErrorState alignment, Retry height, dialog focus --
+
+  const contentSource = readFileSync(
+    "app/my-analyses/analyses-content.tsx",
+    "utf8"
+  );
+
+  function extractErrorStateBody(): string {
+    const errorStart = contentSource.indexOf("function ErrorState");
+    const errorEnd =
+      errorStart >= 0 ? contentSource.indexOf("\n}", errorStart) : -1;
+
+    return errorStart >= 0 && errorEnd > errorStart
+      ? contentSource.slice(errorStart, errorEnd)
+      : "";
+  }
+
+  function extractEmptyStateBody(): string {
+    const emptyStart = contentSource.indexOf("function EmptyState");
+    const emptyEnd =
+      emptyStart >= 0
+        ? contentSource.indexOf("\nfunction ", emptyStart + 1)
+        : -1;
+
+    return emptyStart >= 0 && emptyEnd > emptyStart
+      ? contentSource.slice(emptyStart, emptyEnd)
+      : "";
+  }
+
+  check(
+    "ErrorState's card wrapper now matches EmptyState's exactly (white background, neutral border, rounded-[18px], p-10) instead of the old purple-tinted p-8 treatment, while keeping role=\"alert\"",
+    (() => {
+      const errorBody = extractErrorStateBody();
+
+      return (
+        errorBody.includes(
+          'className="rounded-[18px] border border-[#E5E7EB] bg-white p-10 text-center"'
+        ) &&
+        errorBody.includes('role="alert"') &&
+        !errorBody.includes("#7C3AED]/30") &&
+        !errorBody.includes("bg-[#F3E8FF] p-8")
+      );
+    })()
+  );
+
+  check(
+    "ErrorState has the same purple icon-circle treatment as EmptyState/AnalysesLoadingCard (h-12 w-12 circle, #DDD6FE border, #F3E8FF background), using a purple (not red) alert icon",
+    (() => {
+      const errorBody = extractErrorStateBody();
+      const emptyBody = extractEmptyStateBody();
+      const iconCircleClass =
+        "mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-[#DDD6FE] bg-[#F3E8FF]";
+
+      return (
+        errorBody.includes(iconCircleClass) &&
+        emptyBody.includes(iconCircleClass) &&
+        /TriangleAlert\s*\n?\s*size=\{20\}\s*\n?\s*className="text-\[#7C3AED\]"/.test(
+          errorBody
+        ) &&
+        !errorBody.includes("#EF4444") &&
+        !errorBody.includes("#DC2626")
+      );
+    })()
+  );
+
+  check(
+    "ErrorState's heading and description now use the exact same typography classes as EmptyState (text-[18px] font-semibold text-[#111827] heading; text-[14px] leading-[1.6] text-[#6B7280] description) instead of the old smaller/purple heading and 13px description",
+    (() => {
+      const errorBody = extractErrorStateBody();
+
+      return (
+        errorBody.includes(
+          'className="mt-4 text-[18px] font-semibold text-[#111827]"'
+        ) &&
+        errorBody.includes(
+          'className="mx-auto mt-2 max-w-[360px] text-[14px] leading-[1.6] text-[#6B7280]"'
+        ) &&
+        !errorBody.includes("text-[15px] font-semibold text-[#7C3AED]") &&
+        !errorBody.includes("text-[13px] text-[#6B7280]")
+      );
+    })()
+  );
+
+  check(
+    "ErrorState's heading and description copy (myAnalyses.error.heading / myAnalyses.error.description) are unchanged by this visual-only polish — only presentation classes moved",
+    (() => {
+      const errorBody = extractErrorStateBody();
+
+      return (
+        errorBody.includes("{myAnalyses.error.heading}") &&
+        errorBody.includes("{myAnalyses.error.description}") &&
+        errorBody.includes(
+          "<RetryListErrorButton label={myAnalyses.error.retryLabel} />"
+        )
+      );
+    })()
+  );
+
+  check(
+    "EN and RU myAnalyses.error copy strings are unchanged by this feature (still the exact pre-existing strings, no new/edited error message keys)",
+    (() => {
+      const messagesSource = readFileSync("lib/messages.ts", "utf8");
+
+      return (
+        messagesSource.includes(
+          'heading: "Could not load your analyses."'
+        ) &&
+        messagesSource.includes(
+          'description: "Please refresh the page to try again."'
+        ) &&
+        messagesSource.includes('retryLabel: "Try again"') &&
+        messagesSource.includes('retryLabel: "Повторить"')
+      );
+    })()
+  );
+
+  check(
+    "the Retry button's action height is now h-[44px] (matching Empty/NoResults' action-button height), not the old h-10 — while every other retry behavior stays intact",
+    (() => {
+      const retryButtonSource = readFileSync(
+        "app/my-analyses/retry-list-error.tsx",
+        "utf8"
+      );
+
+      return (
+        retryButtonSource.includes("mt-6 inline-flex h-[44px]") &&
+        !retryButtonSource.includes("h-10 ") &&
+        retryButtonSource.includes(BRANDED_FOCUS_VISIBLE) &&
+        retryButtonSource.includes("router.refresh()") &&
+        !retryButtonSource.includes("location.reload") &&
+        !retryButtonSource.includes("window.location") &&
+        retryButtonSource.includes("disabled={isPending}") &&
+        retryButtonSource.includes("useTransition()") &&
+        retryButtonSource.includes("startTransition(() => {")
+      );
+    })()
+  );
+
+  check(
+    "the Rename dialog's Cancel and Confirm buttons both now carry the branded focus-visible treatment, with their disabled/pending/color/dimension classes otherwise unchanged",
+    (() => {
+      const renameSource = readFileSync(
+        "app/my-analyses/rename-analysis-dialog.tsx",
+        "utf8"
+      );
+      const brandedCount = (
+        renameSource.match(/focus-visible:outline-\[#7C3AED\]/g) ?? []
+      ).length;
+
+      return (
+        brandedCount === 2 &&
+        renameSource.includes(
+          'className="inline-flex h-10 items-center justify-center rounded-[10px] border border-[#E5E7EB] bg-white px-4 text-[13px] font-semibold text-[#6B7280] transition hover:text-[#111827] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C3AED] disabled:cursor-not-allowed disabled:opacity-60"'
+        ) &&
+        renameSource.includes(
+          'className="inline-flex h-10 items-center justify-center rounded-[10px] bg-[#7C3AED] px-4 text-[13px] font-semibold text-white transition hover:bg-[#6D28D9] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C3AED] disabled:cursor-not-allowed disabled:opacity-60"'
+        ) &&
+        renameSource.includes("disabled={isSaving}") &&
+        renameSource.includes(
+          "{isSaving ? renameMessages.saving : renameMessages.confirm}"
+        )
+      );
+    })()
+  );
+
+  check(
+    "the Delete dialog's Cancel and destructive Confirm buttons both now carry the branded focus-visible treatment, with the destructive red background/hover and disabled/pending behavior otherwise unchanged",
+    (() => {
+      const deleteSource = readFileSync(
+        "app/my-analyses/delete-analysis-dialog.tsx",
+        "utf8"
+      );
+      const brandedCount = (
+        deleteSource.match(/focus-visible:outline-\[#7C3AED\]/g) ?? []
+      ).length;
+
+      return (
+        brandedCount === 2 &&
+        deleteSource.includes(
+          'className="inline-flex h-10 items-center justify-center rounded-[10px] border border-[#E5E7EB] bg-white px-4 text-[13px] font-semibold text-[#6B7280] transition hover:text-[#111827] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C3AED] disabled:cursor-not-allowed disabled:opacity-60"'
+        ) &&
+        deleteSource.includes("bg-[#EF4444]") &&
+        deleteSource.includes("hover:bg-[#DC2626]") &&
+        deleteSource.includes(
+          'className="inline-flex h-10 items-center justify-center rounded-[10px] bg-[#EF4444] px-4 text-[13px] font-semibold text-white transition hover:bg-[#DC2626] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C3AED] disabled:cursor-not-allowed disabled:opacity-60"'
+        ) &&
+        deleteSource.includes("disabled={isDeleting}") &&
+        deleteSource.includes(
+          "{isDeleting ? deleteMessages.deleting : deleteMessages.confirm}"
+        )
+      );
+    })()
+  );
+
+  check(
+    "no route-level loading.tsx or error.tsx was added by this polish feature, and no new URL/debug state was introduced",
+    (() => {
+      let loadingRouteFileExists = true;
+      let errorRouteFileExists = true;
+
+      try {
+        readFileSync("app/my-analyses/loading.tsx", "utf8");
+      } catch {
+        loadingRouteFileExists = false;
+      }
+
+      try {
+        readFileSync("app/my-analyses/error.tsx", "utf8");
+      } catch {
+        errorRouteFileExists = false;
+      }
+
+      return (
+        !loadingRouteFileExists &&
+        !errorRouteFileExists &&
+        !searchSource.includes("useSearchParams") &&
+        !contentSource.includes("useSearchParams")
+      );
+    })()
+  );
 }
 
 // Mobile polish — same source-shape convention as the other checkXShape
@@ -1922,7 +2143,7 @@ function checkMobilePolishShape(): void {
   );
 
   check(
-    "this feature did not touch card-row layout, long-title behavior, Risk Filter chips, Pagination, the mobile header CTA/sign-out, the Retry button, or the bottom navigation",
+    "this feature did not touch card-row layout, long-title behavior, Risk Filter chips, Pagination, the mobile header CTA/sign-out, or the bottom navigation (the Retry button's own height is intentionally updated by the final-UI-polish feature — see its dedicated checks below)",
     (() => {
       const mobileCardSource = extractFunctionSource(
         searchSource,
@@ -1935,10 +2156,6 @@ function checkMobilePolishShape(): void {
       const paginationSource = extractFunctionSource(
         searchSource,
         "PaginationControls"
-      );
-      const retrySource = readFileSync(
-        "app/my-analyses/retry-list-error.tsx",
-        "utf8"
       );
       const signOutSource = readFileSync(
         "app/my-analyses/sidebar-sign-out-button.tsx",
@@ -1971,8 +2188,6 @@ function checkMobilePolishShape(): void {
         !filterBarSource.includes("h-10") &&
         paginationSource.includes("h-9") &&
         !paginationSource.includes("h-10") &&
-        retrySource.includes("h-10") &&
-        !retrySource.includes("h-11") &&
         signOutSource.includes("h-9") &&
         !signOutSource.includes("h-10") &&
         pageSource.includes(

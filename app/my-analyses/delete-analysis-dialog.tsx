@@ -208,7 +208,7 @@ export function DeleteAnalysisDialog({
             type="button"
             onClick={closeDialog}
             disabled={isDeleting}
-            className="inline-flex h-10 items-center justify-center rounded-[10px] border border-[#E5E7EB] bg-white px-4 text-[13px] font-semibold text-[#6B7280] transition hover:text-[#111827] disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex h-10 items-center justify-center rounded-[10px] border border-[#E5E7EB] bg-white px-4 text-[13px] font-semibold text-[#6B7280] transition hover:text-[#111827] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C3AED] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {deleteMessages.cancel}
           </button>
@@ -216,7 +216,7 @@ export function DeleteAnalysisDialog({
             type="button"
             onClick={handleConfirm}
             disabled={isDeleting}
-            className="inline-flex h-10 items-center justify-center rounded-[10px] bg-[#EF4444] px-4 text-[13px] font-semibold text-white transition hover:bg-[#DC2626] disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex h-10 items-center justify-center rounded-[10px] bg-[#EF4444] px-4 text-[13px] font-semibold text-white transition hover:bg-[#DC2626] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C3AED] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isDeleting ? deleteMessages.deleting : deleteMessages.confirm}
           </button>
