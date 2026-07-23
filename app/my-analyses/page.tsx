@@ -147,7 +147,7 @@ export default async function MyAnalysesPage() {
               aria-label={myAnalyses.heading}
             >
               <Link
-                href="/"
+                href="/#analyzer"
                 className="flex h-[46px] items-center gap-3 rounded-[12px] px-4 transition hover:bg-white/[0.03] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C3AED]"
               >
                 <PencilLine size={16} className="text-[#6B7280]" />
@@ -206,7 +206,7 @@ export default async function MyAnalysesPage() {
                   </p>
                 </div>
                 <Link
-                  href="/"
+                  href="/#analyzer"
                   className="inline-flex h-[44px] shrink-0 items-center gap-2 rounded-full bg-[#7C3AED] px-5 text-[14px] font-semibold text-white transition hover:bg-[#6D28D9] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C3AED]"
                 >
                   <PencilLine size={16} />
@@ -255,7 +255,7 @@ export default async function MyAnalysesPage() {
             </div>
             <div className="flex items-center justify-center gap-2 px-5 pb-5">
               <Link
-                href="/"
+                href="/#analyzer"
                 className="inline-flex h-9 items-center justify-center rounded-full bg-[#7C3AED] px-4 text-[13px] font-semibold text-white"
               >
                 {results.nav.newAnalysis}
@@ -295,7 +295,7 @@ export default async function MyAnalysesPage() {
           <div className="fixed bottom-0 left-0 right-0 z-50 h-[calc(76px+env(safe-area-inset-bottom))] border-t border-[#E5E7EB] bg-[#FAFAFA]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-[8px]">
             <div className="mx-auto flex h-[76px] w-full max-w-[430px] items-center justify-between px-5 md:max-w-[640px]">
               <Link
-                href="/"
+                href="/#analyzer"
                 className="flex h-[46px] flex-1 items-center justify-center gap-1.5 rounded-[12px] text-[12px] font-semibold text-[#6B7280]"
               >
                 <PencilLine size={14} />

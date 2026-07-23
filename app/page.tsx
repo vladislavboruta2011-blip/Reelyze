@@ -1081,6 +1081,30 @@ export default function HomePage() {
     };
   }, []);
 
+  // Compensates for arriving at /#analyzer (e.g. "New Analysis" from
+  // /results or /my-analyses) on a narrow viewport. Next.js's own
+  // hash-scroll (and a plain browser anchor) targets the analyzer section's
+  // id, but that section belongs to the DESKTOP LAYOUT tree above, which is
+  // display:none below the min-[900px] breakpoint — a display:none element
+  // has no box to scroll to, so the native scroll silently no-ops there.
+  // offsetParent is null exactly when that's the case, so this only ever
+  // fires as a fallback for the one viewport band where the shared
+  // #analyzer id couldn't have worked, using the same
+  // document.getElementById(...).scrollIntoView() every other in-page
+  // "jump to analyzer" control on this page already uses (see Navbar,
+  // HeroSection, and the mobile header/hero above).
+  useEffect(() => {
+    if (window.location.hash !== "#analyzer") {
+      return;
+    }
+
+    const desktopTarget = document.getElementById("analyzer");
+
+    if (desktopTarget && desktopTarget.offsetParent === null) {
+      document.getElementById("analyzer-mobile")?.scrollIntoView();
+    }
+  }, []);
+
   const maxCharacters = 1000;
   const scriptCharactersOverLimit = Math.max(
     0,

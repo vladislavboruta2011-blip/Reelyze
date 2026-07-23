@@ -1502,6 +1502,112 @@ if (submitFeedbackHandler && feedbackContractIsSafe) {
   failures += 1;
 }
 
+// ── New Analysis navigation targets the analyzer anchor, not bare "/" ────────
+//
+// Regresses the confirmed core-loop friction where "New Analysis" from
+// /results sent users to the top of the marketing landing page instead of
+// directly to the analyzer input.
+
+const resultsNewAnalysisAnchorCount =
+  source.split('href="/#analyzer"').length - 1;
+const resultsBareRootHrefCount = source.split('href="/"').length - 1;
+
+// Exactly one bare "/" must remain — the mobile header's icon-only back
+// button (ArrowLeft, no text label), which is a distinct "go back" intent,
+// not "start a new analysis", and must stay untouched by this change.
+if (resultsNewAnalysisAnchorCount === 5 && resultsBareRootHrefCount === 1) {
+  console.log(
+    "✅ PASS — All five Results \"New Analysis\" destinations (desktop sidebar, desktop header, desktop empty state, mobile empty state, mobile bottom nav) link to /#analyzer; the unrelated mobile back button keeps its bare / destination"
+  );
+} else {
+  console.error(
+    `❌ FAIL — Expected exactly 5 New Analysis links to /#analyzer and exactly 1 unrelated bare / link to remain (found ${resultsNewAnalysisAnchorCount} and ${resultsBareRootHrefCount})`
+  );
+  failures += 1;
+}
+
+// The existing localized label bindings must be completely untouched —
+// this is a destination-only change, never a copy or component change.
+const resultsNewAnalysisLabelCount =
+  source.split("{results.nav.newAnalysis}").length - 1;
+const resultsNewAnalysisMobileNavLabelCount =
+  source.split("{results.nav.newAnalysisMobileNav}").length - 1;
+
+if (
+  resultsNewAnalysisLabelCount === 4 &&
+  resultsNewAnalysisMobileNavLabelCount === 1
+) {
+  console.log(
+    "✅ PASS — New Analysis label bindings are unchanged (4x results.nav.newAnalysis, 1x results.nav.newAnalysisMobileNav)"
+  );
+} else {
+  console.error(
+    `❌ FAIL — Expected unchanged label binding counts (newAnalysis: ${resultsNewAnalysisLabelCount}, newAnalysisMobileNav: ${resultsNewAnalysisMobileNavLabelCount})`
+  );
+  failures += 1;
+}
+
+// None of the 5 destination changes introduced a custom click handler —
+// they remain plain next/link navigations, per the task's explicit
+// preference for a normal Link over a JS click interceptor.
+const newAnalysisLinksHaveNoOnClick = !/href="\/#analyzer"[^>]*onClick=/.test(
+  source
+);
+
+if (newAnalysisLinksHaveNoOnClick) {
+  console.log(
+    "✅ PASS — Results \"New Analysis\" links remain plain next/link navigations with no custom onClick handler"
+  );
+} else {
+  console.error(
+    "❌ FAIL — Results \"New Analysis\" links must not gain a custom onClick handler when a plain Link destination change is sufficient"
+  );
+  failures += 1;
+}
+
+// ── Landing-page analyzer anchor: unique target, mobile-viewport fallback ────
+//
+// The landing page mounts both a desktop and a mobile layout tree
+// simultaneously (visibility toggled by CSS only) — id="analyzer" belongs
+// to the desktop tree, which is display:none below the min-[900px]
+// breakpoint, so a plain anchor/native hash-scroll silently no-ops on
+// mobile. This is compensated for by a small mount-time effect, never a
+// duplicate id and never a click handler on the linking pages themselves.
+
+const analyzerIdCount = homeSource.split('id="analyzer"').length - 1;
+const analyzerMobileIdCount =
+  homeSource.split('id="analyzer-mobile"').length - 1;
+
+if (analyzerIdCount === 1 && analyzerMobileIdCount === 1) {
+  console.log(
+    "✅ PASS — Exactly one id=\"analyzer\" (desktop) and one id=\"analyzer-mobile\" (mobile) exist — no duplicate analyzer ids were introduced"
+  );
+} else {
+  console.error(
+    `❌ FAIL — Expected exactly one of each analyzer id, found analyzer: ${analyzerIdCount}, analyzer-mobile: ${analyzerMobileIdCount}`
+  );
+  failures += 1;
+}
+
+const hasMobileHashFallbackEffect =
+  homeSource.includes('window.location.hash !== "#analyzer"') &&
+  homeSource.includes('document.getElementById("analyzer")') &&
+  homeSource.includes("offsetParent === null") &&
+  homeSource.includes(
+    'document.getElementById("analyzer-mobile")?.scrollIntoView()'
+  );
+
+if (hasMobileHashFallbackEffect) {
+  console.log(
+    "✅ PASS — A mount-time effect compensates for the mobile viewport when arriving at #analyzer, using the existing getElementById/scrollIntoView idiom already used elsewhere on this page"
+  );
+} else {
+  console.error(
+    "❌ FAIL — Expected a mount-time #analyzer mobile-viewport fallback effect using the existing scrollIntoView idiom"
+  );
+  failures += 1;
+}
+
 if (failures > 0) {
   process.exitCode = 1;
 } else {
