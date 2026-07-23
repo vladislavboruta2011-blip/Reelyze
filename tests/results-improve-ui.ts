@@ -1608,6 +1608,115 @@ if (hasMobileHashFallbackEffect) {
   failures += 1;
 }
 
+// ── Analyzer "no account needed" clarification ────────────────────────────
+//
+// Fixes the confirmed first-use clarity gap: "No account needed" previously
+// existed only inside a collapsed FAQ item, so a first-time user could
+// assume registration was required before trying Climpy. This adds one
+// persistent, pre-click line next to the existing privacy trust cue on both
+// desktop and mobile, sourced only from the message catalog.
+
+const noAccountBindingCount =
+  homeSource.split("messages.landing.analyzer.noAccountNeeded").length - 1;
+
+if (noAccountBindingCount === 2) {
+  console.log(
+    "✅ PASS — The no-account-needed clarification is bound from the message catalog exactly twice (desktop + mobile analyzer)"
+  );
+} else {
+  console.error(
+    `❌ FAIL — Expected the no-account-needed message binding exactly twice (desktop + mobile), found ${noAccountBindingCount}`
+  );
+  failures += 1;
+}
+
+const hasHardcodedNoAccountCopy =
+  homeSource.includes("No account needed to analyze") ||
+  homeSource.includes("Для анализа аккаунт не нужен");
+
+if (!hasHardcodedNoAccountCopy) {
+  console.log(
+    "✅ PASS — No account-requirement copy is hard-coded directly in app/page.tsx JSX; it is sourced only from the message catalog"
+  );
+} else {
+  console.error(
+    "❌ FAIL — Account-requirement copy must be sourced from lib/messages.ts, never hard-coded in JSX"
+  );
+  failures += 1;
+}
+
+const messagesHasEnNoAccount = messagesSource.includes(
+  '"No account needed to analyze. Sign in only if you want to save your results."'
+);
+const messagesHasRuNoAccount = messagesSource.includes(
+  '"Для анализа аккаунт не нужен. Войдите только в том случае, если хотите сохранить результаты."'
+);
+
+if (messagesHasEnNoAccount && messagesHasRuNoAccount) {
+  console.log(
+    "✅ PASS — Both the EN and RU no-account-needed strings exist in the shared message catalog"
+  );
+} else {
+  console.error(
+    `❌ FAIL — Expected both EN and RU no-account-needed strings in lib/messages.ts (en: ${messagesHasEnNoAccount}, ru: ${messagesHasRuNoAccount})`
+  );
+  failures += 1;
+}
+
+// The pre-existing privacy trust cue and the character-limit helper text
+// must remain exactly as they were — this is an addition beside them, not
+// a rewrite of either.
+const privacyBindingCount =
+  homeSource.split("messages.landing.analyzer.privacy").length - 1;
+const scriptHelpDesktopCount =
+  homeSource.split("messages.landing.analyzer.scriptHelpDesktop").length - 1;
+const scriptHelpMobileCount =
+  homeSource.split("messages.landing.analyzer.scriptHelpMobile").length - 1;
+
+if (
+  privacyBindingCount === 2 &&
+  scriptHelpDesktopCount === 1 &&
+  scriptHelpMobileCount === 1
+) {
+  console.log(
+    "✅ PASS — The existing privacy trust cue (desktop + mobile) and the 1,000-character helper text (one binding per breakpoint) remain unchanged"
+  );
+} else {
+  console.error(
+    `❌ FAIL — Expected privacy: 2, scriptHelpDesktop: 1, scriptHelpMobile: 1 (found privacy: ${privacyBindingCount}, scriptHelpDesktop: ${scriptHelpDesktopCount}, scriptHelpMobile: ${scriptHelpMobileCount})`
+  );
+  failures += 1;
+}
+
+// The Analyze button itself — label bindings, click handler, and disabled
+// logic — must be completely untouched by this copy-only addition.
+const analyzeScriptLabelCount =
+  homeSource.split("messages.landing.analyzer.analyzeScript").length - 1;
+const analyzingLabelCount =
+  homeSource.split("messages.landing.analyzer.analyzing").length - 1;
+const analyzeClickHandlerCount =
+  homeSource.split("onClick={handleAnalyze}").length - 1;
+const disabledLogicCount =
+  homeSource.split(
+    "isAnalyzing ||\n                script.trim().length === 0 ||\n                script.length > maxCharacters ||\n                title.length > MAX_TITLE_CHARACTERS"
+  ).length - 1;
+
+if (
+  analyzeScriptLabelCount === 2 &&
+  analyzingLabelCount === 2 &&
+  analyzeClickHandlerCount === 2 &&
+  disabledLogicCount === 2
+) {
+  console.log(
+    "✅ PASS — The Analyze button label, loading label, click handler, and disabled logic are unchanged on both desktop and mobile"
+  );
+} else {
+  console.error(
+    `❌ FAIL — Expected unchanged Analyze button bindings (analyzeScript: ${analyzeScriptLabelCount}, analyzing: ${analyzingLabelCount}, onClick: ${analyzeClickHandlerCount}, disabled: ${disabledLogicCount})`
+  );
+  failures += 1;
+}
+
 if (failures > 0) {
   process.exitCode = 1;
 } else {
