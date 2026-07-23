@@ -524,6 +524,8 @@ const enMessages = {
       count: (count: number) =>
         `${count} ${count === 1 ? "suggestion" : "suggestions"}`,
       improveScriptButton: "Improve Script",
+      improveScriptDescription:
+        "Rewrite your script using the suggested improvements.",
       hookActionNeedsDetails: "Needs Details",
       hookActionRefine: "Refine Hook",
       hookActionImprove: "Improve Hook",
@@ -674,6 +676,8 @@ const enMessages = {
     },
     askClimpy: {
       entryButton: "Ask Climpy",
+      entryDescription:
+        "Ask questions to better understand your analysis.",
       panelHeading: "Ask Climpy",
       panelSubheading: "Ask about this analysis.",
       closeLabel: "Close",
@@ -1374,6 +1378,8 @@ const ruMessages = {
       count: (count: number) =>
         `${count} ${pluralizeRu(count, "предложение", "предложения", "предложений")}`,
       improveScriptButton: "Улучшить сценарий",
+      improveScriptDescription:
+        "Перепишите сценарий с учётом предложенных улучшений.",
       hookActionNeedsDetails: "Нужны детали",
       hookActionRefine: "Доработать хук",
       hookActionImprove: "Улучшить хук",
@@ -1513,6 +1519,8 @@ const ruMessages = {
     },
     askClimpy: {
       entryButton: "Спросить у Climpy",
+      entryDescription:
+        "Задавайте вопросы, чтобы лучше разобраться в результатах анализа.",
       panelHeading: "Спросить у Climpy",
       panelSubheading: "Задайте вопрос об этом анализе.",
       closeLabel: "Закрыть",

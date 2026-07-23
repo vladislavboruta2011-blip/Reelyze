@@ -1992,13 +1992,18 @@ const hookCopyButtonLabel =
                     </div>
                   </div>
                   {savedAnalysisV2 && (
-                    <button
-                      onClick={handleOpenAskClimpy}
-                      className="mt-3 inline-flex h-[34px] items-center gap-2 rounded-[10px] border border-[#DDD6FE] bg-white px-3 text-[12.5px] font-semibold text-[#7C3AED] transition hover:bg-[#F3E8FF]"
-                    >
-                      <Sparkles size={14} />
-                      {results.askClimpy.entryButton}
-                    </button>
+                    <>
+                      <p className="mt-3 text-[12px] leading-[1.5] text-[#6B7280]">
+                        {results.askClimpy.entryDescription}
+                      </p>
+                      <button
+                        onClick={handleOpenAskClimpy}
+                        className="mt-2 inline-flex h-[34px] items-center gap-2 rounded-[10px] border border-[#DDD6FE] bg-white px-3 text-[12.5px] font-semibold text-[#7C3AED] transition hover:bg-[#F3E8FF]"
+                      >
+                        <Sparkles size={14} />
+                        {results.askClimpy.entryButton}
+                      </button>
+                    </>
                   )}
                 </div>
 
@@ -2049,6 +2054,9 @@ const hookCopyButtonLabel =
                         <h2 className="text-[17px] font-semibold text-[#111827]">{results.suggestedFixes.heading}</h2>
                         <span className="text-[12px] font-medium text-[#6B7280]">{results.suggestedFixes.count(displayFixes.length)}</span>
                       </div>
+                      <p className="mb-3 text-[12px] leading-[1.5] text-[#6B7280]">
+                        {results.suggestedFixes.improveScriptDescription}
+                      </p>
                       <button
                         onClick={handleImproveScript}
                         disabled={isImprovingScript}
@@ -2248,13 +2256,18 @@ const hookCopyButtonLabel =
                   </button>
                 )}
                 {savedAnalysisV2 && (
-                  <button
-                    onClick={handleOpenAskClimpy}
-                    className="mt-3 w-full h-[40px] inline-flex items-center justify-center gap-2 rounded-[12px] border border-[#DDD6FE] bg-white text-[13px] font-semibold text-[#7C3AED] transition hover:bg-[#F3E8FF]"
-                  >
-                    <Sparkles size={14} />
-                    {results.askClimpy.entryButton}
-                  </button>
+                  <>
+                    <p className="mt-3 text-[12px] leading-[1.5] text-[#6B7280]">
+                      {results.askClimpy.entryDescription}
+                    </p>
+                    <button
+                      onClick={handleOpenAskClimpy}
+                      className="mt-2 w-full h-[40px] inline-flex items-center justify-center gap-2 rounded-[12px] border border-[#DDD6FE] bg-white text-[13px] font-semibold text-[#7C3AED] transition hover:bg-[#F3E8FF]"
+                    >
+                      <Sparkles size={14} />
+                      {results.askClimpy.entryButton}
+                    </button>
+                  </>
                 )}
               </div>
 
@@ -2278,6 +2291,9 @@ const hookCopyButtonLabel =
                   <span className="text-[11px] font-medium text-[#6B7280]">{results.suggestedFixes.count(displayFixes.length)}</span>
                 </div>
                 <div className="px-4 pb-4 flex flex-col gap-2.5">
+                  <p className="text-[12px] leading-[1.5] text-[#6B7280]">
+                    {results.suggestedFixes.improveScriptDescription}
+                  </p>
                   <button
                     onClick={handleImproveScript}
                     disabled={isImprovingScript}

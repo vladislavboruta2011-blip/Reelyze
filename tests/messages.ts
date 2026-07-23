@@ -68,6 +68,43 @@ assert.match(
   /22 символа\./
 );
 
+// Results-page Ask Climpy / Improve Script clarification — each tool's
+// persistent, pre-click explanation of its own distinct purpose (explain
+// vs. rewrite). Existing entry-point/button labels must stay unchanged.
+assert.equal(
+  getMessages("en").results.askClimpy.entryButton,
+  "Ask Climpy"
+);
+assert.equal(
+  getMessages("en").results.askClimpy.entryDescription,
+  "Ask questions to better understand your analysis."
+);
+assert.equal(
+  getMessages("ru").results.askClimpy.entryButton,
+  "Спросить у Climpy"
+);
+assert.equal(
+  getMessages("ru").results.askClimpy.entryDescription,
+  "Задавайте вопросы, чтобы лучше разобраться в результатах анализа."
+);
+
+assert.equal(
+  getMessages("en").results.suggestedFixes.improveScriptButton,
+  "Improve Script"
+);
+assert.equal(
+  getMessages("en").results.suggestedFixes.improveScriptDescription,
+  "Rewrite your script using the suggested improvements."
+);
+assert.equal(
+  getMessages("ru").results.suggestedFixes.improveScriptButton,
+  "Улучшить сценарий"
+);
+assert.equal(
+  getMessages("ru").results.suggestedFixes.improveScriptDescription,
+  "Перепишите сценарий с учётом предложенных улучшений."
+);
+
 // The persistent script-limit explanation shown above the analyzer
 // textarea — must explain both why the limit exists (Shorts-tuned) and
 // what to paste, without duplicating that guidance elsewhere.
