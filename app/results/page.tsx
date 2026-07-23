@@ -1788,7 +1788,7 @@ const hookCopyButtonLabel =
               <SquarePen size={16} className="text-[#7C3AED]" />
               <span className="text-[14px] font-semibold text-[#7C3AED]">{messages.common.results}</span>
             </Link>
-            <Link href="/" className="flex h-[46px] items-center gap-3 rounded-[12px] px-4 transition hover:bg-white/[0.03]">
+            <Link href="/#analyzer" className="flex h-[46px] items-center gap-3 rounded-[12px] px-4 transition hover:bg-white/[0.03]">
               <PencilLine size={16} className="text-[#6B7280]" />
               <span className="text-[14px] font-medium text-[#6B7280]">{results.nav.newAnalysis}</span>
             </Link>
@@ -1916,7 +1916,7 @@ const hookCopyButtonLabel =
                     }}
                   />
                 )}
-                <Link href="/" className="inline-flex h-[42px] shrink-0 items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-5 text-[14px] font-semibold text-[#111827] transition hover:border-[#7C3AED]/50 hover:bg-[#7C3AED]/10">
+                <Link href="/#analyzer" className="inline-flex h-[42px] shrink-0 items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-5 text-[14px] font-semibold text-[#111827] transition hover:border-[#7C3AED]/50 hover:bg-[#7C3AED]/10">
                   <PencilLine size={15} />
                   {results.nav.newAnalysis}
                 </Link>
@@ -1943,7 +1943,7 @@ const hookCopyButtonLabel =
               <Card className="p-8 mb-6">
                 <h2 className="text-[26px] font-semibold text-[#111827]">{results.empty.headingDesktop}</h2>
                 <p className="mt-4 text-[15px] text-[#6B7280]">{results.empty.descriptionDesktop}</p>
-                <Link href="/" className="mt-6 inline-flex h-[48px] items-center justify-center rounded-[12px] bg-[#7C3AED] px-6 text-[15px] font-semibold text-[#111827] transition hover:bg-[#6D28D9]">{results.nav.newAnalysis}</Link>
+                <Link href="/#analyzer" className="mt-6 inline-flex h-[48px] items-center justify-center rounded-[12px] bg-[#7C3AED] px-6 text-[15px] font-semibold text-[#111827] transition hover:bg-[#6D28D9]">{results.nav.newAnalysis}</Link>
               </Card>
             )}
 
@@ -2198,7 +2198,7 @@ const hookCopyButtonLabel =
             <div className="mx-5 mb-4 rounded-[18px] border border-[#E5E7EB] bg-white p-6">
               <p className="text-[18px] font-semibold text-[#111827] mb-2">{results.empty.headingMobile}</p>
               <p className="text-[13px] leading-[1.6] text-[#6B7280] mb-5">{results.empty.descriptionMobile}</p>
-              <Link href="/" className="flex h-[44px] w-full items-center justify-center rounded-[12px] bg-[#6D28D9] text-[14px] font-semibold text-[#111827]">{results.nav.newAnalysis}</Link>
+              <Link href="/#analyzer" className="flex h-[44px] w-full items-center justify-center rounded-[12px] bg-[#6D28D9] text-[14px] font-semibold text-[#111827]">{results.nav.newAnalysis}</Link>
             </div>
           )}
 
@@ -2462,7 +2462,7 @@ const hookCopyButtonLabel =
         {/* Bottom nav */}
         <div className="fixed bottom-0 left-0 right-0 z-50 h-[76px] border-t border-[#E5E7EB] bg-[#FAFAFA]/95 backdrop-blur-[8px]">
           <div className="mx-auto flex h-full w-full max-w-[430px] items-center justify-between px-5">
-            <Link href="/" className="flex h-[40px] items-center justify-center gap-2 rounded-[12px] border border-[#E5E7EB] bg-white px-5 text-[13px] font-semibold text-[#111827]">
+            <Link href="/#analyzer" className="flex h-[40px] items-center justify-center gap-2 rounded-[12px] border border-[#E5E7EB] bg-white px-5 text-[13px] font-semibold text-[#111827]">
               <PencilLine size={14} className="text-[#6B7280]" />
               {results.nav.newAnalysisMobileNav}
             </Link>

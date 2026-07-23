@@ -595,6 +595,17 @@ function checkDashboardShape(): void {
   );
 
   check(
+    "all four New Analysis destinations (sidebar, header, mobile top, mobile bottom nav) navigate directly to the analyzer anchor, not the bare landing page",
+    (() => {
+      const newAnalysisAnchorCount =
+        pageSource.split('href="/#analyzer"').length - 1;
+      const bareRootHrefCount = pageSource.split('href="/"').length - 1;
+
+      return newAnalysisAnchorCount === 4 && bareRootHrefCount === 0;
+    })()
+  );
+
+  check(
     "the desktop table declares the required columns and no others",
     combinedSource.includes("myAnalyses.table.columnScript") &&
       combinedSource.includes("myAnalyses.table.columnAnalyzed") &&
@@ -1474,7 +1485,7 @@ function checkLoadingAndRetryShape(): void {
   );
 
   check(
-    "the EmptyState New Analysis CTA is unchanged: a real Link to / using results.nav.newAnalysis, still gated on the true zero-items case only",
+    "the EmptyState New Analysis CTA links directly to the analyzer anchor (/#analyzer, not bare /) using results.nav.newAnalysis, still gated on the true zero-items case only",
     (() => {
       // EmptyState's own params destructure across multiple lines (a plain
       // "\n}" search would stop at the type annotation's closing brace, not
@@ -1493,7 +1504,7 @@ function checkLoadingAndRetryShape(): void {
 
       return (
         body.includes('<Link') &&
-        body.includes('href="/"') &&
+        body.includes('href="/#analyzer"') &&
         body.includes("{newAnalysisLabel}") &&
         // page.tsx builds newAnalysisLabel from results.nav.newAnalysis and
         // threads it down as a prop through DesktopAnalysesContent/
@@ -1666,11 +1677,11 @@ function checkUiPolishShape(): void {
   check(
     "the desktop header New Analysis CTA carries the branded focus-visible treatment and uses PencilLine size 16 (matching the sidebar scale, not the old odd size 15)",
     (() => {
-      // page.tsx has four href="/" links (sidebar nav, this header CTA,
-      // the mobile top CTA, the mobile bottom nav) — "h-[44px] shrink-0" is
-      // this specific CTA's own unique className fragment, so anchoring on
-      // it (rather than the ambiguous href) can't accidentally match one
-      // of the other three links.
+      // page.tsx has four href="/#analyzer" New Analysis links (sidebar
+      // nav, this header CTA, the mobile top CTA, the mobile bottom nav) —
+      // "h-[44px] shrink-0" is this specific CTA's own unique className
+      // fragment, so anchoring on it (rather than the ambiguous href) can't
+      // accidentally match one of the other three links.
       const headerStart = pageSource.indexOf("h-[44px] shrink-0");
       const ctaEnd =
         headerStart >= 0 ? pageSource.indexOf("</Link>", headerStart) : -1;

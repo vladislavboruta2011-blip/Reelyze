@@ -64,7 +64,7 @@ function EmptyState({
         {myAnalyses.empty.description}
       </p>
       <Link
-        href="/"
+        href="/#analyzer"
         className="mt-6 inline-flex h-[44px] items-center justify-center rounded-[12px] bg-[#7C3AED] px-6 text-[14px] font-semibold text-white transition hover:bg-[#6D28D9]"
       >
         {newAnalysisLabel}
