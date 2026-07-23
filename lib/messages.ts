@@ -248,9 +248,9 @@ const enMessages = {
         "Title is too long. Please shorten it to 200 characters or less.",
       scriptLabel: "Your Script",
       scriptHelpDesktop:
-        "Paste only the words that will be spoken in your Short. Do not paste the video description or a list of ideas.",
+        "Climpy is tuned for Shorts, so scripts are limited to 1,000 characters. Paste only the words spoken in the video — not the description or a list of ideas.",
       scriptHelpMobile:
-        "Paste only the words that will be spoken in your Short.",
+        "Climpy is tuned for Shorts, so scripts are limited to 1,000 characters. Paste only the words spoken in the video.",
       scriptPlaceholderDesktop: "Paste your script here...",
       scriptPlaceholderMobile: "Paste your script here.",
       copyHint:
@@ -1096,9 +1096,9 @@ const ruMessages = {
         "Название слишком длинное. Сократите его до 200 символов.",
       scriptLabel: "Ваш сценарий",
       scriptHelpDesktop:
-        "Вставьте только слова, которые будут произнесены в Short. Не вставляйте описание видео или список идей.",
+        "Climpy настроен на анализ Shorts, поэтому сценарий ограничен 1 000 символами. Вставляйте только текст, который будет произнесён в видео — не описание и не список идей.",
       scriptHelpMobile:
-        "Вставьте только слова, которые будут произнесены в вашем Short.",
+        "Climpy настроен на анализ Shorts, поэтому сценарий ограничен 1 000 символами. Вставляйте только текст, который будет произнесён в видео.",
       scriptPlaceholderDesktop: "Вставьте сценарий...",
       scriptPlaceholderMobile: "Вставьте сценарий.",
       copyHint:

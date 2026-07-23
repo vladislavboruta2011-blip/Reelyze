@@ -68,6 +68,26 @@ assert.match(
   /22 символа\./
 );
 
+// The persistent script-limit explanation shown above the analyzer
+// textarea — must explain both why the limit exists (Shorts-tuned) and
+// what to paste, without duplicating that guidance elsewhere.
+assert.equal(
+  getMessages("en").landing.analyzer.scriptHelpDesktop,
+  "Climpy is tuned for Shorts, so scripts are limited to 1,000 characters. Paste only the words spoken in the video — not the description or a list of ideas."
+);
+assert.equal(
+  getMessages("en").landing.analyzer.scriptHelpMobile,
+  "Climpy is tuned for Shorts, so scripts are limited to 1,000 characters. Paste only the words spoken in the video."
+);
+assert.equal(
+  getMessages("ru").landing.analyzer.scriptHelpDesktop,
+  "Climpy настроен на анализ Shorts, поэтому сценарий ограничен 1 000 символами. Вставляйте только текст, который будет произнесён в видео — не описание и не список идей."
+);
+assert.equal(
+  getMessages("ru").landing.analyzer.scriptHelpMobile,
+  "Climpy настроен на анализ Shorts, поэтому сценарий ограничен 1 000 символами. Вставляйте только текст, который будет произнесён в видео."
+);
+
 // Locale-mismatch notice shown on /results when the saved analysis's
 // locale differs from the current UI locale.
 assert.equal(
