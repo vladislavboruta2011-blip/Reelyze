@@ -636,9 +636,12 @@ function AnalyzerSection({
               <p className="text-[13px] text-[#7C3AED]">{analyzeError}</p>
             )}
 
-            <div className="flex items-center gap-2 text-[13px] text-[#6B7280]">
-              <Lock className="h-3.5 w-3.5 shrink-0" />
-              <span>{messages.landing.analyzer.privacy}</span>
+            <div className="flex items-start gap-2 text-[13px] text-[#6B7280]">
+              <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <div className="flex flex-col gap-1">
+                <span>{messages.landing.analyzer.privacy}</span>
+                <span>{messages.landing.analyzer.noAccountNeeded}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -1651,9 +1654,14 @@ export default function HomePage() {
 
             <div className="mt-3 flex items-start gap-2 rounded-[13px] border border-[#E5E7EB] bg-[#F8F8FC] px-3.5 py-3">
               <Lock size={13} className="mt-0.5 shrink-0 text-[#6B7280]" />
-              <p className="text-[12px] leading-[18px] text-[#6B7280]">
-                {messages.landing.analyzer.privacy}
-              </p>
+              <div className="flex flex-col gap-1.5">
+                <p className="text-[12px] leading-[18px] text-[#6B7280]">
+                  {messages.landing.analyzer.privacy}
+                </p>
+                <p className="text-[12px] leading-[18px] text-[#6B7280]">
+                  {messages.landing.analyzer.noAccountNeeded}
+                </p>
+              </div>
             </div>
           </section>
 

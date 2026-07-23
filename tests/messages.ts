@@ -125,6 +125,39 @@ assert.equal(
   "Climpy настроен на анализ Shorts, поэтому сценарий ограничен 1 000 символами. Вставляйте только текст, который будет произнесён в видео."
 );
 
+// Persistent, pre-click clarification near the Analyze button: analyzing
+// never requires an account, sign-in is only needed to save results. Fixes
+// the first-use clarity gap where this was previously stated only inside a
+// collapsed FAQ item.
+assert.equal(
+  getMessages("en").landing.analyzer.noAccountNeeded,
+  "No account needed to analyze. Sign in only if you want to save your results."
+);
+assert.equal(
+  getMessages("ru").landing.analyzer.noAccountNeeded,
+  "Для анализа аккаунт не нужен. Войдите только в том случае, если хотите сохранить результаты."
+);
+
+// The pre-existing FAQ answers that already touched on account
+// requirements must remain accurate and untouched by the new analyzer
+// clarification — this is an addition, not a replacement.
+assert.equal(
+  getMessages("en").landing.faq.questions[0].answer,
+  "Yes. Climpy is free to test right now. No signup is needed — just paste your Shorts script and get feedback in about 1 minute."
+);
+assert.equal(
+  getMessages("ru").landing.faq.questions[0].answer,
+  "Да. Сейчас Climpy можно протестировать бесплатно. Регистрация не нужна — просто вставьте сценарий Shorts и получите разбор примерно за 1 минуту."
+);
+assert.equal(
+  getMessages("en").landing.faq.questions[5].answer,
+  "Your script is only used to generate the analysis. Climpy does not require an account, and your script is not shown publicly."
+);
+assert.equal(
+  getMessages("ru").landing.faq.questions[5].answer,
+  "Ваш сценарий используется только для создания анализа. Climpy не требует аккаунта и не публикует ваш сценарий."
+);
+
 // Locale-mismatch notice shown on /results when the saved analysis's
 // locale differs from the current UI locale.
 assert.equal(

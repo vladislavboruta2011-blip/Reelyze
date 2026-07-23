@@ -263,6 +263,8 @@ const enMessages = {
       analyzeScript: "Analyze Script",
       privacy:
         "Your script is only used to generate this analysis.",
+      noAccountNeeded:
+        "No account needed to analyze. Sign in only if you want to save your results.",
       whatYouWillGet: "What you’ll get",
       whatYouWillGetItems: {
         overallScore: {
@@ -1115,6 +1117,8 @@ const ruMessages = {
       analyzeScript: "Анализировать сценарий",
       privacy:
         "Сценарий используется только для создания этого анализа.",
+      noAccountNeeded:
+        "Для анализа аккаунт не нужен. Войдите только в том случае, если хотите сохранить результаты.",
       whatYouWillGet: "Что вы получите",
       whatYouWillGetItems: {
         overallScore: {
