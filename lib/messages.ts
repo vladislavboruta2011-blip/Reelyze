@@ -255,6 +255,9 @@ const enMessages = {
       scriptPlaceholderMobile: "Paste your script here.",
       copyHint:
         "You can copy it from Google Docs, Notion, or any other tool.",
+      tryExampleAction: "Try an example",
+      exampleScript:
+        "Imagine building an app that keeps getting worse with every update. The team adds more features, but users only become more confused. So they remove the clutter and focus on the one problem people actually need solved. Suddenly, the app becomes faster, simpler, and far easier to use.",
       scriptOverLimit: (count: number) =>
         `Your script is ${count} ${
           count === 1 ? "character" : "characters"
@@ -1109,6 +1112,9 @@ const ruMessages = {
       scriptPlaceholderMobile: "Вставьте сценарий.",
       copyHint:
         "Можно скопировать его из Google Docs, Notion или любого другого инструмента.",
+      tryExampleAction: "Попробовать пример",
+      exampleScript:
+        "Представьте приложение, которое становится хуже с каждым обновлением. Команда добавляет всё больше функций, но пользователи лишь сильнее путаются. Тогда разработчики убирают всё лишнее и сосредотачиваются на одной действительно важной проблеме. В итоге приложение становится быстрее, проще и гораздо удобнее.",
       scriptOverLimit: (count: number) =>
         `Ваш сценарий превышает текущий лимит на ${count} ${formatRussianCharacterCount(
           count

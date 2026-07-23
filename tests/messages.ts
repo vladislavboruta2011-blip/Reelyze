@@ -125,6 +125,44 @@ assert.equal(
   "Climpy настроен на анализ Shorts, поэтому сценарий ограничен 1 000 символами. Вставляйте только текст, который будет произнесён в видео."
 );
 
+// The "Try an example" onboarding action and the localized example script
+// it inserts into an empty analyzer. This is explicitly a hypothetical,
+// illustrative script ("Imagine..." / "Представьте...") — not a claim about
+// a real app, company, or outcome, and not tied to any precise statistic
+// (dollar figures, timeframes, or "doubled"/"profitable" style claims).
+assert.equal(
+  getMessages("en").landing.analyzer.tryExampleAction,
+  "Try an example"
+);
+assert.equal(
+  getMessages("ru").landing.analyzer.tryExampleAction,
+  "Попробовать пример"
+);
+assert.equal(
+  getMessages("en").landing.analyzer.exampleScript,
+  "Imagine building an app that keeps getting worse with every update. The team adds more features, but users only become more confused. So they remove the clutter and focus on the one problem people actually need solved. Suddenly, the app becomes faster, simpler, and far easier to use."
+);
+assert.equal(
+  getMessages("ru").landing.analyzer.exampleScript,
+  "Представьте приложение, которое становится хуже с каждым обновлением. Команда добавляет всё больше функций, но пользователи лишь сильнее путаются. Тогда разработчики убирают всё лишнее и сосредотачиваются на одной действительно важной проблеме. В итоге приложение становится быстрее, проще и гораздо удобнее."
+);
+assert.ok(
+  getMessages("en").landing.analyzer.exampleScript.length < 1000,
+  "EN example script must stay under the 1,000-character analyzer limit"
+);
+assert.ok(
+  getMessages("ru").landing.analyzer.exampleScript.length < 1000,
+  "RU example script must stay under the 1,000-character analyzer limit"
+);
+assert.ok(
+  getMessages("en").landing.analyzer.exampleScript.startsWith("Imagine"),
+  "The EN example script must be framed explicitly as hypothetical (\"Imagine...\")"
+);
+assert.ok(
+  getMessages("ru").landing.analyzer.exampleScript.startsWith("Представьте"),
+  "The RU example script must be framed explicitly as hypothetical (\"Представьте...\")"
+);
+
 // Persistent, pre-click clarification near the Analyze button: analyzing
 // never requires an account, sign-in is only needed to save results. Fixes
 // the first-use clarity gap where this was previously stated only inside a

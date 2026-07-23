@@ -1717,6 +1717,207 @@ if (
   failures += 1;
 }
 
+// ── "Try an example" onboarding action ────────────────────────────────────
+//
+// A subtle, localized action that inserts one short, explicitly
+// hypothetical example script ("Imagine..." / "Представьте...") into an
+// empty analyzer, so a first-time user can see the Analyze flow without
+// writing anything. It carries no precise statistics or claimed outcome —
+// only an illustrative, clearly-framed scenario. Onboarding helper only —
+// must never call Analyze, navigate, hit an API, or be able to overwrite
+// real user input.
+
+const tryExampleLabelCount =
+  homeSource.split("messages.landing.analyzer.tryExampleAction").length - 1;
+const exampleScriptBindingCount =
+  homeSource.split("messages.landing.analyzer.exampleScript").length - 1;
+
+if (tryExampleLabelCount === 2 && exampleScriptBindingCount === 1) {
+  console.log(
+    "✅ PASS — The \"Try an example\" label is bound from the message catalog on both desktop and mobile, and the example script is sourced from one shared catalog binding"
+  );
+} else {
+  console.error(
+    `❌ FAIL — Expected tryExampleAction bound twice (desktop + mobile) and exampleScript bound once (shared handler), found label: ${tryExampleLabelCount}, script: ${exampleScriptBindingCount}`
+  );
+  failures += 1;
+}
+
+const hasHardcodedExampleCopy =
+  homeSource.includes("Try an example") ||
+  homeSource.includes("Попробовать пример") ||
+  homeSource.includes("Imagine building an app") ||
+  homeSource.includes("Представьте приложение");
+
+if (!hasHardcodedExampleCopy) {
+  console.log(
+    "✅ PASS — Neither the example action label nor the example script text is hard-coded in app/page.tsx JSX; both come from the message catalog"
+  );
+} else {
+  console.error(
+    "❌ FAIL — The example action label and script must be sourced from lib/messages.ts, never hard-coded in JSX"
+  );
+  failures += 1;
+}
+
+const messagesHasEnExample = messagesSource.includes(
+  '"Imagine building an app that keeps getting worse with every update. The team adds more features, but users only become more confused. So they remove the clutter and focus on the one problem people actually need solved. Suddenly, the app becomes faster, simpler, and far easier to use."'
+);
+const messagesHasRuExample = messagesSource.includes(
+  '"Представьте приложение, которое становится хуже с каждым обновлением. Команда добавляет всё больше функций, но пользователи лишь сильнее путаются. Тогда разработчики убирают всё лишнее и сосредотачиваются на одной действительно важной проблеме. В итоге приложение становится быстрее, проще и гораздо удобнее."'
+);
+
+if (messagesHasEnExample && messagesHasRuExample) {
+  console.log(
+    "✅ PASS — Both the EN and RU example scripts exist in the shared message catalog, framed explicitly as hypothetical (\"Imagine...\" / \"Представьте...\")"
+  );
+} else {
+  console.error(
+    `❌ FAIL — Expected both EN and RU example scripts in lib/messages.ts (en: ${messagesHasEnExample}, ru: ${messagesHasRuExample})`
+  );
+  failures += 1;
+}
+
+// The public onboarding example must never carry the old fixture's
+// unsupported precise claims (a specific loss figure, a specific
+// turnaround timeframe, or a specific "doubled"/"profitable" outcome) —
+// those are fine inside a scoring-engine test case, but not as public,
+// unqualified copy shown to real users.
+const exampleScriptSource =
+  messagesSource
+    .split("exampleScript:")
+    .slice(1)
+    .join("exampleScript:");
+const hasUnsupportedPreciseClaims =
+  exampleScriptSource.includes("thousands of dollars") ||
+  exampleScriptSource.includes("Within three months") ||
+  exampleScriptSource.includes("users doubled") ||
+  exampleScriptSource.includes("became profitable") ||
+  exampleScriptSource.includes("тысячи долларов") ||
+  exampleScriptSource.includes("Через три месяца") ||
+  exampleScriptSource.includes("удвоилось") ||
+  exampleScriptSource.includes("прибыльной");
+
+if (!hasUnsupportedPreciseClaims) {
+  console.log(
+    "✅ PASS — The public example script contains none of the old fixture's unsupported precise claims (loss figure, turnaround timeframe, or doubled/profitable outcome)"
+  );
+} else {
+  console.error(
+    "❌ FAIL — The public example script must not carry unsupported precise claims from the old test-only fixture"
+  );
+  failures += 1;
+}
+
+// The action must only render while the analyzer is empty or
+// whitespace-only, on both breakpoints — the same rule the pre-existing
+// Analyze disabled logic already uses (script.trim().length === 0), not a
+// separately invented condition.
+const exampleActionGateCount =
+  homeSource.split("{script.trim().length === 0 && (").length - 1;
+
+if (exampleActionGateCount === 2) {
+  console.log(
+    "✅ PASS — The example action is gated on script.trim().length === 0 exactly twice (desktop + mobile), matching the analyzer's existing empty-script rule"
+  );
+} else {
+  console.error(
+    `❌ FAIL — Expected the example action's empty-state gate exactly twice, found ${exampleActionGateCount}`
+  );
+  failures += 1;
+}
+
+// The handler itself must defensively refuse to overwrite non-empty input
+// even if triggered unexpectedly (not solely reliant on the conditional
+// render), and must never touch Analyze, navigation, or API calls.
+const tryExampleHandlerStart = homeSource.indexOf(
+  "function handleTryExample()"
+);
+const tryExampleHandlerEnd =
+  tryExampleHandlerStart >= 0
+    ? homeSource.indexOf("\n  }", tryExampleHandlerStart)
+    : -1;
+const tryExampleHandlerBody =
+  tryExampleHandlerStart >= 0 && tryExampleHandlerEnd >= 0
+    ? homeSource.slice(tryExampleHandlerStart, tryExampleHandlerEnd)
+    : "";
+
+const handlerIsDefensiveAndInert =
+  tryExampleHandlerBody.includes("script.trim().length > 0") &&
+  tryExampleHandlerBody.includes("return;") &&
+  tryExampleHandlerBody.includes(
+    "setScript(messages.landing.analyzer.exampleScript)"
+  ) &&
+  !tryExampleHandlerBody.includes("handleAnalyze") &&
+  !tryExampleHandlerBody.includes("router.push") &&
+  !tryExampleHandlerBody.includes("fetch(");
+
+if (handlerIsDefensiveAndInert) {
+  console.log(
+    "✅ PASS — handleTryExample defensively refuses to overwrite non-empty input, uses the existing setScript state path, and never calls Analyze, navigation, or an API"
+  );
+} else {
+  console.error(
+    "❌ FAIL — Expected handleTryExample to guard against non-empty input and remain a pure, inert state update (no Analyze call, no navigation, no fetch)"
+  );
+  failures += 1;
+}
+
+// Both buttons must be real, non-submitting <button type="button"> controls
+// wired to the shared handler — not a div/span/link standing in for one.
+const desktopExampleClickStart = homeSource.indexOf(
+  "onClick={onTryExample}"
+);
+const desktopExampleButtonOpenTag =
+  desktopExampleClickStart >= 0
+    ? homeSource.slice(
+        Math.max(0, desktopExampleClickStart - 120),
+        desktopExampleClickStart
+      )
+    : "";
+const mobileExampleClickStart = homeSource.indexOf(
+  "onClick={handleTryExample}"
+);
+const mobileExampleButtonOpenTag =
+  mobileExampleClickStart >= 0
+    ? homeSource.slice(
+        Math.max(0, mobileExampleClickStart - 120),
+        mobileExampleClickStart
+      )
+    : "";
+
+if (
+  desktopExampleButtonOpenTag.includes('type="button"') &&
+  mobileExampleButtonOpenTag.includes('type="button"')
+) {
+  console.log(
+    "✅ PASS — Both the desktop and mobile example actions are real type=\"button\" controls, not a clickable div/span"
+  );
+} else {
+  console.error(
+    "❌ FAIL — Expected both example action controls to be type=\"button\" elements"
+  );
+  failures += 1;
+}
+
+// AnalyzerSection must receive the shared handler as a prop rather than
+// duplicating script state or the example text inside the component.
+const analyzerSectionReceivesHandler =
+  homeSource.includes("onTryExample,") &&
+  homeSource.includes("onTryExample: () => void;") &&
+  homeSource.includes("onTryExample={handleTryExample}");
+
+if (analyzerSectionReceivesHandler) {
+  console.log(
+    "✅ PASS — AnalyzerSection receives the shared handleTryExample handler as a prop, reusing the single root script state instead of duplicating it"
+  );
+} else {
+  console.error(
+    "❌ FAIL — Expected AnalyzerSection to receive onTryExample as a prop wired to the shared handleTryExample handler"
+  );
+  failures += 1;
+}
+
 if (failures > 0) {
   process.exitCode = 1;
 } else {
