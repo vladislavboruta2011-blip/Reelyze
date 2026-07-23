@@ -481,6 +481,114 @@ if (
   failures += 1;
 }
 
+// ── Persistent 1,000-character limit explanation (Shorts-tuning reason) ──────
+//
+// Regresses the confirmed tester friction of pasting an over-limit script
+// without understanding why the limit exists — the explanation must be
+// persistent (not gated behind the over-limit condition), localized (never
+// hard-coded in JSX), present on both desktop and mobile, and not duplicated
+// as a second nearby sentence.
+
+const desktopScriptHelpBindingCount =
+  homeSource.split("messages.landing.analyzer.scriptHelpDesktop").length - 1;
+const mobileScriptHelpBindingCount =
+  homeSource.split("messages.landing.analyzer.scriptHelpMobile").length - 1;
+const catalogContainsEnDesktopLimitReason = messagesSource.includes(
+  "Climpy is tuned for Shorts, so scripts are limited to 1,000 characters. Paste only the words spoken in the video — not the description or a list of ideas."
+);
+const catalogContainsEnMobileLimitReason = messagesSource.includes(
+  "Climpy is tuned for Shorts, so scripts are limited to 1,000 characters. Paste only the words spoken in the video."
+);
+const catalogContainsRuDesktopLimitReason = messagesSource.includes(
+  "Climpy настроен на анализ Shorts, поэтому сценарий ограничен 1 000 символами. Вставляйте только текст, который будет произнесён в видео — не описание и не список идей."
+);
+const catalogContainsRuMobileLimitReason = messagesSource.includes(
+  "Climpy настроен на анализ Shorts, поэтому сценарий ограничен 1 000 символами. Вставляйте только текст, который будет произнесён в видео."
+);
+// Neither string is hard-coded directly in JSX — only referenced through
+// the message-catalog bindings checked above.
+const noHardCodedEnLimitReasonInJsx = !homeSource.includes(
+  "Climpy is tuned for Shorts"
+);
+const noHardCodedRuLimitReasonInJsx = !homeSource.includes(
+  "настроен на анализ Shorts"
+);
+
+if (
+  desktopScriptHelpBindingCount === 1 &&
+  mobileScriptHelpBindingCount === 1 &&
+  catalogContainsEnDesktopLimitReason &&
+  catalogContainsEnMobileLimitReason &&
+  catalogContainsRuDesktopLimitReason &&
+  catalogContainsRuMobileLimitReason &&
+  noHardCodedEnLimitReasonInJsx &&
+  noHardCodedRuLimitReasonInJsx
+) {
+  console.log(
+    "✅ PASS — Persistent Shorts/1,000-character limit explanation is localized and rendered once on desktop and once on mobile"
+  );
+} else {
+  console.error(
+    `❌ FAIL — Expected exactly one localized limit-explanation binding per platform, sourced only from lib/messages.ts (desktop bindings: ${desktopScriptHelpBindingCount}, mobile bindings: ${mobileScriptHelpBindingCount}, en desktop catalog: ${catalogContainsEnDesktopLimitReason}, en mobile catalog: ${catalogContainsEnMobileLimitReason}, ru desktop catalog: ${catalogContainsRuDesktopLimitReason}, ru mobile catalog: ${catalogContainsRuMobileLimitReason}, no hard-coded en: ${noHardCodedEnLimitReasonInJsx}, no hard-coded ru: ${noHardCodedRuLimitReasonInJsx})`
+  );
+  failures += 1;
+}
+
+// The explanation must be unconditional (visible before typing and before
+// the limit is exceeded) — i.e. never wrapped in a `scriptCharactersOverLimit
+// > 0` (or similar) guard the way scriptOverLimit is.
+const desktopHelpIndex = homeSource.indexOf(
+  "messages.landing.analyzer.scriptHelpDesktop"
+);
+const desktopHelpGuardWindow = homeSource.slice(
+  Math.max(0, desktopHelpIndex - 200),
+  desktopHelpIndex
+);
+const mobileHelpIndex = homeSource.indexOf(
+  "messages.landing.analyzer.scriptHelpMobile"
+);
+const mobileHelpGuardWindow = homeSource.slice(
+  Math.max(0, mobileHelpIndex - 200),
+  mobileHelpIndex
+);
+const desktopHelpIsUnconditional =
+  desktopHelpIndex >= 0 &&
+  !desktopHelpGuardWindow.includes("scriptCharactersOverLimit > 0 &&") &&
+  !desktopHelpGuardWindow.includes("script.length === 0 &&");
+const mobileHelpIsUnconditional =
+  mobileHelpIndex >= 0 &&
+  !mobileHelpGuardWindow.includes("scriptCharactersOverLimit > 0 &&") &&
+  !mobileHelpGuardWindow.includes("script.length === 0 &&");
+
+if (desktopHelpIsUnconditional && mobileHelpIsUnconditional) {
+  console.log(
+    "✅ PASS — Limit explanation is unconditional (visible before typing and before the limit is exceeded) on desktop and mobile"
+  );
+} else {
+  console.error(
+    `❌ FAIL — Limit explanation must not be gated behind an over-limit or empty-script condition (desktop unconditional: ${desktopHelpIsUnconditional}, mobile unconditional: ${mobileHelpIsUnconditional})`
+  );
+  failures += 1;
+}
+
+// The 1,000-character limit itself must be untouched by this change — a
+// single literal shared by both the desktop prop and the mobile inline use.
+const maxCharactersLiteralCount =
+  homeSource.split("const maxCharacters = 1000;").length - 1;
+const maxCharactersPropWiringCount =
+  homeSource.split("maxCharacters={maxCharacters}").length - 1;
+
+if (maxCharactersLiteralCount === 1 && maxCharactersPropWiringCount === 1) {
+  console.log(
+    "✅ PASS — The 1,000-character limit constant and its desktop/mobile wiring are unchanged"
+  );
+} else {
+  console.error(
+    `❌ FAIL — Expected the 1,000-character limit to remain a single unchanged literal shared by desktop and mobile (literal: ${maxCharactersLiteralCount}, prop wiring: ${maxCharactersPropWiringCount})`
+  );
+  failures += 1;
+}
+
 // ── Analysis V2 Improve Hook integration ─────────────────────────────────────
 
 const usesAnalysisV2HookDecision =
