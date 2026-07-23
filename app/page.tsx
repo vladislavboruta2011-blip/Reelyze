@@ -452,6 +452,7 @@ function AnalyzerSection({
   handleAnalyze,
   isAnalyzing,
   analyzeError,
+  onTryExample,
 }: {
   title: string;
   setTitle: (v: string) => void;
@@ -461,6 +462,7 @@ function AnalyzerSection({
   handleAnalyze: () => void;
   isAnalyzing: boolean;
   analyzeError: string;
+  onTryExample: () => void;
 }) {
   const messages = useMessages();
 
@@ -583,6 +585,16 @@ function AnalyzerSection({
             <p className="mb-4 text-[13px] leading-[1.6] text-[#6B7280]">
               {messages.landing.analyzer.scriptHelpDesktop}
             </p>
+
+            {script.trim().length === 0 && (
+              <button
+                type="button"
+                onClick={onTryExample}
+                className="mb-4 text-[13px] font-semibold text-[#7C3AED] hover:underline"
+              >
+                {messages.landing.analyzer.tryExampleAction}
+              </button>
+            )}
 
             <div
               className={`relative rounded-[14px] border bg-[#F8F8FC] ${
@@ -1127,6 +1139,22 @@ export default function HomePage() {
     }
   }
 
+  // Onboarding helper only — inserts one localized, pre-written example so
+  // a first-time user can see the Analyze flow without writing anything.
+  // Guarded again here (not just by the caller's conditional render) so a
+  // stray/duplicate trigger can never clobber real user input.
+  function handleTryExample() {
+    if (script.trim().length > 0) {
+      return;
+    }
+
+    setScript(messages.landing.analyzer.exampleScript);
+
+    if (analyzeError) {
+      setAnalyzeError("");
+    }
+  }
+
   function handleAnalyze() {
     const cleanedScript = script.trim();
     const cleanedTitle = title.trim();
@@ -1346,6 +1374,7 @@ export default function HomePage() {
             handleAnalyze={handleAnalyze}
             isAnalyzing={isAnalyzing}
             analyzeError={analyzeError}
+            onTryExample={handleTryExample}
           />
           <ComparisonSection />
           <CommonQuestionsSection />
@@ -1591,6 +1620,16 @@ export default function HomePage() {
               <p className="mb-3 text-[12px] leading-[18px] text-[#6B7280]">
                 {messages.landing.analyzer.scriptHelpMobile}
               </p>
+
+              {script.trim().length === 0 && (
+                <button
+                  type="button"
+                  onClick={handleTryExample}
+                  className="mb-2 inline-block py-1 text-[12px] font-semibold text-[#7C3AED]"
+                >
+                  {messages.landing.analyzer.tryExampleAction}
+                </button>
+              )}
 
               <div
                 className={`overflow-hidden rounded-[14px] border bg-[#FAFAFA] ${
