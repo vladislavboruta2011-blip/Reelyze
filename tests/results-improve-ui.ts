@@ -864,6 +864,152 @@ if (hasSeparateImproveScriptFlow) {
   failures += 1;
 }
 
+// ── Ask Climpy / Improve Script purpose clarification ────────────────────────
+//
+// Regresses the confirmed UX friction where both tools exist but a
+// first-time user must infer their different purposes from placement
+// alone — each entry point now has a short, persistent, localized
+// explanation directly before its own button on desktop and mobile.
+
+const askClimpyDescriptionBindingCount =
+  source.split("{results.askClimpy.entryDescription}").length - 1;
+const improveScriptDescriptionBindingCount =
+  source.split("{results.suggestedFixes.improveScriptDescription}").length -
+  1;
+const askClimpyEntryButtonBindingCount =
+  source.split("{results.askClimpy.entryButton}").length - 1;
+const improveScriptButtonBindingCount =
+  source.split("{results.suggestedFixes.improveScriptButton}").length - 1;
+
+if (
+  askClimpyDescriptionBindingCount === 2 &&
+  improveScriptDescriptionBindingCount === 2 &&
+  askClimpyEntryButtonBindingCount === 2 &&
+  improveScriptButtonBindingCount === 2
+) {
+  console.log(
+    "✅ PASS — Ask Climpy and Improve Script each expose exactly one localized purpose explanation on desktop and mobile, with unchanged button-label bindings"
+  );
+} else {
+  console.error(
+    `❌ FAIL — Expected exactly two (desktop + mobile) explanation and button bindings for each tool (askClimpy description: ${askClimpyDescriptionBindingCount}, improveScript description: ${improveScriptDescriptionBindingCount}, askClimpy button: ${askClimpyEntryButtonBindingCount}, improveScript button: ${improveScriptButtonBindingCount})`
+  );
+  failures += 1;
+}
+
+const catalogHasEnAskClimpyDescription = messagesSource.includes(
+  "Ask questions to better understand your analysis."
+);
+const catalogHasRuAskClimpyDescription = messagesSource.includes(
+  "Задавайте вопросы, чтобы лучше разобраться в результатах анализа."
+);
+const catalogHasEnImproveScriptDescription = messagesSource.includes(
+  "Rewrite your script using the suggested improvements."
+);
+const catalogHasRuImproveScriptDescription = messagesSource.includes(
+  "Перепишите сценарий с учётом предложенных улучшений."
+);
+const noHardCodedAskClimpyDescriptionInJsx = !source.includes(
+  "Ask questions to better understand"
+);
+const noHardCodedImproveScriptDescriptionInJsx = !source.includes(
+  "Rewrite your script using"
+);
+
+if (
+  catalogHasEnAskClimpyDescription &&
+  catalogHasRuAskClimpyDescription &&
+  catalogHasEnImproveScriptDescription &&
+  catalogHasRuImproveScriptDescription &&
+  noHardCodedAskClimpyDescriptionInJsx &&
+  noHardCodedImproveScriptDescriptionInJsx
+) {
+  console.log(
+    "✅ PASS — Ask Climpy and Improve Script explanations are sourced only from the localized message catalog, never hard-coded in JSX"
+  );
+} else {
+  console.error(
+    `❌ FAIL — Expected both explanations to be localized-only, sourced from lib/messages.ts (en askClimpy: ${catalogHasEnAskClimpyDescription}, ru askClimpy: ${catalogHasRuAskClimpyDescription}, en improveScript: ${catalogHasEnImproveScriptDescription}, ru improveScript: ${catalogHasRuImproveScriptDescription}, no hard-coded askClimpy: ${noHardCodedAskClimpyDescriptionInJsx}, no hard-coded improveScript: ${noHardCodedImproveScriptDescriptionInJsx})`
+  );
+  failures += 1;
+}
+
+// Each explanation must precede its own button (visible before the click,
+// unambiguously associated with the correct action) on both desktop and
+// mobile — never the other tool's button, and never only the last of the
+// two occurrences.
+function allIndexesOf(haystack: string, needle: string): number[] {
+  const indexes: number[] = [];
+  let fromIndex = 0;
+
+  for (;;) {
+    const index = haystack.indexOf(needle, fromIndex);
+
+    if (index < 0) {
+      break;
+    }
+
+    indexes.push(index);
+    fromIndex = index + needle.length;
+  }
+
+  return indexes;
+}
+
+const askClimpyDescriptionIndexes = allIndexesOf(
+  source,
+  "{results.askClimpy.entryDescription}"
+);
+const askClimpyButtonIndexes = allIndexesOf(
+  source,
+  "{results.askClimpy.entryButton}"
+);
+const improveScriptDescriptionIndexes = allIndexesOf(
+  source,
+  "{results.suggestedFixes.improveScriptDescription}"
+);
+const improveScriptButtonIndexes = allIndexesOf(
+  source,
+  "{results.suggestedFixes.improveScriptButton}"
+);
+
+const askClimpyDescriptionPrecedesButton =
+  askClimpyDescriptionIndexes.length === 2 &&
+  askClimpyButtonIndexes.length === 2 &&
+  askClimpyDescriptionIndexes[0]! < askClimpyButtonIndexes[0]! &&
+  askClimpyDescriptionIndexes[1]! < askClimpyButtonIndexes[1]!;
+const improveScriptDescriptionPrecedesButton =
+  improveScriptDescriptionIndexes.length === 2 &&
+  improveScriptButtonIndexes.length === 2 &&
+  improveScriptDescriptionIndexes[0]! < improveScriptButtonIndexes[0]! &&
+  improveScriptDescriptionIndexes[1]! < improveScriptButtonIndexes[1]!;
+
+if (askClimpyDescriptionPrecedesButton && improveScriptDescriptionPrecedesButton) {
+  console.log(
+    "✅ PASS — Each explanation appears before its own button on both desktop and mobile"
+  );
+} else {
+  console.error(
+    `❌ FAIL — Each explanation must directly precede its own button on desktop and mobile (askClimpy: ${askClimpyDescriptionPrecedesButton}, improveScript: ${improveScriptDescriptionPrecedesButton})`
+  );
+  failures += 1;
+}
+
+// Improve Hook must be entirely unaffected by this change.
+const improveHookButtonBindingCount =
+  source.split("onClick={handleImproveHook}").length - 1;
+
+if (improveHookButtonBindingCount === 2) {
+  console.log(
+    "✅ PASS — Improve Hook button bindings remain unchanged (desktop + mobile)"
+  );
+} else {
+  console.error(
+    `❌ FAIL — Expected Improve Hook to remain unchanged with exactly two button bindings, found ${improveHookButtonBindingCount}`
+  );
+  failures += 1;
+}
+
 if (
   improveScriptJsonIndex >= 0 &&
   improveScriptOkIndex >= 0 &&
