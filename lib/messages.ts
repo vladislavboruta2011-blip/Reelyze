@@ -1151,6 +1151,219 @@ const enMessages = {
         ],
       },
     },
+    analyzeResults: {
+      backToAnalyze: "Back to analyze",
+      heroEyebrow: "Analysis results",
+      pageTitle: "Competitor script breakdown",
+      headingPrefix: "Competitor script",
+      headingAccent: "breakdown",
+      description:
+        "This page shows how your analysis will be structured once real analysis is connected.",
+      previewNotice:
+        "Illustrative preview — real results will be generated after analysis is connected.",
+      summary: {
+        illustrativeLabel: "Illustrative example data",
+        title: "Example competitor Short",
+        platformLabel: "Platform",
+        platform: "YouTube Shorts",
+        durationLabel: "Duration",
+        duration: "0:32",
+        transcriptLabel: "Transcript",
+        transcriptAvailable: "Available",
+        statusLabel: "Status",
+        status: "Preview",
+      },
+      scores: {
+        heading: "Score overview",
+        sectionEyebrow: "Example scores · Preview data",
+        previewLabel: "Example scores",
+        scoreSuffix: "/100",
+        overall: {
+          label: "Overall",
+          value: 78,
+          explanation: "A balanced example score across the whole script.",
+        },
+        hook: {
+          label: "Hook",
+          value: 84,
+          explanation: "How strongly the opening grabs attention.",
+        },
+        retention: {
+          label: "Retention",
+          value: 73,
+          explanation: "How well the script keeps viewers watching.",
+        },
+        structure: {
+          label: "Structure",
+          value: 80,
+          explanation: "How clearly the script is organized.",
+        },
+      },
+      whyScores: {
+        heading: "Why these scores",
+        reasons: [
+          {
+            title: "Hook",
+            description: "Opens mid-thought with an immediate, specific claim.",
+          },
+          {
+            title: "Retention",
+            description: "One slow beat in the middle briefly loses momentum.",
+          },
+          {
+            title: "Structure",
+            description: "Each section has a clear job, in a logical order.",
+          },
+        ],
+      },
+      takeaway: {
+        heading: "Main takeaway",
+        sectionEyebrow: "Main takeaway · Example",
+        label: "Example content",
+        text: "The opening earns attention quickly, but the payoff could land faster to keep momentum through the middle.",
+        supporting:
+          "Tightening the middle section would keep more viewers through to the payoff.",
+      },
+      timeline: {
+        heading: "Script structure",
+        sectionEyebrow: "Script structure timeline & transcript · Example",
+        illustrativeLabel: "Example transcript",
+        transcriptHeading: "Transcript",
+        stages: [
+          {
+            title: "Hook",
+            timestamp: "0:00–0:03",
+            transcript: "Wait — this one mistake is costing you views.",
+          },
+          {
+            title: "Setup",
+            timestamp: "0:03–0:08",
+            transcript: "Here's what most people get wrong.",
+          },
+          {
+            title: "Progression",
+            timestamp: "0:08–0:17",
+            transcript: "So here's the fix, step by step.",
+          },
+          {
+            title: "Tension",
+            timestamp: "0:17–0:24",
+            transcript: "But there's a catch most people miss.",
+          },
+          {
+            title: "Payoff",
+            timestamp: "0:24–0:29",
+            transcript: "Once you see it, you can't unsee it.",
+          },
+          {
+            title: "CTA",
+            timestamp: "0:29–0:32",
+            transcript: "Try this on your next video.",
+          },
+        ],
+      },
+      strengths: {
+        heading: "What works",
+        sectionEyebrow: "What works · Example",
+        items: [
+          {
+            title: "Immediate opening",
+            description: "The first line starts mid-thought, with no warm-up.",
+          },
+          {
+            title: "Clear escalation",
+            description: "Each beat raises the stakes before the payoff.",
+          },
+          {
+            title: "Short sentences",
+            description: "Lines stay easy to follow at speaking pace.",
+          },
+          {
+            title: "Strong payoff",
+            description: "The ending delivers on what the hook promised.",
+          },
+        ],
+      },
+      weaknesses: {
+        heading: "Weak points",
+        sectionEyebrow: "Weak points · Example",
+        items: [
+          {
+            title: "Context arrives slightly late",
+            description: "Viewers wait a beat too long to know what this is about.",
+          },
+          {
+            title: "One repeated idea",
+            description: "The middle section restates a point already made.",
+          },
+          {
+            title: "Abrupt CTA",
+            description: "The call to action lands without a transition.",
+          },
+        ],
+      },
+      risks: {
+        heading: "Retention risks",
+        sectionEyebrow: "Retention risks · Example",
+        items: [
+          {
+            timestamp: "0:08",
+            description: "The pace slows briefly as the setup continues.",
+            suggestion: "Trim the setup by a line to keep momentum.",
+          },
+          {
+            timestamp: "0:17",
+            description: "The tension beat repeats an idea from the setup.",
+            suggestion: "Cut the repeat and move straight to the turn.",
+          },
+          {
+            timestamp: "0:29",
+            description: "The CTA arrives without a bridge from the payoff.",
+            suggestion: "Add a one-line transition into the CTA.",
+          },
+        ],
+      },
+      lessons: {
+        heading: "Actionable lessons",
+        sectionEyebrow: "Actionable lessons · Example",
+        items: [
+          "Reveal the central promise earlier.",
+          "Use shorter setup sentences.",
+          "Keep one escalation per beat.",
+          "Make the payoff more specific.",
+          "Bridge into the CTA instead of cutting to it.",
+        ],
+      },
+      caution: {
+        heading: "What not to copy",
+        sectionEyebrow: "What not to copy · Example",
+        description:
+          "Adapt the pattern, not the wording — copying exact phrasing or claims can work against you.",
+        columns: [
+          {
+            title: "Don't copy exact phrases",
+            description:
+              "Wording that works for one creator can read as generic — or as copying — coming from another.",
+          },
+          {
+            title: "Don't copy unsupported claims",
+            description:
+              "A claim that isn't true for your situation can undermine trust fast.",
+          },
+          {
+            title: "Don't copy topic-specific details",
+            description:
+              "Numbers, names, or specifics from someone else's story rarely fit your own.",
+          },
+        ],
+      },
+      actions: {
+        backToAnalyze: "Back to Analyze Competitor",
+        analyzeAnother: "Analyze another competitor",
+        compareWithMyScript: "Compare with my script",
+        backToSelection: "Back to Competitor Scripts",
+      },
+    },
   },
 } as const;
 
@@ -2242,6 +2455,219 @@ const ruMessages = {
           "Более ясное развитие",
           "Более быстрая развязка",
         ],
+      },
+    },
+    analyzeResults: {
+      backToAnalyze: "Назад к анализу",
+      heroEyebrow: "Результаты анализа",
+      pageTitle: "Разбор сценария конкурента",
+      headingPrefix: "Разбор сценария",
+      headingAccent: "конкурента",
+      description:
+        "Эта страница показывает, как будет выглядеть анализ после подключения реального анализа.",
+      previewNotice:
+        "Иллюстративный пример — реальные результаты появятся после подключения анализа.",
+      summary: {
+        illustrativeLabel: "Иллюстративные примерные данные",
+        title: "Пример Shorts конкурента",
+        platformLabel: "Платформа",
+        platform: "YouTube Shorts",
+        durationLabel: "Длительность",
+        duration: "0:32",
+        transcriptLabel: "Транскрипт",
+        transcriptAvailable: "Доступен",
+        statusLabel: "Статус",
+        status: "Превью",
+      },
+      scores: {
+        heading: "Обзор оценок",
+        sectionEyebrow: "Примерные оценки · Демо-данные",
+        previewLabel: "Примерные оценки",
+        scoreSuffix: "/100",
+        overall: {
+          label: "Общая",
+          value: 78,
+          explanation: "Сбалансированная примерная оценка всего сценария.",
+        },
+        hook: {
+          label: "Хук",
+          value: 84,
+          explanation: "Насколько сильно начало захватывает внимание.",
+        },
+        retention: {
+          label: "Удержание",
+          value: 73,
+          explanation: "Насколько хорошо сценарий удерживает зрителей.",
+        },
+        structure: {
+          label: "Структура",
+          value: 80,
+          explanation: "Насколько чётко организован сценарий.",
+        },
+      },
+      whyScores: {
+        heading: "Почему такие оценки",
+        reasons: [
+          {
+            title: "Хук",
+            description: "Начинается сразу с конкретного, чёткого заявления.",
+          },
+          {
+            title: "Удержание",
+            description: "Один медленный момент в середине немного теряет темп.",
+          },
+          {
+            title: "Структура",
+            description: "У каждой части есть чёткая роль в логичном порядке.",
+          },
+        ],
+      },
+      takeaway: {
+        heading: "Главный вывод",
+        sectionEyebrow: "Главный вывод · Пример",
+        label: "Примерный контент",
+        text: "Начало быстро привлекает внимание, но развязка могла бы наступать быстрее, чтобы сохранить темп в середине.",
+        supporting:
+          "Сокращение средней части удержит больше зрителей до самой развязки.",
+      },
+      timeline: {
+        heading: "Структура сценария",
+        sectionEyebrow: "Хронология структуры и транскрипт · Пример",
+        illustrativeLabel: "Пример транскрипта",
+        transcriptHeading: "Транскрипт",
+        stages: [
+          {
+            title: "Хук",
+            timestamp: "0:00–0:03",
+            transcript: "Стоп — вот из-за чего вы теряете просмотры.",
+          },
+          {
+            title: "Завязка",
+            timestamp: "0:03–0:08",
+            transcript: "Вот в чём чаще всего ошибаются.",
+          },
+          {
+            title: "Развитие",
+            timestamp: "0:08–0:17",
+            transcript: "А вот как это исправить, шаг за шагом.",
+          },
+          {
+            title: "Напряжение",
+            timestamp: "0:17–0:24",
+            transcript: "Но есть нюанс, который почти все упускают.",
+          },
+          {
+            title: "Развязка",
+            timestamp: "0:24–0:29",
+            transcript: "Как только увидите это, уже не сможете развидеть.",
+          },
+          {
+            title: "Призыв к действию",
+            timestamp: "0:29–0:32",
+            transcript: "Попробуйте это в своём следующем видео.",
+          },
+        ],
+      },
+      strengths: {
+        heading: "Что работает",
+        sectionEyebrow: "Что работает · Пример",
+        items: [
+          {
+            title: "Мгновенное начало",
+            description: "Первая строка начинается без разгона, сразу по делу.",
+          },
+          {
+            title: "Чёткая эскалация",
+            description: "Каждый бит поднимает ставки перед развязкой.",
+          },
+          {
+            title: "Короткие предложения",
+            description: "Строки легко воспринимаются в темпе речи.",
+          },
+          {
+            title: "Сильная развязка",
+            description: "Финал выполняет обещание, данное в хуке.",
+          },
+        ],
+      },
+      weaknesses: {
+        heading: "Слабые места",
+        sectionEyebrow: "Слабые места · Пример",
+        items: [
+          {
+            title: "Контекст приходит с задержкой",
+            description: "Зрители чуть дольше нужного ждут, о чём это видео.",
+          },
+          {
+            title: "Одна повторяющаяся идея",
+            description: "Средняя часть повторяет уже сказанное.",
+          },
+          {
+            title: "Резкий призыв к действию",
+            description: "Призыв к действию появляется без перехода.",
+          },
+        ],
+      },
+      risks: {
+        heading: "Риски удержания",
+        sectionEyebrow: "Риски удержания · Пример",
+        items: [
+          {
+            timestamp: "0:08",
+            description: "Темп немного замедляется на продолжении завязки.",
+            suggestion: "Сократите завязку на одну строку, чтобы сохранить темп.",
+          },
+          {
+            timestamp: "0:17",
+            description: "Момент напряжения повторяет идею из завязки.",
+            suggestion: "Уберите повтор и переходите сразу к повороту.",
+          },
+          {
+            timestamp: "0:29",
+            description: "Призыв к действию появляется без мостика от развязки.",
+            suggestion: "Добавьте одну строку перехода к призыву к действию.",
+          },
+        ],
+      },
+      lessons: {
+        heading: "Практические уроки",
+        sectionEyebrow: "Практические уроки · Пример",
+        items: [
+          "Раскрывайте главное обещание раньше.",
+          "Используйте более короткие предложения в завязке.",
+          "Одна эскалация на один бит.",
+          "Сделайте развязку более конкретной.",
+          "Стройте мостик к призыву к действию, а не резкий переход.",
+        ],
+      },
+      caution: {
+        heading: "Чего не стоит копировать",
+        sectionEyebrow: "Чего не стоит копировать · Пример",
+        description:
+          "Адаптируйте паттерн, а не формулировки — копирование точных фраз или заявлений может сработать против вас.",
+        columns: [
+          {
+            title: "Не копируйте точные фразы",
+            description:
+              "Формулировки, которые работают у одного автора, у другого могут звучать как копирование.",
+          },
+          {
+            title: "Не копируйте неподтверждённые заявления",
+            description:
+              "Заявление, которое не подтверждается в вашей ситуации, может быстро подорвать доверие.",
+          },
+          {
+            title: "Не копируйте детали по теме",
+            description:
+              "Цифры, имена или детали из чужой истории редко подходят вашей собственной.",
+          },
+        ],
+      },
+      actions: {
+        backToAnalyze: "Назад к анализу конкурента",
+        analyzeAnother: "Проанализировать другого конкурента",
+        compareWithMyScript: "Сравнить со своим сценарием",
+        backToSelection: "Назад к Сценариям конкурентов",
       },
     },
   },

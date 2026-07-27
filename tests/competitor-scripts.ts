@@ -391,6 +391,241 @@ check(
     getMessages("ru").competitorScripts.compare.pageTitle
 );
 
+// ── analyze-results message coverage across every launched locale ──────
+
+for (const locale of LAUNCHED_LOCALES) {
+  const copy = getMessages(locale).competitorScripts.analyzeResults;
+
+  check(
+    `${locale}: analyzeResults has all top-level keys`,
+    typeof copy.backToAnalyze === "string" &&
+      typeof copy.heroEyebrow === "string" &&
+      typeof copy.pageTitle === "string" &&
+      typeof copy.headingPrefix === "string" &&
+      typeof copy.headingAccent === "string" &&
+      copy.headingPrefix.length > 0 &&
+      copy.headingAccent.length > 0 &&
+      typeof copy.description === "string" &&
+      typeof copy.previewNotice === "string" &&
+      copy.previewNotice.length > 0
+  );
+
+  check(
+    `${locale}: summary has illustrative label and 4 labeled fields, none empty`,
+    copy.summary.illustrativeLabel.length > 0 &&
+      copy.summary.title.length > 0 &&
+      copy.summary.platform.length > 0 &&
+      copy.summary.duration.length > 0 &&
+      copy.summary.transcriptAvailable.length > 0 &&
+      copy.summary.status.length > 0
+  );
+
+  check(
+    `${locale}: scores has a section eyebrow, preview label, /100 suffix, and exactly 4 metrics (overall/hook/retention/structure)`,
+    copy.scores.sectionEyebrow.length > 0 &&
+      copy.scores.previewLabel.length > 0 &&
+      copy.scores.scoreSuffix.length > 0 &&
+      typeof copy.scores.overall.value === "number" &&
+      typeof copy.scores.hook.value === "number" &&
+      typeof copy.scores.retention.value === "number" &&
+      typeof copy.scores.structure.value === "number" &&
+      Object.keys(copy.scores).filter((key) =>
+        ["overall", "hook", "retention", "structure"].includes(key)
+      ).length === 4
+  );
+
+  check(
+    `${locale}: whyScores has exactly 3 reasons`,
+    copy.whyScores.reasons.length === 3
+  );
+
+  check(
+    `${locale}: takeaway has a section eyebrow, label, non-empty text, and a supporting line`,
+    copy.takeaway.sectionEyebrow.length > 0 &&
+      copy.takeaway.label.length > 0 &&
+      copy.takeaway.text.length > 0 &&
+      copy.takeaway.supporting.length > 0
+  );
+
+  check(
+    `${locale}: every analyzeResults section with a sectionEyebrow has a non-empty value (scores/takeaway/timeline/strengths/weaknesses/risks/lessons/caution)`,
+    [
+      copy.scores.sectionEyebrow,
+      copy.takeaway.sectionEyebrow,
+      copy.timeline.sectionEyebrow,
+      copy.strengths.sectionEyebrow,
+      copy.weaknesses.sectionEyebrow,
+      copy.risks.sectionEyebrow,
+      copy.lessons.sectionEyebrow,
+      copy.caution.sectionEyebrow,
+    ].every((eyebrow) => eyebrow.length > 0)
+  );
+
+  check(
+    `${locale}: timeline has exactly 6 stages, each with title/timestamp/transcript`,
+    copy.timeline.stages.length === 6 &&
+      copy.timeline.stages.every(
+        (stage) =>
+          stage.title.length > 0 &&
+          stage.timestamp.length > 0 &&
+          stage.transcript.length > 0
+      )
+  );
+
+  check(
+    `${locale}: strengths has 3-4 items, weaknesses has 2-4 items, each with title/description`,
+    copy.strengths.items.length >= 3 &&
+      copy.strengths.items.length <= 4 &&
+      copy.strengths.items.every(
+        (item) => item.title.length > 0 && item.description.length > 0
+      ) &&
+      copy.weaknesses.items.length >= 2 &&
+      copy.weaknesses.items.length <= 4 &&
+      copy.weaknesses.items.every(
+        (item) => item.title.length > 0 && item.description.length > 0
+      )
+  );
+
+  check(
+    `${locale}: risks has 2-3 items, each with timestamp/description/suggestion`,
+    copy.risks.items.length >= 2 &&
+      copy.risks.items.length <= 3 &&
+      copy.risks.items.every(
+        (item) =>
+          item.timestamp.length > 0 &&
+          item.description.length > 0 &&
+          item.suggestion.length > 0
+      )
+  );
+
+  check(
+    `${locale}: lessons has 3-5 items, caution has a description and exactly 3 columns`,
+    copy.lessons.items.length >= 3 &&
+      copy.lessons.items.length <= 5 &&
+      copy.lessons.items.every((item) => item.length > 0) &&
+      copy.caution.description.length > 0 &&
+      copy.caution.columns.length === 3 &&
+      copy.caution.columns.every(
+        (column) => column.title.length > 0 && column.description.length > 0
+      )
+  );
+
+  check(
+    `${locale}: actions has analyzeAnother/compareWithMyScript/backToSelection, all non-empty`,
+    copy.actions.analyzeAnother.length > 0 &&
+      copy.actions.compareWithMyScript.length > 0 &&
+      copy.actions.backToSelection.length > 0
+  );
+}
+
+check(
+  "EN and RU expose the exact same analyzeResults top-level key structure",
+  JSON.stringify(
+    Object.keys(getMessages("en").competitorScripts.analyzeResults).sort()
+  ) ===
+    JSON.stringify(
+      Object.keys(getMessages("ru").competitorScripts.analyzeResults).sort()
+    )
+);
+
+check(
+  "EN and RU analyzeResults sub-namespaces (summary/scores/whyScores/takeaway/timeline/strengths/weaknesses/risks/lessons/caution/actions) have the same key structure",
+  ([
+    "summary",
+    "scores",
+    "whyScores",
+    "takeaway",
+    "timeline",
+    "strengths",
+    "weaknesses",
+    "risks",
+    "lessons",
+    "caution",
+    "actions",
+  ] as const).every(
+    (section) =>
+      JSON.stringify(
+        Object.keys(
+          getMessages("en").competitorScripts.analyzeResults[section]
+        ).sort()
+      ) ===
+      JSON.stringify(
+        Object.keys(
+          getMessages("ru").competitorScripts.analyzeResults[section]
+        ).sort()
+      )
+  )
+);
+
+check(
+  "EN and RU timeline.stages[0]/strengths.items[0]/weaknesses.items[0]/risks.items[0] have the same per-item key structure",
+  JSON.stringify(
+    Object.keys(
+      getMessages("en").competitorScripts.analyzeResults.timeline.stages[0]
+    ).sort()
+  ) ===
+    JSON.stringify(
+      Object.keys(
+        getMessages("ru").competitorScripts.analyzeResults.timeline.stages[0]
+      ).sort()
+    ) &&
+    JSON.stringify(
+      Object.keys(
+        getMessages("en").competitorScripts.analyzeResults.strengths.items[0]
+      ).sort()
+    ) ===
+      JSON.stringify(
+        Object.keys(
+          getMessages("ru").competitorScripts.analyzeResults.strengths
+            .items[0]
+        ).sort()
+      ) &&
+    JSON.stringify(
+      Object.keys(
+        getMessages("en").competitorScripts.analyzeResults.risks.items[0]
+      ).sort()
+    ) ===
+      JSON.stringify(
+        Object.keys(
+          getMessages("ru").competitorScripts.analyzeResults.risks.items[0]
+        ).sort()
+      )
+);
+
+check(
+  "EN and RU analyzeResults copy actually differ",
+  getMessages("en").competitorScripts.analyzeResults.pageTitle !==
+    getMessages("ru").competitorScripts.analyzeResults.pageTitle
+);
+
+check(
+  "example score values (78/84/73/80) match exactly between EN and RU (locale-invariant example data)",
+  getMessages("en").competitorScripts.analyzeResults.scores.overall.value ===
+    getMessages("ru").competitorScripts.analyzeResults.scores.overall.value &&
+    getMessages("en").competitorScripts.analyzeResults.scores.hook.value ===
+      getMessages("ru").competitorScripts.analyzeResults.scores.hook.value &&
+    getMessages("en").competitorScripts.analyzeResults.scores.retention
+      .value ===
+      getMessages("ru").competitorScripts.analyzeResults.scores.retention
+        .value &&
+    getMessages("en").competitorScripts.analyzeResults.scores.structure
+      .value ===
+      getMessages("ru").competitorScripts.analyzeResults.scores.structure
+        .value
+);
+
+check(
+  "no fabricated views/likes/comments/subscriber engagement METRICS (a number attached to the word) appear anywhere in analyzeResults copy — plain prose use of these words is fine",
+  !/\d[\d,.\s]*[kKmM]?\+?\s*(views?|likes?|comments?|subscribers?)\b|\b(views?|likes?|comments?|subscribers?)\s*[:=]?\s*\d/i.test(
+    JSON.stringify(getMessages("en").competitorScripts.analyzeResults) +
+      JSON.stringify(getMessages("ru").competitorScripts.analyzeResults)
+  ) &&
+    !/\d[\d,.\s]*[kKmM]?\+?\s*(просмотр\w*|лайк\w*|коммент\w*|подписч\w*)/i.test(
+      JSON.stringify(getMessages("en").competitorScripts.analyzeResults) +
+        JSON.stringify(getMessages("ru").competitorScripts.analyzeResults)
+    )
+);
+
 // ── ModeCard: safe by default, real navigation only when given a real href ──
 
 const modeCardSource = readFileSync(
@@ -442,6 +677,20 @@ const compareComponentPaths = [
   "app/competitor-scripts/compare/example-comparison.tsx",
 ];
 
+const resultsComponentPaths = [
+  "app/competitor-scripts/analyze/results/page.tsx",
+  "app/competitor-scripts/analyze/results/results-summary.tsx",
+  "app/competitor-scripts/analyze/results/score-overview.tsx",
+  "app/competitor-scripts/analyze/results/why-scores-section.tsx",
+  "app/competitor-scripts/analyze/results/main-takeaway.tsx",
+  "app/competitor-scripts/analyze/results/script-breakdown.tsx",
+  "app/competitor-scripts/analyze/results/strengths-section.tsx",
+  "app/competitor-scripts/analyze/results/weaknesses-section.tsx",
+  "app/competitor-scripts/analyze/results/risks-section.tsx",
+  "app/competitor-scripts/analyze/results/lessons-section.tsx",
+  "app/competitor-scripts/analyze/results/caution-section.tsx",
+];
+
 const allSourceFiles = [
   "app/competitor-scripts/page.tsx",
   "app/competitor-scripts/mode-card.tsx",
@@ -449,6 +698,7 @@ const allSourceFiles = [
   "app/competitor-scripts/url-validation.ts",
   ...analyzeComponentPaths,
   ...compareComponentPaths,
+  ...resultsComponentPaths,
 ]
   .filter((path) => existsSync(path))
   .map((path) => readFileSync(path, "utf8"));
@@ -536,8 +786,9 @@ check(
 );
 
 check(
-  "AnalyzeInputForm never imports next/navigation's router (no client-side navigation on submit)",
-  !analyzeFormSource.includes("useRouter")
+  "AnalyzeInputForm imports next/navigation's useRouter (valid submission now navigates to the real results route)",
+  analyzeFormSource.includes('import { useRouter } from "next/navigation"') &&
+    analyzeFormSource.includes("const router = useRouter()")
 );
 
 check(
@@ -553,17 +804,23 @@ check(
 );
 
 check(
-  "only a well-formed, YouTube-hostname URL ever reveals the coming-next status",
-  /isSupportedVideoUrl\(trimmed\)\) \{\s*\n\s*setError\(copy\.errors\.unsupportedUrl\);\s*\n\s*return;\s*\n\s*\}\s*\n\s*\n\s*setError\(""\);\s*\n\s*setShowComingNext\(true\);/.test(
+  "only a well-formed, YouTube-hostname URL ever navigates, and only to the static results route with no query/hash data",
+  /isSupportedVideoUrl\(trimmed\)\) \{\s*\n\s*setError\(copy\.errors\.unsupportedUrl\);\s*\n\s*return;\s*\n\s*\}\s*\n\s*\n\s*setError\(""\);\s*\n\s*router\.push\("\/competitor-scripts\/analyze\/results"\);/.test(
     analyzeFormSource
   )
 );
 
 check(
-  "validation errors use role=\"alert\", the coming-next status uses role=\"status\"/aria-live=\"polite\"",
+  "the navigation target is a plain string literal — never a template literal interpolating the entered URL, and never a query string",
+  !/router\.push\(`/.test(analyzeFormSource) &&
+    !/router\.push\([^)]*\?/.test(analyzeFormSource)
+);
+
+check(
+  "validation errors use role=\"alert\"; the old coming-next status/role=\"status\" paragraph no longer exists on this form",
   analyzeFormSource.includes('role="alert"') &&
-    analyzeFormSource.includes('role="status"') &&
-    analyzeFormSource.includes('aria-live="polite"')
+    !analyzeFormSource.includes('role="status"') &&
+    !analyzeFormSource.includes("showComingNext")
 );
 
 check(
@@ -873,6 +1130,162 @@ check(
   "the compare illustration is not a copy of the Analyze illustration (distinct motif, no Search/magnifying-glass icon)",
   !compareHeroIllustrationSource.includes("Search") &&
     compareHeroIllustrationSource.includes("ArrowLeftRight")
+);
+
+// ── /competitor-scripts/analyze/results: route, safety, content ────────
+
+check(
+  "the /competitor-scripts/analyze/results route exists on disk",
+  existsSync("app/competitor-scripts/analyze/results/page.tsx")
+);
+
+check(
+  "no Compare results route exists (no app/competitor-scripts/compare/results*)",
+  !existsSync("app/competitor-scripts/compare/results") &&
+    !existsSync("app/competitor-scripts/compare/results.tsx")
+);
+
+const resultsFeatureSource = resultsComponentPaths
+  .filter((path) => existsSync(path))
+  .map((path) => readFileSync(path, "utf8"))
+  .join("\n");
+
+check(
+  "the results feature never calls fetch or any API",
+  !/\bfetch\(/.test(resultsFeatureSource)
+);
+
+check(
+  "the results feature has no server actions (no \"use server\") and is not itself a route handler",
+  !resultsFeatureSource.includes('"use server"')
+);
+
+check(
+  "no timer-driven fake loading exists anywhere in the results feature (no setInterval/setTimeout)",
+  !/setInterval\(|setTimeout\(/.test(resultsFeatureSource)
+);
+
+check(
+  "no fake live-progress semantics exist in the results feature (no progressbar role, no animate-spin)",
+  !/role="progressbar"|animate-spin/i.test(resultsFeatureSource)
+);
+
+const resultsPageSource = readFileSync(
+  "app/competitor-scripts/analyze/results/page.tsx",
+  "utf8"
+);
+
+check(
+  "the results page renders the illustrative preview notice as visible body text",
+  resultsPageSource.includes("{copy.previewNotice}")
+);
+
+check(
+  "the results hero heading is localized (headingPrefix/headingAccent), with the full sentence carried only via aria-label",
+  resultsPageSource.includes("{copy.headingPrefix}") &&
+    resultsPageSource.includes("{copy.headingAccent}") &&
+    /aria-label=\{copy\.pageTitle\}/.test(resultsPageSource) &&
+    !/<h1[^>]*>\s*\{copy\.pageTitle\}/.test(resultsPageSource)
+);
+
+check(
+  "the results hero accent line uses a purple gradient (bg-clip-text) distinct from the plain white first line",
+  /bg-gradient-to-r[\s\S]{0,160}bg-clip-text[\s\S]{0,300}\{copy\.headingAccent\}/.test(
+    resultsPageSource
+  ) && !/bg-clip-text[\s\S]{0,300}\{copy\.headingPrefix\}/.test(resultsPageSource)
+);
+
+check(
+  "the results hero heading spans and its decorative accent bar are all aria-hidden (no duplicate announcement)",
+  (resultsPageSource.match(/aria-hidden="true"/g) ?? []).length >= 3
+);
+
+check(
+  "the results page links back to /competitor-scripts/analyze, not home",
+  /href="\/competitor-scripts\/analyze"/.test(resultsPageSource)
+);
+
+const scoreOverviewSource = readFileSync(
+  "app/competitor-scripts/analyze/results/score-overview.tsx",
+  "utf8"
+);
+
+check(
+  "the score overview renders exactly the 4 required metrics (overall/hook/retention/structure), each with an accessible label",
+  /scores\.overall,\s*scores\.hook,\s*scores\.retention,\s*scores\.structure/.test(
+    scoreOverviewSource
+  ) && scoreOverviewSource.includes("role=\"img\"")
+);
+
+check(
+  "score values are static (no useState/useEffect-driven counting animation)",
+  !scoreOverviewSource.includes("useState") &&
+    !scoreOverviewSource.includes("useEffect")
+);
+
+const scriptBreakdownSource = readFileSync(
+  "app/competitor-scripts/analyze/results/script-breakdown.tsx",
+  "utf8"
+);
+
+check(
+  "the script breakdown renders all 6 timeline stages from the localized array (not hardcoded)",
+  scriptBreakdownSource.includes("timeline.stages.map")
+);
+
+check(
+  "why-scores, strengths, weaknesses, risks, lessons, and caution each exist as their own component and are wired into the results page",
+  existsSync("app/competitor-scripts/analyze/results/why-scores-section.tsx") &&
+    existsSync("app/competitor-scripts/analyze/results/strengths-section.tsx") &&
+    existsSync("app/competitor-scripts/analyze/results/weaknesses-section.tsx") &&
+    existsSync("app/competitor-scripts/analyze/results/risks-section.tsx") &&
+    existsSync("app/competitor-scripts/analyze/results/lessons-section.tsx") &&
+    existsSync("app/competitor-scripts/analyze/results/caution-section.tsx") &&
+    resultsPageSource.includes("<WhyScoresSection") &&
+    resultsPageSource.includes("<StrengthsSection") &&
+    resultsPageSource.includes("<WeaknessesSection") &&
+    resultsPageSource.includes("<RisksSection") &&
+    resultsPageSource.includes("<LessonsSection") &&
+    resultsPageSource.includes("<CautionSection")
+);
+
+check(
+  "no save/share/regenerate/download/billing action label appears in analyzeResults copy (plain code keywords like the JS `export` keyword are not checked here)",
+  !/\bsave\b|\bshare\b|\bregenerate\b|\bdownload\b|\bexport\b/i.test(
+    JSON.stringify(getMessages("en").competitorScripts.analyzeResults.actions) +
+      JSON.stringify(getMessages("ru").competitorScripts.analyzeResults.actions)
+  )
+);
+
+check(
+  "the results page renders exactly 5 links — the top back link plus the 4 documented bottom actions — no extra action buttons",
+  (resultsPageSource.match(/<Link/g) ?? []).length === 5
+);
+
+check(
+  "the bottom action row includes a dedicated 'back to analyze' action distinct from the primary 'analyze another' CTA",
+  resultsPageSource.includes("{copy.actions.backToAnalyze}") &&
+    resultsPageSource.includes("{copy.actions.analyzeAnother}")
+);
+
+check(
+  "the report uses normal document flow — no overflow-hidden and no fixed/max-height container wrapping the report sections (min-h-screen on the page background is fine — it's a floor, not a clip)",
+  !/overflow-hidden/.test(resultsPageSource) &&
+    !/(?<!min-)\bh-screen\b/.test(resultsPageSource) &&
+    !/max-h-\[/.test(resultsPageSource) &&
+    !/overflow-y-scroll|overflow-y-auto/.test(resultsPageSource)
+);
+
+check(
+  "no real creator/video reference (no embedded http(s) URL) is hardcoded in the results feature source",
+  !/https?:\/\//.test(resultsFeatureSource)
+);
+
+check(
+  "the results page's bottom actions link only to real existing Competitor Scripts routes",
+  /href="\/competitor-scripts\/analyze"/.test(resultsPageSource) &&
+    /href="\/competitor-scripts\/compare"/.test(resultsPageSource) &&
+    /href="\/competitor-scripts"/.test(resultsPageSource)
 );
 
 async function main() {
