@@ -39,7 +39,10 @@ const ALLOWED_HOSTS = new Set([
 
 const VIDEO_ID_PATTERN = /^[A-Za-z0-9_-]{11}$/;
 
-function isValidVideoId(value: string): boolean {
+// Exported so other server-side modules (e.g. the transcript foundation)
+// can validate an already-extracted video id without duplicating the
+// pattern.
+export function isValidYouTubeVideoId(value: string): boolean {
   return VIDEO_ID_PATTERN.test(value);
 }
 
@@ -101,7 +104,7 @@ export function normalizeYouTubeVideoUrl(
 
     const videoId = pathSegments[0];
 
-    if (!isValidVideoId(videoId)) {
+    if (!isValidYouTubeVideoId(videoId)) {
       return { ok: false, code: "invalid_video_id" };
     }
 
@@ -120,7 +123,7 @@ export function normalizeYouTubeVideoUrl(
       return { ok: false, code: "missing_video_id" };
     }
 
-    if (!isValidVideoId(videoId)) {
+    if (!isValidYouTubeVideoId(videoId)) {
       return { ok: false, code: "invalid_video_id" };
     }
 
@@ -143,7 +146,7 @@ export function normalizeYouTubeVideoUrl(
 
     const videoId = pathSegments[1];
 
-    if (!isValidVideoId(videoId)) {
+    if (!isValidYouTubeVideoId(videoId)) {
       return { ok: false, code: "invalid_video_id" };
     }
 
