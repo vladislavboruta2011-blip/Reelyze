@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { ArrowRight, Check } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -43,10 +44,13 @@ const ACCENT_STYLES: Record<
   },
 };
 
-// The CTA is a real, enabled <button> with no href — clicking it can never
-// 404, it can only ever reveal this inline, localized "coming next" status
-// (role="status"/aria-live="polite" since it's informational, not an
-// error). Nothing here calls an API or navigates anywhere.
+// When `href` is omitted, the CTA is a real, enabled <button> with no
+// href — clicking it can never 404, it can only ever reveal this inline,
+// localized "coming next" status (role="status"/aria-live="polite" since
+// it's informational, not an error). Nothing here calls an API. When
+// `href` is provided, it must point at a real, already-implemented route
+// (never a placeholder) — the button becomes a real navigation link
+// instead, since there's now something real to go to.
 export function ModeCard({
   accent,
   icon,
@@ -56,6 +60,7 @@ export function ModeCard({
   benefits,
   actionLabel,
   comingNextMessage,
+  href,
 }: {
   accent: Accent;
   icon: ReactNode;
@@ -65,6 +70,7 @@ export function ModeCard({
   benefits: readonly string[];
   actionLabel: string;
   comingNextMessage: string;
+  href?: string;
 }) {
   const [showComingNext, setShowComingNext] = useState(false);
   const styles = ACCENT_STYLES[accent];
@@ -107,15 +113,25 @@ export function ModeCard({
       </ul>
 
       <div className="mt-5 flex flex-col gap-2">
-        <button
-          type="button"
-          onClick={() => setShowComingNext(true)}
-          className={`inline-flex h-[52px] w-full items-center justify-center gap-2.5 rounded-[14px] px-6 text-[15px] font-semibold text-white transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${styles.button}`}
-        >
-          {actionLabel}
-          <ArrowRight size={17} aria-hidden="true" />
-        </button>
-        {showComingNext && (
+        {href ? (
+          <Link
+            href={href}
+            className={`inline-flex h-[52px] w-full items-center justify-center gap-2.5 rounded-[14px] px-6 text-[15px] font-semibold text-white transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${styles.button}`}
+          >
+            {actionLabel}
+            <ArrowRight size={17} aria-hidden="true" />
+          </Link>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setShowComingNext(true)}
+            className={`inline-flex h-[52px] w-full items-center justify-center gap-2.5 rounded-[14px] px-6 text-[15px] font-semibold text-white transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${styles.button}`}
+          >
+            {actionLabel}
+            <ArrowRight size={17} aria-hidden="true" />
+          </button>
+        )}
+        {!href && showComingNext && (
           <p
             role="status"
             aria-live="polite"

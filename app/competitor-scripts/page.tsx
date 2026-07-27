@@ -38,6 +38,7 @@ export default async function CompetitorScriptsPage() {
                 benefits={copy.analyzeCard.benefits}
                 actionLabel={copy.analyzeCard.action}
                 comingNextMessage={copy.comingNextMessage}
+                href="/competitor-scripts/analyze"
               />
               <ModeCard
                 accent="blue"
