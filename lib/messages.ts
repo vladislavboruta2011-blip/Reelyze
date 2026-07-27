@@ -922,6 +922,119 @@ const enMessages = {
         action: "Compare scripts",
       },
     },
+    analyze: {
+      backToSelection: "Back to selection",
+      heroEyebrow: "Competitor analysis",
+      pageTitle: "Analyze a competitor script",
+      headingPrefix: "Analyze a",
+      headingAccent: "competitor script",
+      description:
+        "Paste a public YouTube Shorts link and Climpy will extract the spoken script and explain how it works.",
+      urlLabel: "Paste YouTube Shorts link",
+      urlPlaceholder: "https://www.youtube.com/shorts/...",
+      submitLabel: "Analyze script",
+      privacyNote: {
+        heading: "Before you paste a link",
+        items: [
+          "Public YouTube Shorts only — transcript availability may vary.",
+          "Only public content and spoken words are intended to be used.",
+        ],
+      },
+      workflow: {
+        sectionLabel: "Planned analysis stages",
+        stages: [
+          {
+            title: "Fetching video",
+            description: "Getting video details",
+          },
+          {
+            title: "Extracting transcript",
+            description: "Getting the spoken script",
+          },
+          {
+            title: "Analyzing script",
+            description: "Breaking down the structure",
+          },
+          {
+            title: "Generating insights",
+            description: "Finding what works",
+          },
+          {
+            title: "Done",
+            description: "Results ready",
+          },
+        ],
+      },
+      breakdown: {
+        heading: "You'll get a full breakdown",
+        items: [
+          {
+            title: "Script structure",
+            description:
+              "See how the script is built from start to finish.",
+          },
+          {
+            title: "Hook analysis",
+            description: "Understand the hook type and how it works.",
+          },
+          {
+            title: "What works",
+            description: "Identify the strongest elements and why.",
+          },
+          {
+            title: "What's weak",
+            description:
+              "Find the weak points that may hurt retention.",
+          },
+          {
+            title: "Retention factors",
+            description:
+              "See what keeps viewers watching or makes them leave.",
+          },
+          {
+            title: "Filler & repeats",
+            description: "Spot unnecessary or repeated ideas.",
+          },
+          {
+            title: "What to learn",
+            description: "Find patterns and lessons you can adapt.",
+          },
+          {
+            title: "What to avoid",
+            description: "See which choices may weaken the script.",
+          },
+        ],
+      },
+      example: {
+        heading: "Example of what you'll see",
+        disclaimer:
+          "Illustrative preview — actual results will depend on the submitted video.",
+        structureLabel: "Script structure",
+        scriptLabel: "Example script",
+        stages: [
+          { label: "Hook", timestamp: "0:00" },
+          { label: "Setup", timestamp: "0:03" },
+          { label: "Progression", timestamp: "0:08" },
+          { label: "Tension", timestamp: "0:14" },
+          { label: "Payoff", timestamp: "0:20" },
+          { label: "CTA", timestamp: "0:26" },
+        ],
+        scriptLines: [
+          "Wait — this one mistake is costing you views.",
+          "Here's what most people get wrong.",
+          "So here's the fix, step by step.",
+          "But there's a catch most people miss.",
+          "Once you see it, you can't unsee it.",
+          "Try this on your next video.",
+        ],
+      },
+      errors: {
+        emptyUrl: "Paste a competitor video URL to continue.",
+        invalidUrl: "That doesn't look like a valid URL.",
+        unsupportedUrl:
+          "This doesn't look like a public YouTube Shorts link.",
+      },
+    },
   },
 } as const;
 
@@ -1785,6 +1898,119 @@ const ruMessages = {
           "Конкретные советы по улучшению сценария",
         ],
         action: "Сравнить сценарии",
+      },
+    },
+    analyze: {
+      backToSelection: "Назад к выбору",
+      heroEyebrow: "Анализ конкурентов",
+      pageTitle: "Проанализировать сценарий конкурента",
+      headingPrefix: "Проанализировать",
+      headingAccent: "сценарий конкурента",
+      description:
+        "Вставьте ссылку на публичное видео YouTube Shorts, и Climpy извлечёт произнесённый сценарий и объяснит, как он работает.",
+      urlLabel: "Вставьте ссылку YouTube Shorts",
+      urlPlaceholder: "https://www.youtube.com/shorts/...",
+      submitLabel: "Проанализировать сценарий",
+      privacyNote: {
+        heading: "Перед тем как вставить ссылку",
+        items: [
+          "Только публичные YouTube Shorts — доступность транскрипта может отличаться.",
+          "Используются только публичные материалы и произнесённый текст.",
+        ],
+      },
+      workflow: {
+        sectionLabel: "Запланированные этапы анализа",
+        stages: [
+          {
+            title: "Получение видео",
+            description: "Получаем детали видео",
+          },
+          {
+            title: "Извлечение транскрипта",
+            description: "Получаем произнесённый текст",
+          },
+          {
+            title: "Анализ сценария",
+            description: "Разбираем структуру",
+          },
+          {
+            title: "Формирование инсайтов",
+            description: "Находим, что работает",
+          },
+          {
+            title: "Готово",
+            description: "Результаты готовы",
+          },
+        ],
+      },
+      breakdown: {
+        heading: "Вы получите полный разбор",
+        items: [
+          {
+            title: "Структура сценария",
+            description:
+              "Посмотрите, как сценарий построен от начала до конца.",
+          },
+          {
+            title: "Анализ хука",
+            description: "Поймите тип хука и то, как он работает.",
+          },
+          {
+            title: "Что работает",
+            description: "Определите самые сильные элементы и почему.",
+          },
+          {
+            title: "Что слабо",
+            description:
+              "Найдите слабые места, которые могут снижать удержание.",
+          },
+          {
+            title: "Факторы удержания",
+            description:
+              "Узнайте, что удерживает зрителей, а что заставляет уйти.",
+          },
+          {
+            title: "Вода и повторы",
+            description: "Найдите лишние или повторяющиеся идеи.",
+          },
+          {
+            title: "Что перенять",
+            description:
+              "Найдите паттерны и уроки, которые можно адаптировать.",
+          },
+          {
+            title: "Чего избегать",
+            description: "Узнайте, какие решения могут ослабить сценарий.",
+          },
+        ],
+      },
+      example: {
+        heading: "Пример того, что вы увидите",
+        disclaimer:
+          "Иллюстративный пример — реальный результат зависит от загруженного видео.",
+        structureLabel: "Структура сценария",
+        scriptLabel: "Пример сценария",
+        stages: [
+          { label: "Хук", timestamp: "0:00" },
+          { label: "Завязка", timestamp: "0:03" },
+          { label: "Развитие", timestamp: "0:08" },
+          { label: "Напряжение", timestamp: "0:14" },
+          { label: "Развязка", timestamp: "0:20" },
+          { label: "Призыв к действию", timestamp: "0:26" },
+        ],
+        scriptLines: [
+          "Стоп — вот из-за чего вы теряете просмотры.",
+          "Вот в чём чаще всего ошибаются.",
+          "А вот как это исправить, шаг за шагом.",
+          "Но есть нюанс, который почти все упускают.",
+          "Как только увидите это, уже не сможете развидеть.",
+          "Попробуйте это в своём следующем видео.",
+        ],
+      },
+      errors: {
+        emptyUrl: "Вставьте ссылку на видео конкурента, чтобы продолжить.",
+        invalidUrl: "Это не похоже на корректную ссылку.",
+        unsupportedUrl: "Это не похоже на публичную ссылку YouTube Shorts.",
       },
     },
   },
