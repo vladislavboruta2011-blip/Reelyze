@@ -3,28 +3,9 @@
 import { useId, useState } from "react";
 import { ArrowRight, Link2, Lock } from "lucide-react";
 import type { Messages } from "../../../lib/messages";
+import { isSupportedVideoUrl } from "../url-validation";
 
 type AnalyzeCopy = Messages["competitorScripts"]["analyze"];
-
-// Format-only checks — this never contacts YouTube or any backend. A
-// syntactically valid, YouTube-hostname URL is the most this page can ever
-// verify; whether the video is actually public, and whether a transcript
-// exists, can only be known once real extraction exists (a later PR).
-function isSupportedVideoUrl(value: string): boolean {
-  try {
-    const parsed = new URL(value);
-    const host = parsed.hostname.toLowerCase().replace(/^www\./, "");
-
-    return (
-      (parsed.protocol === "http:" || parsed.protocol === "https:") &&
-      (host === "youtube.com" ||
-        host === "m.youtube.com" ||
-        host === "youtu.be")
-    );
-  } catch {
-    return false;
-  }
-}
 
 // No API call, no navigation. A well-formed, YouTube-shaped URL only ever
 // reveals the same safe, localized "coming next" status the mode-selection

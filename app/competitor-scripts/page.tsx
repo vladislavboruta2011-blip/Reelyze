@@ -49,6 +49,7 @@ export default async function CompetitorScriptsPage() {
                 benefits={copy.compareCard.benefits}
                 actionLabel={copy.compareCard.action}
                 comingNextMessage={copy.comingNextMessage}
+                href="/competitor-scripts/compare"
               />
             </div>
 

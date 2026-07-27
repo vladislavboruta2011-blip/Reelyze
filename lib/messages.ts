@@ -1035,6 +1035,122 @@ const enMessages = {
           "This doesn't look like a public YouTube Shorts link.",
       },
     },
+    compare: {
+      backToSelection: "Back to selection",
+      heroEyebrow: "Script comparison",
+      headingPrefix: "Compare their script",
+      headingAccent: "with yours",
+      pageTitle: "Compare their script with yours",
+      description:
+        "Paste a competitor's video and your own script. Comparison works best when both scripts cover the same or a closely related topic.",
+      urlLabel: "Competitor video URL",
+      urlPlaceholder: "https://www.youtube.com/shorts/...",
+      scriptLabel: "Your script",
+      scriptPlaceholder: "Paste your script here...",
+      scriptHelper: "Paste only the words that will be spoken.",
+      submitLabel: "Compare scripts",
+      comingNextMessage:
+        "Real comparison is coming in the next phase — thanks for checking it out early.",
+      privacyNote: {
+        heading: "Before you compare",
+        items: [
+          "Public YouTube Shorts only — transcript availability may vary.",
+          "Works best when both scripts cover the same or a closely related topic.",
+          "Paste only the spoken words of your own script.",
+        ],
+      },
+      errors: {
+        emptyUrl: "Paste a competitor video URL to continue.",
+        invalidUrl: "That doesn't look like a valid URL.",
+        unsupportedUrl:
+          "This doesn't look like a public YouTube Shorts link.",
+        emptyScript: "Paste your script to continue.",
+        scriptTooLong: "Your script is over the 1,000-character limit.",
+      },
+      workflow: {
+        sectionLabel: "Planned comparison stages",
+        stages: [
+          {
+            title: "Reading both scripts",
+            description: "Taking in the competitor's script and yours",
+          },
+          {
+            title: "Mapping the structure",
+            description: "Lining up hook, setup, and payoff",
+          },
+          {
+            title: "Comparing strengths and weaknesses",
+            description: "Seeing where each script wins",
+          },
+          {
+            title: "Creating actionable improvements",
+            description: "Turning the comparison into next steps",
+          },
+        ],
+      },
+      coverage: {
+        heading: "What the comparison will cover",
+        items: [
+          {
+            title: "Hook strength",
+            description: "How well each opening grabs attention.",
+          },
+          {
+            title: "Opening clarity",
+            description: "How quickly the premise becomes clear.",
+          },
+          {
+            title: "Script structure",
+            description: "How each script is built from start to finish.",
+          },
+          {
+            title: "Retention mechanics",
+            description: "What keeps viewers watching through both.",
+          },
+          {
+            title: "Payoff quality",
+            description: "How satisfying each ending lands.",
+          },
+          {
+            title: "Unnecessary filler",
+            description: "Where either script could be tighter.",
+          },
+          {
+            title: "Similarities and differences",
+            description: "Where the two scripts overlap or diverge.",
+          },
+          {
+            title: "Actionable improvements",
+            description: "Concrete changes you could make.",
+          },
+        ],
+      },
+      example: {
+        heading: "Example comparison",
+        disclaimer:
+          "Illustrative preview — actual results will depend on both submitted scripts.",
+        competitorLabel: "Competitor script",
+        yourScriptLabel: "Your script",
+        competitorLines: [
+          "Hook — opens with a bold claim.",
+          "Setup — introduces the premise fast.",
+          "Progression — builds through one idea.",
+          "Payoff — lands a quick takeaway.",
+        ],
+        yourScriptLines: [
+          "Hook — opens with a question.",
+          "Setup — takes a bit longer to land.",
+          "Progression — builds through two ideas.",
+          "Payoff — lands a broader takeaway.",
+        ],
+        summaryHeading: "In this example",
+        summaryItems: [
+          "Stronger opening",
+          "Clearer progression",
+          "Faster payoff",
+        ],
+      },
+    },
   },
 } as const;
 
@@ -2011,6 +2127,121 @@ const ruMessages = {
         emptyUrl: "Вставьте ссылку на видео конкурента, чтобы продолжить.",
         invalidUrl: "Это не похоже на корректную ссылку.",
         unsupportedUrl: "Это не похоже на публичную ссылку YouTube Shorts.",
+      },
+    },
+    compare: {
+      backToSelection: "Назад к выбору",
+      heroEyebrow: "Сравнение сценариев",
+      headingPrefix: "Сравните их сценарий",
+      headingAccent: "со своим",
+      pageTitle: "Сравните их сценарий со своим",
+      description:
+        "Вставьте видео конкурента и свой сценарий. Сравнение работает лучше всего, когда оба сценария на одну и ту же или близкую тему.",
+      urlLabel: "Ссылка на видео конкурента",
+      urlPlaceholder: "https://www.youtube.com/shorts/...",
+      scriptLabel: "Ваш сценарий",
+      scriptPlaceholder: "Вставьте свой сценарий здесь...",
+      scriptHelper: "Вставляйте только те слова, которые будут произнесены.",
+      submitLabel: "Сравнить сценарии",
+      comingNextMessage:
+        "Настоящее сравнение появится на следующем этапе — спасибо, что заглянули так рано.",
+      privacyNote: {
+        heading: "Перед сравнением",
+        items: [
+          "Только публичные YouTube Shorts — доступность транскрипта может отличаться.",
+          "Лучше всего работает, когда оба сценария на одну и ту же или близкую тему.",
+          "Вставляйте только произнесённый текст своего сценария.",
+        ],
+      },
+      errors: {
+        emptyUrl: "Вставьте ссылку на видео конкурента, чтобы продолжить.",
+        invalidUrl: "Это не похоже на корректную ссылку.",
+        unsupportedUrl: "Это не похоже на публичную ссылку YouTube Shorts.",
+        emptyScript: "Вставьте свой сценарий, чтобы продолжить.",
+        scriptTooLong: "Ваш сценарий превышает лимит в 1000 символов.",
+      },
+      workflow: {
+        sectionLabel: "Запланированные этапы сравнения",
+        stages: [
+          {
+            title: "Чтение обоих сценариев",
+            description: "Изучаем сценарий конкурента и ваш",
+          },
+          {
+            title: "Сопоставление структуры",
+            description: "Сравниваем хук, завязку и развязку",
+          },
+          {
+            title: "Сравнение сильных и слабых сторон",
+            description: "Смотрим, где какой сценарий выигрывает",
+          },
+          {
+            title: "Формирование улучшений",
+            description: "Превращаем сравнение в конкретные шаги",
+          },
+        ],
+      },
+      coverage: {
+        heading: "Что войдёт в сравнение",
+        items: [
+          {
+            title: "Сила хука",
+            description: "Насколько хорошо каждое начало цепляет внимание.",
+          },
+          {
+            title: "Ясность завязки",
+            description: "Как быстро становится понятна суть.",
+          },
+          {
+            title: "Структура сценария",
+            description: "Как построен каждый сценарий от начала до конца.",
+          },
+          {
+            title: "Механика удержания",
+            description: "Что удерживает зрителей в обоих сценариях.",
+          },
+          {
+            title: "Качество развязки",
+            description: "Насколько удачно завершается каждый сценарий.",
+          },
+          {
+            title: "Лишняя вода",
+            description: "Где любой из сценариев можно сделать короче.",
+          },
+          {
+            title: "Сходства и различия",
+            description: "Где сценарии пересекаются, а где расходятся.",
+          },
+          {
+            title: "Конкретные улучшения",
+            description: "Какие изменения можно внести.",
+          },
+        ],
+      },
+      example: {
+        heading: "Пример сравнения",
+        disclaimer:
+          "Иллюстративный пример — реальный результат зависит от обоих сценариев.",
+        competitorLabel: "Сценарий конкурента",
+        yourScriptLabel: "Ваш сценарий",
+        competitorLines: [
+          "Хук — начинается со смелого заявления.",
+          "Завязка — быстро вводит в суть.",
+          "Развитие — строится вокруг одной идеи.",
+          "Развязка — даёт быстрый вывод.",
+        ],
+        yourScriptLines: [
+          "Хук — начинается с вопроса.",
+          "Завязка — раскрывается чуть дольше.",
+          "Развитие — строится вокруг двух идей.",
+          "Развязка — даёт более широкий вывод.",
+        ],
+        summaryHeading: "В этом примере",
+        summaryItems: [
+          "Более сильное начало",
+          "Более ясное развитие",
+          "Более быстрая развязка",
+        ],
       },
     },
   },
