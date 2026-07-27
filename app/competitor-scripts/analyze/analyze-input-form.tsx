@@ -1,35 +1,30 @@
 "use client";
 
 import { useId, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ArrowRight, Link2, Lock } from "lucide-react";
 import type { Messages } from "../../../lib/messages";
 import { isSupportedVideoUrl } from "../url-validation";
 
 type AnalyzeCopy = Messages["competitorScripts"]["analyze"];
 
-// No API call, no navigation. A well-formed, YouTube-shaped URL only ever
-// reveals the same safe, localized "coming next" status the mode-selection
-// cards already use (role="status"/aria-live="polite") — this page can't
-// yet produce a real result, so it must not pretend to. The submit button
-// is disabled only while the field is empty (a plain, native disabled
-// state, not a stand-in for real validation) — the full empty/invalid/
-// unsupported checks below still run on submit regardless.
-export function AnalyzeInputForm({
-  copy,
-  comingNextMessage,
-}: {
-  copy: AnalyzeCopy;
-  comingNextMessage: string;
-}) {
+// No API call. A well-formed, YouTube-shaped URL navigates straight to the
+// static, illustrative results route — no fetch, no timer, no simulated
+// progress, and the URL itself is never placed in a query string or
+// persisted anywhere; it only ever lives in this component's own state
+// while the form stays mounted. The submit button is disabled only while
+// the field is empty (a plain, native disabled state, not a stand-in for
+// real validation) — the full empty/invalid/unsupported checks below
+// still run on submit regardless.
+export function AnalyzeInputForm({ copy }: { copy: AnalyzeCopy }) {
+  const router = useRouter();
   const inputId = useId();
   const errorId = useId();
   const [url, setUrl] = useState("");
   const [error, setError] = useState("");
-  const [showComingNext, setShowComingNext] = useState(false);
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setShowComingNext(false);
 
     const trimmed = url.trim();
 
@@ -56,7 +51,7 @@ export function AnalyzeInputForm({
     }
 
     setError("");
-    setShowComingNext(true);
+    router.push("/competitor-scripts/analyze/results");
   }
 
   return (
@@ -89,7 +84,6 @@ export function AnalyzeInputForm({
           value={url}
           onChange={(event) => {
             setUrl(event.target.value);
-            setShowComingNext(false);
             if (error) setError("");
           }}
           placeholder={copy.urlPlaceholder}
@@ -142,16 +136,6 @@ export function AnalyzeInputForm({
           <ArrowRight size={17} aria-hidden="true" />
         </button>
       </div>
-
-      {showComingNext && (
-        <p
-          role="status"
-          aria-live="polite"
-          className="mt-3 text-[13px] text-[#9CA3AF]"
-        >
-          {comingNextMessage}
-        </p>
-      )}
     </form>
   );
 }

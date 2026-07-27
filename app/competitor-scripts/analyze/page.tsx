@@ -61,12 +61,7 @@ export default async function AnalyzeCompetitorPage() {
               </div>
             </div>
 
-            <AnalyzeInputForm
-              copy={copy}
-              comingNextMessage={
-                messages.competitorScripts.modeSelection.comingNextMessage
-              }
-            />
+            <AnalyzeInputForm copy={copy} />
 
             <WorkflowSteps workflow={copy.workflow} />
 
