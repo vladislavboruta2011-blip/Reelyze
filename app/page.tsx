@@ -23,6 +23,13 @@ import {
   type AnalysisV2ResponseContractReason,
 } from "../engine/analysis-v2-ui-adapter";
 import { logAnalysisV2UnexpectedResponse } from "../engine/analysis-v2-diagnostics";
+import { trackEvent } from "../lib/track-event";
+import {
+  bucketScriptLength,
+  detectInputSource,
+  toAnalyticsLocale,
+  type FailureCategory,
+} from "../lib/analytics-events";
 import {
   ArrowRight,
   BarChart3,
@@ -1153,6 +1160,10 @@ export default function HomePage() {
     if (analyzeError) {
       setAnalyzeError("");
     }
+
+    trackEvent("analyzer_example_inserted", {
+      locale: toAnalyticsLocale(locale),
+    });
   }
 
   function handleAnalyze() {
@@ -1177,6 +1188,16 @@ export default function HomePage() {
       );
       return;
     }
+
+    // Snapshot once at submit time, not re-derived later — a locale switch
+    // or further edits while the request is in flight must not retroactively
+    // change what this specific submission is reported as.
+    const analyticsLocale = toAnalyticsLocale(locale);
+    const analyticsInputSource = detectInputSource(cleanedScript);
+    const analyticsLengthBucket = bucketScriptLength(
+      cleanedScript.length
+    );
+    let failureCategory: FailureCategory = "network";
 
     let previousScript: string | null = null;
     let previousTitle: string | null = null;
@@ -1209,6 +1230,12 @@ export default function HomePage() {
     setAnalyzeError("");
     setIsAnalyzing(true);
 
+    trackEvent("analysis_submitted", {
+      locale: analyticsLocale,
+      input_source: analyticsInputSource,
+      length_bucket: analyticsLengthBucket,
+    });
+
     void (async () => {
       try {
         const response = await fetch("/api/analyze-v2", {
@@ -1228,12 +1255,20 @@ export default function HomePage() {
         try {
           payload = await response.json();
         } catch {
+          failureCategory = "invalid_response";
           throw new Error(
             messages.landing.errors.invalidResponse
           );
         }
 
         if (!response.ok) {
+          failureCategory =
+            response.status === 429
+              ? "rate_limited"
+              : response.status >= 500
+                ? "server"
+                : "unknown";
+
           // The API's `reason` is a technical/debug message and must not be
           // shown raw — it never goes through the message catalog and would
           // leak English into a Russian UI. Always show the localized
@@ -1290,6 +1325,7 @@ export default function HomePage() {
               : null,
           });
 
+          failureCategory = "invalid_response";
           throw new Error(
             messages.landing.errors.unexpectedResponse
           );
@@ -1319,6 +1355,14 @@ export default function HomePage() {
         );
 
         clearLegacyStoredScript();
+
+        trackEvent("analysis_succeeded", {
+          locale: analyticsLocale,
+          input_source: analyticsInputSource,
+          length_bucket: analyticsLengthBucket,
+          verdict: payload.result.verdict,
+        });
+
         router.push("/results");
       } catch (caughtError) {
         if (hasStorageSnapshot) {
@@ -1342,6 +1386,13 @@ export default function HomePage() {
             ? caughtError.message
             : messages.landing.errors.generic
         );
+
+        trackEvent("analysis_failed", {
+          locale: analyticsLocale,
+          input_source: analyticsInputSource,
+          length_bucket: analyticsLengthBucket,
+          failure_category: failureCategory,
+        });
       }
     })();
   }
