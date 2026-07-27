@@ -246,6 +246,151 @@ check(
       )
 );
 
+// ── compare-page message coverage across every launched locale ─────────
+
+for (const locale of LAUNCHED_LOCALES) {
+  const copy = getMessages(locale).competitorScripts.compare;
+
+  check(
+    `${locale}: compare has all top-level keys`,
+    typeof copy.backToSelection === "string" &&
+      typeof copy.heroEyebrow === "string" &&
+      typeof copy.pageTitle === "string" &&
+      typeof copy.headingPrefix === "string" &&
+      typeof copy.headingAccent === "string" &&
+      typeof copy.description === "string" &&
+      typeof copy.urlLabel === "string" &&
+      typeof copy.urlPlaceholder === "string" &&
+      typeof copy.scriptLabel === "string" &&
+      typeof copy.scriptPlaceholder === "string" &&
+      typeof copy.scriptHelper === "string" &&
+      typeof copy.submitLabel === "string" &&
+      typeof copy.comingNextMessage === "string"
+  );
+
+  check(
+    `${locale}: compare.privacyNote has a heading and 3 items`,
+    typeof copy.privacyNote.heading === "string" &&
+      copy.privacyNote.items.length === 3
+  );
+
+  check(
+    `${locale}: compare.errors has all 5 keys, each distinct`,
+    typeof copy.errors.emptyUrl === "string" &&
+      typeof copy.errors.invalidUrl === "string" &&
+      typeof copy.errors.unsupportedUrl === "string" &&
+      typeof copy.errors.emptyScript === "string" &&
+      typeof copy.errors.scriptTooLong === "string" &&
+      new Set([
+        copy.errors.emptyUrl,
+        copy.errors.invalidUrl,
+        copy.errors.unsupportedUrl,
+        copy.errors.emptyScript,
+        copy.errors.scriptTooLong,
+      ]).size === 5
+  );
+
+  check(
+    `${locale}: compare.workflow has a section label and exactly 4 stages`,
+    typeof copy.workflow.sectionLabel === "string" &&
+      copy.workflow.stages.length === 4 &&
+      copy.workflow.stages.every(
+        (stage) => stage.title.length > 0 && stage.description.length > 0
+      )
+  );
+
+  check(
+    `${locale}: compare.coverage has a heading and exactly 8 items`,
+    typeof copy.coverage.heading === "string" &&
+      copy.coverage.items.length === 8 &&
+      copy.coverage.items.every(
+        (item) => item.title.length > 0 && item.description.length > 0
+      )
+  );
+
+  check(
+    `${locale}: compare.example has a heading, an explicit illustrative disclaimer, matching-length columns, and a summary`,
+    typeof copy.example.heading === "string" &&
+      typeof copy.example.disclaimer === "string" &&
+      copy.example.disclaimer.length > 0 &&
+      copy.example.competitorLines.length ===
+        copy.example.yourScriptLines.length &&
+      copy.example.competitorLines.length > 0 &&
+      typeof copy.example.summaryHeading === "string" &&
+      copy.example.summaryItems.length > 0
+  );
+
+  check(
+    `${locale}: compare has no empty field`,
+    copy.backToSelection.length > 0 &&
+      copy.heroEyebrow.length > 0 &&
+      copy.headingPrefix.length > 0 &&
+      copy.headingAccent.length > 0 &&
+      copy.description.length > 0 &&
+      copy.urlLabel.length > 0 &&
+      copy.scriptLabel.length > 0 &&
+      copy.scriptHelper.length > 0 &&
+      copy.submitLabel.length > 0 &&
+      copy.privacyNote.items.every((item) => item.length > 0)
+  );
+}
+
+check(
+  "EN and RU expose the exact same compare key structure",
+  JSON.stringify(Object.keys(getMessages("en").competitorScripts.compare).sort()) ===
+    JSON.stringify(Object.keys(getMessages("ru").competitorScripts.compare).sort())
+);
+
+check(
+  "EN and RU compare.errors/workflow/coverage/example have the same key structure",
+  JSON.stringify(
+    Object.keys(getMessages("en").competitorScripts.compare.errors).sort()
+  ) ===
+    JSON.stringify(
+      Object.keys(getMessages("ru").competitorScripts.compare.errors).sort()
+    ) &&
+    JSON.stringify(
+      Object.keys(getMessages("en").competitorScripts.compare.workflow).sort()
+    ) ===
+      JSON.stringify(
+        Object.keys(getMessages("ru").competitorScripts.compare.workflow).sort()
+      ) &&
+    JSON.stringify(
+      Object.keys(getMessages("en").competitorScripts.compare.coverage).sort()
+    ) ===
+      JSON.stringify(
+        Object.keys(getMessages("ru").competitorScripts.compare.coverage).sort()
+      ) &&
+    JSON.stringify(
+      Object.keys(getMessages("en").competitorScripts.compare.example).sort()
+    ) ===
+      JSON.stringify(
+        Object.keys(getMessages("ru").competitorScripts.compare.example).sort()
+      )
+);
+
+check(
+  "EN and RU compare.workflow.stages/coverage.items each have the same per-item key structure",
+  JSON.stringify(
+    Object.keys(getMessages("en").competitorScripts.compare.workflow.stages[0]).sort()
+  ) ===
+    JSON.stringify(
+      Object.keys(getMessages("ru").competitorScripts.compare.workflow.stages[0]).sort()
+    ) &&
+    JSON.stringify(
+      Object.keys(getMessages("en").competitorScripts.compare.coverage.items[0]).sort()
+    ) ===
+      JSON.stringify(
+        Object.keys(getMessages("ru").competitorScripts.compare.coverage.items[0]).sort()
+      )
+);
+
+check(
+  "EN and RU compare copy actually differ",
+  getMessages("en").competitorScripts.compare.pageTitle !==
+    getMessages("ru").competitorScripts.compare.pageTitle
+);
+
 // ── ModeCard: safe by default, real navigation only when given a real href ──
 
 const modeCardSource = readFileSync(
@@ -288,11 +433,22 @@ const analyzeComponentPaths = [
   "app/competitor-scripts/analyze/example-preview.tsx",
 ];
 
+const compareComponentPaths = [
+  "app/competitor-scripts/compare/page.tsx",
+  "app/competitor-scripts/compare/compare-input-form.tsx",
+  "app/competitor-scripts/compare/hero-illustration.tsx",
+  "app/competitor-scripts/compare/workflow-steps.tsx",
+  "app/competitor-scripts/compare/coverage-section.tsx",
+  "app/competitor-scripts/compare/example-comparison.tsx",
+];
+
 const allSourceFiles = [
   "app/competitor-scripts/page.tsx",
   "app/competitor-scripts/mode-card.tsx",
   "app/competitor-scripts/sidebar.tsx",
+  "app/competitor-scripts/url-validation.ts",
   ...analyzeComponentPaths,
+  ...compareComponentPaths,
 ]
   .filter((path) => existsSync(path))
   .map((path) => readFileSync(path, "utf8"));
@@ -308,10 +464,29 @@ check(
 );
 
 check(
-  "the mode-selection Compare card still has no href (its page doesn't exist yet)",
-  !/href="\/competitor-scripts\/compare"/.test(
-    readFileSync("app/competitor-scripts/page.tsx", "utf8")
-  )
+  "the /competitor-scripts/compare route exists on disk",
+  existsSync("app/competitor-scripts/compare/page.tsx")
+);
+
+check(
+  "no compare RESULT route exists yet (no app/competitor-scripts/compare/result*)",
+  !existsSync("app/competitor-scripts/compare/result") &&
+    !existsSync("app/competitor-scripts/compare/results")
+);
+
+const modeSelectionPageSource = readFileSync(
+  "app/competitor-scripts/page.tsx",
+  "utf8"
+);
+
+check(
+  "the mode-selection Compare card now links to the real /competitor-scripts/compare route",
+  /href="\/competitor-scripts\/compare"/.test(modeSelectionPageSource)
+);
+
+check(
+  "the mode-selection Analyze card still links to /competitor-scripts/analyze",
+  /href="\/competitor-scripts\/analyze"/.test(modeSelectionPageSource)
 );
 
 // ── Sidebar: only real routes, no fabricated usage numbers ─────────────
@@ -516,6 +691,188 @@ check(
     "app/competitor-scripts/analyze/analyze-input-form.tsx",
     "utf8"
   ).includes('disabled={url.trim().length === 0}')
+);
+
+// ── CompareInputForm: two fields, local-only, correct validation ───────
+
+const compareFormSource = readFileSync(
+  "app/competitor-scripts/compare/compare-input-form.tsx",
+  "utf8"
+);
+
+check(
+  "CompareInputForm reuses the shared isSupportedVideoUrl helper instead of redefining it",
+  compareFormSource.includes(
+    'import { isSupportedVideoUrl } from "../url-validation"'
+  ) && !/function isSupportedVideoUrl/.test(compareFormSource)
+);
+
+check(
+  "the shared url-validation helper exists and is the single definition used by both forms",
+  existsSync("app/competitor-scripts/url-validation.ts") &&
+    (
+      readFileSync(
+        "app/competitor-scripts/analyze/analyze-input-form.tsx",
+        "utf8"
+      ).match(/function isSupportedVideoUrl/g) ?? []
+    ).length === 0
+);
+
+check(
+  "the form has exactly one URL input and one textarea",
+  (compareFormSource.match(/type="url"/g) ?? []).length === 1 &&
+    (compareFormSource.match(/<textarea/g) ?? []).length === 1
+);
+
+check(
+  "the script field has a 1000-character maximum, tracked without silent truncation (no maxLength attribute)",
+  compareFormSource.includes("MAX_SCRIPT_CHARACTERS = 1000") &&
+    !compareFormSource.includes("maxLength")
+);
+
+check(
+  "a visible current/1000 character counter is rendered",
+  /\{script\.length\}\/\{MAX_SCRIPT_CHARACTERS\}/.test(compareFormSource)
+);
+
+check(
+  "empty-script and over-limit-script validation both exist and are distinct",
+  compareFormSource.includes("errors.emptyScript") &&
+    compareFormSource.includes("errors.scriptTooLong") &&
+    compareFormSource.includes("script.length > MAX_SCRIPT_CHARACTERS")
+);
+
+check(
+  "empty/malformed/unsupported competitor-URL validation exists, in that order",
+  compareFormSource.indexOf("errors.emptyUrl") <
+    compareFormSource.indexOf("isSupportedVideoUrl(trimmedUrl)") &&
+    compareFormSource.indexOf("errors.invalidUrl") <
+      compareFormSource.indexOf("isSupportedVideoUrl(trimmedUrl)")
+);
+
+check(
+  "CompareInputForm never calls fetch or any API",
+  !/\bfetch\(/.test(compareFormSource)
+);
+
+check(
+  "CompareInputForm never imports next/navigation's router (no client-side navigation on submit)",
+  !compareFormSource.includes("useRouter")
+);
+
+check(
+  "the submit button is disabled only while either field is empty (native disabled attribute)",
+  compareFormSource.includes(
+    "disabled={\n            competitorUrl.trim().length === 0 || script.trim().length === 0\n          }"
+  ) ||
+    /disabled=\{[\s\S]{0,120}competitorUrl\.trim\(\)\.length === 0[\s\S]{0,40}script\.trim\(\)\.length === 0/.test(
+      compareFormSource
+    )
+);
+
+check(
+  "validation errors use role=\"alert\" for both fields; the coming-next status uses role=\"status\"/aria-live=\"polite\"",
+  (compareFormSource.match(/role="alert"/g) ?? []).length === 2 &&
+    compareFormSource.includes('role="status"') &&
+    compareFormSource.includes('aria-live="polite"')
+);
+
+check(
+  "both the URL input and the textarea are associated with their errors via aria-describedby/aria-invalid, not color alone",
+  compareFormSource.includes("aria-describedby={urlError ? urlErrorId") &&
+    compareFormSource.includes("aria-describedby={\n            scriptError") &&
+    (compareFormSource.match(/aria-invalid=\{/g) ?? []).length === 2
+);
+
+check(
+  "the textarea's aria-describedby includes the character-counter id",
+  compareFormSource.includes("scriptCounterId")
+);
+
+// ── compare page: back link, hero, illustration, workflow, coverage ────
+
+const comparePageSource = readFileSync(
+  "app/competitor-scripts/compare/page.tsx",
+  "utf8"
+);
+
+check(
+  "the compare page links back to mode selection, not home",
+  /href="\/competitor-scripts"/.test(comparePageSource)
+);
+
+check(
+  "the compare hero heading is localized (headingPrefix/headingAccent), not hardcoded text",
+  comparePageSource.includes("{copy.headingPrefix}") &&
+    comparePageSource.includes("{copy.headingAccent}") &&
+    /aria-label=\{copy\.pageTitle\}/.test(comparePageSource)
+);
+
+check(
+  "both compare heading spans are aria-hidden (the h1's own aria-label carries the accessible name instead)",
+  (comparePageSource.match(/aria-hidden="true"/g) ?? []).length >= 2
+);
+
+check(
+  "the compare hero eyebrow is localized, not hardcoded text",
+  comparePageSource.includes("{copy.heroEyebrow}") &&
+    !/>SCRIPT COMPARISON</.test(comparePageSource)
+);
+
+const compareWorkflowSource = readFileSync(
+  "app/competitor-scripts/compare/workflow-steps.tsx",
+  "utf8"
+);
+
+check(
+  "the compare workflow section is static (no useState, no timers)",
+  !compareWorkflowSource.includes("useState") &&
+    !/setInterval\(|setTimeout\(/.test(compareWorkflowSource)
+);
+
+check(
+  "no fake live-progress semantics exist anywhere in the compare feature (no progressbar role, no animate-spin)",
+  !/role="progressbar"|animate-spin/i.test(
+    [comparePageSource, compareFormSource, compareWorkflowSource].join("\n")
+  )
+);
+
+const compareExampleSource = readFileSync(
+  "app/competitor-scripts/compare/example-comparison.tsx",
+  "utf8"
+);
+
+check(
+  "the compare example preview visibly renders its illustrative disclaimer text",
+  compareExampleSource.includes("{example.disclaimer}")
+);
+
+check(
+  "no real creator, channel, or video reference (no embedded URL/link) appears in the compare example's fictional content",
+  !/https?:\/\//.test(compareExampleSource)
+);
+
+const compareHeroIllustrationSource = readFileSync(
+  "app/competitor-scripts/compare/hero-illustration.tsx",
+  "utf8"
+);
+
+check(
+  "the compare decorative hero illustration is hidden from assistive tech (aria-hidden on its root)",
+  /export function HeroIllustration[\s\S]*?aria-hidden="true"/.test(
+    compareHeroIllustrationSource
+  )
+);
+
+check(
+  "the compare hero illustration contains no visible text content (only shapes/icons)",
+  !/>[A-Za-z]{2,}</.test(compareHeroIllustrationSource)
+);
+
+check(
+  "the compare illustration is not a copy of the Analyze illustration (distinct motif, no Search/magnifying-glass icon)",
+  !compareHeroIllustrationSource.includes("Search") &&
+    compareHeroIllustrationSource.includes("ArrowLeftRight")
 );
 
 async function main() {
