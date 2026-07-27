@@ -42,6 +42,7 @@ const enMessages = {
     signIn: "Sign in",
     signOut: "Sign out",
     myAnalyses: "My analyses",
+    home: "Home",
     // aria-label for the compact mobile-header menu trigger (see
     // app/page.tsx's mobile Navbar) — the button itself is icon-only.
     menu: "Menu",
@@ -878,6 +879,50 @@ const enMessages = {
       ofLabel: "of",
     },
   },
+  competitorScripts: {
+    modeSelection: {
+      backLabel: "Back",
+      pageTitle: "Competitor Scripts",
+      heading: "What do you want to analyze?",
+      subheading:
+        "Choose how you want to use a competitor's script. Each option gives you unique insights to help you create better content.",
+      note: "For the most accurate comparison, both scripts should cover the same or a closely related topic.",
+      comingNext: "Coming next",
+      comingNextMessage:
+        "This is coming soon — thanks for checking it out early.",
+      sidebar: {
+        freePlan: "Free plan",
+      },
+      analyzeCard: {
+        title: "Analyze a competitor",
+        accentSubtitle: "Understand how their script works",
+        description:
+          "Paste a competitor's video link and get a full breakdown of their script and strategy.",
+        benefits: [
+          "Script structure breakdown",
+          "Hook and retention mechanics",
+          "What works and what doesn't",
+          "Filler, repeats and weak points",
+          "What you can learn and adapt",
+        ],
+        action: "Analyze competitor",
+      },
+      compareCard: {
+        title: "Compare with my script",
+        accentSubtitle: "See how your script stacks up",
+        description:
+          "Compare a competitor's script with your own to find strengths, weaknesses, and opportunities.",
+        benefits: [
+          "Side-by-side script comparison",
+          "Hook, progression and payoff analysis",
+          "Where you win and where they win",
+          "Similarity check to avoid copying",
+          "Actionable tips to improve your script",
+        ],
+        action: "Compare scripts",
+      },
+    },
+  },
 } as const;
 
 type WidenMessageValues<T> =
@@ -900,6 +945,7 @@ const ruMessages = {
     signIn: "Войти",
     signOut: "Выйти",
     myAnalyses: "Мои анализы",
+    home: "Главная",
     menu: "Меню",
   },
   landing: {
@@ -1696,6 +1742,50 @@ const ruMessages = {
       nextLabel: "Далее",
       pageLabel: "Страница",
       ofLabel: "из",
+    },
+  },
+  competitorScripts: {
+    modeSelection: {
+      backLabel: "Назад",
+      pageTitle: "Сценарии конкурентов",
+      heading: "Что вы хотите проанализировать?",
+      subheading:
+        "Выберите, как использовать сценарий конкурента. Каждый вариант даёт свои инсайты, чтобы помочь вам создавать контент лучше.",
+      note: "Для наиболее точного сравнения оба сценария должны быть на одну и ту же или близкую тему.",
+      comingNext: "Скоро",
+      comingNextMessage:
+        "Этот раздел скоро появится — спасибо, что заглянули так рано.",
+      sidebar: {
+        freePlan: "Бесплатный план",
+      },
+      analyzeCard: {
+        title: "Проанализировать конкурента",
+        accentSubtitle: "Поймите, как устроен их сценарий",
+        description:
+          "Вставьте ссылку на видео конкурента и получите полный разбор его сценария и стратегии.",
+        benefits: [
+          "Разбор структуры сценария",
+          "Механика хука и удержания",
+          "Что работает, а что нет",
+          "Вода, повторы и слабые места",
+          "Что можно перенять и адаптировать",
+        ],
+        action: "Проанализировать конкурента",
+      },
+      compareCard: {
+        title: "Сравнить со своим сценарием",
+        accentSubtitle: "Узнайте, как ваш сценарий выглядит на фоне конкурента",
+        description:
+          "Сравните сценарий конкурента со своим, чтобы найти сильные стороны, слабые места и возможности.",
+        benefits: [
+          "Сравнение сценариев бок о бок",
+          "Анализ хука, развития и развязки",
+          "Где выигрываете вы, а где конкурент",
+          "Проверка на схожесть, чтобы избежать копирования",
+          "Конкретные советы по улучшению сценария",
+        ],
+        action: "Сравнить сценарии",
+      },
     },
   },
 } satisfies Messages;
