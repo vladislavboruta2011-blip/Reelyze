@@ -813,8 +813,8 @@ check(
 );
 
 check(
-  "the Analyze Competitor form is not yet wired to the new API route",
-  !readFileSync(
+  "the Analyze Competitor form is wired to the new API route (frontend wiring PR)",
+  readFileSync(
     "app/competitor-scripts/analyze/analyze-input-form.tsx",
     "utf8"
   ).includes("/api/competitor-scripts/analyze")
