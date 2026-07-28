@@ -1,6 +1,11 @@
 // Browser-only, ephemeral handoff between the Analyze form and the
 // Results page. Never imports a server-only module (no provider, no
 // process.env) — this file must be safe to bundle into client code.
+// validateCompetitorScriptAnalysis is likewise pure/browser-safe (no
+// Node-only or OpenAI-touching imports anywhere in its own import chain)
+// — reused here verbatim rather than duplicating a weaker shape check, so
+// a tampered/corrupted sessionStorage analysis entry gets exactly the
+// same grounding/consistency scrutiny the backend already gave it.
 import {
   isValidYouTubeVideoId,
   normalizeYouTubeVideoUrl,
@@ -13,6 +18,11 @@ import {
   MAX_TRANSCRIPT_TEXT_LENGTH,
 } from "@/lib/competitor-scripts/transcript/normalize";
 import type { TranscriptSegment } from "@/lib/competitor-scripts/transcript/types";
+import { validateCompetitorScriptAnalysis } from "@/lib/competitor-scripts/analysis/validate";
+import type {
+  AnalysisLocale,
+  CompetitorScriptAnalysis,
+} from "@/lib/competitor-scripts/analysis/types";
 
 export const ANALYZE_RESULT_STORAGE_KEY =
   "climpy:competitor-analyze-result:v1";
@@ -25,7 +35,32 @@ const SOURCE_FORMATS: readonly YouTubeUrlSourceFormat[] = [
   "short",
 ];
 
-export type StoredAnalyzeResult = {
+// The exact three provider-level failure codes the Analyze API can return
+// (app/api/competitor-scripts/analyze/route.ts) — duplicated as a small,
+// self-contained literal union here rather than imported, since that
+// route module is server-only and must never be pulled into a client
+// bundle.
+export type AnalysisErrorCode =
+  | "transcript_too_long_for_analysis"
+  | "analysis_invalid_response"
+  | "analysis_unavailable";
+
+const ANALYSIS_ERROR_CODES: readonly AnalysisErrorCode[] = [
+  "transcript_too_long_for_analysis",
+  "analysis_invalid_response",
+  "analysis_unavailable",
+];
+
+// The exact shape ever written to sessionStorage. Deliberately NOT storing
+// a separate `status` field: status is always fully derivable from
+// `analysis !== null`, and storing it as a third, independently-tamperable
+// value would only create a new way for a corrupted entry to disagree with
+// itself. isLegacy is likewise never part of this — it's a read-time
+// derivation (see StoredAnalyzeResult below), not product data: a
+// PR9-era payload is legacy because analysis/analysisError keys are
+// entirely absent, a fact already fully recoverable from the shape itself
+// without ever needing to have persisted a boolean saying so.
+export type PersistedAnalyzeResult = {
   v: 1;
   createdAt: number;
   input: {
@@ -40,6 +75,18 @@ export type StoredAnalyzeResult = {
     text: string;
     durationMs: number | null;
   };
+  analysis: CompetitorScriptAnalysis | null;
+  analysisError: AnalysisErrorCode | null;
+};
+
+// The normalized result validateStoredAnalyzeResult/readStoredAnalyzeResult
+// return internally. isLegacy distinguishes "this stored result predates
+// analysis entirely" (a PR9-era payload — analysis/analysisError were
+// never written) from "this is a current-shape payload whose analysis
+// genuinely didn't complete" (analysis: null, analysisError: a real code)
+// — derived fresh on every read, never itself serialized.
+export type StoredAnalyzeResult = PersistedAnalyzeResult & {
+  isLegacy: boolean;
 };
 
 // The exact safe DTO shape the analyze API returns on success — the input
@@ -47,6 +94,8 @@ export type StoredAnalyzeResult = {
 export type AnalyzeSuccessPayload = {
   input: StoredAnalyzeResult["input"];
   transcript: StoredAnalyzeResult["transcript"];
+  analysis: CompetitorScriptAnalysis | null;
+  analysisError: AnalysisErrorCode | null;
 };
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -73,11 +122,31 @@ function isValidSegment(value: unknown): value is TranscriptSegment {
   );
 }
 
+function isAnalysisErrorCode(value: unknown): value is AnalysisErrorCode {
+  return (
+    typeof value === "string" &&
+    (ANALYSIS_ERROR_CODES as readonly string[]).includes(value)
+  );
+}
+
+// A candidate's own claimed locale is read (never guessed independently
+// of it) so a genuinely valid "ru" analysis is never rejected by a wrong
+// guess here — validateCompetitorScriptAnalysis itself is the one that
+// actually enforces the value is exactly "en"/"ru" in the first place;
+// anything else fails validation regardless of what this returns.
+function extractCandidateAnalysisLocale(candidate: unknown): AnalysisLocale {
+  return isPlainObject(candidate) && candidate.locale === "ru" ? "ru" : "en";
+}
+
 // Sessionstorage is user-writable — every field is re-validated from
 // scratch, never trusted just because it parsed as JSON. Reuses the same
 // bounds the server-side normalizer enforces (lib/competitor-scripts/
 // transcript/normalize.ts) so a tampered/oversized payload is rejected
-// the same way the API itself would have rejected it.
+// the same way the API itself would have rejected it. The analysis
+// portion is re-validated through the real, shared
+// validateCompetitorScriptAnalysis — grounding/evidence/score-consistency
+// checks included — against the transcript stored in this very object,
+// not a weaker duplicate shape check.
 export function validateStoredAnalyzeResult(
   value: unknown
 ): StoredAnalyzeResult | null {
@@ -167,21 +236,83 @@ export function validateStoredAnalyzeResult(
     return null;
   }
 
+  const validatedInput = {
+    videoId,
+    canonicalUrl,
+    sourceFormat: sourceFormat as YouTubeUrlSourceFormat,
+  };
+  const validatedTranscript = {
+    languageCode,
+    isAutoGenerated,
+    segments,
+    text,
+    durationMs,
+  };
+
+  // A PR9-era payload never had these keys at all — that is the one and
+  // only signal for "legacy", distinct from a current-shape payload whose
+  // analysis is null with a real error code.
+  const isLegacy = !("analysis" in value) && !("analysisError" in value);
+
+  if (isLegacy) {
+    return {
+      v: STORAGE_VERSION,
+      createdAt: value.createdAt,
+      input: validatedInput,
+      transcript: validatedTranscript,
+      analysis: null,
+      analysisError: null,
+      isLegacy: true,
+    };
+  }
+
+  let analysis: CompetitorScriptAnalysis | null = null;
+  let analysisError: AnalysisErrorCode | null = isAnalysisErrorCode(
+    value.analysisError
+  )
+    ? value.analysisError
+    : null;
+
+  if (value.analysis !== null && value.analysis !== undefined) {
+    // Rebuild a full NormalizedTranscript (the stored transcript omits
+    // videoId — it lives on input instead) purely to satisfy the
+    // validator's signature; this is never persisted separately.
+    const fullTranscript = { videoId, ...validatedTranscript };
+
+    const validation = validateCompetitorScriptAnalysis({
+      candidate: value.analysis,
+      transcript: fullTranscript,
+      expectedLocale: extractCandidateAnalysisLocale(value.analysis),
+    });
+
+    if (validation.ok) {
+      analysis = validation.analysis;
+      analysisError = null;
+    } else {
+      // A stored analysis object that fails real validation is never
+      // rendered and never "repaired" — fall back to a safe, generic
+      // failure code regardless of whatever analysisError was stored
+      // alongside it (a tampered "analysisError: null" paired with
+      // broken analysis content must not read as success).
+      analysis = null;
+      analysisError = "analysis_invalid_response";
+    }
+  } else if (analysisError === null) {
+    // Current-shape payload (not legacy) but neither a usable analysis
+    // nor a recognizable error code — an inconsistent/tampered state that
+    // isn't supposed to be reachable from a real API response. Degrade
+    // safely rather than guessing.
+    analysisError = "analysis_unavailable";
+  }
+
   return {
     v: STORAGE_VERSION,
     createdAt: value.createdAt,
-    input: {
-      videoId,
-      canonicalUrl,
-      sourceFormat: sourceFormat as YouTubeUrlSourceFormat,
-    },
-    transcript: {
-      languageCode,
-      isAutoGenerated,
-      segments,
-      text,
-      durationMs,
-    },
+    input: validatedInput,
+    transcript: validatedTranscript,
+    analysis,
+    analysisError,
+    isLegacy: false,
   };
 }
 
@@ -203,13 +334,18 @@ export function readStoredAnalyzeResult(): StoredAnalyzeResult | null {
 }
 
 // A new successful Analyze submission always overwrites any previous
-// result — there is only ever one "most recent" result per tab.
+// result — there is only ever one "most recent" result per tab. isLegacy
+// is never part of what's written: a fresh write is never legacy by
+// definition, and that fact is already implied by analysis/analysisError
+// being present keys, with no need to also persist a redundant boolean.
 export function writeStoredAnalyzeResult(payload: AnalyzeSuccessPayload): void {
-  const result: StoredAnalyzeResult = {
+  const result: PersistedAnalyzeResult = {
     v: STORAGE_VERSION,
     createdAt: Date.now(),
     input: payload.input,
     transcript: payload.transcript,
+    analysis: payload.analysis,
+    analysisError: payload.analysisError,
   };
 
   try {

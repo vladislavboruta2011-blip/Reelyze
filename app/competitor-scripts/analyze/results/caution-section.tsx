@@ -1,9 +1,17 @@
 import { ShieldAlert } from "lucide-react";
 import type { Messages } from "../../../../lib/messages";
+import type { CautionItem } from "../../../../lib/competitor-scripts/analysis/types";
 
 type CautionCopy = Messages["competitorScripts"]["analyzeResults"]["caution"];
 
-export function CautionSection({ caution }: { caution: CautionCopy }) {
+// May legitimately be empty — no manufactured cautions.
+export function CautionSection({
+  caution,
+  items,
+}: {
+  caution: CautionCopy;
+  items: CautionItem[];
+}) {
   return (
     <section className="rounded-[20px] border border-white/10 bg-white/[0.03] p-5 lg:p-6">
       <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#9CA3AF]">
@@ -19,25 +27,36 @@ export function CautionSection({ caution }: { caution: CautionCopy }) {
         {caution.description}
       </p>
 
-      <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-3">
-        {caution.columns.map((column, index) => (
-          <div
-            key={column.title}
-            className={
-              index > 0
-                ? "border-t border-white/10 pt-5 sm:border-t-0 sm:border-l sm:pl-6 sm:pt-0"
-                : ""
-            }
-          >
-            <p className="text-[13.5px] font-semibold text-[#F5F5F7]">
-              {column.title}
-            </p>
-            <p className="mt-1.5 text-[12.5px] leading-[1.55] text-[#9CA3AF]">
-              {column.description}
-            </p>
-          </div>
-        ))}
-      </div>
+      {items.length === 0 ? (
+        <p className="mt-5 text-[12.5px] leading-[1.55] text-[#9CA3AF]">
+          {caution.emptyState}
+        </p>
+      ) : (
+        <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-3">
+          {items.map((item, index) => (
+            <div
+              key={`${item.whatNotToCopy}-${index}`}
+              className={
+                index > 0
+                  ? "border-t border-white/10 pt-5 sm:border-t-0 sm:border-l sm:pl-6 sm:pt-0"
+                  : ""
+              }
+            >
+              <p className="text-[13.5px] font-semibold text-[#F5F5F7]">
+                {item.whatNotToCopy}
+              </p>
+              <p className="mt-1.5 text-[12.5px] leading-[1.55] text-[#9CA3AF]">
+                {item.reason}
+              </p>
+              {item.evidence && (
+                <p className="mt-1.5 text-[11.5px] italic leading-[1.5] text-[#6B7280]">
+                  &ldquo;{item.evidence.excerpt}&rdquo;
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </section>
   );
 }

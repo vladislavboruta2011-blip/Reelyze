@@ -1,9 +1,18 @@
 import { CheckCircle2 } from "lucide-react";
 import type { Messages } from "../../../../lib/messages";
+import type { Strength } from "../../../../lib/competitor-scripts/analysis/types";
+import { formatTimestampMs } from "./format-timestamp";
 
 type StrengthsCopy = Messages["competitorScripts"]["analyzeResults"]["strengths"];
 
-export function StrengthsSection({ strengths }: { strengths: StrengthsCopy }) {
+// Real strengths (1-5 on a valid analysis) — never a hard-coded count.
+export function StrengthsSection({
+  strengths,
+  items,
+}: {
+  strengths: StrengthsCopy;
+  items: Strength[];
+}) {
   return (
     <section className="flex h-full flex-col rounded-[20px] border border-[#22C55E]/25 bg-gradient-to-b from-[#22C55E]/[0.05] to-transparent p-5 lg:p-6">
       <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#4ADE80]">
@@ -13,8 +22,8 @@ export function StrengthsSection({ strengths }: { strengths: StrengthsCopy }) {
         {strengths.heading}
       </h2>
       <ul className="mt-4 flex flex-1 flex-col gap-3.5">
-        {strengths.items.map((item) => (
-          <li key={item.title} className="flex items-start gap-3">
+        {items.map((item, index) => (
+          <li key={`${item.title}-${index}`} className="flex items-start gap-3">
             <span
               className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#22C55E]/15 text-[#4ADE80]"
               aria-hidden="true"
@@ -22,11 +31,21 @@ export function StrengthsSection({ strengths }: { strengths: StrengthsCopy }) {
               <CheckCircle2 size={14} />
             </span>
             <div>
-              <p className="text-[13.5px] font-semibold text-[#F5F5F7]">
-                {item.title}
+              <div className="flex flex-wrap items-baseline gap-2">
+                <p className="text-[13.5px] font-semibold text-[#F5F5F7]">
+                  {item.title}
+                </p>
+                {item.evidence.startMs !== null && (
+                  <span className="text-[11px] tabular-nums text-[#9CA3AF]">
+                    {formatTimestampMs(item.evidence.startMs)}
+                  </span>
+                )}
+              </div>
+              <p className="mt-0.5 text-[12px] italic leading-[1.5] text-[#6B7280]">
+                &ldquo;{item.evidence.excerpt}&rdquo;
               </p>
-              <p className="mt-0.5 text-[12.5px] leading-[1.5] text-[#9CA3AF]">
-                {item.description}
+              <p className="mt-1 text-[12.5px] leading-[1.5] text-[#9CA3AF]">
+                {item.whyItWorks}
               </p>
             </div>
           </li>

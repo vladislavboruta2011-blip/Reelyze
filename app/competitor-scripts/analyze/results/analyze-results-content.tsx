@@ -2,12 +2,16 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, GitCompare, Sparkles } from "lucide-react";
+import { ArrowRight, GitCompare } from "lucide-react";
 import type { Messages } from "../../../../lib/messages";
 import {
   readStoredAnalyzeResult,
   type StoredAnalyzeResult,
 } from "../../../../lib/competitor-scripts/analyze-result-storage";
+import {
+  AnalysisUnavailableSection,
+  type AnalysisUnavailableReason,
+} from "./analysis-unavailable-section";
 import { CautionSection } from "./caution-section";
 import { LessonsSection } from "./lessons-section";
 import { MainTakeaway } from "./main-takeaway";
@@ -27,14 +31,31 @@ type ContentState =
   | { status: "missing" }
   | { status: "ready"; result: StoredAnalyzeResult };
 
+// A legacy (PR9-era) stored payload and a current-shape payload whose
+// analysis genuinely didn't complete both resolve to a safe unavailable
+// state here — never fabricated analysis content either way.
+function resolveUnavailableReason(
+  result: StoredAnalyzeResult
+): AnalysisUnavailableReason | null {
+  if (result.analysis !== null) {
+    return null;
+  }
+
+  if (result.isLegacy) {
+    return "legacy";
+  }
+
+  return result.analysisError ?? "analysis_unavailable";
+}
+
 // The one client boundary on the Results page. sessionStorage is only
 // ever readable after mount, so this always starts in "loading" on both
 // the server render and the client's first render (avoiding a hydration
 // mismatch), then resolves to "missing" or "ready" from a single
-// mount-only effect. The illustrative score/analysis report (everything
-// from the preview notice down) only ever renders in the "ready" branch
-// — a missing or tampered/invalid stored result shows the empty state
-// instead, never a silent fallback to fake data.
+// mount-only effect. This performs no network request of its own — the
+// analysis (like the transcript) was already fetched once, during the
+// original Analyze submission, and is only ever read back from
+// sessionStorage here.
 export function AnalyzeResultsContent({ copy }: { copy: ResultsCopy }) {
   const [state, setState] = useState<ContentState>({ status: "loading" });
 
@@ -99,48 +120,70 @@ export function AnalyzeResultsContent({ copy }: { copy: ResultsCopy }) {
     segments: result.transcript.segments,
     text: result.transcript.text,
   };
+  const unavailableReason = resolveUnavailableReason(result);
+  const analysis = result.analysis;
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="mt-5 flex items-start gap-2.5 rounded-[14px] border border-[#7C3AED]/30 bg-[#7C3AED]/10 px-4 py-3">
-        <Sparkles
-          size={16}
-          className="mt-0.5 shrink-0 text-[#C4B5FD]"
-          aria-hidden="true"
-        />
-        <p className="text-[13px] leading-[1.5] text-[#C4B5FD]">
-          {copy.previewNotice}
-        </p>
-      </div>
-
-      <SectionGroupLabel label={copy.sectionGroups.realData} />
-
       <ResultsSummary summary={copy.summary} data={summaryData} />
 
       <TranscriptSection copy={copy.transcript} data={transcriptData} />
 
-      <SectionGroupLabel label={copy.sectionGroups.exampleAnalysis} />
-
       <div className="flex flex-col gap-5 lg:gap-7">
-        <ScoreOverview scores={copy.scores} />
+        {unavailableReason !== null || analysis === null ? (
+          <AnalysisUnavailableSection
+            copy={copy.analysisUnavailable}
+            reason={unavailableReason ?? "analysis_unavailable"}
+          />
+        ) : (
+          <>
+            <ScoreOverview scores={copy.scores} data={analysis.scores} />
 
-        <MainTakeaway takeaway={copy.takeaway} />
+            <MainTakeaway
+              takeaway={copy.takeaway}
+              verdictCopy={copy.verdict}
+              verdict={analysis.verdict}
+              mainTakeaway={analysis.mainTakeaway}
+            />
 
-        <WhyScoresSection whyScores={copy.whyScores} />
+            <WhyScoresSection
+              whyScores={copy.whyScores}
+              scores={copy.scores}
+              reasons={analysis.scoreReasons}
+            />
 
-        <ScriptBreakdown timeline={copy.timeline} />
+            <ScriptBreakdown
+              structureCopy={copy.structure}
+              beats={analysis.structure}
+            />
 
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-          <StrengthsSection strengths={copy.strengths} />
-          <WeaknessesSection weaknesses={copy.weaknesses} />
-        </div>
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+              <StrengthsSection
+                strengths={copy.strengths}
+                items={analysis.strengths}
+              />
+              <WeaknessesSection
+                weaknesses={copy.weaknesses}
+                severity={copy.severity}
+                items={analysis.weaknesses}
+              />
+            </div>
 
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_1.15fr]">
-          <RisksSection risks={copy.risks} />
-          <LessonsSection lessons={copy.lessons} />
-        </div>
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_1.15fr]">
+              <RisksSection
+                risks={copy.risks}
+                severity={copy.severity}
+                items={analysis.retentionRisks}
+              />
+              <LessonsSection
+                lessons={copy.lessons}
+                items={analysis.actionableLessons}
+              />
+            </div>
 
-        <CautionSection caution={copy.caution} />
+            <CautionSection caution={copy.caution} items={analysis.caution} />
+          </>
+        )}
 
         <div className="mt-2 flex flex-col gap-4 border-t border-white/10 pt-6 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-5">
@@ -176,26 +219,6 @@ export function AnalyzeResultsContent({ copy }: { copy: ResultsCopy }) {
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-// A minimal divider+label, reused for both the real-data → illustrative
-// transition — the one seam the whole redesign hinges on being obvious.
-function SectionGroupLabel({ label }: { label: string }) {
-  return (
-    <div className="mt-2 flex items-center gap-3">
-      <span
-        className="h-px flex-1 bg-white/10"
-        aria-hidden="true"
-      />
-      <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#6B7280]">
-        {label}
-      </span>
-      <span
-        className="h-px flex-1 bg-white/10"
-        aria-hidden="true"
-      />
     </div>
   );
 }
