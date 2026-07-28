@@ -9,10 +9,26 @@ import type {
   TranscriptErrorCode,
   TranscriptProvider,
 } from "@/lib/competitor-scripts/transcript/types";
+import {
+  createOpenAICompetitorAnalysisModelCaller,
+  runCompetitorScriptAnalysis,
+  type CompetitorAnalysisModelCaller,
+} from "@/lib/competitor-scripts/analysis/provider";
+import type {
+  AnalysisLocale,
+  CompetitorScriptAnalysis,
+} from "@/lib/competitor-scripts/analysis/types";
+import { getServerLocale } from "@/lib/server-locale";
 
-// Validates and normalizes a submitted YouTube URL, then retrieves and
-// normalizes its transcript via the Supadata provider. Does not analyze,
-// score, or run AI over the transcript in any way — that is a future PR.
+// Validates and normalizes a submitted YouTube URL, retrieves and
+// normalizes its transcript via the Supadata provider, then — once a
+// transcript is available — runs the merged competitor analysis provider
+// over it. A transcript-stage failure (bad request, provider error, rate
+// limit) never reaches the analysis stage; a transcript success always
+// returns its transcript even if analysis itself degrades (oversized
+// transcript, invalid model output, or an unavailable/misconfigured
+// analysis provider) — analysis is additive, never a reason to discard an
+// already-successful transcript fetch.
 export const runtime = "nodejs";
 
 const MAX_BODY_BYTES = 4 * 1024;
@@ -49,6 +65,25 @@ type AnalyzeRequestErrorCode =
 // identity, so this avoids returning it twice.
 type TranscriptResponseDTO = Omit<NormalizedTranscript, "videoId">;
 
+// The exact three provider-level failure codes from
+// lib/competitor-scripts/analysis/provider.ts's CompetitorAnalysisProviderResult,
+// reused verbatim rather than re-mapped — a missing/blank OPENAI_API_KEY is
+// deliberately also reported as "analysis_unavailable" (see
+// resolveDefaultAnalysisModelCaller below), the same safe code a genuine
+// runtime provider failure produces, so the client never learns whether
+// the cause was configuration or a transient failure.
+type AnalysisErrorCode =
+  | "transcript_too_long_for_analysis"
+  | "analysis_invalid_response"
+  | "analysis_unavailable";
+
+// analysis/analysisError are additive and mutually exclusive by
+// construction (see runAnalysisStage below) — the existing PR9 frontend's
+// isValidSuccessPayload only inspects ok/input/transcript and ignores
+// unknown fields, so this never breaks its parsing. status stays
+// "transcript_ready" for every case where analysis isn't a real validated
+// result (including every analysisError case) and only becomes
+// "analysis_ready" when `analysis` is genuinely populated.
 type AnalyzeSuccessResponse = {
   ok: true;
   input: {
@@ -57,7 +92,9 @@ type AnalyzeSuccessResponse = {
     sourceFormat: YouTubeUrlSourceFormat;
   };
   transcript: TranscriptResponseDTO;
-  status: "transcript_ready";
+  analysis: CompetitorScriptAnalysis | null;
+  analysisError: AnalysisErrorCode | null;
+  status: "transcript_ready" | "analysis_ready";
 };
 
 type AnalyzeErrorResponse = {
@@ -226,6 +263,95 @@ function resolveDefaultTranscriptProvider(): TranscriptProvider | null {
   return createSupadataTranscriptProvider({ apiKey });
 }
 
+// Same composition boundary/shape as resolveDefaultTranscriptProvider
+// above, for OPENAI_API_KEY instead — the second and only other env var
+// this module reads. Never instantiates a second custom OpenAI flow: the
+// only thing this does is compose PR 10B's own factory with a resolved
+// key, exactly as PR 10B's provider.ts intended when it deliberately kept
+// env access out of itself.
+function resolveDefaultAnalysisModelCaller(): CompetitorAnalysisModelCaller | null {
+  const rawKey = process.env.OPENAI_API_KEY;
+
+  if (typeof rawKey !== "string") {
+    return null;
+  }
+
+  const apiKey = rawKey.trim();
+
+  if (apiKey.length === 0) {
+    return null;
+  }
+
+  return createOpenAICompetitorAnalysisModelCaller({ apiKey });
+}
+
+// Analysis locale is resolved from the request/application locale, never
+// guessed from the transcript's own language. An explicit body `locale`
+// field (validated to exactly "en" or "ru") takes priority when present;
+// otherwise falls back to the app-wide locale cookie already used
+// elsewhere (lib/server-locale.ts), which itself only ever resolves to
+// "en" or "ru" today (normalizeApiLocale defaults to LAUNCHED_LOCALES).
+// An invalid/unsupported body value is silently ignored, never a request
+// rejection — matching how every other unrecognized body field already
+// behaves in this route.
+function resolveExplicitAnalysisLocale(rawLocale: unknown): AnalysisLocale | null {
+  return rawLocale === "en" || rawLocale === "ru" ? rawLocale : null;
+}
+
+function toAnalysisLocale(locale: string): AnalysisLocale {
+  return locale === "ru" ? "ru" : "en";
+}
+
+// getServerLocale() reads next/headers's cookies(), which Next.js only
+// provides inside a real request scope — always true for a genuine HTTP
+// request dispatched to this Route Handler by Next.js itself, so this
+// uses the framework's supported API directly with no special-casing.
+async function resolveApplicationAnalysisLocale(): Promise<AnalysisLocale> {
+  return toAnalysisLocale(await getServerLocale());
+}
+
+// The locale for a request is either an already-resolved value (the
+// common case in tests, and whenever the request body specified one
+// explicitly) or a resolver invoked lazily. Laziness matters: resolving
+// the application locale has a real cost (a cookie read) that should
+// only ever happen once analysis is actually about to run — exactly
+// mirroring how modelCaller/OPENAI_API_KEY resolution below is already
+// deferred until after a successful transcript, never attempted for a
+// request that fails earlier (bad input, no SUPADATA_API_KEY, rate
+// limited, a transcript provider error). This also means a test that
+// only cares about transcript-stage behavior never needs to supply a
+// working locale resolver at all.
+type AnalysisLocaleInput = AnalysisLocale | (() => Promise<AnalysisLocale>);
+
+async function resolveAnalysisLocaleInput(input: AnalysisLocaleInput): Promise<AnalysisLocale> {
+  return typeof input === "function" ? input() : input;
+}
+
+// The one seam between a successful transcript and the analysis provider.
+// Called at most once per request, exactly once per successful transcript
+// — never looped or retried at this layer; PR 10B's provider owns its own
+// bounded (<=2 call) retry internally. A missing/unconfigured analysis
+// model caller short-circuits to the same "analysis_unavailable" outcome
+// a real provider failure would produce, without ever invoking the model.
+async function runAnalysisStage(
+  transcript: NormalizedTranscript,
+  localeInput: AnalysisLocaleInput,
+  modelCaller: CompetitorAnalysisModelCaller | null
+): Promise<{ analysis: CompetitorScriptAnalysis | null; analysisError: AnalysisErrorCode | null }> {
+  if (!modelCaller) {
+    return { analysis: null, analysisError: "analysis_unavailable" };
+  }
+
+  const locale = await resolveAnalysisLocaleInput(localeInput);
+  const outcome = await runCompetitorScriptAnalysis({ transcript, locale, modelCaller });
+
+  if (outcome.ok) {
+    return { analysis: outcome.analysis, analysisError: null };
+  }
+
+  return { analysis: null, analysisError: outcome.code };
+}
+
 function serviceUnavailableResult(): { status: number; body: AnalyzeErrorResponse } {
   return {
     status: 503,
@@ -275,17 +401,23 @@ function toTranscriptResponseDTO(transcript: NormalizedTranscript): TranscriptRe
   };
 }
 
-// The one seam between request validation and transcript retrieval.
-// transcriptProvider defaults to the real, env-configured provider — tests
-// inject a fake one to cover success/error mapping with zero network
-// access, while the missing-config and default-composition paths are
-// exercised by calling this with no override and manipulating
-// process.env directly.
+// The one seam between request validation and transcript retrieval (and,
+// once a transcript succeeds, analysis). transcriptProvider/modelCaller
+// each default to the real, env-configured composition — tests inject
+// fakes to cover success/error mapping with zero network access, while
+// the missing-config and default-composition paths are exercised by
+// calling this with no override and manipulating process.env directly.
+// A transcript-stage failure returns before modelCaller — or `locale`, if
+// it was given as a resolver function — is ever invoked: analysis never
+// runs, no OPENAI_API_KEY read happens, and no locale resolution happens,
+// for any request that never reaches a successful transcript.
 export async function runCompetitorScriptsAnalyze(
   videoId: string,
   canonicalUrl: string,
   sourceFormat: YouTubeUrlSourceFormat,
-  transcriptProvider?: TranscriptProvider
+  locale: AnalysisLocaleInput = "en",
+  transcriptProvider?: TranscriptProvider,
+  modelCaller?: CompetitorAnalysisModelCaller
 ): Promise<{ status: number; body: AnalyzeSuccessResponse | AnalyzeErrorResponse }> {
   const provider = transcriptProvider ?? resolveDefaultTranscriptProvider();
 
@@ -313,13 +445,21 @@ export async function runCompetitorScriptsAnalyze(
     };
   }
 
+  const { analysis, analysisError } = await runAnalysisStage(
+    result.transcript,
+    locale,
+    modelCaller ?? resolveDefaultAnalysisModelCaller()
+  );
+
   return {
     status: 200,
     body: {
       ok: true,
       input: { videoId, canonicalUrl, sourceFormat },
       transcript: toTranscriptResponseDTO(result.transcript),
-      status: "transcript_ready",
+      analysis,
+      analysisError,
+      status: analysis ? "analysis_ready" : "transcript_ready",
     },
   };
 }
@@ -398,10 +538,19 @@ export async function POST(request: Request): Promise<Response> {
       );
     }
 
+    // The application-locale resolver is passed as a lazily-invoked
+    // function, not called here — it only actually runs (and only then
+    // reads the locale cookie) if the transcript succeeds and analysis is
+    // about to happen, exactly like modelCaller/OPENAI_API_KEY resolution
+    // below.
+    const analysisLocale: AnalysisLocaleInput =
+      resolveExplicitAnalysisLocale(rawBody.locale) ?? resolveApplicationAnalysisLocale;
+
     const outcome = await runCompetitorScriptsAnalyze(
       result.videoId,
       result.canonicalUrl,
-      result.sourceFormat
+      result.sourceFormat,
+      analysisLocale
     );
 
     return jsonResponse(outcome.body, outcome.status);
