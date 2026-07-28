@@ -722,54 +722,10 @@ async function testProviderContract() {
   );
 }
 
-// ── Existing scope: Analyze API, Analyze UI, and Compare are unaffected ──
-
-async function testExistingScopeUnaffected() {
-  const { POST } = await import("../app/api/competitor-scripts/analyze/route");
-
-  const originalFetch = globalThis.fetch;
-  let fetchCalled = false;
-  globalThis.fetch = ((...args: unknown[]) => {
-    fetchCalled = true;
-    throw new Error(`unexpected network call: ${JSON.stringify(args)}`);
-  }) as typeof fetch;
-
-  try {
-    const response = await POST(
-      new Request("http://localhost/api/competitor-scripts/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: `https://www.youtube.com/watch?v=${STANDARD_ID}` }),
-      })
-    );
-    const body = await response.json();
-
-    check(
-      "the Analyze endpoint still returns status validated after this PR",
-      response.status === 200 && body.status === "validated"
-    );
-    check(
-      "the Analyze endpoint response never contains a transcript field",
-      !("transcript" in body) && !("transcript" in (body.input ?? {}))
-    );
-    check(
-      "the Analyze endpoint response never contains a provider field",
-      !("provider" in body) && !("provider" in (body.input ?? {}))
-    );
-    check("the Analyze endpoint still makes no network call", fetchCalled === false);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-}
-
-const analyzeRouteSource = readFileSync(
-  "app/api/competitor-scripts/analyze/route.ts",
-  "utf8"
-);
-check(
-  "the Analyze route does not import or instantiate a transcript provider",
-  !/transcript/i.test(analyzeRouteSource)
-);
+// ── Existing scope: Analyze UI and Compare are unaffected ────────────────
+// (The Analyze API route itself is intentionally wired to this transcript
+// foundation in a later PR — see tests/competitor-scripts-analyze-api.ts
+// for its own scope-regression coverage.)
 
 check(
   "the Analyze Competitor form is still not wired to the API",
@@ -960,7 +916,6 @@ check(
 
 async function main() {
   await testProviderContract();
-  await testExistingScopeUnaffected();
 
   if (failures > 0) {
     process.exitCode = 1;

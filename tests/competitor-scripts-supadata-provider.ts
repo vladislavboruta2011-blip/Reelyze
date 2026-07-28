@@ -897,12 +897,6 @@ async function testPayloadSafety() {
 // ── Scope regression ──────────────────────────────────────────────────────
 
 function testScopeRegression() {
-  const routeSource = readFileSync("app/api/competitor-scripts/analyze/route.ts", "utf8");
-  check(
-    "the Analyze API route does not reference Supadata or instantiate a transcript provider",
-    !/supadata/i.test(routeSource) && !/transcript/i.test(routeSource)
-  );
-
   check(
     "the Analyze Competitor form remains unwired to the API",
     !readFileSync("app/competitor-scripts/analyze/analyze-input-form.tsx", "utf8").includes(
