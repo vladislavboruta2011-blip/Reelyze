@@ -1,19 +1,26 @@
 import { Eye, Flame, LayoutList, Sparkles } from "lucide-react";
 import type { Messages } from "../../../../lib/messages";
+import type { AnalysisScores } from "../../../../lib/competitor-scripts/analysis/types";
 
 type ScoresCopy = Messages["competitorScripts"]["analyzeResults"]["scores"];
 
 const METRIC_ICONS = [Sparkles, Flame, Eye, LayoutList];
 
-// Static score cards — no animated counter, no real calculation. The
-// accessible name always states the value, the "/100" scale, AND that
-// it's an example, so no meaning depends on color/position alone.
-export function ScoreOverview({ scores }: { scores: ScoresCopy }) {
+// Real scores from the validated analysis, 0-100 as returned by the
+// backend — never recalculated here. The UI label "Retention" maps to
+// the domain field momentumScore; the field itself is never renamed.
+export function ScoreOverview({
+  scores,
+  data,
+}: {
+  scores: ScoresCopy;
+  data: AnalysisScores;
+}) {
   const metrics = [
-    scores.overall,
-    scores.hook,
-    scores.retention,
-    scores.structure,
+    { ...scores.overall, value: data.overallScore },
+    { ...scores.hook, value: data.hookScore },
+    { ...scores.retention, value: data.momentumScore },
+    { ...scores.structure, value: data.structureScore },
   ];
 
   return (
@@ -44,7 +51,7 @@ export function ScoreOverview({ scores }: { scores: ScoresCopy }) {
               </div>
               <p
                 role="img"
-                aria-label={`${metric.label}: ${metric.value} ${scores.scoreSuffix} (example score)`}
+                aria-label={`${metric.label}: ${metric.value} ${scores.scoreSuffix}`}
                 className="mt-2 flex items-baseline gap-1"
               >
                 <span className="text-[34px] font-bold leading-none text-[#F5F5F7]">

@@ -392,12 +392,17 @@ check(
 );
 
 // ── analyze-results message coverage across every launched locale ──────
+// Rewritten for PR10D: scores/structure/strengths/weaknesses/risks/
+// lessons/caution no longer carry static example content or values — the
+// backend-returned CompetitorScriptAnalysis supplies all of that at
+// runtime. These messages are UI chrome only: headings, labels, empty
+// states, and the four safe analysis-unavailable messages.
 
 for (const locale of LAUNCHED_LOCALES) {
   const copy = getMessages(locale).competitorScripts.analyzeResults;
 
   check(
-    `${locale}: analyzeResults has all top-level keys`,
+    `${locale}: analyzeResults has all top-level keys, no leftover example-preview framing`,
     typeof copy.backToAnalyze === "string" &&
       typeof copy.heroEyebrow === "string" &&
       typeof copy.pageTitle === "string" &&
@@ -406,19 +411,15 @@ for (const locale of LAUNCHED_LOCALES) {
       copy.headingPrefix.length > 0 &&
       copy.headingAccent.length > 0 &&
       typeof copy.description === "string" &&
-      typeof copy.previewNotice === "string" &&
-      copy.previewNotice.length > 0
+      copy.description.length > 0 &&
+      !("previewNotice" in copy) &&
+      !("sectionGroups" in copy) &&
+      !("timeline" in copy)
   );
 
   check(
-    `${locale}: the top subtitle and preview banner explicitly say the video/transcript are real and the scores/insights are preview data`,
-    locale === "en"
-      ? /real/i.test(copy.previewNotice) &&
-          /(preview|example)/i.test(copy.previewNotice) &&
-          /(preview|example)/i.test(copy.description)
-      : /(настоящ|реальн)/i.test(copy.previewNotice) &&
-          /(предпросмотр|пример|демо)/i.test(copy.previewNotice) &&
-          /(предпросмотр|пример|демо)/i.test(copy.description)
+    `${locale}: the top subtitle no longer frames scores/insights as example/preview data`,
+    !/(preview|example|предпросмотр|пример|демо)/i.test(copy.description)
   );
 
   check(
@@ -462,38 +463,37 @@ for (const locale of LAUNCHED_LOCALES) {
   );
 
   check(
-    `${locale}: scores has a section eyebrow, preview label, /100 suffix, and exactly 4 metrics (overall/hook/retention/structure)`,
+    `${locale}: scores has a section eyebrow, /100 suffix, and exactly 4 metrics (overall/hook/retention/structure), label+explanation only — no static value`,
     copy.scores.sectionEyebrow.length > 0 &&
-      copy.scores.previewLabel.length > 0 &&
       copy.scores.scoreSuffix.length > 0 &&
-      typeof copy.scores.overall.value === "number" &&
-      typeof copy.scores.hook.value === "number" &&
-      typeof copy.scores.retention.value === "number" &&
-      typeof copy.scores.structure.value === "number" &&
-      Object.keys(copy.scores).filter((key) =>
-        ["overall", "hook", "retention", "structure"].includes(key)
-      ).length === 4
+      (["overall", "hook", "retention", "structure"] as const).every(
+        (key) =>
+          copy.scores[key].label.length > 0 &&
+          copy.scores[key].explanation.length > 0 &&
+          !("value" in copy.scores[key])
+      )
   );
 
   check(
-    `${locale}: whyScores has exactly 3 reasons`,
-    copy.whyScores.reasons.length === 3
+    `${locale}: verdict has strong/mixed/weak labels, none empty`,
+    copy.verdict.strong.length > 0 &&
+      copy.verdict.mixed.length > 0 &&
+      copy.verdict.weak.length > 0
+  );
+
+  check(`${locale}: whyScores has a non-empty heading`, copy.whyScores.heading.length > 0);
+
+  check(
+    `${locale}: takeaway has a non-empty section eyebrow`,
+    copy.takeaway.sectionEyebrow.length > 0
   );
 
   check(
-    `${locale}: takeaway has a section eyebrow, label, non-empty text, and a supporting line`,
-    copy.takeaway.sectionEyebrow.length > 0 &&
-      copy.takeaway.label.length > 0 &&
-      copy.takeaway.text.length > 0 &&
-      copy.takeaway.supporting.length > 0
-  );
-
-  check(
-    `${locale}: every analyzeResults section with a sectionEyebrow has a non-empty value (scores/takeaway/timeline/strengths/weaknesses/risks/lessons/caution)`,
+    `${locale}: every analyzeResults section with a sectionEyebrow has a non-empty value (scores/takeaway/structure/strengths/weaknesses/risks/lessons/caution)`,
     [
       copy.scores.sectionEyebrow,
       copy.takeaway.sectionEyebrow,
-      copy.timeline.sectionEyebrow,
+      copy.structure.sectionEyebrow,
       copy.strengths.sectionEyebrow,
       copy.weaknesses.sectionEyebrow,
       copy.risks.sectionEyebrow,
@@ -503,53 +503,54 @@ for (const locale of LAUNCHED_LOCALES) {
   );
 
   check(
-    `${locale}: timeline has exactly 6 stages, each with title/timestamp, plus a preview-only disclaimer (no per-stage transcript field)`,
-    copy.timeline.stages.length === 6 &&
-      copy.timeline.stages.every(
-        (stage) => stage.title.length > 0 && stage.timestamp.length > 0
-      ) &&
-      copy.timeline.stages.every(
-        (stage) => !("transcript" in stage)
-      ) &&
-      copy.timeline.previewColumnHeading.length > 0 &&
-      copy.timeline.previewColumnBody.length > 0
+    `${locale}: structure has a heading and a non-empty localized label for all 10 real structure beat types`,
+    copy.structure.heading.length > 0 &&
+      (
+        [
+          "hook",
+          "setup",
+          "context",
+          "escalation",
+          "reveal",
+          "payoff",
+          "cta",
+          "digression",
+          "recap",
+          "other",
+        ] as const
+      ).every((beat) => copy.structure.beatLabels[beat].length > 0)
   );
 
   check(
-    `${locale}: strengths has 3-4 items, weaknesses has 2-4 items, each with title/description`,
-    copy.strengths.items.length >= 3 &&
-      copy.strengths.items.length <= 4 &&
-      copy.strengths.items.every(
-        (item) => item.title.length > 0 && item.description.length > 0
-      ) &&
-      copy.weaknesses.items.length >= 2 &&
-      copy.weaknesses.items.length <= 4 &&
-      copy.weaknesses.items.every(
-        (item) => item.title.length > 0 && item.description.length > 0
-      )
+    `${locale}: severity has minor/moderate/major labels, none empty`,
+    copy.severity.minor.length > 0 &&
+      copy.severity.moderate.length > 0 &&
+      copy.severity.major.length > 0
   );
 
   check(
-    `${locale}: risks has 2-3 items, each with timestamp/description/suggestion`,
-    copy.risks.items.length >= 2 &&
-      copy.risks.items.length <= 3 &&
-      copy.risks.items.every(
-        (item) =>
-          item.timestamp.length > 0 &&
-          item.description.length > 0 &&
-          item.suggestion.length > 0
-      )
+    `${locale}: weaknesses/risks/caution each have a non-empty empty-state message`,
+    copy.weaknesses.emptyState.length > 0 &&
+      copy.risks.emptyState.length > 0 &&
+      copy.caution.emptyState.length > 0
   );
 
   check(
-    `${locale}: lessons has 3-5 items, caution has a description and exactly 3 columns`,
-    copy.lessons.items.length >= 3 &&
-      copy.lessons.items.length <= 5 &&
-      copy.lessons.items.every((item) => item.length > 0) &&
-      copy.caution.description.length > 0 &&
-      copy.caution.columns.length === 3 &&
-      copy.caution.columns.every(
-        (column) => column.title.length > 0 && column.description.length > 0
+    `${locale}: caution has a non-empty description`,
+    copy.caution.description.length > 0
+  );
+
+  check(
+    `${locale}: analysisUnavailable has all 4 safe reasons, each with a non-empty heading/description, and never mentions internal implementation details`,
+    (
+      ["transcriptTooLong", "invalidResponse", "unavailable", "legacy"] as const
+    ).every(
+      (reason) =>
+        copy.analysisUnavailable[reason].heading.length > 0 &&
+        copy.analysisUnavailable[reason].description.length > 0
+    ) &&
+      !/openai|api.?key|json schema|validator|retry|provider_/i.test(
+        JSON.stringify(copy.analysisUnavailable)
       )
   );
 
@@ -572,18 +573,21 @@ check(
 );
 
 check(
-  "EN and RU analyzeResults sub-namespaces (summary/scores/whyScores/takeaway/timeline/strengths/weaknesses/risks/lessons/caution/actions) have the same key structure",
+  "EN and RU analyzeResults sub-namespaces have the same key structure",
   ([
     "summary",
     "scores",
+    "verdict",
     "whyScores",
     "takeaway",
-    "timeline",
+    "structure",
     "strengths",
     "weaknesses",
     "risks",
     "lessons",
     "caution",
+    "severity",
+    "analysisUnavailable",
     "actions",
   ] as const).every(
     (section) =>
@@ -601,60 +605,24 @@ check(
 );
 
 check(
-  "EN and RU timeline.stages[0]/strengths.items[0]/weaknesses.items[0]/risks.items[0] have the same per-item key structure",
+  "EN and RU structure.beatLabels have the same 10 keys",
   JSON.stringify(
     Object.keys(
-      getMessages("en").competitorScripts.analyzeResults.timeline.stages[0]
+      getMessages("en").competitorScripts.analyzeResults.structure.beatLabels
     ).sort()
   ) ===
     JSON.stringify(
       Object.keys(
-        getMessages("ru").competitorScripts.analyzeResults.timeline.stages[0]
+        getMessages("ru").competitorScripts.analyzeResults.structure
+          .beatLabels
       ).sort()
-    ) &&
-    JSON.stringify(
-      Object.keys(
-        getMessages("en").competitorScripts.analyzeResults.strengths.items[0]
-      ).sort()
-    ) ===
-      JSON.stringify(
-        Object.keys(
-          getMessages("ru").competitorScripts.analyzeResults.strengths
-            .items[0]
-        ).sort()
-      ) &&
-    JSON.stringify(
-      Object.keys(
-        getMessages("en").competitorScripts.analyzeResults.risks.items[0]
-      ).sort()
-    ) ===
-      JSON.stringify(
-        Object.keys(
-          getMessages("ru").competitorScripts.analyzeResults.risks.items[0]
-        ).sort()
-      )
+    )
 );
 
 check(
   "EN and RU analyzeResults copy actually differ",
   getMessages("en").competitorScripts.analyzeResults.pageTitle !==
     getMessages("ru").competitorScripts.analyzeResults.pageTitle
-);
-
-check(
-  "example score values (78/84/73/80) match exactly between EN and RU (locale-invariant example data)",
-  getMessages("en").competitorScripts.analyzeResults.scores.overall.value ===
-    getMessages("ru").competitorScripts.analyzeResults.scores.overall.value &&
-    getMessages("en").competitorScripts.analyzeResults.scores.hook.value ===
-      getMessages("ru").competitorScripts.analyzeResults.scores.hook.value &&
-    getMessages("en").competitorScripts.analyzeResults.scores.retention
-      .value ===
-      getMessages("ru").competitorScripts.analyzeResults.scores.retention
-        .value &&
-    getMessages("en").competitorScripts.analyzeResults.scores.structure
-      .value ===
-      getMessages("ru").competitorScripts.analyzeResults.scores.structure
-        .value
 );
 
 check(
@@ -667,6 +635,14 @@ check(
       JSON.stringify(getMessages("en").competitorScripts.analyzeResults) +
         JSON.stringify(getMessages("ru").competitorScripts.analyzeResults)
     )
+);
+
+check(
+  "no static/fake score numbers remain anywhere in analyzeResults copy (78/84/73/80 — the old example values)",
+  !/\b(78|84|73|80)\b/.test(
+    JSON.stringify(getMessages("en").competitorScripts.analyzeResults.scores) +
+      JSON.stringify(getMessages("ru").competitorScripts.analyzeResults.scores)
+  )
 );
 
 // ── ModeCard: safe by default, real navigation only when given a real href ──
@@ -826,11 +802,13 @@ const analyzeFormSource = readFileSync(
 );
 
 check(
-  "AnalyzeInputForm calls the real Competitor Scripts analyze API — POST, JSON content type, and a body containing only `url`",
+  "AnalyzeInputForm calls the real Competitor Scripts analyze API — POST, JSON content type, and a body containing url plus the requested analysis locale (en/ru only)",
   /fetch\(\s*"\/api\/competitor-scripts\/analyze"/.test(analyzeFormSource) &&
     /method:\s*"POST"/.test(analyzeFormSource) &&
     /"Content-Type":\s*"application\/json"/.test(analyzeFormSource) &&
-    /body:\s*JSON\.stringify\(\{\s*url:\s*trimmed\s*\}\)/.test(analyzeFormSource)
+    /body:\s*JSON\.stringify\(\{\s*url:\s*trimmed,\s*locale:\s*requestedLocale\s*\}\)/.test(
+      analyzeFormSource
+    )
 );
 
 check(
@@ -865,7 +843,7 @@ check(
 
 check(
   "navigation to the results route only happens after a validated API success response, never immediately on local validation passing",
-  /isValidSuccessPayload\(payload\)\)\s*\{[\s\S]{0,900}router\.push\("\/competitor-scripts\/analyze\/results"\);/.test(
+  /isValidSuccessPayload\(payload\)\)\s*\{[\s\S]{0,2500}router\.push\("\/competitor-scripts\/analyze\/results"\);/.test(
     analyzeFormSource
   )
 );
@@ -1252,8 +1230,9 @@ const resultsPageSource = readFileSync(
 );
 
 check(
-  "the results feature renders the illustrative preview notice as visible body text (now inside the client AnalyzeResultsContent wrapper, not the server page shell)",
-  resultsFeatureSource.includes("{copy.previewNotice}")
+  "the results feature no longer renders an illustrative-preview notice — analysis is real now, not example/preview data",
+  !resultsFeatureSource.includes("previewNotice") &&
+    !resultsFeatureSource.includes("SectionGroupLabel")
 );
 
 check(
@@ -1300,10 +1279,15 @@ const scoreOverviewSource = readFileSync(
 );
 
 check(
-  "the score overview renders exactly the 4 required metrics (overall/hook/retention/structure), each with an accessible label",
-  /scores\.overall,\s*scores\.hook,\s*scores\.retention,\s*scores\.structure/.test(
+  "the score overview renders exactly the 4 required real metrics (overall/hook/retention/structure), each with an accessible label, and retention reads from momentumScore",
+  /\.\.\.scores\.overall[\s\S]{0,60}\.\.\.scores\.hook[\s\S]{0,60}\.\.\.scores\.retention[\s\S]{0,60}\.\.\.scores\.structure/.test(
     scoreOverviewSource
-  ) && scoreOverviewSource.includes("role=\"img\"")
+  ) &&
+    scoreOverviewSource.includes("data.overallScore") &&
+    scoreOverviewSource.includes("data.hookScore") &&
+    scoreOverviewSource.includes("data.momentumScore") &&
+    scoreOverviewSource.includes("data.structureScore") &&
+    scoreOverviewSource.includes('role="img"')
 );
 
 check(
@@ -1318,8 +1302,9 @@ const scriptBreakdownSource = readFileSync(
 );
 
 check(
-  "the script breakdown renders all 6 timeline stages from the localized array (not hardcoded)",
-  scriptBreakdownSource.includes("timeline.stages.map")
+  "the script breakdown renders the real analysis.structure beats (2-8), not a hardcoded/static timeline array",
+  scriptBreakdownSource.includes("beats.map") &&
+    !scriptBreakdownSource.includes("timeline.stages")
 );
 
 check(

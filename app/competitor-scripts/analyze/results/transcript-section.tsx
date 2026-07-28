@@ -4,19 +4,12 @@ import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import type { Messages } from "../../../../lib/messages";
 import type { TranscriptSegment } from "../../../../lib/competitor-scripts/transcript/types";
+import { formatTimestampMs } from "./format-timestamp";
 
 type TranscriptCopy =
   Messages["competitorScripts"]["analyzeResults"]["transcript"];
 
 const SEGMENT_PREVIEW_COUNT = 6;
-
-function formatTimestampMs(ms: number): string {
-  const totalSeconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-
-  return `${minutes}:${String(seconds).padStart(2, "0")}`;
-}
 
 export type TranscriptSectionData = {
   languageCode: string | null;
