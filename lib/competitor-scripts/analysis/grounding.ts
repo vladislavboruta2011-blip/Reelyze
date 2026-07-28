@@ -3,6 +3,8 @@
 // function here is a pure string/regex check against the real transcript
 // or a fixed pattern list. Used by validate.ts; never calls OpenAI itself.
 
+import type { NormalizedTranscript } from "../transcript/types";
+
 // ── Performance-claim guardrail ───────────────────────────────────────────
 // Prohibited: any assertion presented as an observed fact about real
 // viewer/audience behavior or measured platform performance. The word
@@ -46,14 +48,78 @@ function extractNumberTokens(value: string): string[] {
   );
 }
 
+// A number in prose is also grounded when it's a deterministic timing
+// value derived from the transcript's own segment/duration metadata —
+// bake-off evidence showed models legitimately citing real timestamps
+// ("arrives at 16200ms", "16.2 seconds", "16 seconds", a video's real
+// "32 second" duration) that would otherwise be flagged as invented facts
+// purely because timestamps never appear as literal digits in
+// transcript.text (spoken words only). Every value here traces back to a
+// real segment.startMs, segment.startMs + durationMs, or
+// transcript.durationMs from the INPUT transcript — never the candidate's
+// own claimed evidence (that would be a circular, self-validating
+// loophole), never an arbitrary tolerance/rounding window.
+//
+// Exactly three representations per real millisecond value:
+//   - the millisecond value itself ("16200")
+//   - an exact one-decimal-second conversion, only when the millisecond
+//     value is a multiple of 100 — never an approximation ("16.2")
+//   - a floored whole-second value, matching how elapsed time is
+//     normally spoken/displayed (a video player showing "0:16" at
+//     16200ms) ("16")
+// Deliberately not also adding a rounded whole-second value: floor alone
+// already covers every observed bake-off case, and adding a second
+// rounding strategy would needlessly widen the accepted set.
+//
+// ms === 0 is excluded entirely: the first segment's startMs is almost
+// always 0, and both its exact-ms and floor-seconds representations
+// collapse to the literal digit "0" — treating that as universally
+// grounded would make the single most common bare digit in ordinary
+// English prose ("0 percent", "starts from 0", etc.) pass unconditionally
+// in nearly every transcript. A "0 seconds" timing citation is
+// degenerate/uninformative, so excluding it costs nothing real.
+function collectGroundedTimingTokens(transcript: NormalizedTranscript): Set<string> {
+  const millisecondValues = new Set<number>();
+
+  for (const segment of transcript.segments) {
+    millisecondValues.add(segment.startMs);
+    if (segment.durationMs !== null) {
+      millisecondValues.add(segment.startMs + segment.durationMs);
+    }
+  }
+
+  if (transcript.durationMs !== null) {
+    millisecondValues.add(transcript.durationMs);
+  }
+
+  const tokens = new Set<string>();
+
+  for (const ms of millisecondValues) {
+    if (ms === 0) {
+      continue;
+    }
+
+    tokens.add(String(ms));
+
+    if (ms % 100 === 0) {
+      tokens.add((ms / 1000).toFixed(1));
+    }
+
+    tokens.add(String(Math.floor(ms / 1000)));
+  }
+
+  return tokens;
+}
+
 export function findUnsupportedNumericClaim(
   text: string,
-  transcriptText: string
+  transcript: NormalizedTranscript
 ): string | null {
-  const transcriptNumbers = new Set(extractNumberTokens(transcriptText));
+  const transcriptNumbers = new Set(extractNumberTokens(transcript.text));
+  const groundedTimingTokens = collectGroundedTimingTokens(transcript);
 
   for (const token of extractNumberTokens(text)) {
-    if (!transcriptNumbers.has(token)) {
+    if (!transcriptNumbers.has(token) && !groundedTimingTokens.has(token)) {
       return token;
     }
   }

@@ -281,7 +281,7 @@ function validateProseField(
     );
   }
 
-  const badNumber = findUnsupportedNumericClaim(candidate, transcript.text);
+  const badNumber = findUnsupportedNumericClaim(candidate, transcript);
   if (badNumber) {
     return err(
       "unsupported_numeric_claim",
