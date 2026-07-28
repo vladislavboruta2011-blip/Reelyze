@@ -5,7 +5,7 @@ type LessonsCopy = Messages["competitorScripts"]["analyzeResults"]["lessons"];
 
 export function LessonsSection({ lessons }: { lessons: LessonsCopy }) {
   return (
-    <section className="flex h-full flex-col rounded-[24px] border border-[#3B82F6]/25 bg-gradient-to-b from-[#3B82F6]/[0.05] to-transparent p-6 lg:p-8">
+    <section className="flex h-full flex-col rounded-[20px] border border-[#3B82F6]/25 bg-gradient-to-b from-[#3B82F6]/[0.05] to-transparent p-5 lg:p-6">
       <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#93C5FD]">
         {lessons.sectionEyebrow}
       </p>
@@ -14,7 +14,7 @@ export function LessonsSection({ lessons }: { lessons: LessonsCopy }) {
           {lessons.heading}
         </h2>
       </div>
-      <ul className="mt-5 flex flex-1 flex-col gap-3">
+      <ul className="mt-4 flex flex-1 flex-col gap-2.5">
         {lessons.items.map((item) => (
           <li
             key={item}

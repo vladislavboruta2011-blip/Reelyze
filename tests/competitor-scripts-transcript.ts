@@ -722,16 +722,24 @@ async function testProviderContract() {
   );
 }
 
-// ── Existing scope: Analyze UI and Compare are unaffected ────────────────
-// (The Analyze API route itself is intentionally wired to this transcript
-// foundation in a later PR — see tests/competitor-scripts-analyze-api.ts
-// for its own scope-regression coverage.)
+// ── Existing scope: Compare is unaffected, Analyze UI talks only to the API route ──
+// (The Analyze API route itself was wired to this transcript foundation in
+// an earlier PR — see tests/competitor-scripts-analyze-api.ts for its own
+// scope-regression coverage. The Analyze frontend now calls that route,
+// but never this transcript module directly.)
 
 check(
-  "the Analyze Competitor form is still not wired to the API",
-  !readFileSync("app/competitor-scripts/analyze/analyze-input-form.tsx", "utf8").includes(
-    "/api/competitor-scripts/analyze"
-  )
+  "the Analyze Competitor form is wired to the analyze API route (frontend wiring PR), and only ever imports a type (never runtime logic) from the transcript foundation module",
+  (() => {
+    const source = readFileSync(
+      "app/competitor-scripts/analyze/analyze-input-form.tsx",
+      "utf8"
+    );
+    return (
+      source.includes("/api/competitor-scripts/analyze") &&
+      !/^(?!.*\btype\b).*lib\/competitor-scripts\/transcript\//m.test(source)
+    );
+  })()
 );
 
 check(

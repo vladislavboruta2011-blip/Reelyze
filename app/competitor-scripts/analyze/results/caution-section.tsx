@@ -5,21 +5,21 @@ type CautionCopy = Messages["competitorScripts"]["analyzeResults"]["caution"];
 
 export function CautionSection({ caution }: { caution: CautionCopy }) {
   return (
-    <section className="rounded-[28px] border border-white/10 bg-white/[0.02] p-6 lg:p-9">
+    <section className="rounded-[20px] border border-white/10 bg-white/[0.03] p-5 lg:p-6">
       <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#9CA3AF]">
         {caution.sectionEyebrow}
       </p>
       <div className="mt-2 flex items-center gap-2.5">
         <ShieldAlert size={16} className="shrink-0 text-[#9CA3AF]" aria-hidden="true" />
-        <h2 className="text-[18px] font-semibold text-[#F5F5F7]">
+        <h2 className="text-[17px] font-semibold text-[#F5F5F7]">
           {caution.heading}
         </h2>
       </div>
-      <p className="mt-2 max-w-[720px] text-[13.5px] leading-[1.6] text-[#9CA3AF]">
+      <p className="mt-2 max-w-[680px] text-[13px] leading-[1.55] text-[#9CA3AF]">
         {caution.description}
       </p>
 
-      <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-3">
+      <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-3">
         {caution.columns.map((column, index) => (
           <div
             key={column.title}

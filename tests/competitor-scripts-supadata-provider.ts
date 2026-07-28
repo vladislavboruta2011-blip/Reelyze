@@ -898,10 +898,18 @@ async function testPayloadSafety() {
 
 function testScopeRegression() {
   check(
-    "the Analyze Competitor form remains unwired to the API",
-    !readFileSync("app/competitor-scripts/analyze/analyze-input-form.tsx", "utf8").includes(
-      "/api/competitor-scripts/analyze"
-    )
+    "the Analyze Competitor form is wired only to the analyze API route — never directly to Supadata, an API key, or any other provider",
+    (() => {
+      const source = readFileSync(
+        "app/competitor-scripts/analyze/analyze-input-form.tsx",
+        "utf8"
+      );
+      return (
+        source.includes("/api/competitor-scripts/analyze") &&
+        !/supadata/i.test(source) &&
+        !/SUPADATA_API_KEY/.test(source)
+      );
+    })()
   );
 
   check(

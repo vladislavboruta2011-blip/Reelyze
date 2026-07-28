@@ -1,28 +1,25 @@
+import { Info } from "lucide-react";
 import type { Messages } from "../../../../lib/messages";
 
 type TimelineCopy = Messages["competitorScripts"]["analyzeResults"]["timeline"];
 
-// A static, illustrative script timeline — every timestamp and transcript
-// line is fictional filler, never derived from a real video or the
-// submitted URL. Grows naturally with its content — no internal scroll
-// container, no fixed height.
+// A static, illustrative stage timeline — every stage title and timestamp
+// is fictional filler, never derived from a real video or the submitted
+// URL, and never mixed with the real transcript shown in TranscriptSection
+// above. Grows naturally with its content — no internal scroll container,
+// no fixed height.
 export function ScriptBreakdown({ timeline }: { timeline: TimelineCopy }) {
   return (
-    <section className="rounded-[28px] border border-white/10 bg-white/[0.02] p-6 lg:p-9">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#A78BFA]">
-          {timeline.sectionEyebrow}
-        </p>
-        <span className="inline-flex items-center rounded-full border border-[#7C3AED]/30 bg-[#7C3AED]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#C4B5FD]">
-          {timeline.illustrativeLabel}
-        </span>
-      </div>
-      <h2 className="mt-2 text-[19px] font-semibold text-[#F5F5F7]">
+    <section className="rounded-[20px] border border-white/10 bg-white/[0.03] p-5 lg:p-6">
+      <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#A78BFA]">
+        {timeline.sectionEyebrow}
+      </p>
+      <h2 className="mt-2 text-[17px] font-semibold text-[#F5F5F7]">
         {timeline.heading}
       </h2>
 
-      <div className="mt-7 grid grid-cols-1 gap-8 lg:grid-cols-2">
-        <ol className="relative flex flex-col gap-6 border-l-2 border-[#7C3AED]/25 pl-5">
+      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[1.15fr_1fr] lg:items-start">
+        <ol className="relative flex flex-col gap-4 border-l-2 border-[#7C3AED]/25 pl-5">
           {timeline.stages.map((stage) => (
             <li key={stage.title} className="relative">
               <span
@@ -39,22 +36,20 @@ export function ScriptBreakdown({ timeline }: { timeline: TimelineCopy }) {
           ))}
         </ol>
 
-        <div>
-          <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
-            {timeline.transcriptHeading}
-          </p>
-          <ul className="mt-4 flex flex-col gap-4">
-            {timeline.stages.map((stage) => (
-              <li key={stage.title} className="flex items-start gap-3">
-                <span className="w-[68px] shrink-0 text-[12px] font-semibold tabular-nums text-[#A78BFA]">
-                  {stage.timestamp}
-                </span>
-                <p className="text-[13.5px] leading-[1.6] text-[#D1D5DB]">
-                  {stage.transcript}
-                </p>
-              </li>
-            ))}
-          </ul>
+        <div className="flex items-start gap-2.5 rounded-[14px] border border-white/10 bg-white/[0.02] p-3.5">
+          <Info
+            size={15}
+            className="mt-0.5 shrink-0 text-[#9CA3AF]"
+            aria-hidden="true"
+          />
+          <div>
+            <p className="text-[11.5px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
+              {timeline.previewColumnHeading}
+            </p>
+            <p className="mt-1.5 text-[13px] leading-[1.55] text-[#D1D5DB]">
+              {timeline.previewColumnBody}
+            </p>
+          </div>
         </div>
       </div>
     </section>

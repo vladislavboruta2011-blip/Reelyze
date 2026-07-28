@@ -12,14 +12,14 @@ export function WeaknessesSection({
   weaknesses: WeaknessesCopy;
 }) {
   return (
-    <section className="flex h-full flex-col rounded-[24px] border border-[#F59E0B]/25 bg-gradient-to-b from-[#F59E0B]/[0.05] to-transparent p-6 lg:p-8">
+    <section className="flex h-full flex-col rounded-[20px] border border-[#F59E0B]/25 bg-gradient-to-b from-[#F59E0B]/[0.05] to-transparent p-5 lg:p-6">
       <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#FBBF24]">
         {weaknesses.sectionEyebrow}
       </p>
       <h2 className="mt-1.5 text-[16px] font-semibold text-[#F5F5F7]">
         {weaknesses.heading}
       </h2>
-      <ul className="mt-5 flex flex-1 flex-col gap-4">
+      <ul className="mt-4 flex flex-1 flex-col gap-3.5">
         {weaknesses.items.map((item) => (
           <li key={item.title} className="flex items-start gap-3">
             <span

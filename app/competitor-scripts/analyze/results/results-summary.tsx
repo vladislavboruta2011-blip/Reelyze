@@ -1,40 +1,80 @@
-import { PlayCircle } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import type { Messages } from "../../../../lib/messages";
+import type { YouTubeUrlSourceFormat } from "../../../../lib/competitor-scripts/youtube-url";
+import { YouTubeEmbed } from "./youtube-embed";
 
 type SummaryCopy = Messages["competitorScripts"]["analyzeResults"]["summary"];
 
-// Every value here is static, fictional placeholder content — never real
-// creator/video data, never derived from the URL the user submitted. The
-// "illustrative" label is always visible body text, not a tooltip.
-export function ResultsSummary({ summary }: { summary: SummaryCopy }) {
+function formatDurationMs(durationMs: number | null): string | null {
+  if (durationMs === null) {
+    return null;
+  }
+
+  const totalSeconds = Math.round(durationMs / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
+export type ResultsSummaryData = {
+  videoId: string;
+  canonicalUrl: string;
+  sourceFormat: YouTubeUrlSourceFormat;
+  languageCode: string | null;
+  durationMs: number | null;
+  segmentCount: number;
+};
+
+// Every value shown here comes from the real API response for the video
+// the user submitted — never fictional/placeholder data. Fields we don't
+// actually know (a real title, creator, view counts, actual YouTube
+// duration) are simply not shown, rather than backfilled with anything
+// that could read as real. The video itself is the real submitted
+// YouTube video, embedded directly — not a placeholder thumbnail.
+export function ResultsSummary({
+  summary,
+  data,
+}: {
+  summary: SummaryCopy;
+  data: ResultsSummaryData;
+}) {
+  const durationDisplay = formatDurationMs(data.durationMs) ?? summary.unknownDuration;
+  const languageDisplay = data.languageCode ?? summary.unknownLanguage;
+
   const rows = [
     { label: summary.platformLabel, value: summary.platform },
-    { label: summary.durationLabel, value: summary.duration },
-    { label: summary.transcriptLabel, value: summary.transcriptAvailable },
-    { label: summary.statusLabel, value: summary.status },
+    { label: summary.sourceFormatLabel, value: data.sourceFormat },
+    { label: summary.durationLabel, value: durationDisplay },
+    { label: summary.languageLabel, value: languageDisplay },
+    { label: summary.segmentCountLabel, value: String(data.segmentCount) },
   ];
 
   return (
-    <section className="rounded-[24px] border border-[#7C3AED]/20 bg-white/[0.02] px-6 py-5 lg:px-7 lg:py-6">
+    <section className="rounded-[20px] border border-[#7C3AED]/20 bg-white/[0.035] p-5 lg:p-6">
       <span className="inline-flex items-center rounded-full border border-[#7C3AED]/30 bg-[#7C3AED]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#C4B5FD]">
-        {summary.illustrativeLabel}
+        {summary.realDataLabel}
       </span>
 
-      <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center">
-        <div
-          aria-hidden="true"
-          className="relative flex h-[132px] w-full shrink-0 items-center justify-center rounded-[16px] bg-gradient-to-br from-[#7C3AED]/25 via-[#7C3AED]/10 to-transparent sm:w-[172px]"
-        >
-          <PlayCircle size={42} className="text-[#C4B5FD]" strokeWidth={1.75} />
-          <span className="absolute bottom-2 right-2 rounded-[6px] bg-black/50 px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-white">
-            {summary.duration}
-          </span>
+      <div className="mt-4 flex flex-col items-center gap-5 sm:flex-row sm:items-start">
+        <div className="w-full max-w-[200px] shrink-0 sm:w-[200px]">
+          <YouTubeEmbed videoId={data.videoId} title={summary.embedTitle} />
         </div>
 
-        <div className="min-w-0 flex-1">
-          <h2 className="line-clamp-2 text-[17px] font-bold leading-[1.35] text-[#F5F5F7]">
-            {summary.title}
+        <div className="min-w-0 max-w-[300px]">
+          <h2 className="text-[17px] font-bold leading-[1.35] text-[#F5F5F7]">
+            {summary.neutralTitle}
           </h2>
+          <a
+            href={data.canonicalUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`${summary.openOnYouTube}: ${data.canonicalUrl}`}
+            className="mt-1.5 inline-flex items-center gap-1 text-[12px] font-medium text-[#A78BFA] hover:text-[#C4B5FD] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C4B5FD]"
+          >
+            {summary.openOnYouTube}
+            <ExternalLink size={11} aria-hidden="true" />
+          </a>
           <dl className="mt-3.5 grid grid-cols-2 gap-x-4 gap-y-2.5">
             {rows.map((row) => (
               <div key={row.label}>
