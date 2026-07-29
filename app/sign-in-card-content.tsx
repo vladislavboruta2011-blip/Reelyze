@@ -35,13 +35,16 @@ export function SignInCardContent({
   nextPath,
   errorMessage,
   headingId,
+  variant = "light",
 }: {
   nextPath: string | null | undefined;
   errorMessage?: string | null;
   headingId?: string;
+  variant?: "light" | "dark";
 }) {
   const messages = useMessages();
   const { startSignIn, isSigningIn } = useGoogleSignIn();
+  const isDark = variant === "dark";
 
   return (
     <div className="text-center">
@@ -56,16 +59,32 @@ export function SignInCardContent({
 
       <h2
         id={headingId}
-        className="mt-5 text-[22px] font-semibold tracking-[-0.02em] text-[#111827]"
+        className={
+          isDark
+            ? "mt-5 text-[22px] font-semibold tracking-[-0.02em] text-[#F5F5F7]"
+            : "mt-5 text-[22px] font-semibold tracking-[-0.02em] text-[#111827]"
+        }
       >
         {messages.auth.login.heading}
       </h2>
-      <p className="mt-2 text-[14px] leading-[1.6] text-[#6B7280]">
+      <p
+        className={
+          isDark
+            ? "mt-2 text-[14px] leading-[1.6] text-[#9CA3AF]"
+            : "mt-2 text-[14px] leading-[1.6] text-[#6B7280]"
+        }
+      >
         {messages.auth.login.description}
       </p>
 
       {errorMessage && (
-        <p className="mt-4 rounded-[12px] border border-[#7C3AED]/30 bg-[#F3E8FF] px-4 py-3 text-[13px] text-[#7C3AED]">
+        <p
+          className={
+            isDark
+              ? "mt-4 rounded-[12px] border border-[#7C3AED]/30 bg-[#7C3AED]/10 px-4 py-3 text-[13px] text-[#C4B5FD]"
+              : "mt-4 rounded-[12px] border border-[#7C3AED]/30 bg-[#F3E8FF] px-4 py-3 text-[13px] text-[#7C3AED]"
+          }
+        >
           {errorMessage}
         </p>
       )}
@@ -74,7 +93,7 @@ export function SignInCardContent({
         type="button"
         onClick={() => startSignIn(nextPath)}
         disabled={isSigningIn}
-        className="mt-6 inline-flex h-[48px] w-full items-center justify-center gap-3 rounded-[12px] bg-[#6D28D9] px-6 text-[15px] font-semibold text-white shadow-[0_0_32px_rgba(109,40,217,0.25)] transition hover:bg-[#7C3AED] disabled:cursor-not-allowed disabled:opacity-60"
+        className="mt-6 inline-flex h-[48px] w-full items-center justify-center gap-3 rounded-[12px] bg-[#6D28D9] px-6 text-[15px] font-semibold text-white shadow-[0_0_32px_rgba(109,40,217,0.25)] transition hover:bg-[#7C3AED] disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C4B5FD]"
       >
         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white">
           <GoogleIcon />
