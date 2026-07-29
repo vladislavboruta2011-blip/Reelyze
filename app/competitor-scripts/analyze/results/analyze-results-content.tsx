@@ -14,7 +14,6 @@ import {
 } from "./analysis-unavailable-section";
 import { CautionSection } from "./caution-section";
 import { LessonsSection } from "./lessons-section";
-import { MainTakeaway } from "./main-takeaway";
 import { ResultsSummary } from "./results-summary";
 import { RisksSection } from "./risks-section";
 import { ScoreOverview } from "./score-overview";
@@ -122,12 +121,38 @@ export function AnalyzeResultsContent({ copy }: { copy: ResultsCopy }) {
   };
   const unavailableReason = resolveUnavailableReason(result);
   const analysis = result.analysis;
+  // Only a direct read of the already-validated analysis fields — never a
+  // second, separately-derived source of truth. null whenever analysis
+  // itself is null (degraded/legacy), so ResultsSummary's overview panel
+  // simply doesn't render rather than showing anything fabricated.
+  const analysisOverview =
+    analysis === null
+      ? null
+      : {
+          verdict: analysis.verdict,
+          scores: analysis.scores,
+          mainTakeaway: analysis.mainTakeaway,
+        };
 
+  // The dedicated result-entrance class below plays once, right here, the
+  // moment this "ready" container is first mounted (i.e. the moment real
+  // data is actually on screen) — never on the earlier "loading"
+  // placeholder above. This div is the one stable node for the whole
+  // ready/degraded report: child disclosure toggles (Show details, Show
+  // full structure, Show full transcript, Show all segments, ...) only
+  // ever change state inside their own child components, never this
+  // component's own state, so this node is never remounted/re-keyed by
+  // them and the CSS animation never replays.
   return (
-    <div className="flex flex-col gap-3">
-      <ResultsSummary summary={copy.summary} data={summaryData} />
-
-      <TranscriptSection copy={copy.transcript} data={transcriptData} />
+    <div className="flex flex-col gap-3 animate-result-enter">
+      <ResultsSummary
+        summary={copy.summary}
+        scores={copy.scores}
+        verdictCopy={copy.verdict}
+        takeawayCopy={copy.takeaway}
+        data={summaryData}
+        analysisOverview={analysisOverview}
+      />
 
       <div className="flex flex-col gap-5 lg:gap-7">
         {unavailableReason !== null || analysis === null ? (
@@ -137,14 +162,13 @@ export function AnalyzeResultsContent({ copy }: { copy: ResultsCopy }) {
           />
         ) : (
           <>
+            {/* MainTakeaway (verdict + mainTakeaway) is intentionally not
+                rendered here — it's already shown in the Analysis Overview
+                panel inside ResultsSummary above. Rendering it a second
+                time here would duplicate the same real data. The
+                MainTakeaway component itself is left in place, unused,
+                rather than deleted. */}
             <ScoreOverview scores={copy.scores} data={analysis.scores} />
-
-            <MainTakeaway
-              takeaway={copy.takeaway}
-              verdictCopy={copy.verdict}
-              verdict={analysis.verdict}
-              mainTakeaway={analysis.mainTakeaway}
-            />
 
             <WhyScoresSection
               whyScores={copy.whyScores}
@@ -184,6 +208,8 @@ export function AnalyzeResultsContent({ copy }: { copy: ResultsCopy }) {
             <CautionSection caution={copy.caution} items={analysis.caution} />
           </>
         )}
+
+        <TranscriptSection copy={copy.transcript} data={transcriptData} />
 
         <div className="mt-2 flex flex-col gap-4 border-t border-white/10 pt-6 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-5">
