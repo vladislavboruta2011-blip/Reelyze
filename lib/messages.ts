@@ -908,6 +908,7 @@ const enMessages = {
     modeSelection: {
       backLabel: "Back",
       pageTitle: "Competitor Scripts",
+      badge: "AI-powered competitor analysis",
       heading: "What do you want to analyze?",
       subheading:
         "Choose how you want to use a competitor's script. Each option gives you unique insights to help you create better content.",
@@ -2206,6 +2207,7 @@ const ruMessages = {
     modeSelection: {
       backLabel: "Назад",
       pageTitle: "Сценарии конкурентов",
+      badge: "ИИ-анализ сценариев конкурентов",
       heading: "Что вы хотите проанализировать?",
       subheading:
         "Выберите, как использовать сценарий конкурента. Каждый вариант даёт свои инсайты, чтобы помочь вам создавать контент лучше.",
