@@ -4,7 +4,7 @@ import Image from "next/image";
 import { Inter } from "next/font/google";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AuthNav } from "./auth-nav";
 import { LanguageSwitcher } from "./language-switcher";
 import { SignInModal } from "./sign-in-modal";
@@ -31,11 +31,16 @@ import {
   type FailureCategory,
 } from "../lib/analytics-events";
 import {
+  Activity,
   ArrowRight,
   BarChart3,
   CheckCircle2,
+  ChevronDown,
   Clock,
   Clock3,
+  FileText,
+  Gauge,
+  History,
   Lightbulb,
   Lock,
   Menu,
@@ -44,6 +49,8 @@ import {
   Sparkles,
   Target,
   TrendingUp,
+  Workflow,
+  Zap,
 } from "lucide-react";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -68,10 +75,22 @@ function Badge({ children }: { children: React.ReactNode }) {
   );
 }
 
-function TrustItem({ children }: { children: React.ReactNode }) {
+// Only ever rendered on the dark Hero band (its light-page counterparts —
+// ValueSection, ComparisonSection, etc. — use Badge/HandUnderline instead),
+// so this is styled for a black background directly rather than needing a
+// variant prop. Icon is per-item (not hardcoded) so each real capability
+// gets its own distinct glyph, matching the visual mockup's icon-led trust
+// row without adopting any of that mockup's unverified claims.
+function TrustItem({
+  icon,
+  children,
+}: {
+  icon: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
     <div className="flex items-center gap-2">
-      <CheckCircle2 className="h-4 w-4 text-[#22C55E]" />
+      <span className="text-[#A78BFA]">{icon}</span>
       <span>{children}</span>
     </div>
   );
@@ -114,7 +133,7 @@ function BackgroundDecor() {
   );
 }
 
-// ─── Desktop landing: navbar ──────────────────────────────────────────────────
+// ─── Desktop landing: navbar (dark — lives only inside the black Hero band) ───
 
 function Navbar() {
   const messages = useMessages();
@@ -123,14 +142,14 @@ function Navbar() {
     <header className="relative z-10 mx-auto flex h-[96px] w-full max-w-[1280px] items-center justify-between px-8">
       <Link href="/" className="flex items-center gap-3">
         <Image src="/logo.png" alt="Climpy" width={40} height={40} className="h-10 w-10 object-contain" priority />
-        <span className="text-[18px] font-bold tracking-[0.16em] text-[#111827]">CLIMPY</span>
+        <span className="text-[18px] font-bold tracking-[0.16em] text-white">CLIMPY</span>
       </Link>
 
-      <nav className="hidden items-center gap-9 text-[15px] font-medium text-[#6B7280] md:flex">
-        <a href="#features" className="transition hover:text-[#111827]">
+      <nav className="hidden items-center gap-9 text-[15px] font-medium text-white/55 md:flex">
+        <a href="#features" className="transition hover:text-white">
           {messages.landing.nav.features}
         </a>
-        <a href="#how-it-works" className="transition hover:text-[#111827]">
+        <a href="#how-it-works" className="transition hover:text-white">
           {messages.landing.nav.howItWorks}
         </a>
         <a
@@ -139,125 +158,448 @@ function Navbar() {
             e.preventDefault();
             document.getElementById("analyzer")?.scrollIntoView({ behavior: "smooth" });
           }}
-          className="transition hover:text-[#111827]"
+          className="transition hover:text-white"
         >
           {messages.landing.nav.analyze}
         </a>
       </nav>
 
       <div className="hidden items-center gap-3 md:flex">
-        <LanguageSwitcher />
-        <AuthNav />
+        <LanguageSwitcher variant="dark" />
+        <AuthNav variant="dark" />
         <a
           href="#analyzer"
           onClick={(e) => {
             e.preventDefault();
             document.getElementById("analyzer")?.scrollIntoView({ behavior: "smooth" });
           }}
-          className="inline-flex rounded-full border border-white/10 bg-white/[0.04] px-5 py-2.5 text-[14px] font-semibold text-[#111827] transition hover:border-[#7C3AED]/50 hover:bg-[#7C3AED]/10"
+          className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#6D28D9] to-[#7C3AED] px-5 py-2.5 text-[14px] font-semibold text-white shadow-[0_0_24px_rgba(124,58,237,0.35)] transition hover:from-[#7C3AED] hover:to-[#8B5CF6]"
         >
           {messages.landing.nav.startFree}
+          <ArrowRight className="h-3.5 w-3.5" />
         </a>
       </div>
     </header>
   );
 }
 
-// ─── Desktop landing: hero preview card ──────────────────────────────────────
+// ─── Desktop landing: Hero band background (black + purple/blue glows) ───────
 
-function MetricCard({ label, value, tone }: { label: string; value: string; tone: "green" | "red" | "orange" }) {
-  const toneClass = { green: "text-[#22C55E]", red: "text-[#7C3AED]", orange: "text-[#FF9A1F]" }[tone];
+function HeroBackground() {
   return (
-    <div className="rounded-[18px] border border-[#E5E7EB] bg-[#F8F8FC] p-4">
-      <p className="text-[13px] text-[#6B7280]">{label}</p>
-      <p className={`mt-3 text-[34px] font-bold tracking-[-0.05em] ${toneClass}`}>{value}</p>
+    <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
+      <div className="absolute inset-0 bg-[#07070B]" />
+      <div className="absolute left-1/2 top-[-260px] h-[620px] w-[900px] -translate-x-1/2 rounded-full bg-[#7C3AED]/25 blur-[160px]" />
+      <div className="absolute right-[-220px] top-[60px] h-[520px] w-[560px] rounded-full bg-[#3B82F6]/20 blur-[150px]" />
+      <div className="absolute left-[-240px] top-[420px] h-[480px] w-[480px] rounded-full bg-[#6D28D9]/20 blur-[150px]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.06)_1px,transparent_1px)] [background-size:28px_28px] opacity-[0.35]" />
+      {/* Soft bottom fade back into the light page below — the rest of the
+          page (ValueSection onward) is intentionally untouched/light; this
+          gradient is only this band's own closing edge, not a restyle of
+          what comes after it. Short enough (and HeroFeatureRow's own bottom
+          padding is generous enough) that it never washes out the feature
+          row's text above it. */}
+      <div className="absolute inset-x-0 bottom-0 h-[90px] bg-gradient-to-b from-transparent to-[#FAFAFA]" />
     </div>
   );
 }
 
-function ScriptLine({ time, children, active, warning }: { time: string; children: React.ReactNode; active?: boolean; warning?: boolean }) {
+// ─── Desktop landing: hero app-preview card ───────────────────────────────────
+// Mirrors the real Competitor Analysis results UI (colored score rings,
+// dark cards, script structure timeline, retention curve, suggested fix) so
+// this reads as the actual Climpy interface rather than a generic/fictional
+// dashboard. All values here are an illustrative example — never claimed as
+// real usage data — exactly like the pre-redesign PreviewCard this replaces.
+
+const HERO_METRIC_COLORS = {
+  overall: "#A855F7",
+  hook: "#F97316",
+  retention: "#22C55E",
+  structure: "#3B82F6",
+} as const;
+
+const HERO_RING_SIZE = 100;
+const HERO_RING_STROKE = 10;
+const HERO_RING_RADIUS = (HERO_RING_SIZE - HERO_RING_STROKE) / 2;
+const HERO_RING_CIRCUMFERENCE = 2 * Math.PI * HERO_RING_RADIUS;
+
+function HeroScoreRing({ value, color }: { value: number; color: string }) {
+  const offset = HERO_RING_CIRCUMFERENCE * (1 - value / 100);
+
   return (
-    <div className={["flex gap-3 rounded-[12px] border px-4 py-3 text-[14px] leading-[1.55]",
-      active ? "border-[#DDD6FE] bg-[#F3E8FF] text-[#4C1D95]"
-      : warning ? "border-[#FED7AA] bg-[#FFF7ED] text-[#9A3412]"
-      : "border-transparent bg-[#F3F4F6] text-[#6B7280]"].join(" ")}>
-      <span className="shrink-0 text-[#6B7280]">{time}</span>
-      <span>{children}</span>
+    <svg
+      width={HERO_RING_SIZE}
+      height={HERO_RING_SIZE}
+      viewBox={`0 0 ${HERO_RING_SIZE} ${HERO_RING_SIZE}`}
+      className="-rotate-90"
+      aria-hidden="true"
+    >
+      <circle
+        cx={HERO_RING_SIZE / 2}
+        cy={HERO_RING_SIZE / 2}
+        r={HERO_RING_RADIUS}
+        fill="none"
+        stroke="rgba(255,255,255,0.08)"
+        strokeWidth={HERO_RING_STROKE}
+      />
+      <circle
+        cx={HERO_RING_SIZE / 2}
+        cy={HERO_RING_SIZE / 2}
+        r={HERO_RING_RADIUS}
+        fill="none"
+        stroke={color}
+        strokeWidth={HERO_RING_STROKE}
+        strokeLinecap="round"
+        strokeDasharray={HERO_RING_CIRCUMFERENCE}
+        strokeDashoffset={offset}
+      />
+    </svg>
+  );
+}
+
+function HeroScoreCard({
+  Icon,
+  value,
+  label,
+  color,
+}: {
+  Icon: React.ElementType;
+  value: number;
+  label: string;
+  color: string;
+}) {
+  return (
+    <div className="flex flex-col items-center rounded-[16px] border border-white/10 bg-white/[0.03] px-3 py-5">
+      <div className="relative" style={{ width: HERO_RING_SIZE, height: HERO_RING_SIZE }}>
+        <HeroScoreRing value={value} color={color} />
+        <div
+          role="img"
+          aria-label={`${label}: ${value} / 100`}
+          className="absolute inset-0 flex flex-col items-center justify-center"
+        >
+          <Icon size={15} style={{ color }} aria-hidden="true" />
+          <span className="mt-1 text-[26px] font-bold leading-none text-white">{value}</span>
+          <span className="mt-0.5 text-[10px] font-medium text-white/35">/100</span>
+        </div>
+      </div>
+      <p className="mt-3 text-[13px] font-semibold text-white">{label}</p>
     </div>
   );
 }
 
-function PreviewCard() {
+// Illustrative beat timing only (not localized copy) — deliberately short,
+// Shorts-scale timestamps rather than long-form ones, consistent with
+// Climpy's existing "Shorts-first" positioning elsewhere on this page.
+const HERO_STRUCTURE_BEATS = [
+  { key: "hook", time: "0:00", color: "#A855F7" },
+  { key: "setup", time: "0:03", color: "#8B5CF6" },
+  { key: "context", time: "0:07", color: "#3B82F6" },
+  { key: "escalation", time: "0:12", color: "#22C55E" },
+  { key: "reveal", time: "0:18", color: "#F97316" },
+  { key: "payoff", time: "0:24", color: "#EAB308" },
+] as const satisfies ReadonlyArray<{ key: string; time: string; color: string }>;
+
+function HeroStructureRow() {
   const messages = useMessages();
+  const labels = messages.landing.desktopPreview.structure;
 
   return (
-    <div className="relative">
-      <div className="absolute -inset-6 rounded-[34px] bg-[#7C3AED]/10 blur-[70px]" />
-      <div className="relative overflow-hidden rounded-[26px] border border-[#E5E7EB] bg-white p-5 shadow-[0_24px_90px_rgba(0,0,0,0.12)]">
-        <div className="flex items-start justify-between gap-5">
-          <div>
-            <div className="flex flex-wrap items-center gap-3">
-              <h2 className="text-[24px] font-semibold tracking-[-0.03em] text-[#111827]">
-                {messages.landing.desktopPreview.title}
-              </h2>
-              <span className="rounded-full border border-[#DDD6FE] bg-[#F3E8FF] px-3 py-1 text-[12px] font-semibold text-[#7C3AED]">
-                {messages.landing.desktopPreview.aiReview}
+    <div className="flex items-start justify-between">
+      {HERO_STRUCTURE_BEATS.map((beat, index) => (
+        <div key={beat.key} className="flex flex-1 flex-col items-center text-center">
+          <div className="flex w-full items-center">
+            <div
+              className="h-[2px] flex-1"
+              style={{ backgroundColor: beat.color, opacity: index === 0 ? 0 : 0.6 }}
+            />
+            <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: beat.color }} />
+            <div
+              className="h-[2px] flex-1"
+              style={{
+                backgroundColor: beat.color,
+                opacity: index === HERO_STRUCTURE_BEATS.length - 1 ? 0 : 0.6,
+              }}
+            />
+          </div>
+          <p className="mt-2.5 text-[11px] font-semibold leading-tight text-white">
+            {labels[beat.key as keyof typeof labels]}
+          </p>
+          <p className="text-[10px] tabular-nums text-white/40">{beat.time}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Post-entrance cursor tilt — a small, heavily-damped "reacts to the
+// mouse" layer on top of the existing resting perspective.
+//
+// Architecture: the OUTER element (.hero-dashboard-3d, ref: outerRef)
+// owns the entrance opacity/translateY and the long 8s rotate-to-rest
+// CSS animation, exactly as before, completely untouched. A CSS
+// `animation` takes cascade priority over inline styles for as long as
+// it's attached to an element — with `animation-fill-mode: both` that's
+// indefinitely, even after it "finishes" — so writing to that SAME
+// element's `style.transform` from JS is silently ignored by the real
+// browser rendering pipeline (confirmed live: setting an extreme 30deg
+// inline transform on the animated element produced zero visible change,
+// even though `element.style.transform` correctly held the new value).
+// The INNER element (.hero-dashboard-interactive, ref: interactiveRef)
+// has no CSS animation of its own at all, so it's free to be driven
+// entirely by inline styles with normal cascade rules — its transform is
+// ONLY ever the small pointer offset (no perspective/rotateZ/base angle
+// duplicated in JS anymore), composing with the outer's already-rotated
+// 3D space via transform-style:preserve-3d on the outer (globals.css).
+const HERO_DASHBOARD_ENTRANCE_MS = 8000; // must match hero-dashboard-enter's duration in globals.css
+const HERO_TILT_MAX_OFFSET_Y = 2.5;
+const HERO_TILT_MAX_OFFSET_X = 1.5;
+const HERO_TILT_SMOOTHING = 0.05;
+const HERO_TILT_EPSILON = 0.001;
+
+function HeroAppPreview() {
+  const messages = useMessages();
+  const preview = messages.landing.desktopPreview;
+  const outerRef = useRef<HTMLDivElement>(null);
+  const interactiveRef = useRef<HTMLDivElement>(null);
+
+  // Everything below is pure DOM/imperative animation (refs + direct
+  // style writes), deliberately never touching React state — a mousemove-
+  // driven interaction re-rendering on every event would defeat the whole
+  // "smooth, damped, GPU-only" point of this effect.
+  useEffect(() => {
+    const outer = outerRef.current;
+    const interactive = interactiveRef.current;
+    if (!outer || !interactive) {
+      return;
+    }
+
+    const prefersReducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+    // (hover: hover) and (pointer: fine) is the standard way to detect a
+    // real mouse — excludes touch devices regardless of viewport width,
+    // and this component never renders below min-[900px] anyway (mobile
+    // uses an entirely separate, untouched preview card).
+    const hasFinePointer = window.matchMedia(
+      "(hover: hover) and (pointer: fine)"
+    ).matches;
+    if (prefersReducedMotion || !hasFinePointer) {
+      return;
+    }
+
+    const heroSection = outer.closest("section");
+    if (!heroSection) {
+      return;
+    }
+
+    let activated = false;
+    let target = { x: 0, y: 0 };
+    let current = { x: 0, y: 0 };
+    let rafId: number | null = null;
+    let activationTimer: number | null = null;
+
+    function applyTransform() {
+      interactive!.style.transform =
+        `rotateY(${current.x}deg) rotateX(${current.y}deg)`;
+    }
+
+    // Plain exponential smoothing (current += (target-current)*factor) —
+    // asymptotically approaches the target and can never overshoot by
+    // construction, which is exactly the "soft deceleration, no bounce/
+    // spring" behavior asked for, with no separate easing curve needed.
+    function tick() {
+      current.x += (target.x - current.x) * HERO_TILT_SMOOTHING;
+      current.y += (target.y - current.y) * HERO_TILT_SMOOTHING;
+      applyTransform();
+
+      const settled =
+        Math.abs(target.x - current.x) < HERO_TILT_EPSILON &&
+        Math.abs(target.y - current.y) < HERO_TILT_EPSILON;
+
+      if (settled) {
+        current = { ...target };
+        applyTransform();
+        rafId = null;
+        return;
+      }
+
+      rafId = requestAnimationFrame(tick);
+    }
+
+    function scheduleTick() {
+      if (rafId === null) {
+        rafId = requestAnimationFrame(tick);
+      }
+    }
+
+    function handleMouseMove(event: MouseEvent) {
+      if (!activated) {
+        return;
+      }
+      const rect = heroSection!.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) {
+        return;
+      }
+      const normX = clamp(((event.clientX - rect.left) / rect.width - 0.5) * 2, -1, 1);
+      const normY = clamp(((event.clientY - rect.top) / rect.height - 0.5) * 2, -1, 1);
+      target = {
+        x: normX * HERO_TILT_MAX_OFFSET_Y,
+        y: normY * HERO_TILT_MAX_OFFSET_X,
+      };
+      scheduleTick();
+    }
+
+    function handleMouseLeave() {
+      target = { x: 0, y: 0 };
+      scheduleTick();
+    }
+
+    function clamp(value: number, min: number, max: number) {
+      return Math.min(max, Math.max(min, value));
+    }
+
+    // Robust, at-most-once activation — never depends solely on
+    // `animationend` firing. If the entrance animation is already
+    // finished (or absent entirely, e.g. a Fast Refresh remount well
+    // after mount, or the animation having already been cleaned up)
+    // by the time this effect runs, activate immediately. Otherwise
+    // listen for the real `animationend` AND arm a fallback timer using
+    // the same known entrance duration, so a missed/renamed event can
+    // never permanently disable the interaction.
+    function activate() {
+      if (activated) {
+        return;
+      }
+      activated = true;
+      if (activationTimer !== null) {
+        window.clearTimeout(activationTimer);
+        activationTimer = null;
+      }
+      outer!.removeEventListener("animationend", handleAnimationEnd);
+    }
+
+    function handleAnimationEnd(event: AnimationEvent) {
+      if (
+        event.animationName === "hero-dashboard-enter" ||
+        event.animationName === "hero-dashboard-enter-reduced"
+      ) {
+        activate();
+      }
+    }
+
+    const runningEntrance = outer
+      .getAnimations()
+      .find((animation) =>
+        "animationName" in animation
+          ? String((animation as unknown as { animationName: string }).animationName).startsWith(
+              "hero-dashboard-enter"
+            )
+          : false
+      );
+
+    if (!runningEntrance || runningEntrance.playState === "finished") {
+      activate();
+    } else {
+      outer.addEventListener("animationend", handleAnimationEnd);
+      activationTimer = window.setTimeout(activate, HERO_DASHBOARD_ENTRANCE_MS + 300);
+    }
+
+    heroSection.addEventListener("mousemove", handleMouseMove);
+    heroSection.addEventListener("mouseleave", handleMouseLeave);
+
+    return () => {
+      outer!.removeEventListener("animationend", handleAnimationEnd);
+      heroSection.removeEventListener("mousemove", handleMouseMove);
+      heroSection.removeEventListener("mouseleave", handleMouseLeave);
+      if (activationTimer !== null) {
+        window.clearTimeout(activationTimer);
+      }
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+      }
+    };
+  }, []);
+
+  return (
+    <div className="relative hero-dashboard-3d" ref={outerRef}>
+      <div ref={interactiveRef}>
+        <div className="absolute -inset-10 rounded-[40px] bg-[#7C3AED]/20 blur-[90px]" />
+        <div className="relative overflow-hidden rounded-[28px] border border-white/10 bg-[#0B0B12] p-7 shadow-[0_36px_120px_rgba(0,0,0,0.55)]">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#7C3AED] text-white">
+                <CheckCircle2 className="h-[18px] w-[18px]" aria-hidden="true" />
               </span>
+              <div>
+                <h2 className="text-[20px] font-semibold tracking-[-0.02em] text-white">
+                  {preview.title}
+                </h2>
+                <p className="mt-1 text-[13px] text-white/45">{preview.subtitle}</p>
+              </div>
             </div>
-            <p className="mt-2 text-[14px] text-[#6B7280]">{messages.landing.desktopPreview.analyzedIn}</p>
-          </div>
-          <button className="rounded-[12px] border border-[#E5E7EB] bg-[#F3F4F6] px-4 py-2.5 text-[14px] font-semibold text-[#111827]">
-            {messages.landing.desktopPreview.reanalyze}
-          </button>
-        </div>
-
-        <div className="mt-8 grid grid-cols-3 gap-4">
-          <MetricCard label={messages.landing.desktopPreview.scores.overall} value="82" tone="green" />
-          <MetricCard label={messages.landing.desktopPreview.scores.hook} value="91" tone="red" />
-          <MetricCard label={messages.landing.desktopPreview.scores.risk} value={messages.landing.desktopPreview.scores.medium} tone="orange" />
-        </div>
-
-        <div className="mt-7 rounded-[20px] border border-[#E5E7EB] bg-[#F8F8FC] p-5">
-          <div className="mb-5 flex items-center justify-between">
-            <p className="text-[15px] font-semibold text-[#111827]">{messages.landing.desktopPreview.scriptLabel}</p>
-            <p className="text-[13px] text-[#6B7280]">0:00–0:28</p>
-          </div>
-          <div className="space-y-3">
-            <ScriptLine time="0:00" active>{messages.landing.desktopPreview.scriptLines.opening}</ScriptLine>
-            <ScriptLine time="0:05">{messages.landing.desktopPreview.scriptLines.retention}</ScriptLine>
-            <ScriptLine time="0:12" warning>{messages.landing.desktopPreview.scriptLines.payoff}</ScriptLine>
-            <ScriptLine time="0:18">{messages.landing.desktopPreview.scriptLines.fixes}</ScriptLine>
-          </div>
-        </div>
-
-        <div className="mt-4 rounded-[16px] border border-[#E5E7EB] bg-[#F8F8FC] px-4 py-3">
-          <div className="flex items-start gap-3">
-            <Target className="mt-0.5 h-4 w-4 shrink-0 text-[#7C3AED]" />
-            <div>
-              <p className="text-[13px] font-semibold text-[#7C3AED]">{messages.landing.desktopPreview.mainTakeawayLabel}</p>
-              <p className="mt-1 text-[13px] leading-[1.5] text-[#4B5563]">{messages.landing.desktopPreview.mainTakeaway}</p>
+            <div className="flex shrink-0 items-center gap-2.5">
+              <button className="rounded-[10px] border border-white/10 bg-white/[0.04] px-4 py-2.5 text-[12.5px] font-semibold text-white/80">
+                {preview.reanalyze}
+              </button>
+              <button className="inline-flex items-center gap-1 rounded-[10px] border border-white/10 bg-white/[0.04] px-4 py-2.5 text-[12.5px] font-semibold text-white/80">
+                {preview.export}
+                <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
+              </button>
             </div>
           </div>
-        </div>
-
-        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-[1fr_1.1fr]">
-          <div className="rounded-[18px] border border-[#E5E7EB] bg-[#F8F8FC] p-5">
-            <p className="text-[14px] font-semibold text-[#111827]">{messages.landing.desktopPreview.retentionCurve}</p>
-            <div className="mt-5 flex h-[90px] items-end gap-2">
-              {[70, 82, 76, 58, 64, 48, 54, 42, 46, 38].map((height, i) => (
-                <div key={i} className="w-full rounded-t-[6px] bg-gradient-to-t from-[#7C3AED] to-[#A855F7]"
-                  style={{ height: `${height}%`, opacity: 0.45 + i * 0.035 }} />
-              ))}
+  
+          <p className="mt-7 text-[15px] font-semibold text-white">{preview.scoreOverviewLabel}</p>
+          <div className="mt-4 grid grid-cols-4 gap-3">
+            <HeroScoreCard Icon={Gauge} value={85} label={preview.scores.overall} color={HERO_METRIC_COLORS.overall} />
+            <HeroScoreCard Icon={Zap} value={93} label={preview.scores.hook} color={HERO_METRIC_COLORS.hook} />
+            <HeroScoreCard Icon={Activity} value={76} label={preview.scores.retention} color={HERO_METRIC_COLORS.retention} />
+            <HeroScoreCard Icon={Workflow} value={81} label={preview.scores.structure} color={HERO_METRIC_COLORS.structure} />
+          </div>
+  
+          <div className="mt-5 rounded-[18px] border border-white/10 bg-white/[0.025] p-5">
+            <p className="text-[15px] font-semibold text-white">{preview.structureLabel}</p>
+            <div className="mt-5">
+              <HeroStructureRow />
             </div>
           </div>
-          <div className="rounded-[18px] border border-[#DDD6FE] bg-[#F3E8FF] p-5">
-            <div className="flex items-center gap-2 text-[#7C3AED]">
-              <Lightbulb className="h-5 w-5" />
-              <p className="text-[14px] font-semibold">{messages.landing.desktopPreview.suggestedFixLabel}</p>
+  
+          <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div className="rounded-[16px] border border-white/10 bg-white/[0.025] p-4">
+              <div className="flex items-center gap-1.5 text-[#C4B5FD]">
+                <Target className="h-4 w-4" />
+                <p className="text-[12px] font-semibold">{preview.mainTakeawayLabel}</p>
+              </div>
+              <p className="mt-2.5 text-[12.5px] leading-[1.55] text-white/65">{preview.mainTakeaway}</p>
             </div>
-            <p className="mt-4 text-[15px] leading-[1.65] text-[#5B21B6]">
-              {messages.landing.desktopPreview.suggestedFix}
-            </p>
+  
+            <div className="rounded-[16px] border border-white/10 bg-white/[0.025] p-4">
+              <p className="text-[12px] font-semibold text-white/70">{preview.retentionCurve}</p>
+              <div className="mt-3.5 h-[64px] w-full">
+                <svg
+                  viewBox="0 0 180 60"
+                  preserveAspectRatio="none"
+                  className="h-full w-full"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M0,34 C10,14 20,10 30,22 C40,34 50,44 60,30 C70,16 80,10 90,20 C100,30 110,42 120,32 C130,22 140,12 150,18 C160,24 170,30 180,22"
+                    fill="none"
+                    stroke="#A78BFA"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </div>
+            </div>
+  
+            <div className="rounded-[16px] border border-white/10 bg-white/[0.025] p-4">
+              <div className="flex items-center gap-1.5 text-[#FDBA74]">
+                <Lightbulb className="h-4 w-4" />
+                <p className="text-[12px] font-semibold">{preview.suggestedFixLabel}</p>
+              </div>
+              <p className="mt-2.5 text-[12.5px] leading-[1.55] text-white/65">{preview.suggestedFix}</p>
+            </div>
           </div>
         </div>
       </div>
@@ -265,38 +607,42 @@ function PreviewCard() {
   );
 }
 
-// ─── Desktop landing: hero section ───────────────────────────────────────────
+// ─── Desktop landing: hero section (dark — lives only inside the black Hero
+// band, wrapped together with Navbar by HeroBackground above) ────────────────
 
 function HeroSection() {
   const messages = useMessages();
 
   return (
-    <section className="relative z-10 mx-auto grid w-full max-w-[1280px] grid-cols-1 items-center gap-14 px-8 pb-18 pt-16 lg:grid-cols-[1fr_580px] lg:gap-16 lg:pb-20 lg:pt-16">
-      <div className="max-w-[700px]">
-        <Badge>
-          <Sparkles className="h-4 w-4 text-[#7C3AED]" />
+    <section className="relative z-10 mx-auto grid w-full max-w-[1360px] grid-cols-1 items-start gap-14 px-8 pb-16 pt-10 lg:grid-cols-[1fr_640px] lg:gap-12 lg:pb-20 lg:pt-14">
+      <div className="max-w-[700px] lg:pt-3">
+        <div className="inline-flex h-[43px] items-center gap-2 rounded-full border border-[#7C3AED]/30 bg-[#7C3AED]/10 px-5 text-[14px] font-medium text-[#C4B5FD]">
+          <Sparkles className="h-4 w-4 text-[#A78BFA]" />
           {messages.landing.hero.desktopBadge}
-        </Badge>
+        </div>
 
-        <h1 className="mt-8 max-w-[760px] text-[56px] font-extrabold leading-[0.98] tracking-[-0.06em] text-[#111827] md:text-[76px] lg:text-[84px]">
-          {messages.landing.hero.desktopHeadlinePrefix}{" "}
-            <span className="text-[#7C3AED]">
+        <h1 className="mt-8 max-w-[720px] text-[58px] font-extrabold leading-[0.95] tracking-[-0.06em] text-white md:text-[76px] lg:text-[84px]">
+          {messages.landing.hero.desktopHeadlinePrefix}
+          <br />
+          <HandUnderline>
+            <span className="bg-gradient-to-r from-[#A78BFA] via-[#8B5CF6] to-[#3B82F6] bg-clip-text text-transparent [text-shadow:0_0_50px_rgba(124,58,237,0.25)]">
               {messages.landing.hero.desktopHeadlineHighlight}
             </span>
+          </HandUnderline>
         </h1>
 
-        <p className="mt-8 max-w-[560px] text-[20px] leading-[1.75] text-[#6B7280]">
+        <p className="mt-9 max-w-[560px] text-[19px] leading-[1.75] text-white/55">
           {messages.landing.hero.desktopDescription}
         </p>
 
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
           <a
             href="#analyzer"
             onClick={(e) => {
               e.preventDefault();
               document.getElementById("analyzer")?.scrollIntoView({ behavior: "smooth" });
             }}
-            className="inline-flex h-[54px] items-center justify-center gap-2.5 rounded-[12px] bg-[#6D28D9] px-7 text-[17px] font-semibold text-white shadow-[0_0_40px_rgba(109,40,217,0.30)] transition hover:bg-[#7C3AED]"
+            className="inline-flex h-[54px] items-center justify-center gap-2.5 rounded-[12px] bg-gradient-to-r from-[#6D28D9] to-[#7C3AED] px-7 text-[17px] font-semibold text-white shadow-[0_0_50px_rgba(124,58,237,0.35)] transition hover:from-[#7C3AED] hover:to-[#8B5CF6]"
           >
             {messages.landing.hero.primaryAction}
             <ArrowRight className="h-4 w-4" />
@@ -308,28 +654,82 @@ function HeroSection() {
               e.preventDefault();
               document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" });
             }}
-            className="inline-flex h-[54px] items-center justify-center gap-2.5 rounded-[12px] border border-[#E5E7EB] bg-white px-6 text-[16px] font-semibold text-[#111827] transition hover:border-white/15 hover:bg-[#F3F4F6]"
+            className="inline-flex h-[54px] items-center justify-center gap-2.5 rounded-[12px] border border-white/15 bg-white/[0.04] px-6 text-[16px] font-semibold text-white transition hover:border-white/25 hover:bg-white/[0.08]"
           >
-            <Play className="h-4 w-4" style={{ fill: "white" }} />
+            <Play className="h-4 w-4" />
             {messages.landing.hero.secondaryAction}
           </a>
         </div>
 
-        <div className="mt-9 flex flex-wrap gap-4 text-[14px] text-[#6B7280]">
-            <TrustItem>
-              {messages.landing.hero.trustFindWeakLines}
-            </TrustItem>
-            <TrustItem>
-              {messages.landing.hero.trustImprovePacing}
-            </TrustItem>
-            <TrustItem>
-              {messages.landing.hero.trustFixBeforeUpload}
-            </TrustItem>
+        <div className="mt-10 flex flex-wrap gap-5 text-[14px] text-white/50">
+          <TrustItem icon={<Target className="h-4 w-4" />}>
+            {messages.landing.hero.trustFindWeakLines}
+          </TrustItem>
+          <TrustItem icon={<Clock3 className="h-4 w-4" />}>
+            {messages.landing.hero.trustImprovePacing}
+          </TrustItem>
+          <TrustItem icon={<CheckCircle2 className="h-4 w-4" />}>
+            {messages.landing.hero.trustFixBeforeUpload}
+          </TrustItem>
         </div>
       </div>
 
-      <PreviewCard />
+      <HeroAppPreview />
     </section>
+  );
+}
+
+// ─── Desktop landing: Hero feature row (6 real capabilities, dark — still
+// inside the black Hero band, directly below HeroSection) ─────────────────
+
+function HeroFeatureTile({
+  Icon,
+  title,
+  description,
+}: {
+  Icon: React.ElementType;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="flex flex-col items-center text-center">
+      <div className="flex h-14 w-14 items-center justify-center rounded-[16px] border border-[#7C3AED]/25 bg-[#7C3AED]/10 text-[#A78BFA]">
+        <Icon className="h-6 w-6" aria-hidden="true" />
+      </div>
+      <p className="mt-4 text-[15px] font-semibold text-white">{title}</p>
+      <p className="mt-1.5 max-w-[190px] text-[13px] leading-[1.5] text-white/45">
+        {description}
+      </p>
+    </div>
+  );
+}
+
+function HeroFeatureRow() {
+  const messages = useMessages();
+  const items = messages.landing.hero.featureRow;
+
+  const tiles: Array<{ Icon: React.ElementType; title: string; description: string }> = [
+    { Icon: Zap, ...items.hookAnalysis },
+    { Icon: Activity, ...items.retentionFeedback },
+    { Icon: Workflow, ...items.structureBreakdown },
+    { Icon: ShieldCheck, ...items.actionableFixes },
+    { Icon: FileText, ...items.fullTranscript },
+    { Icon: History, ...items.saveAndRevisit },
+  ];
+
+  return (
+    <div className="relative z-10 mx-auto w-full max-w-[1280px] px-8 pb-28">
+      <div className="grid grid-cols-2 gap-x-6 gap-y-10 pt-8 sm:grid-cols-3 lg:grid-cols-6">
+        {tiles.map((tile) => (
+          <HeroFeatureTile
+            key={tile.title}
+            Icon={tile.Icon}
+            title={tile.title}
+            description={tile.description}
+          />
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -1413,8 +1813,18 @@ export default function HomePage() {
       <div className="hidden min-[900px]:block">
         <div className="relative overflow-hidden">
           <BackgroundDecor />
-          <Navbar />
-          <HeroSection />
+          {/* Dark Hero band (black + purple/blue glows) — self-contained and
+              opaque, explicitly stacked (z-10, matching how Navbar/
+              HeroSection's own root elements already use z-10) above
+              BackgroundDecor's light-page wash so it never bleeds through.
+              Everything from ValueSection down stays on the existing light
+              page background, untouched. */}
+          <div className="relative isolate z-10 overflow-hidden bg-[#07070B]">
+            <HeroBackground />
+            <Navbar />
+            <HeroSection />
+            <HeroFeatureRow />
+          </div>
           <ValueSection />
           <AnalyzerSection
             title={title}

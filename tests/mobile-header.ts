@@ -166,16 +166,16 @@ function checkAllActionsReachableViaMenu(): void {
 
 function checkDesktopNavUnchanged(): void {
   check(
-    "The desktop Navbar still renders LanguageSwitcher + AuthNav (default variant) + the Start Free CTA, untouched",
+    "The desktop Navbar still renders exactly one LanguageSwitcher + one AuthNav + the Start Free CTA (now styled via each component's own 'dark' variant for the black Hero band — an additive, backward-compatible prop, not a structural change)",
     (() => {
       const navbarStart = pageSource.indexOf("function Navbar() {");
       const navbarEnd = pageSource.indexOf(
-        "// ─── Desktop landing: hero preview card"
+        "// ─── Desktop landing: hero app-preview card"
       );
       const navbar = pageSource.slice(navbarStart, navbarEnd);
       return (
-        navbar.includes("<LanguageSwitcher />") &&
-        navbar.includes("<AuthNav />") &&
+        navbar.includes("<LanguageSwitcher variant=\"dark\" />") &&
+        navbar.includes("<AuthNav variant=\"dark\" />") &&
         navbar.includes("{messages.landing.nav.startFree}")
       );
     })()
@@ -342,13 +342,13 @@ function checkMenuAccessibility(): void {
 
 function checkNoDuplicateControlsAtSameBreakpoint(): void {
   check(
-    "AuthNav is rendered exactly once in app/page.tsx (the desktop Navbar) — never duplicated for mobile now that the mobile header uses the shared menu instead",
-    (pageSource.match(/<AuthNav\s*\/>/g) ?? []).length === 1
+    "AuthNav is rendered exactly once in app/page.tsx (the desktop Navbar) — never duplicated for mobile now that the mobile header uses the shared menu instead (an optional variant=\"dark\" prop on that one instance is fine — still one render site)",
+    (pageSource.match(/<AuthNav(\s+variant="[^"]*")?\s*\/>/g) ?? []).length === 1
   );
 
   check(
-    "LanguageSwitcher is rendered exactly twice — once for desktop (inside the hidden min-[900px]:block wrapper) and once for mobile (inside the min-[900px]:hidden wrapper) — never both visible at the same breakpoint",
-    (pageSource.match(/<LanguageSwitcher \/>/g) ?? []).length === 2
+    "LanguageSwitcher is rendered exactly twice — once for desktop (inside the hidden min-[900px]:block wrapper, using its own variant=\"dark\" prop for the black Hero band) and once for mobile (inside the min-[900px]:hidden wrapper) — never both visible at the same breakpoint",
+    (pageSource.match(/<LanguageSwitcher(\s+variant="[^"]*")?\s*\/>/g) ?? []).length === 2
   );
 }
 
