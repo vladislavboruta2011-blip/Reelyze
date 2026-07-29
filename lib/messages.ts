@@ -56,11 +56,11 @@ const enMessages = {
       results: "Results",
     },
     hero: {
-      desktopBadge: "Made for creators",
-      desktopHeadlinePrefix: "Analyze your scripts before",
-      desktopHeadlineHighlight: "you upload.",
+      desktopBadge: "AI-powered script analysis for creators",
+      desktopHeadlinePrefix: "See where viewers",
+      desktopHeadlineHighlight: "drop off. Before you post.",
       desktopDescription:
-        "Climpy helps creators improve hooks, pacing, and retention before the video goes live.",
+        "Climpy analyzes your script and shows you what works, what feels slow, and what to fix — so every second keeps viewers watching.",
       mobileBadge: "YouTube Shorts script analyzer",
       mobileHeadlinePrefix: "Fix weak scripts before",
       mobileHeadlineHighlight: "viewers scroll.",
@@ -74,28 +74,53 @@ const enMessages = {
       shortsFirst: "Shorts-first",
       characterLimit: "1,000 characters",
       noUploadNeeded: "No upload needed",
+      featureRow: {
+        hookAnalysis: {
+          title: "Hook analysis",
+          description: "See whether your opening earns attention or lets viewers scroll past.",
+        },
+        retentionFeedback: {
+          title: "Retention feedback",
+          description: "Find the moments where viewers are likely to lose interest.",
+        },
+        structureBreakdown: {
+          title: "Structure breakdown",
+          description: "Follow your script's flow beat by beat, from hook to payoff.",
+        },
+        actionableFixes: {
+          title: "Actionable fixes",
+          description: "Get specific suggestions you can apply before you record.",
+        },
+        fullTranscript: {
+          title: "Full transcript",
+          description: "Review every line with exact timestamps, not just a summary.",
+        },
+        saveAndRevisit: {
+          title: "Save & revisit",
+          description: "Every analysis is saved, so you can come back to it anytime.",
+        },
+      },
     },
     desktopPreview: {
-      title: "Script Review",
-      aiReview: "AI review",
-      analyzedIn: "Analyzed in 8 seconds",
+      title: "Analysis complete",
+      subtitle: "Here's your detailed script breakdown",
       reanalyze: "Re-analyze",
+      export: "Export",
+      scoreOverviewLabel: "Score overview",
       scores: {
         overall: "Overall",
         hook: "Hook",
-        risk: "Risk",
-        medium: "Med",
+        retention: "Retention",
+        structure: "Structure",
       },
-      scriptLabel: "Your Script",
-      scriptLines: {
-        opening:
-          "If your first 3 seconds feel slow, most viewers are already gone.",
-        retention:
-          "Climpy finds the exact moment where retention starts dropping.",
-        payoff:
-          "This line needs a stronger visual payoff.",
-        fixes:
-          "Then it gives you clearer fixes before you upload.",
+      structureLabel: "Script structure",
+      structure: {
+        hook: "Hook",
+        setup: "Setup",
+        context: "Context",
+        escalation: "Escalation",
+        reveal: "Reveal",
+        payoff: "Payoff",
       },
       mainTakeawayLabel: "Main Takeaway",
       mainTakeaway:
@@ -1365,11 +1390,11 @@ const ruMessages = {
       results: "Результаты",
     },
     hero: {
-      desktopBadge: "Для авторов",
-      desktopHeadlinePrefix: "Проверьте сценарий до",
-      desktopHeadlineHighlight: "публикации.",
+      desktopBadge: "ИИ-анализ сценариев для авторов",
+      desktopHeadlinePrefix: "Узнайте, где зрители",
+      desktopHeadlineHighlight: "уходят. До публикации.",
       desktopDescription:
-        "Climpy помогает улучшить хук, темп и удержание до публикации видео.",
+        "Climpy анализирует сценарий и показывает, что работает, что кажется затянутым и что исправить — чтобы удержать зрителя на каждой секунде.",
       mobileBadge: "Анализатор сценариев YouTube Shorts",
       mobileHeadlinePrefix: "Исправьте слабый сценарий, пока",
       mobileHeadlineHighlight: "зритель не пролистнул.",
@@ -1383,28 +1408,53 @@ const ruMessages = {
       shortsFirst: "Для Shorts",
       characterLimit: "1 000 символов",
       noUploadNeeded: "Без загрузки видео",
+      featureRow: {
+        hookAnalysis: {
+          title: "Анализ хука",
+          description: "Узнайте, привлекает ли начало внимание или зритель пролистнёт.",
+        },
+        retentionFeedback: {
+          title: "Разбор удержания",
+          description: "Найдите моменты, где зрители, скорее всего, теряют интерес.",
+        },
+        structureBreakdown: {
+          title: "Разбор структуры",
+          description: "Проследите ход сценария по бит-этапам — от хука до развязки.",
+        },
+        actionableFixes: {
+          title: "Конкретные правки",
+          description: "Получите конкретные предложения, которые можно применить до записи.",
+        },
+        fullTranscript: {
+          title: "Полная расшифровка",
+          description: "Просмотрите каждую строку с точными таймкодами, а не только сводку.",
+        },
+        saveAndRevisit: {
+          title: "Сохранение анализов",
+          description: "Каждый анализ сохраняется, чтобы вы могли вернуться к нему в любой момент.",
+        },
+      },
     },
     desktopPreview: {
-      title: "Разбор сценария",
-      aiReview: "AI-разбор",
-      analyzedIn: "Проанализировано за 8 секунд",
+      title: "Анализ завершён",
+      subtitle: "Вот подробный разбор вашего сценария",
       reanalyze: "Анализировать снова",
+      export: "Экспорт",
+      scoreOverviewLabel: "Обзор оценок",
       scores: {
         overall: "Итог",
         hook: "Хук",
-        risk: "Риск",
-        medium: "Сред.",
+        retention: "Удержание",
+        structure: "Структура",
       },
-      scriptLabel: "Ваш сценарий",
-      scriptLines: {
-        opening:
-          "Если первые 3 секунды кажутся медленными, большинство зрителей уже ушли.",
-        retention:
-          "Climpy находит точный момент, где начинает падать удержание.",
-        payoff:
-          "Этой фразе нужна более сильная визуальная развязка.",
-        fixes:
-          "Затем Climpy предлагает более ясные правки до публикации.",
+      structureLabel: "Структура сценария",
+      structure: {
+        hook: "Хук",
+        setup: "Завязка",
+        context: "Контекст",
+        escalation: "Эскалация",
+        reveal: "Раскрытие",
+        payoff: "Развязка",
       },
       mainTakeawayLabel: "Главный вывод",
       mainTakeaway:

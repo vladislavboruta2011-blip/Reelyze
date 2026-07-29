@@ -9,7 +9,7 @@ import { SignInModal } from "./sign-in-modal";
 import { useSession } from "./session-provider";
 import { useMessages } from "./use-messages";
 
-type AuthNavVariant = "default" | "results";
+type AuthNavVariant = "default" | "results" | "dark";
 
 export function AuthNav({
   className = "",
@@ -36,14 +36,18 @@ export function AuthNav({
 
   if (!user) {
     // Signed-out behavior is identical across variants — only the
-    // authenticated account actions below change shape on /results.
+    // authenticated account actions below change shape on /results, and the
+    // "dark" variant only ever changes surface colors (for the black-
+    // background marketing Hero), never structure/behavior.
     return (
       <>
         <button
           type="button"
           onClick={() => setIsSignInModalOpen(true)}
           className={[
-            "inline-flex h-9 items-center justify-center rounded-full border border-[#E5E7EB] bg-white px-4 text-[13px] font-semibold text-[#111827] transition hover:border-[#7C3AED]/50 hover:bg-[#7C3AED]/10",
+            variant === "dark"
+              ? "inline-flex h-9 items-center justify-center rounded-full border border-white/15 bg-white/[0.04] px-4 text-[13px] font-semibold text-white transition hover:border-white/30 hover:bg-white/[0.08]"
+              : "inline-flex h-9 items-center justify-center rounded-full border border-[#E5E7EB] bg-white px-4 text-[13px] font-semibold text-[#111827] transition hover:border-[#7C3AED]/50 hover:bg-[#7C3AED]/10",
             className,
           ].join(" ")}
         >
@@ -82,11 +86,17 @@ export function AuthNav({
     );
   }
 
+  const isDark = variant === "dark";
+
   return (
     <div className={["flex items-center gap-2", className].join(" ")}>
       <Link
         href="/my-analyses"
-        className="inline-flex h-9 items-center justify-center rounded-full border border-[#E5E7EB] bg-white px-4 text-[13px] font-semibold text-[#111827] transition hover:border-[#7C3AED]/50 hover:bg-[#7C3AED]/10"
+        className={
+          isDark
+            ? "inline-flex h-9 items-center justify-center rounded-full border border-white/15 bg-white/[0.04] px-4 text-[13px] font-semibold text-white transition hover:border-white/30 hover:bg-white/[0.08]"
+            : "inline-flex h-9 items-center justify-center rounded-full border border-[#E5E7EB] bg-white px-4 text-[13px] font-semibold text-[#111827] transition hover:border-[#7C3AED]/50 hover:bg-[#7C3AED]/10"
+        }
       >
         {messages.common.myAnalyses}
       </Link>
@@ -94,7 +104,11 @@ export function AuthNav({
         type="button"
         onClick={handleSignOut}
         disabled={isSigningOut}
-        className="inline-flex h-9 items-center justify-center rounded-full border border-[#E5E7EB] bg-white px-4 text-[13px] font-semibold text-[#6B7280] transition hover:border-white/20 hover:text-[#111827] disabled:cursor-not-allowed disabled:opacity-60"
+        className={
+          isDark
+            ? "inline-flex h-9 items-center justify-center rounded-full border border-white/15 bg-white/[0.04] px-4 text-[13px] font-semibold text-white/70 transition hover:border-white/30 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+            : "inline-flex h-9 items-center justify-center rounded-full border border-[#E5E7EB] bg-white px-4 text-[13px] font-semibold text-[#6B7280] transition hover:border-white/20 hover:text-[#111827] disabled:cursor-not-allowed disabled:opacity-60"
+        }
       >
         {messages.common.signOut}
       </button>

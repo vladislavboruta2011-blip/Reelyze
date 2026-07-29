@@ -82,3 +82,104 @@ body {
     transform: none;
   }
 }
+
+/* Hero dashboard 3D entrance (app/page.tsx HeroAppPreview only) — a very
+   slow, cinematic settle into a floating-product-screenshot perspective.
+   LEFT edge reads closer to the viewer, RIGHT edge farther away —
+   rotateY is POSITIVE (verified by projecting each corner's actual
+   post-transform screen coordinates via DOMMatrix in a live tab: with
+   rotateY(+8deg) the left corners land at positive Z / toward the
+   viewer and the right corners at negative Z / away — a prior round
+   flipped this to negative from unverified guessing and had it
+   backwards; this sign is now confirmed against the real rendered
+   output, not derived). rotateX is likewise positive (tips the top back
+   slightly, bottom edge very slightly toward the viewer — same
+   axis, verified the same way). rotateZ gives the whole card a gentle
+   clockwise rest tilt (pure 2D rotation, independently confirmed via the
+   same corner projection: right corner's screen Y is lower than left's).
+   The 100% keyframe and the element's own idle `transform` below are
+   numerically identical on purpose, so `animation-fill-mode: both` never
+   produces a visible snap once the animation finishes. Internal spacing
+   is never touched; only this one wrapper is transformed.
+
+   Timing is three distinct phases via PER-KEYFRAME
+   `animation-timing-function` (not one global easing) so each phase
+   actually feels the way it's meant to: 0%-10% (0-800ms) eases out into
+   view; 10%-97.5% (800-7800ms) — the long middle — is plain `linear`, a
+   constant, barely-perceptible creep (an eased curve would keep
+   accelerating/decelerating and draw attention to itself, which is the
+   opposite of "the viewer should barely notice"); 97.5%-100%
+   (7800-8000ms) eases out into the tiny final settle. */
+@keyframes hero-dashboard-enter {
+  0% {
+    opacity: 0;
+    transform: perspective(1400px) translateY(40px) rotateY(0deg) rotateX(0deg) rotateZ(0deg);
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  10% {
+    opacity: 1;
+    transform: perspective(1400px) translateY(0) rotateY(0.4deg) rotateX(0.1deg) rotateZ(0.1deg);
+    animation-timing-function: linear;
+  }
+  97.5% {
+    opacity: 1;
+    transform: perspective(1400px) translateY(0) rotateY(7.6deg) rotateX(1.9deg) rotateZ(1.4deg);
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  100% {
+    opacity: 1;
+    transform: perspective(1400px) translateY(0) rotateY(8deg) rotateX(2deg) rotateZ(1.5deg);
+  }
+}
+
+@keyframes hero-dashboard-enter-reduced {
+  0% {
+    opacity: 0;
+    transform: perspective(1400px) translateY(40px) rotateY(0deg) rotateX(0deg) rotateZ(0deg);
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  10% {
+    opacity: 1;
+    transform: perspective(1400px) translateY(0) rotateY(0.2deg) rotateX(0.05deg) rotateZ(0.05deg);
+    animation-timing-function: linear;
+  }
+  97.5% {
+    opacity: 1;
+    transform: perspective(1400px) translateY(0) rotateY(3.8deg) rotateX(0.95deg) rotateZ(0.7deg);
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  100% {
+    opacity: 1;
+    transform: perspective(1400px) translateY(0) rotateY(4deg) rotateX(1deg) rotateZ(0.75deg);
+  }
+}
+
+.hero-dashboard-3d {
+  transform: perspective(1400px) rotateY(8deg) rotateX(2deg) rotateZ(1.5deg);
+  animation: hero-dashboard-enter 8000ms linear both;
+  will-change: transform, opacity;
+  /* Lets the inner .hero-dashboard-interactive child's own small pointer-
+     driven rotateX/rotateY compose correctly in the same 3D space as this
+     element's perspective, instead of being flattened first. */
+  transform-style: preserve-3d;
+}
+
+/* Compact-desktop/tablet band (this component only ever renders at
+   min-[900px] and up — narrower viewports use an entirely separate,
+   already-flat mobile preview card) — a reduced-angle version of the same
+   resting transform and the same-shaped, angle-scaled keyframes, so the
+   animation's own final frame always matches this breakpoint's resting
+   transform too. */
+@media (max-width: 1023px) {
+  .hero-dashboard-3d {
+    transform: perspective(1400px) rotateY(4deg) rotateX(1deg) rotateZ(0.75deg);
+    animation-name: hero-dashboard-enter-reduced;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-dashboard-3d {
+    animation: none;
+    opacity: 1;
+  }
+}
