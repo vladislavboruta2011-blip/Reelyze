@@ -10,6 +10,11 @@ type TranscriptCopy =
   Messages["competitorScripts"]["analyzeResults"]["transcript"];
 
 const SEGMENT_PREVIEW_COUNT = 6;
+// A rough few-lines preview length — never truncates the underlying
+// `data.text` value itself, only how much of it this component shows by
+// default. The real full string is always still reachable via the
+// "Show full transcript" toggle.
+const FULL_TEXT_PREVIEW_CHAR_LIMIT = 320;
 
 export type TranscriptSectionData = {
   languageCode: string | null;
@@ -22,10 +27,11 @@ export type TranscriptSectionData = {
 // The one place on the Results page that renders real, API-derived
 // transcript content. Text is always rendered as plain React text, never
 // through React's raw-HTML injection prop, so nothing in a transcript can
-// execute as markup — this is untrusted video-derived content. Only the
-// timestamped segment list is progressively disclosed (a long transcript
-// can have thousands of segments); the full transcript text itself is
-// always shown in full, never collapsed.
+// execute as markup — this is untrusted video-derived content. Both the
+// full transcript text and the timestamped segment list are progressively
+// disclosed (transcript is secondary reference material once real
+// analysis exists) — the underlying data is never truncated or altered,
+// only how much of it renders by default.
 export function TranscriptSection({
   copy,
   data,
@@ -34,6 +40,7 @@ export function TranscriptSection({
   data: TranscriptSectionData;
 }) {
   const [showAllSegments, setShowAllSegments] = useState(false);
+  const [showFullText, setShowFullText] = useState(false);
 
   // Generation (auto-generated vs. manual) is only shown when the
   // provider actually told us — there is no reliable source metadata to
@@ -65,6 +72,16 @@ export function TranscriptSection({
   const visibleSegments = showAllSegments
     ? data.segments
     : data.segments.slice(0, SEGMENT_PREVIEW_COUNT);
+
+  // The full transcript string itself is never altered or truncated —
+  // only how much of it is rendered by default. isTextTruncatable stays
+  // false (and the full text always shows) for any transcript short
+  // enough that a preview wouldn't shorten anything anyway.
+  const isTextTruncatable = data.text.length > FULL_TEXT_PREVIEW_CHAR_LIMIT;
+  const visibleText =
+    showFullText || !isTextTruncatable
+      ? data.text
+      : `${data.text.slice(0, FULL_TEXT_PREVIEW_CHAR_LIMIT).trimEnd()}…`;
 
   return (
     <section className="rounded-[20px] border border-[#7C3AED]/15 bg-white/[0.035] p-5 lg:p-7">
@@ -102,9 +119,25 @@ export function TranscriptSection({
         <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
           {copy.fullTextHeading}
         </p>
-        <p className="mt-3 max-w-[760px] whitespace-pre-wrap break-words text-[13.5px] leading-[1.7] text-[#D1D5DB]">
-          {data.text}
+        <p className="mt-3 max-w-[760px] whitespace-pre-wrap break-words text-[14px] leading-[1.7] text-[#D1D5DB]">
+          {visibleText}
         </p>
+
+        {isTextTruncatable && (
+          <button
+            type="button"
+            onClick={() => setShowFullText((current) => !current)}
+            aria-expanded={showFullText}
+            className="mt-3 inline-flex items-center gap-1 bg-transparent text-[12.5px] font-semibold text-[#A78BFA] transition-colors hover:text-[#C4B5FD] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C4B5FD]"
+          >
+            {showFullText ? copy.showLessTranscript : copy.showFullTranscript}
+            <ChevronDown
+              size={13}
+              className={`transition-transform ${showFullText ? "rotate-180" : ""}`}
+              aria-hidden="true"
+            />
+          </button>
+        )}
       </div>
 
       {data.segments.length > 0 && (

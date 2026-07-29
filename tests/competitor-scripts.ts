@@ -1291,9 +1291,10 @@ check(
 );
 
 check(
-  "score values are static (no useState/useEffect-driven counting animation)",
-  !scoreOverviewSource.includes("useState") &&
-    !scoreOverviewSource.includes("useEffect")
+  "the displayed score number/label text itself is still static (rendered directly from the real metric.value, never a counted-up/interpolated number) — only the ring's arc animates, tracked separately below",
+  scoreOverviewSource.includes("{metric.value}") &&
+    !/setInterval\(/.test(scoreOverviewSource) &&
+    !/\bcount(Up)?\b/i.test(scoreOverviewSource)
 );
 
 const scriptBreakdownSource = readFileSync(
@@ -1367,6 +1368,209 @@ check(
 check(
   "no dangerouslySetInnerHTML anywhere in the results feature (transcript text is always rendered as plain React text)",
   !resultsFeatureSource.includes("dangerouslySetInnerHTML")
+);
+
+// ── Page-entrance animation: shared CSS primitive across all 4 pages ───
+
+const globalsCssSource = readFileSync("app/globals.css", "utf8");
+
+check(
+  "exactly one shared page-entrance keyframe (page-enter) is defined, in the one global CSS file in the project — the second .animate-page-enter occurrence in that file is only the prefers-reduced-motion override, never a per-page duplicate definition",
+  (globalsCssSource.match(/@keyframes page-enter/g) ?? []).length === 1 &&
+    (globalsCssSource.match(/\.animate-page-enter\s*\{/g) ?? []).length === 2
+);
+
+check(
+  "the page-enter keyframe animates only opacity/transform (never height/width/margin), so it cannot cause layout shift",
+  (() => {
+    const match = globalsCssSource.match(
+      /@keyframes page-enter\s*\{([\s\S]*?)\n\}/
+    );
+    if (!match) return false;
+    const body = match[1];
+    return (
+      /opacity:\s*0/.test(body) &&
+      /translateY\(24px\)/.test(body) &&
+      !/\b(height|width|margin|padding|top|left|right|bottom)\s*:/.test(body)
+    );
+  })()
+);
+
+check(
+  "the page-enter animation uses a deliberately more perceptible but still restrained duration/easing — 1000ms, no bounce/spring keywords, no scale/rotate",
+  globalsCssSource.includes("page-enter 1000ms cubic-bezier(0.16, 1, 0.3, 1) both") &&
+    !/scale\(|rotate\(|spring|bounce/i.test(globalsCssSource)
+);
+
+check(
+  "prefers-reduced-motion: reduce disables the animation entirely and forces the fully-visible final state — content is never left invisible for those users",
+  /@media \(prefers-reduced-motion: reduce\)\s*\{\s*\.animate-page-enter\s*\{\s*animation:\s*none;\s*opacity:\s*1;\s*transform:\s*none;/.test(
+    globalsCssSource
+  )
+);
+
+check(
+  "the 3 non-results Competitor Scripts pages (selection, analyze, compare) apply the shared .animate-page-enter class to their content wrapper — these mount their real content immediately, unlike Results",
+  modeSelectionPageSource.includes('className="animate-page-enter lg:ml-[260px]"') &&
+    analyzePageSource.includes('className="animate-page-enter lg:ml-[260px]"') &&
+    comparePageSource.includes('className="animate-page-enter lg:ml-[260px]"')
+);
+
+check(
+  "the animation class is applied to the content wrapper div, never to <Sidebar />, on the 3 non-results pages — the persistent shell is never animated",
+  [modeSelectionPageSource, analyzePageSource, comparePageSource].every(
+    (source) =>
+      !/<Sidebar[^>]*animate-page-enter/.test(source) &&
+      /<Sidebar[^/]*\/>\s*\n\s*<div className="animate-page-enter/.test(source)
+  )
+);
+
+check(
+  "the Results page's outer wrapper deliberately does NOT carry .animate-page-enter — it mounts before the real report is ready, so animating it here would animate the loading placeholder instead of the finished report",
+  !/<div className="[^"]*animate-page-enter[^"]*"/.test(resultsPageSource) &&
+    !resultsPageSource.includes("animate-page-enter")
+);
+
+check(
+  "none of the 4 pages gained a \"use client\" directive — the entrance animation is pure CSS and requires no Client Component conversion",
+  [modeSelectionPageSource, analyzePageSource, resultsPageSource, comparePageSource].every(
+    (source) => !source.includes('"use client"')
+  )
+);
+
+check(
+  "sidebar.tsx itself was not touched to add any animation — it has no animate-page-enter/page-enter reference of its own",
+  !sidebarSource.includes("animate-page-enter") &&
+    !sidebarSource.includes("page-enter")
+);
+
+check(
+  "the results page's progressive-disclosure controls (Script Structure's Show details, transcript's Show full transcript, Show all segments) are untouched by the animation pass — real state-driven toggles, not part of the one-time page entrance",
+  resultsFeatureSource.includes("aria-expanded={isExpanded}") &&
+    resultsFeatureSource.includes("aria-expanded={showFullText}") &&
+    resultsFeatureSource.includes("aria-expanded={showAllSegments}")
+);
+
+check(
+  "the Compare page's real form/business content is untouched by the animation pass — CompareInputForm is still rendered inside the same animated wrapper, not removed or altered",
+  comparePageSource.includes("<CompareInputForm") &&
+    comparePageSource.includes("<CoverageSection") &&
+    comparePageSource.includes("<ExampleComparison")
+);
+
+// ── Result-arrival animation: finished report entrance + ring fill ─────
+
+const analyzeResultsContentSource = readFileSync(
+  "app/competitor-scripts/analyze/results/analyze-results-content.tsx",
+  "utf8"
+);
+
+check(
+  "the results route does not rely only on the early outer page-enter animation for the finished report — the outer page wrapper has no entrance animation at all, and a dedicated .animate-result-enter class exists in globals.css",
+  !resultsPageSource.includes("animate-page-enter") &&
+    globalsCssSource.includes(".animate-result-enter")
+);
+
+check(
+  "the ready/degraded report container receives the dedicated result-entrance treatment, applied exactly once to the single top-level container that wraps the whole report (summary, score overview, why-scores, structure, strengths/weaknesses, risks/lessons, caution, transcript, bottom actions all live inside it)",
+  (analyzeResultsContentSource.match(/animate-result-enter/g) ?? []).length === 1 &&
+    /className="flex flex-col gap-3 animate-result-enter"[\s\S]{0,200}<ResultsSummary/.test(
+      analyzeResultsContentSource
+    )
+);
+
+check(
+  "the result entrance is not attached individually to every card — the per-section components checked here (score overview, script structure) never reference animate-result-enter themselves; it lives exactly once, on the shared report container in analyze-results-content.tsx",
+  !scoreOverviewSource.includes("animate-result-enter") &&
+    !scriptBreakdownSource.includes("animate-result-enter")
+);
+
+check(
+  "score arcs begin from the empty circumference state (strokeDashoffset = full circumference) and only reach the real score once filled — never rendering the final offset unconditionally",
+  scoreOverviewSource.includes(
+    "RING_CIRCUMFERENCE * (1 - value / 100)"
+  ) &&
+    /isFilled\s*\?\s*RING_CIRCUMFERENCE \* \(1 - value \/ 100\)\s*:\s*RING_CIRCUMFERENCE/.test(
+      scoreOverviewSource
+    )
+);
+
+check(
+  "reduced-motion users get the final ring offset on the very first render (lazily computed from prefers-reduced-motion), never an empty-ring flash, and the ring fill effect itself also checks prefers-reduced-motion before scheduling any animation frame",
+  /useState\(\(\)\s*=>\s*\{[\s\S]{0,200}prefers-reduced-motion: reduce[\s\S]{0,100}\}\)/.test(
+    scoreOverviewSource
+  ) &&
+    (scoreOverviewSource.match(/prefers-reduced-motion: reduce/g) ?? [])
+      .length === 2
+);
+
+check(
+  "the empty-to-final ring transition uses a reliable two-frame requestAnimationFrame handoff (not a single rAF, which the browser can coalesce before the first paint) and cleans both frames up on unmount",
+  /requestAnimationFrame\(\(\)\s*=>\s*\{[\s\S]{0,120}innerRaf\s*=\s*requestAnimationFrame/.test(
+    scoreOverviewSource
+  ) &&
+    scoreOverviewSource.includes("cancelAnimationFrame(outerRaf)") &&
+    scoreOverviewSource.includes("cancelAnimationFrame(innerRaf)")
+);
+
+check(
+  "all four score arcs share one single fill transition constant (duration/easing/delay) — there is no per-metric or per-index stagger/delay multiplier anywhere in score-overview.tsx",
+  (scoreOverviewSource.match(/RING_FILL_TRANSITION/g) ?? []).length >= 2 &&
+    !/delay.*index|index.*delay/i.test(scoreOverviewSource) &&
+    !/\*\s*index\b/.test(scoreOverviewSource)
+);
+
+check(
+  "the ring fill duration is within the requested ~1000-1200ms range with a small (<=150ms) shared delay, using a smooth ease-out curve — no spring/bounce keywords",
+  (() => {
+    const match = scoreOverviewSource.match(
+      /stroke-dashoffset (\d+)ms cubic-bezier\(([^)]+)\) (\d+)ms/
+    );
+    if (!match) return false;
+    const duration = Number(match[1]);
+    const delay = Number(match[3]);
+    return (
+      duration >= 1000 &&
+      duration <= 1200 &&
+      delay >= 0 &&
+      delay <= 150 &&
+      !/spring|bounce|overshoot/i.test(scoreOverviewSource)
+    );
+  })()
+);
+
+check(
+  "strokeLinecap=\"round\" is still enforced on the (now-animating) active arc",
+  scoreOverviewSource.includes('strokeLinecap="round"')
+);
+
+check(
+  "no horizontal progress-bar markup was reintroduced alongside the animated ring",
+  !scoreOverviewSource.includes("width: `${metric.value}%`") &&
+    !/h-1\.?5?\s+w-full\s+rounded-full/.test(scoreOverviewSource)
+);
+
+check(
+  "globals.css disables both the result entrance and the ring's implicit motion for prefers-reduced-motion — report and rings render immediately in their final state, content is never left invisible/empty",
+  /@media \(prefers-reduced-motion: reduce\)\s*\{\s*\.animate-result-enter\s*\{\s*animation:\s*none;\s*opacity:\s*1;\s*transform:\s*none;/.test(
+    globalsCssSource
+  )
+);
+
+check(
+  "disclosure toggles (Show details, Show full structure, Show full transcript, Show all segments) cannot recreate/re-key the whole result animation wrapper — the ready container carries no dynamic `key` derived from any toggle state",
+  !/key=\{[^}]*(isExpanded|isFullyExpanded|showFullText|showAllSegments)[^}]*\}[\s\S]{0,200}animate-result-enter/.test(
+    analyzeResultsContentSource
+  ) &&
+    !/animate-result-enter[\s\S]{0,50}key=\{/.test(analyzeResultsContentSource)
+);
+
+check(
+  "no new dependency was introduced for either animation (no animation library in package.json)",
+  (() => {
+    const packageJson = readFileSync("package.json", "utf8");
+    return !/"framer-motion"|"react-spring"|"gsap"|"lottie/.test(packageJson);
+  })()
 );
 
 async function main() {

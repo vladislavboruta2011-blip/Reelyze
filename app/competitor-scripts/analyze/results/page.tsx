@@ -14,6 +14,11 @@ export default async function AnalyzeResultsPage() {
     <main className="min-h-screen bg-[#0A0A12] text-[#F5F5F7] antialiased">
       <Sidebar messages={messages} />
 
+      {/* Deliberately no shared page-entrance class here — this wrapper
+          mounts before the real report is ready. AnalyzeResultsContent's
+          ready-state container carries its own dedicated result-entrance
+          class instead, timed to when the real analysis is actually
+          visible (see globals.css). */}
       <div className="lg:ml-[260px]">
         <div className="px-5 pt-5 pb-8 lg:px-10 lg:pt-6 lg:pb-12">
           <div className="mx-auto w-full max-w-[1220px]">

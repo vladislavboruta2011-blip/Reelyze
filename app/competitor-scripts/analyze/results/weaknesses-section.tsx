@@ -20,7 +20,7 @@ export function WeaknessesSection({
   items: Weakness[];
 }) {
   return (
-    <section className="flex h-full flex-col rounded-[20px] border border-[#F59E0B]/25 bg-gradient-to-b from-[#F59E0B]/[0.05] to-transparent p-5 lg:p-6">
+    <section className="flex h-full flex-col rounded-[20px] border border-[#F59E0B]/25 bg-gradient-to-b from-[#F59E0B]/[0.05] to-transparent p-4 lg:p-5">
       <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#FBBF24]">
         {weaknesses.sectionEyebrow}
       </p>
@@ -28,37 +28,37 @@ export function WeaknessesSection({
         {weaknesses.heading}
       </h2>
       {items.length === 0 ? (
-        <p className="mt-4 text-[12.5px] leading-[1.5] text-[#9CA3AF]">
+        <p className="mt-3.5 text-[12.5px] leading-[1.5] text-[#9CA3AF]">
           {weaknesses.emptyState}
         </p>
       ) : (
-        <ul className="mt-4 flex flex-1 flex-col gap-3.5">
+        <ul className="mt-3.5 flex flex-1 flex-col gap-3.5">
           {items.map((item, index) => (
             <li key={`${item.issue}-${index}`} className="flex items-start gap-3">
               <span
-                className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#F59E0B]/15 text-[#F59E0B]"
+                className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#F59E0B]/15 text-[#F59E0B]"
                 aria-hidden="true"
               >
-                <TriangleAlert size={14} />
+                <TriangleAlert size={15} />
               </span>
               <div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-[13.5px] font-semibold text-[#F5F5F7]">
+                  <p className="text-[14.5px] font-semibold text-[#F5F5F7]">
                     {item.issue}
                   </p>
                   <span className="rounded-full border border-[#F59E0B]/30 bg-[#F59E0B]/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-[#FBBF24]">
                     {severity[item.severity]}
                   </span>
                   {item.evidence.startMs !== null && (
-                    <span className="text-[11px] tabular-nums text-[#9CA3AF]">
+                    <span className="text-[11.5px] tabular-nums text-[#9CA3AF]">
                       {formatTimestampMs(item.evidence.startMs)}
                     </span>
                   )}
                 </div>
-                <p className="mt-0.5 text-[12px] italic leading-[1.5] text-[#6B7280]">
+                <p className="mt-1 text-[12.5px] italic leading-[1.55] text-[#6B7280]">
                   &ldquo;{item.evidence.excerpt}&rdquo;
                 </p>
-                <p className="mt-1 text-[12.5px] leading-[1.5] text-[#9CA3AF]">
+                <p className="mt-1.5 text-[13.5px] leading-[1.55] text-[#D1D5DB]">
                   {item.whyItMatters}
                 </p>
               </div>

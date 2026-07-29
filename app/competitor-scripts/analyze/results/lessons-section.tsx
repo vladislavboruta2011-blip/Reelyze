@@ -14,7 +14,7 @@ export function LessonsSection({
   items: ActionableLesson[];
 }) {
   return (
-    <section className="flex h-full flex-col rounded-[20px] border border-[#3B82F6]/25 bg-gradient-to-b from-[#3B82F6]/[0.05] to-transparent p-5 lg:p-6">
+    <section className="flex h-full flex-col rounded-[20px] border border-[#3B82F6]/25 bg-gradient-to-b from-[#3B82F6]/[0.05] to-transparent p-4 lg:p-5">
       <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#93C5FD]">
         {lessons.sectionEyebrow}
       </p>
@@ -23,21 +23,21 @@ export function LessonsSection({
           {lessons.heading}
         </h2>
       </div>
-      <ul className="mt-4 flex flex-1 flex-col gap-3">
+      <ul className="mt-3.5 flex flex-1 flex-col gap-3.5">
         {items.map((item, index) => (
           <li
             key={`${item.principle}-${index}`}
-            className="flex items-start gap-2.5"
+            className="flex items-start gap-3"
           >
             <span
-              className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#3B82F6]/15 text-[#93C5FD]"
+              className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#3B82F6]/15 text-[#93C5FD]"
               aria-hidden="true"
             >
-              <Lightbulb size={11} />
+              <Lightbulb size={16} />
             </span>
-            <div className="text-[13.5px] leading-[1.5] text-[#D1D5DB]">
+            <div className="text-[14.5px] leading-[1.55] text-[#D1D5DB]">
               <p className="font-semibold text-[#F5F5F7]">{item.principle}</p>
-              <p className="mt-0.5 text-[12.5px] text-[#9CA3AF]">
+              <p className="mt-1 text-[13.5px] text-[#D1D5DB]">
                 {item.application}
               </p>
             </div>

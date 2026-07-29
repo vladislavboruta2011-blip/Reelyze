@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { getMessages } from "../lib/messages";
 import {
   ANALYZE_RESULT_STORAGE_KEY,
@@ -929,8 +929,9 @@ function testStructural() {
   );
 
   check(
-    "the transcript section renders segment/full text via plain JSX expressions, never through a raw-HTML injection prop",
-    /\{data\.text\}/.test(transcriptSectionSource) &&
+    "the transcript section renders segment/full text via plain JSX expressions, never through a raw-HTML injection prop — visibleText is derived from data.text (a preview or the whole string), never a separate/altered value",
+    /\{visibleText\}/.test(transcriptSectionSource) &&
+      transcriptSectionSource.includes("data.text") &&
       !transcriptSectionSource.includes("dangerouslySetInnerHTML")
   );
 
@@ -1191,9 +1192,9 @@ function testFinalPolishRound() {
   );
 
   check(
-    "the metadata column next to the real video is width-capped rather than stretching to fill the whole card (flex-1 removed)",
+    "the metadata column next to the real video stays width-capped (never stretches to fill the card) — only the analysis overview column beside it is allowed to flex and fill the previously-empty space",
     resultsSummarySource.includes("max-w-[300px]") &&
-      !resultsSummarySource.includes("flex-1")
+      resultsSummarySource.includes("min-w-0 flex-1")
   );
 
   check(
@@ -1385,12 +1386,14 @@ function testRealAnalysisRendering() {
   );
 
   check(
-    "AnalyzeResultsContent renders AnalysisUnavailableSection instead of real analysis cards whenever analysis is null (degraded or legacy), and video/transcript remain outside that branch",
+    "AnalyzeResultsContent renders AnalysisUnavailableSection instead of real analysis cards whenever analysis is null (degraded or legacy); ResultsSummary renders before that branch, TranscriptSection after both of its branches (moved lower per the visual-polish pass) — never nested inside the analysis-present branch",
     resultsContentSource.includes("<AnalysisUnavailableSection") &&
       resultsContentSource.indexOf("<ResultsSummary") <
         resultsContentSource.indexOf("unavailableReason !== null") &&
-      resultsContentSource.indexOf("<TranscriptSection") <
-        resultsContentSource.indexOf("unavailableReason !== null")
+      resultsContentSource.indexOf("<TranscriptSection") >
+        resultsContentSource.indexOf("<CautionSection") &&
+      resultsContentSource.indexOf("<TranscriptSection") >
+        resultsContentSource.indexOf("<AnalysisUnavailableSection")
   );
 
   check(
@@ -1430,6 +1433,354 @@ function testRealAnalysisRendering() {
       lessonsSource,
       cautionSource,
     ].some((source) => /\bviews?\b|\blikes?\b|\bwatch time\b|\bCTR\b/i.test(source))
+  );
+}
+
+// ── Analyze results visual-polish round: analysis-overview panel, ──────
+// reordered hierarchy (takeaway up, transcript down), restrained score bars
+
+function testAnalysisOverviewPolishRound() {
+  const resultsSummarySource = readFileSync(
+    "app/competitor-scripts/analyze/results/results-summary.tsx",
+    "utf8"
+  );
+  const resultsContentSource = readFileSync(
+    "app/competitor-scripts/analyze/results/analyze-results-content.tsx",
+    "utf8"
+  );
+  const scoreOverviewSource = readFileSync(
+    "app/competitor-scripts/analyze/results/score-overview.tsx",
+    "utf8"
+  );
+
+  check(
+    "ResultsSummary only renders its analysis-overview panel when analysisOverview is non-null — never a placeholder/empty box for the degraded/legacy case",
+    resultsSummarySource.includes("{analysisOverview && (")
+  );
+
+  check(
+    "the analysis-overview panel maps Overall/Hook/Retention/Structure to overallScore/hookScore/momentumScore/structureScore — the exact same, never-renamed mapping used everywhere else",
+    resultsSummarySource.includes("analysisOverview.scores.overallScore") &&
+      resultsSummarySource.includes("analysisOverview.scores.hookScore") &&
+      resultsSummarySource.includes("analysisOverview.scores.momentumScore") &&
+      resultsSummarySource.includes("analysisOverview.scores.structureScore")
+  );
+
+  check(
+    "the analysis-overview panel's verdict badge reuses the same verdictCopy lookup as MainTakeaway, never a re-derived verdict",
+    resultsSummarySource.includes("verdictCopy[analysisOverview.verdict]")
+  );
+
+  check(
+    "ResultsSummaryAnalysisOverview carries only verdict/scores/mainTakeaway — no second, invented takeaway or supporting-text field",
+    (() => {
+      const typeMatch = resultsSummarySource.match(
+        /export type ResultsSummaryAnalysisOverview = \{([\s\S]*?)\};/
+      );
+      if (!typeMatch) return false;
+      const fields = [...typeMatch[1].matchAll(/^\s*(\w+):/gm)].map(
+        (m) => m[1]
+      );
+      return (
+        fields.sort().join(",") === "mainTakeaway,scores,verdict"
+      );
+    })()
+  );
+
+  check(
+    "the overview panel's mainTakeaway is rendered as plain text with no dangerouslySetInnerHTML anywhere in results-summary.tsx",
+    resultsSummarySource.includes("{analysisOverview.mainTakeaway}") &&
+      !resultsSummarySource.includes("dangerouslySetInnerHTML")
+  );
+
+  check(
+    "AnalyzeResultsContent builds analysisOverview only from analysis.verdict/scores/mainTakeaway, and only when analysis is non-null (null for the degraded/legacy case, matching AnalysisUnavailableSection's own condition)",
+    /const analysisOverview =\s*\n\s*analysis === null\s*\n\s*\? null\s*\n\s*: \{\s*\n\s*verdict: analysis\.verdict,\s*\n\s*scores: analysis\.scores,\s*\n\s*mainTakeaway: analysis\.mainTakeaway,/.test(
+      resultsContentSource
+    )
+  );
+
+  check(
+    "the standalone MainTakeaway card is no longer rendered in the normal analysis flow (removed as a second-pass polish fix — it duplicated verdict/scores/mainTakeaway already shown in ResultsSummary's Analysis Overview panel); the component file itself is untouched, just unused here",
+    !resultsContentSource.includes("<MainTakeaway") &&
+      !resultsContentSource.includes('from "./main-takeaway"') &&
+      existsSync("app/competitor-scripts/analyze/results/main-takeaway.tsx")
+  );
+
+  check(
+    "the old horizontal progress bar was fully removed from ScoreOverview — no leftover width:%-driven bar track alongside the new ring (exactly one score visualization per card)",
+    !scoreOverviewSource.includes("width: `${metric.value}%`") &&
+      !/h-1\.?5?\s+w-full\s+rounded-full/.test(scoreOverviewSource)
+  );
+
+  check(
+    "each ScoreOverview card now renders a real SVG circular progress ring, not a chart library, whose active-arc final length is computed directly from the real score value — no chart dependency, no Tailwind animate-* utility class (the intentional fill transition is a plain inline style, checked separately in competitor-scripts.ts)",
+    scoreOverviewSource.includes("<svg") &&
+      scoreOverviewSource.includes("RING_CIRCUMFERENCE * (1 - value / 100)") &&
+      !scoreOverviewSource.includes("animate-") &&
+      !/import .*chart/i.test(scoreOverviewSource)
+  );
+
+  check(
+    "the ring's active arc explicitly uses strokeLinecap=\"round\" so both ends of the visible progress arc are genuinely rounded, never a flat/square cut-off",
+    scoreOverviewSource.includes('strokeLinecap="round"')
+  );
+
+  check(
+    "each of the 4 score metrics gets its own distinct, deterministic accent color from the shared metric-colors module (Overall/Hook/Retention/Structure visually distinguished, not four rings sharing one purple) — restrained to exactly 4 real project colors, not an arbitrary rainbow",
+    (() => {
+      const metricColorsSource = readFileSync(
+        "app/competitor-scripts/analyze/results/metric-colors.ts",
+        "utf8"
+      );
+      const ringColors = [...metricColorsSource.matchAll(/ring:\s*"(#[0-9A-Fa-f]{6})"/g)].map(
+        (m) => m[1]
+      );
+      return (
+        scoreOverviewSource.includes('from "./metric-colors"') &&
+        scoreOverviewSource.includes("palette.ring") &&
+        ringColors.length === 4 &&
+        new Set(ringColors).size === 4
+      );
+    })()
+  );
+
+  check(
+    "the ring diameter/stroke are within the requested larger, more substantial range (112-120px diameter, 10-12px stroke), and the ring is decorative (aria-hidden) since the real score/label text rendered on top already carries the accessible value",
+    (() => {
+      const sizeMatch = scoreOverviewSource.match(/RING_SIZE\s*=\s*(\d+)/);
+      const strokeMatch = scoreOverviewSource.match(
+        /RING_STROKE_WIDTH\s*=\s*(\d+)/
+      );
+      if (!sizeMatch || !strokeMatch) return false;
+      const size = Number(sizeMatch[1]);
+      const stroke = Number(strokeMatch[1]);
+      return (
+        size >= 112 &&
+        size <= 120 &&
+        stroke >= 10 &&
+        stroke <= 12 &&
+        /<svg[^>]*aria-hidden="true"/.test(scoreOverviewSource)
+      );
+    })()
+  );
+
+  check(
+    "each metric still has its own distinct existing-project icon (from lucide-react, no new dependency), now colored per-metric and placed inside the ring above the score number (never a separate chart/graph dependency)",
+    scoreOverviewSource.includes('from "lucide-react"') &&
+      /const METRIC_ICONS = \[[A-Za-z]+, [A-Za-z]+, [A-Za-z]+, [A-Za-z]+\]/.test(
+        scoreOverviewSource
+      ) &&
+      scoreOverviewSource.includes("palette.icon")
+  );
+
+  check(
+    "the visible score readout (number + /100) inside the ring is grouped under one role=\"img\" aria-label per card, so a screen reader gets one clean announcement instead of duplicate/noisy output",
+    /role="img"\s*\n\s*aria-label=\{`\$\{metric\.label\}: \$\{metric\.value\} \$\{scores\.scoreSuffix\}`\}/.test(
+      scoreOverviewSource
+    )
+  );
+
+  check(
+    "EN and RU both expose a non-empty analysisOverviewHeading string under analyzeResults.summary",
+    (() => {
+      const en = getMessages("en").competitorScripts.analyzeResults.summary as {
+        analysisOverviewHeading?: string;
+      };
+      const ru = getMessages("ru").competitorScripts.analyzeResults.summary as {
+        analysisOverviewHeading?: string;
+      };
+      return (
+        typeof en.analysisOverviewHeading === "string" &&
+        en.analysisOverviewHeading.length > 0 &&
+        typeof ru.analysisOverviewHeading === "string" &&
+        ru.analysisOverviewHeading.length > 0
+      );
+    })()
+  );
+}
+
+// ── Density/readability polish round: 2×2 why-scores grid, per-beat ────
+// progressive disclosure in Script Structure, transcript full-text preview
+
+function testDensityPolishRound() {
+  const whyScoresSource = readFileSync(
+    "app/competitor-scripts/analyze/results/why-scores-section.tsx",
+    "utf8"
+  );
+  const scriptBreakdownSource = readFileSync(
+    "app/competitor-scripts/analyze/results/script-breakdown.tsx",
+    "utf8"
+  );
+  const strengthsSource = readFileSync(
+    "app/competitor-scripts/analyze/results/strengths-section.tsx",
+    "utf8"
+  );
+  const weaknessesSource = readFileSync(
+    "app/competitor-scripts/analyze/results/weaknesses-section.tsx",
+    "utf8"
+  );
+  const risksSource = readFileSync(
+    "app/competitor-scripts/analyze/results/risks-section.tsx",
+    "utf8"
+  );
+  const lessonsSource = readFileSync(
+    "app/competitor-scripts/analyze/results/lessons-section.tsx",
+    "utf8"
+  );
+  const transcriptSectionSource = readFileSync(
+    "app/competitor-scripts/analyze/results/transcript-section.tsx",
+    "utf8"
+  );
+
+  check(
+    "WhyScoresSection now uses a 2-column grid (2×2 for the real 4 score reasons) instead of the old cramped 4-column row",
+    whyScoresSource.includes("sm:grid-cols-2") &&
+      !whyScoresSource.includes("lg:grid-cols-4")
+  );
+
+  check(
+    "ScriptBreakdown renders a compact step row of every real beat by default (marker + label + timestamp + a one-line evidence preview), and the full existing timeline — beat.purpose as the one primary explanation, beat.analysis (a real, second existing field) only when that beat's own disclosure is expanded — sits behind a section-level 'Show full structure' toggle, never invented summary text",
+    scriptBreakdownSource.includes("{beat.purpose}") &&
+      /isExpanded &&[\s\S]{0,150}\{beat\.analysis\}/.test(scriptBreakdownSource) &&
+      scriptBreakdownSource.includes("isFullyExpanded &&") &&
+      scriptBreakdownSource.includes("structureCopy.showFullStructure") &&
+      scriptBreakdownSource.includes("structureCopy.hideFullStructure")
+  );
+
+  check(
+    "each Script Structure beat still renders its exact evidence excerpt verbatim (both in the always-visible compact row and the full timeline), and the per-beat details toggle is a real, keyboard-accessible control (aria-expanded) using the existing EN/RU showDetails/hideDetails copy",
+    (scriptBreakdownSource.match(/\{beat\.evidence\.excerpt\}/g) ?? []).length >= 2 &&
+      scriptBreakdownSource.includes("aria-expanded={isExpanded}") &&
+      scriptBreakdownSource.includes("structureCopy.showDetails") &&
+      scriptBreakdownSource.includes("structureCopy.hideDetails")
+  );
+
+  check(
+    "the section-level 'Show full structure' toggle is also a real, keyboard-accessible control with aria-expanded reflecting its own state, independent of the per-beat toggles",
+    scriptBreakdownSource.includes("aria-expanded={isFullyExpanded}") &&
+      /useState\(false\)/.test(scriptBreakdownSource)
+  );
+
+  check(
+    "Script Structure's per-beat disclosure state is independent per beat (a Set of expanded indexes, not one shared boolean)",
+    /useState<\s*ReadonlySet<number>\s*>/.test(scriptBreakdownSource)
+  );
+
+  check(
+    "every real beat appears in the always-visible compact row too (beats.map is used twice — once for the compact row, once for the full timeline), so collapsing to the compact view never drops a beat",
+    (scriptBreakdownSource.match(/beats\.map\(/g) ?? []).length === 2
+  );
+
+  check(
+    "Script Structure beat markers use a deterministic, purely-presentational color per beat label from the shared metric-colors module, covering every entry in STRUCTURE_BEAT_LABELS including 'other'",
+    (() => {
+      const metricColorsSource = readFileSync(
+        "app/competitor-scripts/analyze/results/metric-colors.ts",
+        "utf8"
+      );
+      const beatLabels = [
+        "hook",
+        "setup",
+        "context",
+        "escalation",
+        "reveal",
+        "payoff",
+        "cta",
+        "digression",
+        "recap",
+        "other",
+      ];
+      return (
+        scriptBreakdownSource.includes('from "./metric-colors"') &&
+        scriptBreakdownSource.includes("BEAT_COLORS[beat.label]") &&
+        beatLabels.every((label) =>
+          new RegExp(`${label}:\\s*"#[0-9A-Fa-f]{6}"`).test(metricColorsSource)
+        )
+      );
+    })()
+  );
+
+  check(
+    "Strengths/Weaknesses/RetentionRisks still read their exact evidence excerpt and real explanatory field directly — no new intermediate/derived text",
+    strengthsSource.includes("{item.evidence.excerpt}") &&
+      strengthsSource.includes("{item.whyItWorks}") &&
+      weaknessesSource.includes("{item.evidence.excerpt}") &&
+      weaknessesSource.includes("{item.whyItMatters}") &&
+      risksSource.includes("{item.evidence.excerpt}") &&
+      risksSource.includes("{item.risk}") &&
+      risksSource.includes("{item.reason}")
+  );
+
+  check(
+    "ActionableLessons still renders the real principle/application fields, not a static/rewritten summary",
+    lessonsSource.includes("{item.principle}") &&
+      lessonsSource.includes("{item.application}")
+  );
+
+  check(
+    "the transcript full-text preview only ever shortens the *displayed* string — data.text itself is read in full, sliced only for a bounded default preview, and the toggle is a real, keyboard-accessible control using the new EN/RU showFullTranscript/showLessTranscript copy",
+    transcriptSectionSource.includes("data.text.length > FULL_TEXT_PREVIEW_CHAR_LIMIT") &&
+      transcriptSectionSource.includes("data.text.slice(0, FULL_TEXT_PREVIEW_CHAR_LIMIT") &&
+      transcriptSectionSource.includes("aria-expanded={showFullText}") &&
+      transcriptSectionSource.includes("copy.showFullTranscript") &&
+      transcriptSectionSource.includes("copy.showLessTranscript")
+  );
+
+  check(
+    "the transcript full-text preview never renders when the transcript is already short enough that truncating wouldn't shorten it",
+    /showFullText \|\| !isTextTruncatable\s*\n\s*\? data\.text/.test(
+      transcriptSectionSource
+    )
+  );
+
+  check(
+    "the existing timestamped-segments Show all/fewer behavior (SEGMENT_PREVIEW_COUNT = 6) is untouched by the new full-text preview control",
+    transcriptSectionSource.includes("SEGMENT_PREVIEW_COUNT = 6") &&
+      transcriptSectionSource.includes("aria-expanded={showAllSegments}")
+  );
+
+  check(
+    "EN and RU both expose non-empty structure.showDetails/hideDetails/showFullStructure/hideFullStructure and transcript.showFullTranscript/showLessTranscript strings",
+    (() => {
+      const enStructure = getMessages("en").competitorScripts.analyzeResults
+        .structure as {
+        showDetails?: string;
+        hideDetails?: string;
+        showFullStructure?: string;
+        hideFullStructure?: string;
+      };
+      const ruStructure = getMessages("ru").competitorScripts.analyzeResults
+        .structure as {
+        showDetails?: string;
+        hideDetails?: string;
+        showFullStructure?: string;
+        hideFullStructure?: string;
+      };
+      const enTranscript = getMessages("en").competitorScripts.analyzeResults
+        .transcript as { showFullTranscript?: string; showLessTranscript?: string };
+      const ruTranscript = getMessages("ru").competitorScripts.analyzeResults
+        .transcript as { showFullTranscript?: string; showLessTranscript?: string };
+
+      return (
+        [
+          enStructure.showDetails,
+          enStructure.hideDetails,
+          enStructure.showFullStructure,
+          enStructure.hideFullStructure,
+          ruStructure.showDetails,
+          ruStructure.hideDetails,
+          ruStructure.showFullStructure,
+          ruStructure.hideFullStructure,
+        ].every((value) => typeof value === "string" && value.length > 0) &&
+        [
+          enTranscript.showFullTranscript,
+          enTranscript.showLessTranscript,
+          ruTranscript.showFullTranscript,
+          ruTranscript.showLessTranscript,
+        ].every((value) => typeof value === "string" && value.length > 0)
+      );
+    })()
   );
 }
 
@@ -1484,6 +1835,8 @@ async function main() {
   testVisualPolishRound();
   testFinalPolishRound();
   testRealAnalysisRendering();
+  testAnalysisOverviewPolishRound();
+  testDensityPolishRound();
   testLocaleSending();
 
   if (failures > 0) {

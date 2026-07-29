@@ -13,7 +13,7 @@ export default async function CompetitorScriptsPage() {
     <main className="min-h-screen bg-[#0A0A12] text-[#F5F5F7] antialiased">
       <Sidebar messages={messages} />
 
-      <div className="lg:ml-[260px]">
+      <div className="animate-page-enter lg:ml-[260px]">
         <div className="px-5 py-8 lg:px-10 lg:py-10">
           <div className="mx-auto w-full max-w-[1200px] rounded-[32px] border border-white/[0.12] bg-white/[0.025] p-7 shadow-[0_0_0_1px_rgba(255,255,255,0.02),0_30px_80px_-30px_rgba(0,0,0,0.6)] lg:p-10">
             <div className="mx-auto mb-8 max-w-[640px] text-center">

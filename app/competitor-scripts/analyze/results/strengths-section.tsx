@@ -14,37 +14,37 @@ export function StrengthsSection({
   items: Strength[];
 }) {
   return (
-    <section className="flex h-full flex-col rounded-[20px] border border-[#22C55E]/25 bg-gradient-to-b from-[#22C55E]/[0.05] to-transparent p-5 lg:p-6">
+    <section className="flex h-full flex-col rounded-[20px] border border-[#22C55E]/25 bg-gradient-to-b from-[#22C55E]/[0.05] to-transparent p-4 lg:p-5">
       <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#4ADE80]">
         {strengths.sectionEyebrow}
       </p>
       <h2 className="mt-1.5 text-[16px] font-semibold text-[#F5F5F7]">
         {strengths.heading}
       </h2>
-      <ul className="mt-4 flex flex-1 flex-col gap-3.5">
+      <ul className="mt-3.5 flex flex-1 flex-col gap-3.5">
         {items.map((item, index) => (
           <li key={`${item.title}-${index}`} className="flex items-start gap-3">
             <span
-              className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#22C55E]/15 text-[#4ADE80]"
+              className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#22C55E]/15 text-[#4ADE80]"
               aria-hidden="true"
             >
-              <CheckCircle2 size={14} />
+              <CheckCircle2 size={15} />
             </span>
             <div>
               <div className="flex flex-wrap items-baseline gap-2">
-                <p className="text-[13.5px] font-semibold text-[#F5F5F7]">
+                <p className="text-[14.5px] font-semibold text-[#F5F5F7]">
                   {item.title}
                 </p>
                 {item.evidence.startMs !== null && (
-                  <span className="text-[11px] tabular-nums text-[#9CA3AF]">
+                  <span className="text-[11.5px] tabular-nums text-[#9CA3AF]">
                     {formatTimestampMs(item.evidence.startMs)}
                   </span>
                 )}
               </div>
-              <p className="mt-0.5 text-[12px] italic leading-[1.5] text-[#6B7280]">
+              <p className="mt-1 text-[12.5px] italic leading-[1.55] text-[#6B7280]">
                 &ldquo;{item.evidence.excerpt}&rdquo;
               </p>
-              <p className="mt-1 text-[12.5px] leading-[1.5] text-[#9CA3AF]">
+              <p className="mt-1.5 text-[13.5px] leading-[1.55] text-[#D1D5DB]">
                 {item.whyItWorks}
               </p>
             </div>

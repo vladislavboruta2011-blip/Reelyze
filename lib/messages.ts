@@ -1197,6 +1197,7 @@ const enMessages = {
         languageLabel: "Language",
         unknownLanguage: "Unknown",
         segmentCountLabel: "Segments",
+        analysisOverviewHeading: "Analysis overview",
       },
       transcript: {
         heading: "Transcript",
@@ -1214,6 +1215,8 @@ const enMessages = {
         fullTextHeading: "Full transcript",
         showAllSegments: "Show all segments",
         showFewerSegments: "Show fewer",
+        showFullTranscript: "Show full transcript",
+        showLessTranscript: "Show less",
       },
       scores: {
         heading: "Score overview",
@@ -1263,6 +1266,10 @@ const enMessages = {
           recap: "Recap",
           other: "Other",
         },
+        showDetails: "Show details",
+        hideDetails: "Hide details",
+        showFullStructure: "Show full structure",
+        hideFullStructure: "Hide full structure",
       },
       strengths: {
         heading: "What works",
@@ -2461,6 +2468,7 @@ const ruMessages = {
         languageLabel: "Язык",
         unknownLanguage: "Неизвестно",
         segmentCountLabel: "Сегментов",
+        analysisOverviewHeading: "Обзор анализа",
       },
       transcript: {
         heading: "Транскрипт",
@@ -2478,6 +2486,8 @@ const ruMessages = {
         fullTextHeading: "Полный транскрипт",
         showAllSegments: "Показать все сегменты",
         showFewerSegments: "Показать меньше",
+        showFullTranscript: "Показать полный транскрипт",
+        showLessTranscript: "Показать меньше",
       },
       scores: {
         heading: "Обзор оценок",
@@ -2527,6 +2537,10 @@ const ruMessages = {
           recap: "Резюме",
           other: "Другое",
         },
+        showDetails: "Показать детали",
+        hideDetails: "Скрыть детали",
+        showFullStructure: "Показать всю структуру",
+        hideFullStructure: "Скрыть полную структуру",
       },
       strengths: {
         heading: "Что работает",
