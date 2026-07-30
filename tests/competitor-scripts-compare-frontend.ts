@@ -17,6 +17,7 @@ import {
   MAX_CAUTIONS,
   MAX_PRIORITIES,
 } from "../lib/competitor-scripts/comparison/constants";
+import { selectFeaturedDimension } from "../lib/competitor-scripts/compare-featured-dimension";
 
 let failures = 0;
 
@@ -611,6 +612,87 @@ function testMessages() {
   );
 }
 
+// ── selectFeaturedDimension: real behavioral checks against the actual
+// pure function (not source-text regexes) ────────────────────────────────
+
+function testFeaturedDimensionSelection() {
+  // Fixed dimension order is always hook, structure, momentum, payoff_clarity
+  // — mirrored here via makeDimensionFinding's own dimension arg order.
+  check(
+    "the dimension with the largest gap (large > meaningful > small > similar) is selected as featured — using the fixture where payoff_clarity is the sole 'large' gap",
+    (() => {
+      const findings = makeValidComparison("en").dimensionFindings;
+      const { featured, secondary } = selectFeaturedDimension(findings);
+      return (
+        featured.dimension === "payoff_clarity" &&
+        secondary.map((f) => f.dimension).join(",") === "hook,structure,momentum"
+      );
+    })()
+  );
+
+  check(
+    "ties are broken by the existing fixed dimension order (earliest wins), never by any other criterion",
+    (() => {
+      const findings = [
+        makeDimensionFinding("hook", "competitor", "large"),
+        makeDimensionFinding("structure", "user", "large"),
+        makeDimensionFinding("momentum", "user", "small"),
+        makeDimensionFinding("payoff_clarity", "competitor", "large"),
+      ];
+      const { featured, secondary } = selectFeaturedDimension(findings);
+      return (
+        featured.dimension === "hook" &&
+        secondary.map((f) => f.dimension).join(",") === "structure,momentum,payoff_clarity"
+      );
+    })()
+  );
+
+  check(
+    "when every dimension is 'similar' (gap: null), the first dimension in fixed order is selected — an explicit gap always outranks 'similar', and among equal 'similar' findings the earliest wins",
+    (() => {
+      const findings = [
+        makeDimensionFinding("hook", "similar", null),
+        makeDimensionFinding("structure", "similar", null),
+        makeDimensionFinding("momentum", "similar", null),
+        makeDimensionFinding("payoff_clarity", "similar", null),
+      ];
+      const { featured, secondary } = selectFeaturedDimension(findings);
+      return (
+        featured.dimension === "hook" &&
+        secondary.map((f) => f.dimension).join(",") === "structure,momentum,payoff_clarity"
+      );
+    })()
+  );
+
+  check(
+    "selectFeaturedDimension never mutates or reorders its input array — same length, same elements, same order, same references after the call",
+    (() => {
+      const findings = makeValidComparison("en").dimensionFindings;
+      const originalOrder = findings.map((f) => f.dimension);
+      const originalRefs = [...findings];
+      selectFeaturedDimension(findings);
+      return (
+        findings.map((f) => f.dimension).join(",") === originalOrder.join(",") &&
+        findings.every((f, index) => f === originalRefs[index])
+      );
+    })()
+  );
+
+  check(
+    "secondary always contains exactly the other three findings, in their original relative order, as a fresh array distinct from the input",
+    (() => {
+      const findings = makeValidComparison("en").dimensionFindings;
+      const { featured, secondary } = selectFeaturedDimension(findings);
+      return (
+        secondary.length === 3 &&
+        !secondary.includes(featured) &&
+        secondary !== findings &&
+        secondary.every((f, index) => f === findings.filter((x) => x !== featured)[index])
+      );
+    })()
+  );
+}
+
 // ── structural checks: submission flow, storage usage, correct routes ────
 
 function testStructural() {
@@ -625,6 +707,10 @@ function testStructural() {
   );
   const resultsPageSource = readFileSync(
     "app/competitor-scripts/compare/results/page.tsx",
+    "utf8"
+  );
+  const featuredDimensionModuleSource = readFileSync(
+    "lib/competitor-scripts/compare-featured-dimension.ts",
     "utf8"
   );
   const storageModuleSource = readFileSync(
@@ -737,10 +823,48 @@ function testStructural() {
   );
 
   check(
-    "dimensionFindings is rendered by direct array iteration — never re-sorted client-side",
-    resultsContentSource.includes("comparison.dimensionFindings.map(") &&
-      !resultsContentSource.includes("dimensionFindings.sort(") &&
-      !resultsContentSource.includes("dimensionFindings].sort(")
+    "selectFeaturedDimension (in its own pure module) never sorts or mutates the input array — only .filter() derives the secondary array, and the featured pick is a plain index read",
+    !featuredDimensionModuleSource.includes("findings.sort(") &&
+      !featuredDimensionModuleSource.includes("findings].sort(") &&
+      /findings\.filter\(\(_, index\) => index !== featuredIndex\)/.test(
+        featuredDimensionModuleSource
+      ) &&
+      /findings\[featuredIndex\]/.test(featuredDimensionModuleSource)
+  );
+
+  check(
+    "compare-results-content.tsx never re-implements its own sort/reorder of dimensionFindings — the featured/secondary split is delegated entirely to the imported selectFeaturedDimension",
+    !resultsContentSource.includes("dimensionFindings.sort(") &&
+      !resultsContentSource.includes("dimensionFindings].sort(") &&
+      resultsContentSource.includes(
+        'import { selectFeaturedDimension } from "../../../../lib/competitor-scripts/compare-featured-dimension"'
+      )
+  );
+
+  check(
+    "the featured dimension card and the three secondary dimension cards are both rendered from the same selectFeaturedDimension split, never a second independent selection",
+    resultsContentSource.includes("selectFeaturedDimension(comparison.dimensionFindings)") &&
+      resultsContentSource.includes("<FeaturedDimensionCard copy={copy} finding={featured} />") &&
+      /secondary\.map\(\(finding\) => \(\s*<SecondaryDimensionCard/.test(resultsContentSource)
+  );
+
+  check(
+    "Priority 1 renders with the primary (dominant) variant and every other priority renders compact",
+    /<PriorityCard copy=\{copy\} priority=\{primaryPriority\} variant="primary" \/>/.test(
+      resultsContentSource
+    ) &&
+      /compactPriorities\.map\(\(priority\) => \(\s*<PriorityCard key=\{priority\.rank\} copy=\{copy\} priority=\{priority\} variant="compact" \/>/.test(
+        resultsContentSource
+      )
+  );
+
+  check(
+    "priority order is a direct, unmodified read of comparison.priorities (array destructuring only, never a sort/reverse)",
+    /const \[primaryPriority, \.\.\.compactPriorities\] = comparison\.priorities;/.test(
+      resultsContentSource
+    ) &&
+      !resultsContentSource.includes("priorities.sort(") &&
+      !resultsContentSource.includes("priorities.reverse(")
   );
 
   check(
@@ -800,6 +924,7 @@ async function main() {
   testTransportGuard();
   await testStorageRoundTrip();
   testMessages();
+  testFeaturedDimensionSelection();
   testStructural();
 
   if (failures > 0) {

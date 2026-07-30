@@ -1403,6 +1403,7 @@ const enMessages = {
       dimensions: {
         heading: "Dimension by dimension",
         sectionEyebrow: "Dimension findings",
+        featuredEyebrow: "Biggest difference",
         labels: {
           hook: "Hook",
           structure: "Structure",
@@ -2795,6 +2796,7 @@ const ruMessages = {
       dimensions: {
         heading: "По каждому параметру",
         sectionEyebrow: "Результаты по параметрам",
+        featuredEyebrow: "Самое большое отличие",
         labels: {
           hook: "Хук",
           structure: "Структура",
