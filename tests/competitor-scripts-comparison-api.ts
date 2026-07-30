@@ -1080,8 +1080,8 @@ async function testRoute() {
 // ── Static source checks: composition boundaries and scope ───────────────
 
 check(
-  "the Compare Scripts input form does not yet reference the new compare API route (frontend wiring is a future phase)",
-  !readFileSync("app/competitor-scripts/compare/compare-input-form.tsx", "utf8").includes(
+  "the Compare Scripts input form is wired to the new compare API route (frontend wiring PR)",
+  readFileSync("app/competitor-scripts/compare/compare-input-form.tsx", "utf8").includes(
     "/api/competitor-scripts/compare"
   )
 );

@@ -1095,8 +1095,7 @@ const enMessages = {
       scriptPlaceholder: "Paste your script here...",
       scriptHelper: "Paste only the words that will be spoken.",
       submitLabel: "Compare scripts",
-      comingNextMessage:
-        "Real comparison is coming in the next phase — thanks for checking it out early.",
+      submittingLabel: "Comparing scripts...",
       privacyNote: {
         heading: "Before you compare",
         items: [
@@ -1112,6 +1111,32 @@ const enMessages = {
           "This doesn't look like a public YouTube Shorts link.",
         emptyScript: "Paste your script to continue.",
         scriptTooLong: "Your script is over the 1,000-character limit.",
+      },
+      apiErrors: {
+        transcriptNotFound: "We couldn't find a transcript for this video.",
+        transcriptUnavailable: "This video's transcript isn't available.",
+        videoUnavailable: "This video is unavailable or can't be accessed.",
+        transcriptRateLimited:
+          "Transcript service is busy right now. Please try again shortly.",
+        transcriptTimeout:
+          "Transcript retrieval took too long. Please try again.",
+        transcriptServiceUnavailable:
+          "Transcript service is temporarily unavailable.",
+        invalidTranscriptResponse:
+          "We couldn't process this video's transcript.",
+        rateLimited: "Too many requests. Please try again shortly.",
+        userScriptTooLong:
+          "Your script is too long to compare. Please shorten it.",
+        competitorTranscriptTooLong:
+          "The competitor video's transcript is too long to compare.",
+        comparisonInvalidResponse:
+          "We couldn't generate a comparison right now. Please try again.",
+        comparisonUnavailable:
+          "Comparison isn't available right now. Please try again shortly.",
+        networkError:
+          "Couldn't connect. Check your connection and try again.",
+        unexpectedError: "Something went wrong. Please try again.",
+        requestInvalid: "Something went wrong. Please try again.",
       },
       workflow: {
         sectionLabel: "Planned comparison stages",
@@ -1354,6 +1379,76 @@ const enMessages = {
         analyzeAnother: "Analyze another competitor",
         compareWithMyScript: "Compare with my script",
         backToSelection: "Back to Competitor Scripts",
+      },
+    },
+    compareResults: {
+      backToCompare: "Back to compare",
+      heroEyebrow: "Comparison results",
+      pageTitle: "Script comparison",
+      headingPrefix: "Script",
+      headingAccent: "comparison",
+      description: "Review how your script compares to the competitor's.",
+      missingState: {
+        heading: "No comparison data found",
+        description:
+          "Submit a comparison on the Compare page first — this page only shows results for a comparison you've just run.",
+        action: "Go to Compare Scripts",
+      },
+      summary: {
+        realDataLabel: "From your submitted comparison",
+        embedTitle: "Submitted competitor video player",
+        openOnYouTube: "Open on YouTube",
+        compareAnother: "Compare another",
+      },
+      dimensions: {
+        heading: "Dimension by dimension",
+        sectionEyebrow: "Dimension findings",
+        labels: {
+          hook: "Hook",
+          structure: "Structure",
+          momentum: "Momentum",
+          payoff_clarity: "Payoff clarity",
+        },
+      },
+      strongerSide: {
+        user: "Your script",
+        competitor: "Competitor script",
+        similar: "Similar",
+      },
+      gap: {
+        small: "Small gap",
+        meaningful: "Meaningful gap",
+        large: "Large gap",
+      },
+      evidence: {
+        yourScriptLabel: "Your script",
+        competitorScriptLabel: "Competitor script",
+      },
+      priorities: {
+        heading: "Priorities",
+        sectionEyebrow: "What to focus on",
+        rankLabel: "Priority",
+        competitorPrincipleLabel: "Competitor principle",
+        howToApplyLabel: "How to apply",
+      },
+      cautions: {
+        heading: "What not to copy",
+        sectionEyebrow: "Cautions",
+      },
+      sourceMeta: {
+        heading: "Source details",
+        sectionEyebrow: "Source details",
+        videoIdLabel: "Video ID",
+        canonicalUrlLabel: "Competitor URL",
+        durationLabel: "Video duration",
+        unknownDuration: "Unknown",
+        userScriptLengthLabel: "Your script length",
+        charactersSuffix: "characters",
+      },
+      actions: {
+        backToCompare: "Back to Compare Scripts",
+        backToSelection: "Back to Competitor Scripts",
+        compareAnother: "Compare another script",
       },
     },
   },
@@ -2393,8 +2488,7 @@ const ruMessages = {
       scriptPlaceholder: "Вставьте свой сценарий здесь...",
       scriptHelper: "Вставляйте только те слова, которые будут произнесены.",
       submitLabel: "Сравнить сценарии",
-      comingNextMessage:
-        "Настоящее сравнение появится на следующем этапе — спасибо, что заглянули так рано.",
+      submittingLabel: "Сравниваем сценарии...",
       privacyNote: {
         heading: "Перед сравнением",
         items: [
@@ -2409,6 +2503,32 @@ const ruMessages = {
         unsupportedUrl: "Это не похоже на публичную ссылку YouTube Shorts.",
         emptyScript: "Вставьте свой сценарий, чтобы продолжить.",
         scriptTooLong: "Ваш сценарий превышает лимит в 1000 символов.",
+      },
+      apiErrors: {
+        transcriptNotFound: "Не удалось найти транскрипт для этого видео.",
+        transcriptUnavailable: "Транскрипт этого видео недоступен.",
+        videoUnavailable: "Это видео недоступно или закрыто для доступа.",
+        transcriptRateLimited:
+          "Сервис транскрипции сейчас перегружен. Повторите попытку чуть позже.",
+        transcriptTimeout:
+          "Получение транскрипта заняло слишком много времени. Попробуйте снова.",
+        transcriptServiceUnavailable:
+          "Сервис транскрипции временно недоступен.",
+        invalidTranscriptResponse:
+          "Не удалось обработать транскрипт этого видео.",
+        rateLimited: "Слишком много запросов. Повторите попытку чуть позже.",
+        userScriptTooLong:
+          "Ваш сценарий слишком длинный для сравнения. Сократите его.",
+        competitorTranscriptTooLong:
+          "Транскрипт видео конкурента слишком длинный для сравнения.",
+        comparisonInvalidResponse:
+          "Не удалось создать сравнение. Попробуйте снова.",
+        comparisonUnavailable:
+          "Сравнение сейчас недоступно. Повторите попытку чуть позже.",
+        networkError:
+          "Не удалось подключиться. Проверьте соединение и попробуйте снова.",
+        unexpectedError: "Что-то пошло не так. Попробуйте снова.",
+        requestInvalid: "Что-то пошло не так. Попробуйте снова.",
       },
       workflow: {
         sectionLabel: "Запланированные этапы сравнения",
@@ -2651,6 +2771,76 @@ const ruMessages = {
         analyzeAnother: "Проанализировать другого конкурента",
         compareWithMyScript: "Сравнить со своим сценарием",
         backToSelection: "Назад к Сценариям конкурентов",
+      },
+    },
+    compareResults: {
+      backToCompare: "Назад к сравнению",
+      heroEyebrow: "Результаты сравнения",
+      pageTitle: "Сравнение сценариев",
+      headingPrefix: "Сравнение",
+      headingAccent: "сценариев",
+      description: "Посмотрите, как ваш сценарий сравнивается со сценарием конкурента.",
+      missingState: {
+        heading: "Данные сравнения не найдены",
+        description:
+          "Сначала запустите сравнение на странице сравнения — эта страница показывает только результаты только что выполненного сравнения.",
+        action: "Перейти к сравнению сценариев",
+      },
+      summary: {
+        realDataLabel: "Из вашего сравнения",
+        embedTitle: "Видео конкурента из вашего сравнения",
+        openOnYouTube: "Открыть на YouTube",
+        compareAnother: "Сравнить другой сценарий",
+      },
+      dimensions: {
+        heading: "По каждому параметру",
+        sectionEyebrow: "Результаты по параметрам",
+        labels: {
+          hook: "Хук",
+          structure: "Структура",
+          momentum: "Динамика",
+          payoff_clarity: "Ясность развязки",
+        },
+      },
+      strongerSide: {
+        user: "Ваш сценарий",
+        competitor: "Сценарий конкурента",
+        similar: "Похоже",
+      },
+      gap: {
+        small: "Небольшая разница",
+        meaningful: "Заметная разница",
+        large: "Большая разница",
+      },
+      evidence: {
+        yourScriptLabel: "Ваш сценарий",
+        competitorScriptLabel: "Сценарий конкурента",
+      },
+      priorities: {
+        heading: "Приоритеты",
+        sectionEyebrow: "На что обратить внимание",
+        rankLabel: "Приоритет",
+        competitorPrincipleLabel: "Принцип конкурента",
+        howToApplyLabel: "Как применить",
+      },
+      cautions: {
+        heading: "Что не стоит копировать",
+        sectionEyebrow: "Предостережения",
+      },
+      sourceMeta: {
+        heading: "Детали источника",
+        sectionEyebrow: "Детали источника",
+        videoIdLabel: "ID видео",
+        canonicalUrlLabel: "Ссылка на видео конкурента",
+        durationLabel: "Длительность видео",
+        unknownDuration: "Неизвестно",
+        userScriptLengthLabel: "Длина вашего сценария",
+        charactersSuffix: "символов",
+      },
+      actions: {
+        backToCompare: "Назад к сравнению сценариев",
+        backToSelection: "Назад к Сценариям конкурентов",
+        compareAnother: "Сравнить другой сценарий",
       },
     },
   },
