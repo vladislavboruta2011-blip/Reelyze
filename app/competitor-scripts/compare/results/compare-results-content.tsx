@@ -13,6 +13,7 @@ import type {
   DimensionFinding,
   Priority,
 } from "../../../../lib/competitor-scripts/comparison/types";
+import { selectFeaturedDimension } from "../../../../lib/competitor-scripts/compare-featured-dimension";
 import { formatTimestampMs } from "../../analyze/results/format-timestamp";
 import { YouTubeEmbed } from "../../analyze/results/youtube-embed";
 
@@ -43,22 +44,48 @@ function formatEvidenceTimestamp(startMs: number, endMs: number | null): string 
     : `${formatTimestampMs(startMs)}–${formatTimestampMs(endMs)}`;
 }
 
-// The one shared evidence-excerpt block, used by both dimension findings
-// and priorities (and, without a timestamp, by cautions). Deliberately
-// separate from the surrounding generated-reasoning prose (observation/
-// conclusion/problem/etc., rendered by each caller as a plain paragraph
-// just above this) — italic + quote marks + a dimmer color is the one
-// consistent visual signal across every section that "this is a real,
-// verbatim excerpt," never mixed with generated text.
+// ── Evidence ────────────────────────────────────────────────────────────
+// The one shared evidence-excerpt block. "featured" is the large
+// pull-quote treatment used above the fold and for Priority 1; "compact"
+// is the smaller treatment used everywhere else. Both variants keep an
+// explicit text label ("Your script"/"Competitor script") as the primary
+// signal — the left-border tint (neutral for user, cyan for competitor)
+// is a secondary, non-essential cue only, never the sole distinguishing
+// signal between the two sides.
 function EvidenceQuote({
+  source,
   label,
   excerpt,
   timestamp,
+  variant = "compact",
 }: {
+  source: "user" | "competitor";
   label: string;
   excerpt: string;
   timestamp: string | null;
+  variant?: "compact" | "featured";
 }) {
+  const accentBorder = source === "competitor" ? "border-[#22D3EE]/50" : "border-white/20";
+  const accentLabel = source === "competitor" ? "text-[#67E8F9]" : "text-[#9CA3AF]";
+
+  if (variant === "featured") {
+    return (
+      <div className={`rounded-[14px] border-l-[3px] ${accentBorder} bg-white/[0.03] px-4 py-3.5`}>
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <p className={`text-[11px] font-semibold uppercase tracking-[0.08em] ${accentLabel}`}>
+            {label}
+          </p>
+          {timestamp !== null && (
+            <span className="text-[11.5px] tabular-nums text-[#9CA3AF]">{timestamp}</span>
+          )}
+        </div>
+        <p className="mt-1.5 text-[14.5px] italic leading-[1.55] text-[#F5F5F7]">
+          &ldquo;{excerpt}&rdquo;
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-[12px] border-l-2 border-white/15 bg-white/[0.02] px-3.5 py-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -66,9 +93,7 @@ function EvidenceQuote({
           {label}
         </p>
         {timestamp !== null && (
-          <span className="text-[11px] tabular-nums text-[#9CA3AF]">
-            {timestamp}
-          </span>
+          <span className="text-[11px] tabular-nums text-[#9CA3AF]">{timestamp}</span>
         )}
       </div>
       <p className="mt-1.5 text-[12.5px] italic leading-[1.5] text-[#6B7280]">
@@ -78,7 +103,39 @@ function EvidenceQuote({
   );
 }
 
-function DimensionFindingCard({
+function DimensionBadges({
+  copy,
+  finding,
+  compact,
+}: {
+  copy: ResultsCopy;
+  finding: DimensionFinding;
+  compact: boolean;
+}) {
+  const strongSideClass = compact
+    ? "rounded-full border border-white/15 bg-white/[0.04] px-2 py-0.5 text-[10px] font-semibold text-[#D1D5DB]"
+    : "rounded-full border border-white/15 bg-white/[0.04] px-2.5 py-0.5 text-[11px] font-semibold text-[#D1D5DB]";
+  const gapClass = compact
+    ? "rounded-full border border-[#F59E0B]/30 bg-[#F59E0B]/10 px-2 py-0.5 text-[10px] font-semibold text-[#FBBF24]"
+    : "rounded-full border border-[#F59E0B]/30 bg-[#F59E0B]/10 px-2.5 py-0.5 text-[11px] font-semibold text-[#FBBF24]";
+
+  return (
+    <>
+      <span className={`inline-flex items-center ${strongSideClass}`}>
+        {copy.strongerSide[finding.strongerSide]}
+      </span>
+      {finding.gap !== null && (
+        <span className={`inline-flex items-center ${gapClass}`}>{copy.gap[finding.gap]}</span>
+      )}
+    </>
+  );
+}
+
+// The single large "biggest difference" card shown above the fold —
+// Direction B's one obvious focal point. Renders every field the
+// dimension finding contract exposes (never a subset), just at a larger,
+// more prominent scale than the three secondary cards below it.
+function FeaturedDimensionCard({
   copy,
   finding,
 }: {
@@ -86,32 +143,93 @@ function DimensionFindingCard({
   finding: DimensionFinding;
 }) {
   return (
-    <div className="rounded-[16px] border border-white/10 bg-white/[0.02] p-4 lg:p-5">
-      <div className="flex flex-wrap items-center gap-2.5">
-        <h3 className="text-[15px] font-semibold text-[#F5F5F7]">
+    <section className="relative overflow-hidden rounded-[24px] border border-[#22D3EE]/30 bg-gradient-to-b from-[#22D3EE]/[0.08] to-white/[0.02] p-6 lg:p-8">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -right-16 -top-16 h-[220px] w-[220px] rounded-full bg-[#22D3EE]/15 blur-[100px]"
+      />
+      <div className="relative z-10">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#67E8F9]">
+          {copy.dimensions.featuredEyebrow}
+        </p>
+        <div className="mt-2 flex flex-wrap items-center gap-2.5">
+          <h3 className="text-[20px] font-bold text-[#F5F5F7] lg:text-[22px]">
+            {copy.dimensions.labels[finding.dimension]}
+          </h3>
+          <DimensionBadges copy={copy} finding={finding} compact={false} />
+        </div>
+
+        <p className="mt-3 max-w-[720px] text-[15.5px] leading-[1.65] text-[#E5E7EB] lg:text-[16px]">
+          {finding.conclusion}
+        </p>
+
+        <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <p className="text-[13.5px] leading-[1.6] text-[#D1D5DB]">{finding.userObservation}</p>
+            <div className="mt-2">
+              <EvidenceQuote
+                variant="featured"
+                source="user"
+                label={copy.evidence.yourScriptLabel}
+                excerpt={finding.evidence.user.excerpt}
+                timestamp={null}
+              />
+            </div>
+          </div>
+          <div>
+            <p className="text-[13.5px] leading-[1.6] text-[#D1D5DB]">
+              {finding.competitorObservation}
+            </p>
+            <div className="mt-2">
+              <EvidenceQuote
+                variant="featured"
+                source="competitor"
+                label={copy.evidence.competitorScriptLabel}
+                excerpt={finding.evidence.competitor.excerpt}
+                timestamp={formatEvidenceTimestamp(
+                  finding.evidence.competitor.startMs,
+                  finding.evidence.competitor.endMs
+                )}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// The three non-featured dimensions, compact. Every field the contract
+// exposes is still rendered (nothing hidden or truncated) — only the
+// typography/spacing scale is reduced relative to the featured card.
+// The evidence pair here deliberately never becomes a 2-column grid (see
+// module-level responsive note near the parent grid below): these cards
+// are already narrow once arranged three-across, so their own evidence
+// stays single-column at every width to avoid cramped quotes.
+function SecondaryDimensionCard({
+  copy,
+  finding,
+}: {
+  copy: ResultsCopy;
+  finding: DimensionFinding;
+}) {
+  return (
+    <div className="rounded-[14px] border border-white/10 bg-white/[0.02] p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <h4 className="text-[13.5px] font-semibold text-[#F5F5F7]">
           {copy.dimensions.labels[finding.dimension]}
-        </h3>
-        <span className="inline-flex items-center rounded-full border border-white/15 bg-white/[0.04] px-2.5 py-0.5 text-[11px] font-semibold text-[#D1D5DB]">
-          {copy.strongerSide[finding.strongerSide]}
-        </span>
-        {finding.gap !== null && (
-          <span className="inline-flex items-center rounded-full border border-[#F59E0B]/30 bg-[#F59E0B]/10 px-2.5 py-0.5 text-[11px] font-semibold text-[#FBBF24]">
-            {copy.gap[finding.gap]}
-          </span>
-        )}
+        </h4>
+        <DimensionBadges copy={copy} finding={finding} compact />
       </div>
 
-      <p className="mt-2 text-[13.5px] leading-[1.6] text-[#D1D5DB]">
-        {finding.conclusion}
-      </p>
+      <p className="mt-1.5 text-[12.5px] leading-[1.5] text-[#D1D5DB]">{finding.conclusion}</p>
 
-      <div className="mt-3.5 grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+      <div className="mt-2.5 flex flex-col gap-2.5">
         <div>
-          <p className="text-[13px] leading-[1.55] text-[#D1D5DB]">
-            {finding.userObservation}
-          </p>
-          <div className="mt-2">
+          <p className="text-[12px] leading-[1.5] text-[#9CA3AF]">{finding.userObservation}</p>
+          <div className="mt-1.5">
             <EvidenceQuote
+              source="user"
               label={copy.evidence.yourScriptLabel}
               excerpt={finding.evidence.user.excerpt}
               timestamp={null}
@@ -119,11 +237,12 @@ function DimensionFindingCard({
           </div>
         </div>
         <div>
-          <p className="text-[13px] leading-[1.55] text-[#D1D5DB]">
+          <p className="text-[12px] leading-[1.5] text-[#9CA3AF]">
             {finding.competitorObservation}
           </p>
-          <div className="mt-2">
+          <div className="mt-1.5">
             <EvidenceQuote
+              source="competitor"
               label={copy.evidence.competitorScriptLabel}
               excerpt={finding.evidence.competitor.excerpt}
               timestamp={formatEvidenceTimestamp(
@@ -138,56 +257,121 @@ function DimensionFindingCard({
   );
 }
 
+// Priority 1 gets the large "primary" treatment; ranks 2-3 render
+// "compact". Every field the contract exposes (problem, competitorPrinciple,
+// howToApply, both evidence excerpts) is rendered in both variants —
+// ranking/order is a direct, unmodified read of comparison.priorities,
+// never re-derived here.
 function PriorityCard({
   copy,
   priority,
+  variant,
 }: {
   copy: ResultsCopy;
   priority: Priority;
+  variant: "primary" | "compact";
 }) {
+  const isPrimary = variant === "primary";
+
   return (
-    <div className="rounded-[16px] border border-white/10 bg-white/[0.02] p-4 lg:p-5">
+    <div
+      className={
+        isPrimary
+          ? "relative overflow-hidden rounded-[20px] border border-[#22D3EE]/25 bg-gradient-to-b from-[#22D3EE]/[0.06] to-white/[0.02] p-5 lg:p-6"
+          : "rounded-[14px] border border-white/10 bg-white/[0.02] p-4"
+      }
+    >
       <div className="flex items-center gap-2.5">
         <span
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#22D3EE]/15 text-[13px] font-bold text-[#67E8F9]"
+          className={
+            isPrimary
+              ? "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#22D3EE]/20 text-[14px] font-bold text-[#67E8F9]"
+              : "flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-[11px] font-bold text-[#D1D5DB]"
+          }
           aria-hidden="true"
         >
           {priority.rank}
         </span>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#9CA3AF]">
+        <p
+          className={
+            isPrimary
+              ? "text-[11px] font-semibold uppercase tracking-[0.1em] text-[#67E8F9]"
+              : "text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[#9CA3AF]"
+          }
+        >
           {copy.priorities.rankLabel} {priority.rank}
         </p>
       </div>
 
-      <p className="mt-2.5 text-[14px] font-semibold text-[#F5F5F7]">
+      <p
+        className={
+          isPrimary
+            ? "mt-3 text-[16px] font-semibold leading-[1.4] text-[#F5F5F7]"
+            : "mt-2 text-[13px] font-semibold leading-[1.4] text-[#F5F5F7]"
+        }
+      >
         {priority.problem}
       </p>
 
-      <div className="mt-2.5">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#6B7280]">
+      <div className={isPrimary ? "mt-3" : "mt-2"}>
+        <p
+          className={
+            isPrimary
+              ? "text-[11px] font-semibold uppercase tracking-[0.06em] text-[#6B7280]"
+              : "text-[10px] font-semibold uppercase tracking-[0.05em] text-[#6B7280]"
+          }
+        >
           {copy.priorities.competitorPrincipleLabel}
         </p>
-        <p className="mt-1 text-[13px] leading-[1.55] text-[#D1D5DB]">
+        <p
+          className={
+            isPrimary
+              ? "mt-1 text-[13.5px] leading-[1.6] text-[#D1D5DB]"
+              : "mt-0.5 text-[12px] leading-[1.5] text-[#9CA3AF]"
+          }
+        >
           {priority.competitorPrinciple}
         </p>
       </div>
 
-      <div className="mt-2.5">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#6B7280]">
+      <div className={isPrimary ? "mt-3" : "mt-2"}>
+        <p
+          className={
+            isPrimary
+              ? "text-[11px] font-semibold uppercase tracking-[0.06em] text-[#6B7280]"
+              : "text-[10px] font-semibold uppercase tracking-[0.05em] text-[#6B7280]"
+          }
+        >
           {copy.priorities.howToApplyLabel}
         </p>
-        <p className="mt-1 text-[13px] leading-[1.55] text-[#D1D5DB]">
+        <p
+          className={
+            isPrimary
+              ? "mt-1 text-[13.5px] leading-[1.6] text-[#D1D5DB]"
+              : "mt-0.5 text-[12px] leading-[1.5] text-[#9CA3AF]"
+          }
+        >
           {priority.howToApply}
         </p>
       </div>
 
-      <div className="mt-3.5 grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+      <div
+        className={
+          isPrimary
+            ? "mt-4 grid grid-cols-1 gap-3.5 sm:grid-cols-2"
+            : "mt-2.5 grid grid-cols-1 gap-2.5 sm:grid-cols-2"
+        }
+      >
         <EvidenceQuote
+          variant={isPrimary ? "featured" : "compact"}
+          source="user"
           label={copy.evidence.yourScriptLabel}
           excerpt={priority.evidence.user.excerpt}
           timestamp={null}
         />
         <EvidenceQuote
+          variant={isPrimary ? "featured" : "compact"}
+          source="competitor"
           label={copy.evidence.competitorScriptLabel}
           excerpt={priority.evidence.competitor.excerpt}
           timestamp={formatEvidenceTimestamp(
@@ -201,18 +385,17 @@ function PriorityCard({
 }
 
 // May legitimately be empty — the whole section is omitted by the caller
-// when it is, never a manufactured "no cautions" placeholder.
+// when it is, never a manufactured "no cautions" placeholder. Kept
+// visually quieter than every section above it (no accent color, no
+// gradient surface).
 function CautionCard({ copy, caution }: { copy: ResultsCopy; caution: Caution }) {
   return (
     <div className="rounded-[12px] border border-white/10 bg-white/[0.02] px-4 py-3.5">
-      <p className="text-[13px] font-semibold text-[#D1D5DB]">
-        {caution.whatNotToCopy}
-      </p>
-      <p className="mt-1 text-[12.5px] leading-[1.5] text-[#9CA3AF]">
-        {caution.reason}
-      </p>
+      <p className="text-[13px] font-semibold text-[#D1D5DB]">{caution.whatNotToCopy}</p>
+      <p className="mt-1 text-[12.5px] leading-[1.5] text-[#9CA3AF]">{caution.reason}</p>
       <div className="mt-2.5 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
         <EvidenceQuote
+          source="competitor"
           label={copy.evidence.competitorScriptLabel}
           excerpt={caution.evidence.competitor.excerpt}
           timestamp={formatEvidenceTimestamp(
@@ -222,6 +405,7 @@ function CautionCard({ copy, caution }: { copy: ResultsCopy; caution: Caution })
         />
         {caution.evidence.user !== null && (
           <EvidenceQuote
+            source="user"
             label={copy.evidence.yourScriptLabel}
             excerpt={caution.evidence.user.excerpt}
             timestamp={null}
@@ -291,101 +475,114 @@ export function CompareResultsContent({ copy }: { copy: ResultsCopy }) {
   const durationDisplay =
     formatDurationMs(sourceMeta.durationMs) ?? copy.sourceMeta.unknownDuration;
 
+  // Presentation-only split — see selectFeaturedDimension's own comment.
+  // comparison.dimensionFindings itself is never reassigned, sorted, or
+  // mutated; `secondary` is always a fresh array from .filter().
+  const { featured, secondary } = selectFeaturedDimension(comparison.dimensionFindings);
+  const [primaryPriority, ...compactPriorities] = comparison.priorities;
+
   // The dedicated result-entrance class below plays once, right here, the
   // moment this "ready" container is first mounted — never on the earlier
   // "loading" placeholder above. Reuses the exact same class Analyze
   // Results already established (app/globals.css .animate-result-enter),
-  // no new CSS.
+  // no new CSS, no new keyframes.
   return (
-    <div className="flex flex-col gap-3 animate-result-enter">
-      {/* A. Orientation / header */}
-      <section className="rounded-[20px] border border-[#22D3EE]/20 bg-white/[0.035] p-5 lg:p-6">
-        <span className="inline-flex items-center rounded-full border border-[#22D3EE]/30 bg-[#22D3EE]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#67E8F9]">
-          {copy.summary.realDataLabel}
-        </span>
-
-        <div className="mt-4 flex flex-col gap-5 sm:flex-row sm:items-start">
-          <div className="w-full max-w-[200px] shrink-0 sm:w-[200px]">
-            <YouTubeEmbed videoId={sourceMeta.videoId} title={copy.summary.embedTitle} />
-          </div>
-
-          <div className="min-w-0 flex-1">
-            <a
-              href={sourceMeta.canonicalUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label={`${copy.summary.openOnYouTube}: ${sourceMeta.canonicalUrl}`}
-              className="inline-flex items-center gap-1 text-[13px] font-medium text-[#67E8F9] hover:text-[#A5F3FC] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#67E8F9]"
-            >
-              {copy.summary.openOnYouTube}
-              <ExternalLink size={12} aria-hidden="true" />
-            </a>
-
-            <div className="mt-4">
-              <Link
-                href="/competitor-scripts/compare"
-                className="inline-flex h-[44px] items-center justify-center gap-2 rounded-[14px] border border-white/15 bg-white/[0.03] px-5 text-[13.5px] font-semibold text-[#F5F5F7] transition hover:bg-white/[0.06] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#67E8F9]"
-              >
-                <GitCompare size={15} aria-hidden="true" />
-                {copy.summary.compareAnother}
-              </Link>
-            </div>
-          </div>
+    <div className="flex flex-col gap-5 animate-result-enter lg:gap-6">
+      {/* A. Orientation — deliberately a plain, low-emphasis strip (no
+          card, no glow, no badge pill) so it never competes with the
+          main-insight hero directly below it. Embed/link/action are all
+          still present, just visually quieter than before. */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-white/10 pb-5">
+        <div className="w-[96px] shrink-0">
+          <YouTubeEmbed videoId={sourceMeta.videoId} title={copy.summary.embedTitle} />
         </div>
-      </section>
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-1.5">
+          <span className="text-[10.5px] font-medium uppercase tracking-[0.08em] text-[#6B7280]">
+            {copy.summary.realDataLabel}
+          </span>
+          <a
+            href={sourceMeta.canonicalUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`${copy.summary.openOnYouTube}: ${sourceMeta.canonicalUrl}`}
+            className="inline-flex items-center gap-1 text-[12.5px] font-medium text-[#67E8F9] hover:text-[#A5F3FC] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#67E8F9]"
+          >
+            {copy.summary.openOnYouTube}
+            <ExternalLink size={11} aria-hidden="true" />
+          </a>
+        </div>
+        <Link
+          href="/competitor-scripts/compare"
+          className="inline-flex h-[38px] shrink-0 items-center justify-center gap-1.5 rounded-[10px] border border-white/15 bg-white/[0.03] px-3.5 text-[12.5px] font-semibold text-[#D1D5DB] transition hover:bg-white/[0.06] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#67E8F9]"
+        >
+          <GitCompare size={13} aria-hidden="true" />
+          {copy.summary.compareAnother}
+        </Link>
+      </div>
 
-      {/* B. Comparison summary */}
-      <section className="rounded-[20px] border border-white/10 bg-white/[0.03] p-5 lg:p-6">
-        <h2 className="text-[19px] font-bold leading-[1.35] text-[#F5F5F7]">
+      {/* B. Main insight — the real visual hero of the page. Promoted well
+          above the generic page-level H1 in prominence; no card wrapper,
+          so it reads as editorial content rather than another stacked
+          box. */}
+      <div>
+        <div
+          aria-hidden="true"
+          className="h-[3px] w-10 rounded-full bg-gradient-to-r from-[#2563EB] to-[#22D3EE]"
+        />
+        <h2 className="mt-3 max-w-[820px] text-[26px] font-black leading-[1.15] tracking-[-0.02em] text-[#F5F5F7] lg:text-[34px]">
           {comparison.comparisonSummary.headline}
         </h2>
-        <p className="mt-2.5 text-[14px] leading-[1.6] text-[#D1D5DB]">
+        <p className="mt-3 max-w-[720px] text-[15px] leading-[1.7] text-[#C7CBD6] lg:text-[16px]">
           {comparison.comparisonSummary.mainTakeaway}
         </p>
-      </section>
+      </div>
 
-      {/* C. Four dimension findings, in the fixed contract order — never
-          re-sorted client-side. */}
-      <section className="rounded-[20px] border border-white/10 bg-white/[0.03] p-5 lg:p-6">
+      {/* C. Featured dimension — one obvious focal point, chosen
+          deterministically (see selectFeaturedDimension). */}
+      <FeaturedDimensionCard copy={copy} finding={featured} />
+
+      {/* D. Remaining three dimensions, compact. Single column below the
+          sidebar breakpoint, three-across at lg — matching where the
+          shared Sidebar itself switches layout, so both transitions land
+          together. */}
+      <section>
         <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#67E8F9]">
           {copy.dimensions.sectionEyebrow}
         </p>
         <h2 className="mt-2 text-[17px] font-semibold text-[#F5F5F7]">
           {copy.dimensions.heading}
         </h2>
-        <div className="mt-4 flex flex-col gap-5">
-          {comparison.dimensionFindings.map((finding) => (
-            <DimensionFindingCard key={finding.dimension} copy={copy} finding={finding} />
+        <div className="mt-4 grid grid-cols-1 gap-3.5 lg:grid-cols-3">
+          {secondary.map((finding) => (
+            <SecondaryDimensionCard key={finding.dimension} copy={copy} finding={finding} />
           ))}
         </div>
       </section>
 
-      {/* D. Priorities, already rank-ordered by the validator */}
-      <section className="rounded-[20px] border border-white/10 bg-white/[0.03] p-5 lg:p-6">
+      {/* E. Priorities — Priority 1 dominant, 2-3 compact. Order is a
+          direct, unmodified read of comparison.priorities. */}
+      <section>
         <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#67E8F9]">
           {copy.priorities.sectionEyebrow}
         </p>
-        <h2 className="mt-2 text-[17px] font-semibold text-[#F5F5F7]">
-          {copy.priorities.heading}
-        </h2>
-        <div className="mt-4 flex flex-col gap-5">
-          {comparison.priorities.map((priority) => (
-            <PriorityCard key={priority.rank} copy={copy} priority={priority} />
+        <h2 className="mt-2 text-[17px] font-semibold text-[#F5F5F7]">{copy.priorities.heading}</h2>
+        <div className="mt-4 flex flex-col gap-3.5">
+          <PriorityCard copy={copy} priority={primaryPriority} variant="primary" />
+          {compactPriorities.map((priority) => (
+            <PriorityCard key={priority.rank} copy={copy} priority={priority} variant="compact" />
           ))}
         </div>
       </section>
 
-      {/* E. Cautions — omitted entirely when empty, visually quieter
-          (dimmer border/background, no accent color) than the primary
-          findings/priorities sections above. */}
+      {/* F. Cautions — omitted entirely when empty, visually quieter
+          (dimmer border/background, no accent color) than every section
+          above it. */}
       {comparison.cautions.length > 0 && (
         <section className="rounded-[20px] border border-white/10 bg-white/[0.02] p-5 lg:p-6">
           <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#9CA3AF]">
             {copy.cautions.sectionEyebrow}
           </p>
-          <h2 className="mt-2 text-[16px] font-semibold text-[#D1D5DB]">
-            {copy.cautions.heading}
-          </h2>
+          <h2 className="mt-2 text-[16px] font-semibold text-[#D1D5DB]">{copy.cautions.heading}</h2>
           <div className="mt-3.5 flex flex-col gap-3.5">
             {comparison.cautions.map((caution, index) => (
               <CautionCard key={`${caution.whatNotToCopy}-${index}`} copy={copy} caution={caution} />
@@ -394,29 +591,26 @@ export function CompareResultsContent({ copy }: { copy: ResultsCopy }) {
         </section>
       )}
 
-      {/* F. Source metadata — every value is a direct read of sourceMeta,
+      {/* G. Source metadata — every value is a direct read of sourceMeta,
           never re-derived or fabricated. */}
-      <section className="rounded-[20px] border border-white/10 bg-white/[0.03] p-5 lg:p-6">
-        <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#9CA3AF]">
+      <section className="rounded-[16px] border border-white/10 bg-white/[0.02] p-4 lg:p-5">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#6B7280]">
           {copy.sourceMeta.sectionEyebrow}
         </p>
-        <h2 className="mt-2 text-[17px] font-semibold text-[#F5F5F7]">
-          {copy.sourceMeta.heading}
-        </h2>
-        <dl className="mt-3.5 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
+        <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
           <div>
-            <dt className="text-[10.5px] font-medium uppercase tracking-[0.06em] text-[#6B7280]">
+            <dt className="text-[10px] font-medium uppercase tracking-[0.06em] text-[#6B7280]">
               {copy.sourceMeta.videoIdLabel}
             </dt>
-            <dd className="mt-0.5 truncate text-[13px] font-medium text-[#D1D5DB]">
+            <dd className="mt-0.5 truncate text-[12.5px] font-medium text-[#D1D5DB]">
               {sourceMeta.videoId}
             </dd>
           </div>
           <div className="col-span-2">
-            <dt className="text-[10.5px] font-medium uppercase tracking-[0.06em] text-[#6B7280]">
+            <dt className="text-[10px] font-medium uppercase tracking-[0.06em] text-[#6B7280]">
               {copy.sourceMeta.canonicalUrlLabel}
             </dt>
-            <dd className="mt-0.5 truncate text-[13px] font-medium text-[#D1D5DB]">
+            <dd className="mt-0.5 truncate text-[12.5px] font-medium text-[#D1D5DB]">
               <a
                 href={sourceMeta.canonicalUrl}
                 target="_blank"
@@ -428,36 +622,34 @@ export function CompareResultsContent({ copy }: { copy: ResultsCopy }) {
             </dd>
           </div>
           <div>
-            <dt className="text-[10.5px] font-medium uppercase tracking-[0.06em] text-[#6B7280]">
+            <dt className="text-[10px] font-medium uppercase tracking-[0.06em] text-[#6B7280]">
               {copy.sourceMeta.durationLabel}
             </dt>
-            <dd className="mt-0.5 text-[13px] font-medium text-[#D1D5DB]">
-              {durationDisplay}
-            </dd>
+            <dd className="mt-0.5 text-[12.5px] font-medium text-[#D1D5DB]">{durationDisplay}</dd>
           </div>
           <div>
-            <dt className="text-[10.5px] font-medium uppercase tracking-[0.06em] text-[#6B7280]">
+            <dt className="text-[10px] font-medium uppercase tracking-[0.06em] text-[#6B7280]">
               {copy.sourceMeta.userScriptLengthLabel}
             </dt>
-            <dd className="mt-0.5 text-[13px] font-medium text-[#D1D5DB]">
+            <dd className="mt-0.5 text-[12.5px] font-medium text-[#D1D5DB]">
               {sourceMeta.userScriptCharacterCount} {copy.sourceMeta.charactersSuffix}
             </dd>
           </div>
         </dl>
       </section>
 
-      {/* G. Navigation actions */}
-      <div className="mt-2 flex flex-col gap-4 border-t border-white/10 pt-6 sm:flex-row sm:items-center sm:justify-between">
+      {/* H. Navigation actions */}
+      <div className="mt-1 flex flex-col gap-4 border-t border-white/10 pt-6 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-5">
           <Link
             href="/competitor-scripts/compare"
-            className="inline-flex h-[44px] items-center justify-center px-1 text-[13px] font-medium text-[#9CA3AF] transition hover:text-[#F5F5F7] sm:h-auto sm:px-0"
+            className="inline-flex h-[44px] items-center justify-center px-1 text-[13px] font-medium text-[#9CA3AF] transition hover:text-[#F5F5F7] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#67E8F9] sm:h-auto sm:px-0"
           >
             {copy.actions.backToCompare}
           </Link>
           <Link
             href="/competitor-scripts"
-            className="inline-flex h-[44px] items-center justify-center px-1 text-[13px] font-medium text-[#9CA3AF] transition hover:text-[#F5F5F7] sm:h-auto sm:px-0"
+            className="inline-flex h-[44px] items-center justify-center px-1 text-[13px] font-medium text-[#9CA3AF] transition hover:text-[#F5F5F7] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#67E8F9] sm:h-auto sm:px-0"
           >
             {copy.actions.backToSelection}
           </Link>
