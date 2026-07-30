@@ -265,7 +265,15 @@ for (const locale of LAUNCHED_LOCALES) {
       typeof copy.scriptPlaceholder === "string" &&
       typeof copy.scriptHelper === "string" &&
       typeof copy.submitLabel === "string" &&
-      typeof copy.comingNextMessage === "string"
+      typeof copy.submittingLabel === "string"
+  );
+
+  check(
+    `${locale}: compare.apiErrors has exactly 15 non-empty string keys`,
+    Object.keys(copy.apiErrors).length === 15 &&
+      Object.values(copy.apiErrors).every(
+        (value) => typeof value === "string" && value.length > 0
+      )
   );
 
   check(
@@ -740,9 +748,8 @@ check(
 );
 
 check(
-  "no compare RESULT route exists yet (no app/competitor-scripts/compare/result*)",
-  !existsSync("app/competitor-scripts/compare/result") &&
-    !existsSync("app/competitor-scripts/compare/results")
+  "the /competitor-scripts/compare/results route exists on disk (frontend/results PR)",
+  existsSync("app/competitor-scripts/compare/results/page.tsx")
 );
 
 const modeSelectionPageSource = readFileSync(
@@ -798,6 +805,11 @@ check(
 
 const analyzeFormSource = readFileSync(
   "app/competitor-scripts/analyze/analyze-input-form.tsx",
+  "utf8"
+);
+
+const compareFormSource = readFileSync(
+  "app/competitor-scripts/compare/compare-input-form.tsx",
   "utf8"
 );
 
@@ -945,9 +957,10 @@ check(
 );
 
 check(
-  "the only animate-spin in the whole feature is the Analyze form's real submission spinner, gated by real isSubmitting state — not a fake/timer-driven one",
-  (analyzeFeatureSource.match(/animate-spin/g) ?? []).length === 1 &&
-    /isSubmitting[\s\S]{0,200}animate-spin/.test(analyzeFormSource)
+  "every animate-spin in the whole feature is a real submission spinner gated by real isSubmitting state — not a fake/timer-driven one — and there are exactly two (Analyze's form, Compare's form)",
+  (analyzeFeatureSource.match(/animate-spin/g) ?? []).length === 2 &&
+    /isSubmitting[\s\S]{0,200}animate-spin/.test(analyzeFormSource) &&
+    /isSubmitting[\s\S]{0,200}animate-spin/.test(compareFormSource)
 );
 
 check(
@@ -1002,12 +1015,7 @@ check(
   analyzeFormSource.includes("disabled={isSubmitting}")
 );
 
-// ── CompareInputForm: two fields, local-only, correct validation ───────
-
-const compareFormSource = readFileSync(
-  "app/competitor-scripts/compare/compare-input-form.tsx",
-  "utf8"
-);
+// ── CompareInputForm: two fields, wired to the real Compare API ────────
 
 check(
   "CompareInputForm reuses the shared isSupportedVideoUrl helper instead of redefining it",
@@ -1060,30 +1068,33 @@ check(
 );
 
 check(
-  "CompareInputForm never calls fetch or any API",
-  !/\bfetch\(/.test(compareFormSource)
+  "CompareInputForm calls the real Competitor Scripts compare API — POST, JSON content type, and a body containing userScript/competitorUrl plus the requested locale (en/ru only)",
+  /fetch\(\s*"\/api\/competitor-scripts\/compare"/.test(compareFormSource) &&
+    /method:\s*"POST"/.test(compareFormSource) &&
+    /"Content-Type":\s*"application\/json"/.test(compareFormSource) &&
+    compareFormSource.includes("userScript") &&
+    compareFormSource.includes("competitorUrl") &&
+    /toCompareLocale\(appLocale\)/.test(compareFormSource)
 );
 
 check(
-  "CompareInputForm never imports next/navigation's router (no client-side navigation on submit)",
-  !compareFormSource.includes("useRouter")
+  "CompareInputForm navigates to the Compare results route on success, via next/navigation's router (frontend/results PR)",
+  compareFormSource.includes("useRouter") &&
+    compareFormSource.includes('router.push("/competitor-scripts/compare/results")')
 );
 
 check(
-  "the submit button is disabled only while either field is empty (native disabled attribute)",
-  compareFormSource.includes(
-    "disabled={\n            competitorUrl.trim().length === 0 || script.trim().length === 0\n          }"
-  ) ||
-    /disabled=\{[\s\S]{0,120}competitorUrl\.trim\(\)\.length === 0[\s\S]{0,40}script\.trim\(\)\.length === 0/.test(
-      compareFormSource
-    )
+  "the submit button is disabled while either field is empty, or while a submission is already in flight",
+  /disabled=\{\s*isSubmitting[\s\S]{0,120}competitorUrl\.trim\(\)\.length === 0[\s\S]{0,40}script\.trim\(\)\.length === 0/.test(
+    compareFormSource
+  )
 );
 
 check(
-  "validation errors use role=\"alert\" for both fields; the coming-next status uses role=\"status\"/aria-live=\"polite\"",
-  (compareFormSource.match(/role="alert"/g) ?? []).length === 2 &&
-    compareFormSource.includes('role="status"') &&
-    compareFormSource.includes('aria-live="polite"')
+  "validation errors use role=\"alert\" for both fields plus a distinct form-level API-error alert — no leftover 'coming next' status message",
+  (compareFormSource.match(/role="alert"/g) ?? []).length === 3 &&
+    !compareFormSource.includes("showComingNext") &&
+    !compareFormSource.includes('role="status"')
 );
 
 check(
@@ -1140,10 +1151,12 @@ check(
 );
 
 check(
-  "no fake live-progress semantics exist anywhere in the compare feature (no progressbar role, no animate-spin)",
-  !/role="progressbar"|animate-spin/i.test(
+  "no fake progressbar-role semantics exist anywhere in the compare feature, and the form's one animate-spin is the real, isSubmitting-gated submission spinner (checked in detail above) — never a fake/timer-driven one",
+  !/role="progressbar"/i.test(
     [comparePageSource, compareFormSource, compareWorkflowSource].join("\n")
-  )
+  ) &&
+    !/animate-spin/.test([comparePageSource, compareWorkflowSource].join("\n")) &&
+    (compareFormSource.match(/animate-spin/g) ?? []).length === 1
 );
 
 const compareExampleSource = readFileSync(
@@ -1192,9 +1205,8 @@ check(
 );
 
 check(
-  "no Compare results route exists (no app/competitor-scripts/compare/results*)",
-  !existsSync("app/competitor-scripts/compare/results") &&
-    !existsSync("app/competitor-scripts/compare/results.tsx")
+  "the compare results route's content component also exists alongside its page.tsx (frontend/results PR)",
+  existsSync("app/competitor-scripts/compare/results/compare-results-content.tsx")
 );
 
 const resultsFeatureSource = resultsComponentPaths

@@ -1,0 +1,813 @@
+import { readFileSync } from "node:fs";
+import { getMessages } from "../lib/messages";
+import { LAUNCHED_LOCALES } from "../lib/i18n";
+import {
+  COMPARE_RESULT_STORAGE_KEY,
+  isValidCompareSuccessPayload,
+  validateStoredCompareResult,
+} from "../lib/competitor-scripts/compare-result-storage";
+import {
+  COMPARISON_DIMENSIONS,
+  type ComparisonLocale,
+  type CompetitorScriptComparison,
+  type GapLevel,
+  type StrongerSide,
+} from "../lib/competitor-scripts/comparison/types";
+import {
+  MAX_CAUTIONS,
+  MAX_PRIORITIES,
+} from "../lib/competitor-scripts/comparison/constants";
+
+let failures = 0;
+
+function check(name: string, condition: boolean): void {
+  if (condition) {
+    console.log(`✅ PASS — ${name}`);
+  } else {
+    console.error(`❌ FAIL — ${name}`);
+    failures += 1;
+  }
+}
+
+console.log("\nCompetitor Scripts Compare Frontend Tests\n");
+
+// Used only when a check must scan for the absence of a word/phrase in
+// actual code — explanatory comments in this codebase legitimately discuss
+// what a file does NOT do, which would otherwise self-trigger a naive
+// substring/regex check.
+function stripComments(source: string): string {
+  return source.replace(/\/\/.*$/gm, "");
+}
+
+// ── Fixtures ────────────────────────────────────────────────────────────
+// This lightweight transport guard never re-runs grounding, so — unlike
+// tests/competitor-scripts-comparison-{provider,api}.ts's own fixtures —
+// the excerpt/prose text here doesn't need to satisfy the real semantic
+// validator (no claim-pattern/quote/number checks apply at this layer).
+// Only shape matters.
+
+function makeDimensionFinding(
+  dimension: (typeof COMPARISON_DIMENSIONS)[number],
+  strongerSide: StrongerSide,
+  gap: GapLevel | null
+) {
+  return {
+    dimension,
+    strongerSide,
+    gap,
+    conclusion: `Conclusion for ${dimension}.`,
+    userObservation: `User observation for ${dimension}.`,
+    competitorObservation: `Competitor observation for ${dimension}.`,
+    evidence: {
+      user: { source: "user" as const, excerpt: `user excerpt ${dimension}` },
+      competitor: {
+        source: "competitor" as const,
+        excerpt: `competitor excerpt ${dimension}`,
+        startMs: 1000,
+        endMs: 2000,
+      },
+    },
+  };
+}
+
+function makeValidComparison(
+  locale: ComparisonLocale,
+  cautionCount: 0 | 1 = 1
+): CompetitorScriptComparison {
+  return {
+    schemaVersion: 1,
+    locale,
+    comparisonSummary: { headline: "Headline text.", mainTakeaway: "Main takeaway text." },
+    dimensionFindings: [
+      makeDimensionFinding("hook", "competitor", "meaningful"),
+      makeDimensionFinding("structure", "similar", null),
+      makeDimensionFinding("momentum", "user", "small"),
+      makeDimensionFinding("payoff_clarity", "competitor", "large"),
+    ],
+    priorities: [
+      {
+        rank: 1,
+        problem: "Problem text.",
+        competitorPrinciple: "Competitor principle text.",
+        howToApply: "How to apply text.",
+        evidence: {
+          user: { source: "user", excerpt: "priority user excerpt" },
+          competitor: {
+            source: "competitor",
+            excerpt: "priority competitor excerpt",
+            startMs: 3000,
+            endMs: null,
+          },
+        },
+      },
+    ],
+    cautions:
+      cautionCount === 0
+        ? []
+        : [
+            {
+              whatNotToCopy: "What not to copy.",
+              reason: "Reason text.",
+              evidence: {
+                competitor: {
+                  source: "competitor",
+                  excerpt: "caution excerpt",
+                  startMs: 500,
+                  endMs: 1500,
+                },
+                user: null,
+              },
+            },
+          ],
+  };
+}
+
+const VALID_SOURCE_META = {
+  videoId: "dQw4w9WgXcQ",
+  canonicalUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+  durationMs: 18000,
+  userScriptCharacterCount: 240,
+};
+
+function cloneComparison(locale: ComparisonLocale = "en", cautionCount: 0 | 1 = 1) {
+  return JSON.parse(JSON.stringify(makeValidComparison(locale, cautionCount)));
+}
+
+function validStoredResult(): Record<string, unknown> {
+  return {
+    v: 1,
+    createdAt: 1_700_000_000_000,
+    comparison: cloneComparison("en", 1),
+    sourceMeta: { ...VALID_SOURCE_META },
+  };
+}
+
+// ── Transport guard: validateStoredCompareResult / isValidCompareSuccessPayload ─
+
+function testTransportGuard() {
+  check(
+    "a fully valid stored result passes and round-trips every field",
+    (() => {
+      const result = validateStoredCompareResult(validStoredResult());
+      return (
+        result !== null &&
+        result.v === 1 &&
+        result.comparison.locale === "en" &&
+        result.sourceMeta.videoId === VALID_SOURCE_META.videoId
+      );
+    })()
+  );
+
+  check("null/undefined/primitive input is rejected, never throws", validateStoredCompareResult(null) === null && validateStoredCompareResult(undefined) === null && validateStoredCompareResult("string") === null && validateStoredCompareResult(42) === null);
+
+  check(
+    "wrong transport version is rejected",
+    validateStoredCompareResult({ ...validStoredResult(), v: 2 }) === null
+  );
+
+  check(
+    "missing/non-numeric createdAt is rejected",
+    validateStoredCompareResult({ ...validStoredResult(), createdAt: "not-a-number" }) === null
+  );
+
+  check(
+    "missing comparison field entirely is rejected",
+    (() => {
+      const value = validStoredResult();
+      delete value.comparison;
+      return validateStoredCompareResult(value) === null;
+    })()
+  );
+
+  check(
+    "comparison.schemaVersion !== 1 is rejected",
+    (() => {
+      const value = validStoredResult();
+      (value.comparison as Record<string, unknown>).schemaVersion = 2;
+      return validateStoredCompareResult(value) === null;
+    })()
+  );
+
+  check(
+    "an unsupported comparison.locale is rejected",
+    (() => {
+      const value = validStoredResult();
+      (value.comparison as Record<string, unknown>).locale = "fr";
+      return validateStoredCompareResult(value) === null;
+    })()
+  );
+
+  check(
+    "a valid ru comparison locale is accepted",
+    (() => {
+      const value = { ...validStoredResult(), comparison: cloneComparison("ru", 1) };
+      return validateStoredCompareResult(value) !== null;
+    })()
+  );
+
+  check(
+    "missing comparisonSummary.headline is rejected",
+    (() => {
+      const value = validStoredResult();
+      delete (value.comparison as Record<string, Record<string, unknown>>).comparisonSummary.headline;
+      return validateStoredCompareResult(value) === null;
+    })()
+  );
+
+  check(
+    "a dimensionFindings array with the wrong count (3 instead of 4) is rejected",
+    (() => {
+      const value = validStoredResult();
+      const comparison = value.comparison as Record<string, unknown[]>;
+      comparison.dimensionFindings = comparison.dimensionFindings.slice(0, 3);
+      return validateStoredCompareResult(value) === null;
+    })()
+  );
+
+  check(
+    "dimensionFindings out of the fixed hook/structure/momentum/payoff_clarity order is rejected",
+    (() => {
+      const value = validStoredResult();
+      const comparison = value.comparison as Record<string, unknown[]>;
+      const [first, second, ...rest] = comparison.dimensionFindings;
+      comparison.dimensionFindings = [second, first, ...rest];
+      return validateStoredCompareResult(value) === null;
+    })()
+  );
+
+  check(
+    "an invalid strongerSide value is rejected",
+    (() => {
+      const value = validStoredResult();
+      const comparison = value.comparison as Record<string, Array<Record<string, unknown>>>;
+      comparison.dimensionFindings[0].strongerSide = "everyone";
+      return validateStoredCompareResult(value) === null;
+    })()
+  );
+
+  check(
+    "gap non-null when strongerSide is similar is rejected",
+    (() => {
+      const value = validStoredResult();
+      const comparison = value.comparison as Record<string, Array<Record<string, unknown>>>;
+      comparison.dimensionFindings[1].gap = "small";
+      return validateStoredCompareResult(value) === null;
+    })()
+  );
+
+  check(
+    "gap null when strongerSide is not similar is rejected",
+    (() => {
+      const value = validStoredResult();
+      const comparison = value.comparison as Record<string, Array<Record<string, unknown>>>;
+      comparison.dimensionFindings[0].gap = null;
+      return validateStoredCompareResult(value) === null;
+    })()
+  );
+
+  check(
+    "an invalid gap enum value is rejected",
+    (() => {
+      const value = validStoredResult();
+      const comparison = value.comparison as Record<string, Array<Record<string, unknown>>>;
+      comparison.dimensionFindings[0].gap = "enormous";
+      return validateStoredCompareResult(value) === null;
+    })()
+  );
+
+  check(
+    "user evidence with the wrong source discriminator is rejected",
+    (() => {
+      const value = validStoredResult();
+      const comparison = value.comparison as Record<string, Array<Record<string, Record<string, Record<string, unknown>>>>>;
+      comparison.dimensionFindings[0].evidence.user.source = "competitor";
+      return validateStoredCompareResult(value) === null;
+    })()
+  );
+
+  check(
+    "competitor evidence with a negative startMs is rejected",
+    (() => {
+      const value = validStoredResult();
+      const comparison = value.comparison as Record<string, Array<Record<string, Record<string, Record<string, unknown>>>>>;
+      comparison.dimensionFindings[0].evidence.competitor.startMs = -100;
+      return validateStoredCompareResult(value) === null;
+    })()
+  );
+
+  check(
+    "competitor evidence with a null endMs is accepted (endMs is required-but-nullable)",
+    (() => {
+      const value = validStoredResult();
+      const comparison = value.comparison as Record<string, Array<Record<string, Record<string, Record<string, unknown>>>>>;
+      comparison.dimensionFindings[0].evidence.competitor.endMs = null;
+      return validateStoredCompareResult(value) !== null;
+    })()
+  );
+
+  check(
+    "competitor evidence with a negative endMs is rejected",
+    (() => {
+      const value = validStoredResult();
+      const comparison = value.comparison as Record<string, Array<Record<string, Record<string, Record<string, unknown>>>>>;
+      comparison.dimensionFindings[0].evidence.competitor.endMs = -5;
+      return validateStoredCompareResult(value) === null;
+    })()
+  );
+
+  check(
+    `priorities beyond the max (${MAX_PRIORITIES}) count is rejected`,
+    (() => {
+      const value = validStoredResult();
+      const comparison = value.comparison as Record<string, unknown[]>;
+      const extra = comparison.priorities[0];
+      comparison.priorities = Array.from({ length: MAX_PRIORITIES + 1 }, () => JSON.parse(JSON.stringify(extra)));
+      return validateStoredCompareResult(value) === null;
+    })()
+  );
+
+  check(
+    "an empty priorities array (below the minimum) is rejected",
+    (() => {
+      const value = validStoredResult();
+      const comparison = value.comparison as Record<string, unknown[]>;
+      comparison.priorities = [];
+      return validateStoredCompareResult(value) === null;
+    })()
+  );
+
+  check(
+    `cautions beyond the max (${MAX_CAUTIONS}) count is rejected`,
+    (() => {
+      const value = { ...validStoredResult(), comparison: cloneComparison("en", 1) };
+      const comparison = value.comparison as Record<string, unknown[]>;
+      const extra = comparison.cautions[0];
+      comparison.cautions = Array.from({ length: MAX_CAUTIONS + 1 }, () => JSON.parse(JSON.stringify(extra)));
+      return validateStoredCompareResult(value) === null;
+    })()
+  );
+
+  check(
+    "zero cautions (empty array) is accepted as valid",
+    (() => {
+      const value = { ...validStoredResult(), comparison: cloneComparison("en", 0) };
+      return validateStoredCompareResult(value) !== null;
+    })()
+  );
+
+  check(
+    "a caution with evidence.user entirely absent (not even null) is rejected — a required key can never be silently omitted",
+    (() => {
+      const value = { ...validStoredResult(), comparison: cloneComparison("en", 1) };
+      const comparison = value.comparison as Record<string, Array<Record<string, Record<string, unknown>>>>;
+      delete comparison.cautions[0].evidence.user;
+      return validateStoredCompareResult(value) === null;
+    })()
+  );
+
+  check(
+    "a caution with a real (non-null) evidence.user object is accepted",
+    (() => {
+      const value = { ...validStoredResult(), comparison: cloneComparison("en", 1) };
+      const comparison = value.comparison as Record<string, Array<Record<string, Record<string, unknown>>>>;
+      comparison.cautions[0].evidence.user = { source: "user", excerpt: "a real user excerpt" };
+      return validateStoredCompareResult(value) !== null;
+    })()
+  );
+
+  check(
+    "a missing/invalid sourceMeta.videoId is rejected",
+    (() => {
+      const value = validStoredResult();
+      (value.sourceMeta as Record<string, unknown>).videoId = "not-11-chars";
+      return validateStoredCompareResult(value) === null;
+    })()
+  );
+
+  check(
+    "a sourceMeta.canonicalUrl whose embedded videoId disagrees with sourceMeta.videoId is rejected",
+    (() => {
+      const value = validStoredResult();
+      (value.sourceMeta as Record<string, unknown>).canonicalUrl =
+        "https://www.youtube.com/watch?v=AAAAAAAAAAA";
+      return validateStoredCompareResult(value) === null;
+    })()
+  );
+
+  check(
+    "a negative sourceMeta.durationMs is rejected, but null is accepted",
+    (() => {
+      const negative = validStoredResult();
+      (negative.sourceMeta as Record<string, unknown>).durationMs = -1;
+      const nullDuration = validStoredResult();
+      (nullDuration.sourceMeta as Record<string, unknown>).durationMs = null;
+      return (
+        validateStoredCompareResult(negative) === null &&
+        validateStoredCompareResult(nullDuration) !== null
+      );
+    })()
+  );
+
+  check(
+    "a negative sourceMeta.userScriptCharacterCount is rejected",
+    (() => {
+      const value = validStoredResult();
+      (value.sourceMeta as Record<string, unknown>).userScriptCharacterCount = -1;
+      return validateStoredCompareResult(value) === null;
+    })()
+  );
+
+  // ── isValidCompareSuccessPayload (fresh API response, pre-storage) ──
+
+  check(
+    "a valid {ok:true, comparison, sourceMeta} API response passes the payload guard",
+    isValidCompareSuccessPayload({
+      ok: true,
+      comparison: cloneComparison("en", 1),
+      sourceMeta: { ...VALID_SOURCE_META },
+    })
+  );
+
+  check(
+    "an {ok:false, ...} response never passes the payload guard, even with an otherwise-valid comparison shape",
+    !isValidCompareSuccessPayload({
+      ok: false,
+      comparison: cloneComparison("en", 1),
+      sourceMeta: { ...VALID_SOURCE_META },
+    })
+  );
+
+  check(
+    "a response missing the ok discriminator entirely is rejected",
+    !isValidCompareSuccessPayload({
+      comparison: cloneComparison("en", 1),
+      sourceMeta: { ...VALID_SOURCE_META },
+    })
+  );
+}
+
+// ── sessionStorage round-trip ──────────────────────────────────────────
+
+function testStorageRoundTrip() {
+  class FakeSessionStorage {
+    private store = new Map<string, string>();
+    getItem(key: string): string | null {
+      return this.store.has(key) ? this.store.get(key)! : null;
+    }
+    setItem(key: string, value: string): void {
+      this.store.set(key, value);
+    }
+    removeItem(key: string): void {
+      this.store.delete(key);
+    }
+    clear(): void {
+      this.store.clear();
+    }
+  }
+
+  return (async () => {
+    const fakeStorage = new FakeSessionStorage();
+    (globalThis as { sessionStorage?: unknown }).sessionStorage = fakeStorage;
+
+    const { readStoredCompareResult, writeStoredCompareResult } = await import(
+      "../lib/competitor-scripts/compare-result-storage"
+    );
+
+    check(
+      "reading with nothing stored returns null, never throws",
+      readStoredCompareResult() === null
+    );
+
+    fakeStorage.setItem(COMPARE_RESULT_STORAGE_KEY, "{not valid json");
+    check(
+      "reading malformed JSON returns null, never throws",
+      readStoredCompareResult() === null
+    );
+
+    fakeStorage.setItem(COMPARE_RESULT_STORAGE_KEY, JSON.stringify({ v: 1, tampered: true }));
+    check(
+      "reading a structurally-invalid-but-valid-JSON value returns null",
+      readStoredCompareResult() === null
+    );
+
+    writeStoredCompareResult({
+      comparison: cloneComparison("en", 1),
+      sourceMeta: { ...VALID_SOURCE_META },
+    });
+    const roundTripped = readStoredCompareResult();
+    check(
+      "a value written by writeStoredCompareResult reads back valid, with every field intact",
+      roundTripped !== null &&
+        roundTripped.v === 1 &&
+        roundTripped.comparison.locale === "en" &&
+        roundTripped.sourceMeta.videoId === VALID_SOURCE_META.videoId &&
+        roundTripped.sourceMeta.userScriptCharacterCount === VALID_SOURCE_META.userScriptCharacterCount
+    );
+
+    check(
+      "the persisted raw JSON never contains a userScript, transcript, raw, or modelUsed key — only v/createdAt/comparison/sourceMeta",
+      (() => {
+        const raw = fakeStorage.getItem(COMPARE_RESULT_STORAGE_KEY);
+        if (raw === null) return false;
+        const parsed = JSON.parse(raw) as Record<string, unknown>;
+        return (
+          JSON.stringify(Object.keys(parsed).sort()) ===
+            JSON.stringify(["comparison", "createdAt", "sourceMeta", "v"].sort()) &&
+          // The exact raw-script key, not a bare substring match — the
+          // approved sourceMeta.userScriptCharacterCount field legitimately
+          // contains "userScript" as a substring of its own name.
+          !raw.includes('"userScript":') &&
+          !raw.includes("transcript") &&
+          !raw.includes("modelUsed") &&
+          !("raw" in parsed)
+        );
+      })()
+    );
+
+    writeStoredCompareResult({
+      comparison: cloneComparison("ru", 0),
+      sourceMeta: { ...VALID_SOURCE_META, videoId: "dQw4w9WgXcR", canonicalUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcR" },
+    });
+    const overwritten = readStoredCompareResult();
+    check(
+      "a new successful write overwrites the previous stored result rather than merging with it",
+      overwritten !== null &&
+        overwritten.sourceMeta.videoId === "dQw4w9WgXcR" &&
+        overwritten.comparison.locale === "ru" &&
+        overwritten.comparison.cautions.length === 0
+    );
+
+    check(
+      "storage-unavailable (getItem throws) is handled without throwing",
+      (() => {
+        const throwingStorage = {
+          getItem: () => {
+            throw new Error("storage disabled");
+          },
+        };
+        (globalThis as { sessionStorage?: unknown }).sessionStorage = throwingStorage;
+        const result = readStoredCompareResult();
+        (globalThis as { sessionStorage?: unknown }).sessionStorage = fakeStorage;
+        return result === null;
+      })()
+    );
+  })();
+}
+
+// ── message coverage: compareResults namespace exists for every launched locale ─
+
+function testMessages() {
+  for (const locale of LAUNCHED_LOCALES) {
+    const copy = getMessages(locale).competitorScripts.compareResults;
+
+    check(
+      `${locale}: compareResults has all top-level section keys`,
+      typeof copy.backToCompare === "string" &&
+        typeof copy.heroEyebrow === "string" &&
+        typeof copy.pageTitle === "string" &&
+        typeof copy.description === "string" &&
+        typeof copy.missingState.heading === "string" &&
+        typeof copy.missingState.action === "string"
+    );
+
+    check(
+      `${locale}: compareResults.dimensions has a label for every real contract dimension`,
+      COMPARISON_DIMENSIONS.every(
+        (dimension) => typeof copy.dimensions.labels[dimension] === "string" && copy.dimensions.labels[dimension].length > 0
+      )
+    );
+
+    check(
+      `${locale}: compareResults.strongerSide has user/competitor/similar labels`,
+      typeof copy.strongerSide.user === "string" &&
+        typeof copy.strongerSide.competitor === "string" &&
+        typeof copy.strongerSide.similar === "string"
+    );
+
+    check(
+      `${locale}: compareResults.gap has small/meaningful/large labels`,
+      typeof copy.gap.small === "string" &&
+        typeof copy.gap.meaningful === "string" &&
+        typeof copy.gap.large === "string"
+    );
+
+    check(
+      `${locale}: compare.apiErrors and compare.submittingLabel exist (the real-API wiring's message surface)`,
+      typeof getMessages(locale).competitorScripts.compare.submittingLabel === "string" &&
+        typeof getMessages(locale).competitorScripts.compare.apiErrors.networkError === "string"
+    );
+  }
+
+  check(
+    "EN and RU expose the exact same compareResults key structure",
+    JSON.stringify(Object.keys(getMessages("en").competitorScripts.compareResults).sort()) ===
+      JSON.stringify(Object.keys(getMessages("ru").competitorScripts.compareResults).sort())
+  );
+
+  check(
+    "EN and RU expose the exact same compare.apiErrors key structure",
+    JSON.stringify(Object.keys(getMessages("en").competitorScripts.compare.apiErrors).sort()) ===
+      JSON.stringify(Object.keys(getMessages("ru").competitorScripts.compare.apiErrors).sort())
+  );
+}
+
+// ── structural checks: submission flow, storage usage, correct routes ────
+
+function testStructural() {
+  const formSource = readFileSync(
+    "app/competitor-scripts/compare/compare-input-form.tsx",
+    "utf8"
+  );
+  const formCodeOnly = stripComments(formSource);
+  const resultsContentSource = readFileSync(
+    "app/competitor-scripts/compare/results/compare-results-content.tsx",
+    "utf8"
+  );
+  const resultsPageSource = readFileSync(
+    "app/competitor-scripts/compare/results/page.tsx",
+    "utf8"
+  );
+  const storageModuleSource = readFileSync(
+    "lib/competitor-scripts/compare-result-storage.ts",
+    "utf8"
+  );
+  const storageModuleCodeOnly = stripComments(storageModuleSource);
+
+  // ── The exact route regression this phase called out explicitly ────
+
+  check(
+    "the compare form navigates to the correct Compare results route after a successful submission",
+    formSource.includes('router.push("/competitor-scripts/compare/results")')
+  );
+
+  check(
+    "the compare form never navigates to the Analyze results route (would silently show Analyze's own stale/foreign results page)",
+    !formSource.includes("/competitor-scripts/analyze/results")
+  );
+
+  check(
+    "the compare results page/content never reference the Analyze results route either",
+    !resultsPageSource.includes("/competitor-scripts/analyze/results") &&
+      !resultsContentSource.includes("/competitor-scripts/analyze/results")
+  );
+
+  // ── Form: request shape, duplicate-submit guard, loading, error handling ─
+
+  check(
+    "the request body is built with exactly userScript/competitorUrl/locale",
+    /body:\s*JSON\.stringify\(\{\s*userScript:\s*script,\s*competitorUrl,\s*locale:\s*requestedLocale,?\s*\}\)/.test(
+      formCodeOnly
+    )
+  );
+
+  check(
+    "the form posts to /api/competitor-scripts/compare",
+    formSource.includes('fetch("/api/competitor-scripts/compare"')
+  );
+
+  check(
+    "a synchronous in-flight ref blocks duplicate submissions before any async work starts",
+    /const submissionInFlight = useRef\(false\)/.test(formCodeOnly) &&
+      /if \(submissionInFlight\.current\) \{\s*return;\s*\}/.test(formCodeOnly)
+  );
+
+  check(
+    "isSubmitting disables both the URL input and the script textarea",
+    (formCodeOnly.match(/disabled=\{isSubmitting\}/g) ?? []).length >= 2
+  );
+
+  check(
+    "the submit button is disabled while submitting and shows aria-busy",
+    /disabled=\{\s*isSubmitting/.test(formCodeOnly) && formCodeOnly.includes("aria-busy={isSubmitting}")
+  );
+
+  check(
+    "on any failed submission, the previously entered URL and script are never cleared",
+    !/setCompetitorUrl\(""\)/.test(formCodeOnly) && !/setScript\(""\)/.test(formCodeOnly)
+  );
+
+  check(
+    "writeStoredCompareResult is only ever called inside the validated-success branch",
+    /isValidCompareSuccessPayload\(payload\)\)\s*\{[\s\S]{0,400}writeStoredCompareResult\(/.test(
+      formCodeOnly
+    )
+  );
+
+  check(
+    "the too-long/empty script checks run entirely client-side before any fetch call",
+    /scriptTooLong[\s\S]{0,2000}fetch\(/.test(formCodeOnly)
+  );
+
+  check(
+    "no console call anywhere in the form references the raw script or competitorUrl variables",
+    !/console\.(info|error|log|warn)\([^)]*\bscript\b[^)]*\)/.test(formCodeOnly) &&
+      !/console\.(info|error|log|warn)\([^)]*\bcompetitorUrl\b[^)]*\)/.test(formCodeOnly)
+  );
+
+  check(
+    "toCompareLocale narrows to exactly en/ru, mirroring Analyze's own toAnalysisLocale fallback",
+    /function toCompareLocale\(locale: string\): ComparisonLocale \{\s*return locale === "ru" \? "ru" : "en";\s*\}/.test(
+      formCodeOnly
+    )
+  );
+
+  check(
+    "API errors are shown as a distinct form-level error, never silently attached to the URL field's own error slot",
+    formCodeOnly.includes("setFormError(") && !/setUrlError\(copy\.apiErrors/.test(formCodeOnly)
+  );
+
+  // ── Results content: loading/missing/ready states, no re-sorting ───
+
+  check(
+    "CompareResultsContent starts in a loading state (avoids a server/client hydration mismatch)",
+    /useState<ContentState>\(\{\s*status:\s*"loading"\s*\}\)/.test(resultsContentSource)
+  );
+
+  check(
+    "CompareResultsContent reads sessionStorage inside a mount-only effect (empty dependency array), not during render",
+    /useEffect\(\(\)\s*=>\s*\{[\s\S]{0,500}readStoredCompareResult\(\)[\s\S]{0,300}\},\s*\[\]\)/.test(
+      resultsContentSource
+    )
+  );
+
+  check(
+    "the sessionStorage read is deferred via a cleaned-up zero-delay timer, matching the repo's react-hooks/set-state-in-effect-safe convention",
+    /window\.setTimeout\([\s\S]{0,300}\},\s*0\)/.test(resultsContentSource) &&
+      /window\.clearTimeout\(timer\)/.test(resultsContentSource)
+  );
+
+  check(
+    "dimensionFindings is rendered by direct array iteration — never re-sorted client-side",
+    resultsContentSource.includes("comparison.dimensionFindings.map(") &&
+      !resultsContentSource.includes("dimensionFindings.sort(") &&
+      !resultsContentSource.includes("dimensionFindings].sort(")
+  );
+
+  check(
+    "the cautions section is conditionally rendered and entirely omitted when empty",
+    /\{comparison\.cautions\.length > 0 && \(/.test(resultsContentSource)
+  );
+
+  check(
+    "a caution's optional user evidence is only rendered when non-null",
+    /caution\.evidence\.user !== null &&/.test(resultsContentSource)
+  );
+
+  check(
+    "the results-ready container reuses the existing .animate-result-enter entrance class — no new animation is introduced",
+    resultsContentSource.includes("animate-result-enter") &&
+      !/@keyframes/.test(resultsContentSource)
+  );
+
+  check(
+    "no scores, verdict, or performance-prediction field is ever rendered on the results page",
+    !/\.scores\b/.test(resultsContentSource) &&
+      !/\bverdict\b/i.test(resultsContentSource) &&
+      !/performance/i.test(resultsContentSource)
+  );
+
+  check(
+    "the full competitor transcript is never referenced on the results page (the API never returns one)",
+    !/\.text\b.*transcript/i.test(resultsContentSource) && !resultsContentSource.toLowerCase().includes("transcript.text")
+  );
+
+  check(
+    "sourceMeta fields (videoId, canonicalUrl, durationMs, userScriptCharacterCount) are all rendered",
+    resultsContentSource.includes("sourceMeta.videoId") &&
+      resultsContentSource.includes("sourceMeta.canonicalUrl") &&
+      resultsContentSource.includes("sourceMeta.durationMs") &&
+      resultsContentSource.includes("sourceMeta.userScriptCharacterCount")
+  );
+
+  // ── Storage module: no server-only imports, no legacy/transcript leakage ─
+
+  check(
+    "the storage module never imports a server-only module (no OpenAI, no process.env, no Next headers)",
+    !storageModuleCodeOnly.includes("process.env") &&
+      !/from\s+["']openai["']/.test(storageModuleCodeOnly) &&
+      !storageModuleCodeOnly.includes("next/headers")
+  );
+
+  check(
+    "the storage module's persisted type never includes a userScript, transcript, or locale field of its own (locale already lives inside comparison)",
+    !/userScript:/.test(storageModuleCodeOnly) &&
+      !/transcript:/.test(storageModuleCodeOnly) &&
+      !/\n\s*locale:/.test(storageModuleCodeOnly)
+  );
+}
+
+async function main() {
+  testTransportGuard();
+  await testStorageRoundTrip();
+  testMessages();
+  testStructural();
+
+  if (failures > 0) {
+    process.exitCode = 1;
+    console.error(`\n${failures} check(s) failed.`);
+  } else {
+    console.log("\nResult: all Competitor Scripts Compare Frontend tests passed.");
+  }
+}
+
+void main();

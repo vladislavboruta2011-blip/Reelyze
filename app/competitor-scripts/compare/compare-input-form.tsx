@@ -1,24 +1,70 @@
 "use client";
 
-import { useId, useState } from "react";
-import { ArrowRight, Link2, Lock } from "lucide-react";
+import { useId, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { ArrowRight, Link2, Loader2, Lock } from "lucide-react";
 import type { Messages } from "../../../lib/messages";
 import { isSupportedVideoUrl } from "../url-validation";
+import {
+  isValidCompareSuccessPayload,
+  writeStoredCompareResult,
+} from "../../../lib/competitor-scripts/compare-result-storage";
+import type { ComparisonLocale } from "../../../lib/competitor-scripts/comparison/types";
+import { useLocale } from "../../locale-provider";
 
 type CompareCopy = Messages["competitorScripts"]["compare"];
+type ApiErrorCode = keyof CompareCopy["apiErrors"];
 
 const MAX_SCRIPT_CHARACTERS = 1000;
 
-// No API call, no navigation. A well-formed competitor URL plus a
-// non-empty, in-limit script only ever reveals the same safe, localized
-// "coming next" status pattern already used on the mode-selection cards
-// and the Analyze page (role="status"/aria-live="polite") — this page
-// can't yet produce a real comparison, so it must not pretend to. The
-// submit button is disabled only while either field is empty (a plain,
-// native disabled state) — the full validation below still runs on submit
-// regardless, and both fields' errors are reported independently rather
-// than stopping at the first failure.
+// Every code the API route can currently return that isn't already
+// prevented by this form's own client-side validation, mapped to a safe,
+// localized message. A code the client already blocks locally (missing/
+// too-long script, malformed/unsupported URL) still falls back to the
+// generic requestInvalid copy below rather than being explicitly mapped —
+// the server remains the source of truth regardless. Never shows a raw
+// backend message: only ever this table's copy.
+const API_ERROR_CODE_MAP: Record<string, ApiErrorCode> = {
+  rate_limited: "rateLimited",
+  transcript_not_found: "transcriptNotFound",
+  transcript_unavailable: "transcriptUnavailable",
+  video_unavailable: "videoUnavailable",
+  transcript_rate_limited: "transcriptRateLimited",
+  transcript_timeout: "transcriptTimeout",
+  transcript_service_unavailable: "transcriptServiceUnavailable",
+  invalid_transcript_response: "invalidTranscriptResponse",
+  user_script_too_long_for_comparison: "userScriptTooLong",
+  competitor_transcript_too_long_for_comparison: "competitorTranscriptTooLong",
+  comparison_invalid_response: "comparisonInvalidResponse",
+  comparison_unavailable: "comparisonUnavailable",
+};
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+// The app supports more locales than Compare does (SUPPORTED_LOCALES vs.
+// the provider's launched en/ru) — anything other than "ru" maps to "en",
+// mirroring the exact same fallback the Analyze form already applies
+// (toAnalysisLocale in analyze-input-form.tsx) and the API route itself
+// applies server-side, so the locale actually sent here is never a guess
+// the server would then have re-derived differently.
+function toCompareLocale(locale: string): ComparisonLocale {
+  return locale === "ru" ? "ru" : "en";
+}
+
+// Local URL/script validation is convenience-only — it never replaces the
+// server's own authoritative checks. This submits to
+// POST /api/competitor-scripts/compare, shows a real loading state, maps
+// safe API errors to localized copy, and only writes the sessionStorage
+// handoff payload (and navigates) once the response has passed the
+// lightweight transport guard (isValidCompareSuccessPayload) — never a
+// bare cast. Neither the raw submitted URL nor the raw script ever leaves
+// this component's state or the request body — never placed in a query
+// string, never logged.
 export function CompareInputForm({ copy }: { copy: CompareCopy }) {
+  const router = useRouter();
+  const { locale: appLocale } = useLocale();
   const urlInputId = useId();
   const urlErrorId = useId();
   const scriptInputId = useId();
@@ -29,13 +75,19 @@ export function CompareInputForm({ copy }: { copy: CompareCopy }) {
   const [script, setScript] = useState("");
   const [urlError, setUrlError] = useState("");
   const [scriptError, setScriptError] = useState("");
-  const [showComingNext, setShowComingNext] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const submissionInFlight = useRef(false);
+  const formErrorId = useId();
 
   const scriptOverLimit = script.length > MAX_SCRIPT_CHARACTERS;
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setShowComingNext(false);
+
+    if (submissionInFlight.current) {
+      return;
+    }
 
     const trimmedUrl = competitorUrl.trim();
     let nextUrlError = "";
@@ -69,9 +121,73 @@ export function CompareInputForm({ copy }: { copy: CompareCopy }) {
     setUrlError(nextUrlError);
     setScriptError(nextScriptError);
 
-    if (!nextUrlError && !nextScriptError) {
-      setShowComingNext(true);
+    if (nextUrlError || nextScriptError) {
+      return;
     }
+
+    setFormError("");
+    submissionInFlight.current = true;
+    setIsSubmitting(true);
+
+    const requestedLocale = toCompareLocale(appLocale);
+
+    void (async () => {
+      let response: Response;
+
+      try {
+        response = await fetch("/api/competitor-scripts/compare", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userScript: script,
+            competitorUrl,
+            locale: requestedLocale,
+          }),
+        });
+      } catch {
+        submissionInFlight.current = false;
+        setIsSubmitting(false);
+        setFormError(copy.apiErrors.networkError);
+        return;
+      }
+
+      let payload: unknown;
+
+      try {
+        payload = await response.json();
+      } catch {
+        submissionInFlight.current = false;
+        setIsSubmitting(false);
+        setFormError(copy.apiErrors.unexpectedError);
+        return;
+      }
+
+      if (response.ok && isValidCompareSuccessPayload(payload)) {
+        writeStoredCompareResult({
+          comparison: payload.comparison,
+          sourceMeta: payload.sourceMeta,
+        });
+
+        router.push("/competitor-scripts/compare/results");
+        return;
+      }
+
+      submissionInFlight.current = false;
+      setIsSubmitting(false);
+
+      const code =
+        isPlainObject(payload) &&
+        isPlainObject(payload.error) &&
+        typeof payload.error.code === "string"
+          ? payload.error.code
+          : null;
+
+      const mappedKey = code ? API_ERROR_CODE_MAP[code] : undefined;
+
+      setFormError(
+        mappedKey ? copy.apiErrors[mappedKey] : copy.apiErrors.requestInvalid
+      );
+    })();
   }
 
   return (
@@ -102,15 +218,16 @@ export function CompareInputForm({ copy }: { copy: CompareCopy }) {
           type="url"
           inputMode="url"
           value={competitorUrl}
+          disabled={isSubmitting}
           onChange={(event) => {
             setCompetitorUrl(event.target.value);
-            setShowComingNext(false);
             if (urlError) setUrlError("");
+            if (formError) setFormError("");
           }}
           placeholder={copy.urlPlaceholder}
           aria-invalid={urlError ? true : undefined}
           aria-describedby={urlError ? urlErrorId : undefined}
-          className="h-full w-full bg-transparent text-[15px] text-[#F5F5F7] outline-none placeholder:text-[#6B7280]"
+          className="h-full w-full bg-transparent text-[15px] text-[#F5F5F7] outline-none placeholder:text-[#6B7280] disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#67E8F9]"
         />
       </div>
 
@@ -149,10 +266,11 @@ export function CompareInputForm({ copy }: { copy: CompareCopy }) {
         <textarea
           id={scriptInputId}
           value={script}
+          disabled={isSubmitting}
           onChange={(event) => {
             setScript(event.target.value);
-            setShowComingNext(false);
             if (scriptError) setScriptError("");
+            if (formError) setFormError("");
           }}
           placeholder={copy.scriptPlaceholder}
           rows={6}
@@ -162,7 +280,7 @@ export function CompareInputForm({ copy }: { copy: CompareCopy }) {
               ? `${scriptCounterId} ${scriptErrorId}`
               : scriptCounterId
           }
-          className="min-h-[165px] w-full resize-y bg-transparent px-4 py-3.5 text-[14px] leading-[1.65] text-[#F5F5F7] outline-none placeholder:text-[#6B7280] lg:min-h-[135px]"
+          className="min-h-[165px] w-full resize-y bg-transparent px-4 py-3.5 text-[14px] leading-[1.65] text-[#F5F5F7] outline-none placeholder:text-[#6B7280] disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#67E8F9] lg:min-h-[135px]"
         />
       </div>
 
@@ -177,6 +295,16 @@ export function CompareInputForm({ copy }: { copy: CompareCopy }) {
           className="mt-1.5 text-[13px] font-medium text-[#EF4444]"
         >
           {scriptError}
+        </p>
+      )}
+
+      {formError && (
+        <p
+          id={formErrorId}
+          role="alert"
+          className="mt-4 rounded-[12px] border border-[#EF4444]/30 bg-[#EF4444]/[0.06] px-4 py-3 text-[13px] font-medium text-[#FCA5A5]"
+        >
+          {formError}
         </p>
       )}
 
@@ -207,24 +335,30 @@ export function CompareInputForm({ copy }: { copy: CompareCopy }) {
         <button
           type="submit"
           disabled={
-            competitorUrl.trim().length === 0 || script.trim().length === 0
+            isSubmitting ||
+            competitorUrl.trim().length === 0 ||
+            script.trim().length === 0
           }
+          aria-busy={isSubmitting}
           className="inline-flex h-[56px] w-full shrink-0 items-center justify-center gap-2.5 self-end rounded-[14px] bg-gradient-to-r from-[#1E40AF] via-[#2563EB] to-[#22D3EE] px-9 text-[15px] font-semibold text-white transition hover:from-[#2563EB] hover:via-[#3B82F6] hover:to-[#67E8F9] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#67E8F9] disabled:cursor-not-allowed disabled:from-[#1E3A5F] disabled:via-[#1E3A5F] disabled:to-[#1E3A5F] disabled:text-[#7DA3B8] lg:w-auto"
         >
-          {copy.submitLabel}
-          <ArrowRight size={17} aria-hidden="true" />
+          {isSubmitting ? (
+            <>
+              <Loader2
+                size={17}
+                className="animate-spin"
+                aria-hidden="true"
+              />
+              {copy.submittingLabel}
+            </>
+          ) : (
+            <>
+              {copy.submitLabel}
+              <ArrowRight size={17} aria-hidden="true" />
+            </>
+          )}
         </button>
       </div>
-
-      {showComingNext && (
-        <p
-          role="status"
-          aria-live="polite"
-          className="mt-3 text-[13px] text-[#9CA3AF]"
-        >
-          {copy.comingNextMessage}
-        </p>
-      )}
     </form>
   );
 }
