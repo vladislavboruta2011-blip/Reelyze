@@ -197,6 +197,16 @@ export function createSupadataTranscriptProvider(
       // report for what this does and does not tell us about the
       // caption's origin.
       requestUrl.searchParams.set("mode", "native");
+      // A fixed provider-internal default, never derived from either
+      // product's own UI locale (Compare's en/ru output-language toggle
+      // has no relationship to a competitor video's spoken language).
+      // Supadata falls back gracefully to its own "first available
+      // language" behavior when no English track exists for a video, so
+      // this never introduces a new failure mode — it only fixes which
+      // language is chosen when multiple official tracks exist (e.g. a
+      // professionally multi-captioned video whose "first available"
+      // track is not the original English one).
+      requestUrl.searchParams.set("lang", "en");
 
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), timeoutMs);

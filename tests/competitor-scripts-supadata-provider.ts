@@ -215,8 +215,9 @@ async function testRequestCorrectness() {
     );
     check("timestamped (non-plain-text) output is requested via text=false", requestUrl.searchParams.get("text") === "false");
     check("native-only mode is requested to disable AI fallback", requestUrl.searchParams.get("mode") === "native");
+    check("English is requested as the preferred transcript language", requestUrl.searchParams.get("lang") === "en");
 
-    const knownParams = new Set(["url", "text", "mode"]);
+    const knownParams = new Set(["url", "text", "mode", "lang"]);
     const extraParams = [...requestUrl.searchParams.keys()].filter((key) => !knownParams.has(key));
     check(
       "no metadata, AI prompt, score, or user-identity query parameters are sent",
