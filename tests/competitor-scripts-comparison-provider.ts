@@ -508,6 +508,145 @@ async function testRetryPromptDiscipline(): Promise<void> {
   );
 }
 
+// ── unsupported_production_claim gets a specific, generic corrective
+// instruction (proven necessary by the real O5BC-YOwzig failure, where the
+// same code fired on both attempts) — every other failure code keeps the
+// existing generic "fix specifically this issue" behavior unchanged. ────
+
+async function testProductionClaimCorrectiveInstruction(): Promise<void> {
+  const bad = cloneCandidate();
+  // A real trigger for findUnsupportedProductionClaim (grounding.ts:132,
+  // "camera work") embedded in a distinguishing full sentence — used below
+  // to prove the *sentence* is never echoed back into the retry prompt or
+  // any log, even though the static instruction legitimately names "camera
+  // work" itself as one of its listed forbidden categories.
+  const rejectedSentence =
+    "The competitor's polished camera work and confident vocal delivery made the message land, unlike the plain framing here.";
+  (bad.dimensionFindings as Array<Record<string, unknown>>)[0].conclusion = rejectedSentence;
+
+  const originalWarn = console.warn;
+  const warnCalls: unknown[][] = [];
+  console.warn = (...args: unknown[]) => {
+    warnCalls.push(args);
+  };
+
+  let calls: { systemPrompt: string; userPrompt: string }[];
+  let result: Awaited<ReturnType<typeof runCompetitorScriptComparison>>;
+  try {
+    const stepCaller = createStepCaller([
+      { kind: "raw", raw: JSON.stringify(bad) },
+      { kind: "raw", raw: validRaw() },
+    ]);
+    calls = stepCaller.calls;
+    result = await runCompetitorScriptComparison({
+      userScript: USER_SCRIPT,
+      competitorTranscript: COMPETITOR_TRANSCRIPT,
+      locale: "en",
+      modelCaller: stepCaller.caller,
+    });
+  } finally {
+    console.warn = originalWarn;
+  }
+
+  check("the model is called no more than twice", calls.length === 2);
+  check("a production-claim rejection that then succeeds on retry returns ok:true", result.ok === true);
+
+  const retryPrompt = calls[1].userPrompt;
+
+  check(
+    "the retry receives the specific production-claim corrective instruction, not the generic one",
+    retryPrompt.includes("IMPORTANT CORRECTION FOR THIS ATTEMPT:") &&
+      retryPrompt.includes("cannot be verified from a text-only transcript") &&
+      !retryPrompt.includes("Your previous response was rejected for this reason: unsupported_production_claim:")
+  );
+  check(
+    "the corrective instruction names every required forbidden category",
+    [
+      "editing",
+      "cuts",
+      "camera work",
+      "B-roll",
+      "visuals",
+      "thumbnails",
+      "music",
+      "sound design",
+      "vocal delivery",
+      "facial expression",
+      "body language",
+    ].every((category) => retryPrompt.includes(category))
+  );
+  check(
+    "the corrective instruction tells the model to regenerate the full JSON object, not a patch/diff/explanation",
+    retryPrompt.includes("complete regenerated JSON object") &&
+      retryPrompt.includes("not a partial patch, a diff, or an explanation")
+  );
+  check(
+    "the corrective instruction tells the model not to introduce a different unsupported production claim",
+    retryPrompt.includes("do not introduce a different unsupported production claim in its place")
+  );
+  check(
+    "the specific rejected sentence from the failed candidate is never echoed back into the retry prompt",
+    !retryPrompt.includes(rejectedSentence)
+  );
+  check(
+    "the base user prompt is unchanged and only a corrective instruction is appended, same discipline as every other failure code",
+    calls[1].userPrompt.startsWith(calls[0].userPrompt) && calls[1].userPrompt.length > calls[0].userPrompt.length
+  );
+  check(
+    "the system/instruction prompt is byte-identical across both attempts",
+    calls[0].systemPrompt === calls[1].systemPrompt
+  );
+
+  const serializedWarnCalls = JSON.stringify(warnCalls);
+  check(
+    "the safe diagnostic code (unsupported_production_claim) is present in the captured logs",
+    serializedWarnCalls.includes("unsupported_production_claim")
+  );
+  check(
+    "the rejected sentence never appears in the captured logs",
+    !serializedWarnCalls.includes(rejectedSentence)
+  );
+  check(
+    "the full user script never appears in the captured logs",
+    !serializedWarnCalls.includes(USER_SCRIPT)
+  );
+  check(
+    "the full competitor transcript text never appears in the captured logs",
+    !serializedWarnCalls.includes(COMPETITOR_TRANSCRIPT.text)
+  );
+}
+
+async function testOtherFailureCodesKeepGenericCorrection(): Promise<void> {
+  // invalid_stronger_side (a structural, non-claim validator rejection) —
+  // confirms every failure code other than unsupported_production_claim
+  // still gets the original generic "fix specifically this issue"
+  // instruction, unchanged by this fix.
+  const bad = cloneCandidate();
+  (bad.dimensionFindings as Array<Record<string, unknown>>)[0].strongerSide = "not-a-real-side";
+
+  const { caller, calls } = createStepCaller([
+    { kind: "raw", raw: JSON.stringify(bad) },
+    { kind: "raw", raw: validRaw() },
+  ]);
+  await runCompetitorScriptComparison({
+    userScript: USER_SCRIPT,
+    competitorTranscript: COMPETITOR_TRANSCRIPT,
+    locale: "en",
+    modelCaller: caller,
+  });
+
+  check(
+    "a non-production-claim rejection (invalid_stronger_side) still gets the original generic corrective instruction",
+    calls[1].userPrompt.includes(
+      "Your previous response was rejected for this reason: invalid_stronger_side:"
+    ) && calls[1].userPrompt.includes("Fix specifically this issue and resend a single complete, valid JSON response")
+  );
+  check(
+    "the generic-correction path never mentions the production-claim category list",
+    !calls[1].userPrompt.includes("cannot be verified from a text-only transcript")
+  );
+}
+
 async function testConfigConstants(): Promise<void> {
   check("model constant is exactly gpt-5.6-luna", COMPETITOR_COMPARISON_MODEL === "gpt-5.6-luna");
   check("reasoning effort constant is exactly low", COMPETITOR_COMPARISON_REASONING_EFFORT === "low");
@@ -898,11 +1037,43 @@ async function testSchemaStrictShape(): Promise<void> {
 async function testNoUnsafeLogging(): Promise<void> {
   const providerSource = readFileSync("lib/competitor-scripts/comparison/provider.ts", "utf8");
 
+  // provider.ts intentionally does log now — a safe, closed-vocabulary
+  // diagnostic code on a retryable/failed attempt (see
+  // testDiagnosticLoggingCodesNeverLeakContent below for the behavioral
+  // proof). What must remain permanently true is narrower: no call site
+  // ever logs `.message`/`.reason` (the free-text fields that can quote a
+  // fragment of the model's own output) or the raw userScript/
+  // competitorTranscript inputs — only `diagnosticCode`.
   check(
-    "provider.ts introduces no console logging at all (nothing to leak a secret/script/transcript/raw response through)",
-    !providerSource.includes("console.log(") &&
-      !providerSource.includes("console.error(") &&
-      !providerSource.includes("console.warn(")
+    "provider.ts logs only via console.warn, never console.log/console.error (matching this file's own severity convention)",
+    !providerSource.includes("console.log(") && !providerSource.includes("console.error(")
+  );
+  // Extracts just the argument list of each console.warn(...) call (up to
+  // its own closing `});`), not the whole file — buildCorrectiveInstruction
+  // legitimately references `error.message` elsewhere in this file (the
+  // one approved use, checked separately below), so a whole-file ban on
+  // that substring would be both wrong and too weak a check on the actual
+  // log call sites themselves.
+  const warnCallSites = providerSource.match(/console\.warn\([^;]*?\}\);/g) ?? [];
+  check(
+    "there are exactly 3 console.warn call sites (attempt failed/not retryable, first attempt failed, retry also failed)",
+    warnCallSites.length === 3
+  );
+  check(
+    "every console.warn call site logs diagnosticCode-shaped fields only — never .message or .reason on the caught error",
+    warnCallSites.every(
+      (site) => !site.includes(".message") && !site.includes(".reason") && site.includes("diagnosticCode")
+    )
+  );
+  check(
+    "the corrective-instruction builder's generic fallback (the one legitimate use of the full validator reason, sent back to the model itself, never logged) is unchanged and still keyed off error.message, for every failure code other than the one proven exception below",
+    /return `Your previous response was rejected for this reason: \$\{error\.message\}/.test(providerSource)
+  );
+  check(
+    "unsupported_production_claim is the one deliberate, narrowly-scoped exception to the generic corrective instruction — proven necessary by a real repeated failure, not a speculative branch",
+    /if \(error\.diagnosticCode === "unsupported_production_claim"\) \{\s*return PRODUCTION_CLAIM_CORRECTIVE_INSTRUCTION;\s*\}/.test(
+      providerSource
+    )
   );
   const providerCodeOnly = providerSource
     .split("\n")
@@ -911,6 +1082,78 @@ async function testNoUnsafeLogging(): Promise<void> {
   check(
     "provider.ts never reads process.env directly in actual code (API key stays fully dependency-injected — comments mentioning it are fine)",
     !providerCodeOnly.includes("process.env")
+  );
+}
+
+// ── Diagnostic logging: real behavioral proof, not just a source-text
+// check. Forces the highest-risk validator failure (a claim-violation
+// rejection, whose `reason` string legitimately embeds a fragment of the
+// model's own rejected prose) and proves the captured console.warn output
+// never contains that fragment, the full user script, or the full
+// competitor transcript — only the safe `diagnosticCode`. ──────────────
+
+async function testDiagnosticLoggingCodesNeverLeakContent(): Promise<void> {
+  const bad = cloneCandidate();
+  // A real trigger for findCausalClaimViolation (grounding.ts) — the exact
+  // rejected fragment ("will increase your views") is what would leak if
+  // this file ever logged `.message`/`.reason` instead of `.diagnosticCode`.
+  (bad.dimensionFindings as Array<Record<string, unknown>>)[0].conclusion =
+    "This choice will increase your views across every future upload.";
+
+  const originalWarn = console.warn;
+  const warnCalls: unknown[][] = [];
+  console.warn = (...args: unknown[]) => {
+    warnCalls.push(args);
+  };
+
+  let result: Awaited<ReturnType<typeof runCompetitorScriptComparison>>;
+  let calls: { systemPrompt: string; userPrompt: string }[];
+  try {
+    const stepCaller = createStepCaller([
+      { kind: "raw", raw: JSON.stringify(bad) },
+      { kind: "raw", raw: JSON.stringify(bad) },
+    ]);
+    calls = stepCaller.calls;
+    result = await runCompetitorScriptComparison({
+      userScript: USER_SCRIPT,
+      competitorTranscript: COMPETITOR_TRANSCRIPT,
+      locale: "en",
+      modelCaller: stepCaller.caller,
+    });
+  } finally {
+    console.warn = originalWarn;
+  }
+
+  check(
+    "a claim-violation rejection on both attempts still uses exactly 2 calls (one retry, never a third)",
+    calls.length === 2
+  );
+  check(
+    "still returns the typed comparison_invalid_response failure",
+    result.ok === false && result.code === "comparison_invalid_response"
+  );
+
+  const serializedWarnCalls = JSON.stringify(warnCalls);
+
+  check(
+    "the safe diagnostic code (unsupported_causal_claim) is present in the captured logs",
+    serializedWarnCalls.includes("unsupported_causal_claim")
+  );
+  check(
+    "the rejected claim fragment itself never appears in the captured logs",
+    !serializedWarnCalls.includes("will increase your views")
+  );
+  check(
+    "the full user script never appears in the captured logs",
+    !serializedWarnCalls.includes(USER_SCRIPT)
+  );
+  check(
+    "the full competitor transcript text never appears in the captured logs",
+    !serializedWarnCalls.includes(COMPETITOR_TRANSCRIPT.text)
+  );
+  check(
+    "logging fired exactly twice — once per attempt, matching the fixed 1-retry budget",
+    warnCalls.length === 2
   );
 }
 
@@ -929,6 +1172,8 @@ async function main() {
   await testInvalidThenTransient();
   await testTransientThenTransient();
   await testRetryPromptDiscipline();
+  await testProductionClaimCorrectiveInstruction();
+  await testOtherFailureCodesKeepGenericCorrection();
   await testConfigConstants();
   await testOversizedUserScriptRejectedBeforeAnyModelCall();
   await testOversizedCompetitorTranscriptRejectedBeforeAnyModelCall();
@@ -941,6 +1186,7 @@ async function main() {
   await testSchemaAlignsWithConstants();
   await testSchemaStrictShape();
   await testNoUnsafeLogging();
+  await testDiagnosticLoggingCodesNeverLeakContent();
   await testSizeCheckHelperDirectly();
 
   if (failures > 0) {

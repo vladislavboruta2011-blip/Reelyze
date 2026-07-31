@@ -159,13 +159,19 @@ function FeaturedDimensionCard({
           <DimensionBadges copy={copy} finding={finding} compact={false} />
         </div>
 
-        <p className="mt-3 max-w-[720px] text-[15.5px] leading-[1.65] text-[#E5E7EB] lg:text-[16px]">
+        <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#9CA3AF]">
+          {copy.dimensions.conclusionLabel}
+        </p>
+        <p className="mt-1 max-w-[720px] text-[15.5px] leading-[1.65] text-[#E5E7EB] lg:text-[16px]">
           {finding.conclusion}
         </p>
 
         <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <p className="text-[13.5px] leading-[1.6] text-[#D1D5DB]">{finding.userObservation}</p>
+            <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
+              {copy.dimensions.observationLabel}
+            </p>
+            <p className="mt-1 text-[13.5px] leading-[1.6] text-[#D1D5DB]">{finding.userObservation}</p>
             <div className="mt-2">
               <EvidenceQuote
                 variant="featured"
@@ -177,7 +183,10 @@ function FeaturedDimensionCard({
             </div>
           </div>
           <div>
-            <p className="text-[13.5px] leading-[1.6] text-[#D1D5DB]">
+            <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
+              {copy.dimensions.observationLabel}
+            </p>
+            <p className="mt-1 text-[13.5px] leading-[1.6] text-[#D1D5DB]">
               {finding.competitorObservation}
             </p>
             <div className="mt-2">
@@ -222,11 +231,17 @@ function SecondaryDimensionCard({
         <DimensionBadges copy={copy} finding={finding} compact />
       </div>
 
-      <p className="mt-1.5 text-[12.5px] leading-[1.5] text-[#D1D5DB]">{finding.conclusion}</p>
+      <p className="mt-1.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-[#6B7280]">
+        {copy.dimensions.conclusionLabel}
+      </p>
+      <p className="mt-0.5 text-[12.5px] leading-[1.5] text-[#D1D5DB]">{finding.conclusion}</p>
 
       <div className="mt-2.5 flex flex-col gap-2.5">
         <div>
-          <p className="text-[12px] leading-[1.5] text-[#9CA3AF]">{finding.userObservation}</p>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[#6B7280]">
+            {copy.dimensions.observationLabel}
+          </p>
+          <p className="mt-0.5 text-[12px] leading-[1.5] text-[#9CA3AF]">{finding.userObservation}</p>
           <div className="mt-1.5">
             <EvidenceQuote
               source="user"
@@ -237,7 +252,10 @@ function SecondaryDimensionCard({
           </div>
         </div>
         <div>
-          <p className="text-[12px] leading-[1.5] text-[#9CA3AF]">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[#6B7280]">
+            {copy.dimensions.observationLabel}
+          </p>
+          <p className="mt-0.5 text-[12px] leading-[1.5] text-[#9CA3AF]">
             {finding.competitorObservation}
           </p>
           <div className="mt-1.5">

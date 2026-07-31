@@ -187,10 +187,24 @@ export type CompetitorComparisonModelCaller = (input: {
 // result is unusable — empty output, non-JSON output, or output that
 // failed the real merged validator. Retried exactly once, the same as a
 // transient upstream failure, via isRetryableComparisonError below.
+//
+// `diagnosticCode` is a second, closed-vocabulary value carried alongside
+// the existing free-text `message` — never a replacement for it.
+// `message` still carries the full validator reason (which, for a
+// claim-violation rejection, legitimately quotes a short fragment of the
+// model's own rejected output) and is used exactly as before to build the
+// single-retry corrective instruction. `diagnosticCode` is either a fixed
+// literal ("empty_model_output", "invalid_json_output") or, for a
+// validator rejection, the validator's own ComparisonValidationFailureCode
+// — always a closed enum, never free text, so it is the only part of this
+// error ever safe to write to a log.
 class UnusableComparisonResponseError extends Error {
-  constructor(reason: string) {
+  readonly diagnosticCode: string;
+
+  constructor(reason: string, diagnosticCode: string) {
     super(reason);
     this.name = "UnusableComparisonResponseError";
+    this.diagnosticCode = diagnosticCode;
   }
 }
 
@@ -234,7 +248,10 @@ export function createOpenAICompetitorComparisonModelCaller(config: {
 
     const raw = response.output_text?.trim() ?? "";
     if (raw.length === 0) {
-      throw new UnusableComparisonResponseError("The model returned an empty response.");
+      throw new UnusableComparisonResponseError(
+        "The model returned an empty response.",
+        "empty_model_output"
+      );
     }
 
     return { raw, modelUsed: response.model || COMPETITOR_COMPARISON_MODEL };
@@ -270,18 +287,49 @@ export type CompetitorComparisonProviderResult =
   | { ok: false; code: "comparison_invalid_response" }
   | { ok: false; code: "comparison_unavailable" };
 
+// One specific exception to the general corrective instruction below,
+// proven necessary by a real production failure (video O5BC-YOwzig):
+// unsupported_production_claim was rejected on both attempts with the
+// same diagnosticCode, meaning the generic "fix specifically this issue"
+// instruction — which only quotes back the one short rejected phrase —
+// was not specific enough to stop the model from reaching for a
+// *different* unsupported production claim on the retry. This replacement
+// instruction is deliberately static/generic rather than reactive: it
+// never interpolates the specific rejected phrase, the video id, or any
+// script/transcript content, so it cannot leak source content and cannot
+// special-case this one video. It states the whole forbidden category up
+// front instead of just the one instance the validator happened to catch.
+const PRODUCTION_CLAIM_CORRECTIVE_INSTRUCTION =
+  "Your previous response was rejected because a field contained a claim or " +
+  "assumption about production elements that cannot be verified from a " +
+  "text-only transcript — editing, cuts, camera work, B-roll, visuals, " +
+  "thumbnails, music, sound design, vocal delivery, facial expression, body " +
+  "language, or any other production choice not explicitly supported by the " +
+  "provided user script or competitor transcript text. Remove every such " +
+  "claim. Rewrite the affected field(s) using only wording, structure, and " +
+  "narrative differences that are directly grounded in the user script and " +
+  "competitor transcript text — do not introduce a different unsupported " +
+  "production claim in its place. Return the complete regenerated JSON " +
+  "object with the same schema shape as before, not a partial patch, a " +
+  "diff, or an explanation.";
+
 // One concise corrective instruction derived from the specific validator
 // failure, appended to the user prompt on the single retry only — never a
-// large per-error-code branching prompt system. This uses the internal
+// large per-error-code branching prompt system (unsupported_production_claim
+// above is the one deliberate, proven exception). This uses the internal
 // error detail (validator code/reason) purely to help the SAME model
 // correct itself on the next attempt — it is never part of the public
 // result type above, never logged, and never contains the full user
 // script or the full competitor transcript (only whatever short fragment
 // of the model's own already-rejected output the validator's reason
-// string happened to quote). Mirrors
-// lib/competitor-scripts/analysis/provider.ts's buildCorrectiveInstruction
-// exactly.
+// string happened to quote). Every other failure code's behavior below is
+// otherwise byte-identical to
+// lib/competitor-scripts/analysis/provider.ts's buildCorrectiveInstruction.
 function buildCorrectiveInstruction(error: UnusableComparisonResponseError): string {
+  if (error.diagnosticCode === "unsupported_production_claim") {
+    return PRODUCTION_CLAIM_CORRECTIVE_INSTRUCTION;
+  }
+
   return `Your previous response was rejected for this reason: ${error.message}. Fix specifically this issue and resend a single complete, valid JSON response that follows every rule above.`;
 }
 
@@ -293,6 +341,23 @@ function toProviderFailure(error: unknown): CompetitorComparisonProviderResult {
   }
 
   return { ok: false, code: "comparison_unavailable" };
+}
+
+// Reduces any caught error to the one thing safe to log: a fixed-vocabulary
+// diagnostic code, never the error's own `message` (which, for
+// UnusableComparisonResponseError specifically, can legitimately quote a
+// short fragment of the model's own rejected output — see the class
+// comment above). "unknown_error" is the only fallback, for a thrown value
+// that is neither of the two recognized failure shapes; it is a fixed
+// literal, never the thrown value's own message/toString.
+function diagnosticCodeFor(error: unknown): string {
+  if (error instanceof UnusableComparisonResponseError) {
+    return error.diagnosticCode;
+  }
+  if (isTransientUpstreamError(error)) {
+    return "transient_upstream_error";
+  }
+  return "unknown_error";
 }
 
 // ── Entry point ────────────────────────────────────────────────────────────
@@ -325,7 +390,10 @@ export async function runCompetitorScriptComparison(input: {
     try {
       candidate = JSON.parse(modelOutput.raw);
     } catch {
-      throw new UnusableComparisonResponseError("The model's output was not valid JSON.");
+      throw new UnusableComparisonResponseError(
+        "The model's output was not valid JSON.",
+        "invalid_json_output"
+      );
     }
 
     const validation = validateCompetitorScriptComparison({
@@ -337,7 +405,8 @@ export async function runCompetitorScriptComparison(input: {
 
     if (!validation.ok) {
       throw new UnusableComparisonResponseError(
-        `${validation.failure.code}: ${validation.failure.reason}`
+        `${validation.failure.code}: ${validation.failure.reason}`,
+        validation.failure.code
       );
     }
 
@@ -350,9 +419,18 @@ export async function runCompetitorScriptComparison(input: {
   try {
     return { ok: true, comparison: await attempt() };
   } catch (firstError) {
+    const firstDiagnosticCode = diagnosticCodeFor(firstError);
+
     if (!isRetryableComparisonError(firstError)) {
+      console.warn("Competitor Scripts compare: attempt failed (not retryable)", {
+        diagnosticCode: firstDiagnosticCode,
+      });
       return toProviderFailure(firstError);
     }
+
+    console.warn("Competitor Scripts compare: first attempt failed, retrying once", {
+      diagnosticCode: firstDiagnosticCode,
+    });
 
     await delay(COMPETITOR_COMPARISON_RETRY_DELAY_MS);
 
@@ -364,6 +442,10 @@ export async function runCompetitorScriptComparison(input: {
     try {
       return { ok: true, comparison: await attempt(correctiveInstruction) };
     } catch (secondError) {
+      console.warn("Competitor Scripts compare: retry also failed", {
+        firstDiagnosticCode,
+        secondDiagnosticCode: diagnosticCodeFor(secondError),
+      });
       return toProviderFailure(secondError);
     }
   }

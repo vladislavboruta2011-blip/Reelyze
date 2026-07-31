@@ -12,7 +12,7 @@ export default async function AnalyzeResultsPage() {
 
   return (
     <main className="min-h-screen bg-[#0A0A12] text-[#F5F5F7] antialiased">
-      <Sidebar messages={messages} />
+      <Sidebar messages={messages} activeMode="analyze" />
 
       {/* Deliberately no shared page-entrance class here — this wrapper
           mounts before the real report is ready. AnalyzeResultsContent's

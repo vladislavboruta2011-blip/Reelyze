@@ -12,7 +12,7 @@ export default async function CompareResultsPage() {
 
   return (
     <main className="min-h-screen bg-[#0A0A12] text-[#F5F5F7] antialiased">
-      <Sidebar messages={messages} />
+      <Sidebar messages={messages} activeMode="compare" />
 
       {/* Deliberately no shared page-entrance class here — this wrapper
           mounts before the real result is ready. CompareResultsContent's
