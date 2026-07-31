@@ -442,13 +442,22 @@ async function testRoute() {
 
   const originalConsoleInfo = console.info;
   const originalConsoleError = console.error;
+  const originalConsoleWarn = console.warn;
   let infoCalls: unknown[][] = [];
   let errorCalls: unknown[][] = [];
+  let warnCalls: unknown[][] = [];
   console.info = (...args: unknown[]) => {
     infoCalls.push(args);
   };
   console.error = (...args: unknown[]) => {
     errorCalls.push(args);
+  };
+  // Captures the Compare provider's own safe diagnostic logging
+  // (lib/competitor-scripts/comparison/provider.ts) — this route-level
+  // test exercises the real provider underneath runCompetitorScriptsCompare,
+  // so its console.warn calls are observable here too.
+  console.warn = (...args: unknown[]) => {
+    warnCalls.push(args);
   };
 
   try {
@@ -1028,6 +1037,7 @@ async function testRoute() {
     {
       infoCalls = [];
       errorCalls = [];
+      warnCalls = [];
       const { provider } = stubCompareTranscriptProvider();
       const malformedRaw = `not valid json — contains "${USER_SCRIPT.slice(0, 20)}" fragment {{{`;
       const { caller } = makeScriptedModelCaller([{ raw: malformedRaw }, { raw: malformedRaw }]);
@@ -1042,7 +1052,7 @@ async function testRoute() {
       );
 
       check(
-        "a comparison_invalid_response body never leaks the internal validator reason or raw model output",
+        "a comparison_invalid_response body never leaks the internal validator reason or raw model output, and the public copy communicates trust/preserved-inputs/try-again rather than a bare technical failure",
         outcome.status === 502 &&
           !outcome.body.ok &&
           JSON.stringify(outcome.body) ===
@@ -1050,12 +1060,23 @@ async function testRoute() {
               ok: false,
               error: {
                 code: "comparison_invalid_response",
-                message: "We couldn't generate a comparison right now. Please try again.",
+                message:
+                  "Climpy couldn't produce a trustworthy comparison this time. Your inputs are still here, so you can try again.",
               },
             })
       );
-      const allLogsSerialized = JSON.stringify([...infoCalls, ...errorCalls]);
+      const allLogsSerialized = JSON.stringify([...infoCalls, ...errorCalls, ...warnCalls]);
       check("no log line ever contains the raw malformed model output", !allLogsSerialized.includes("not valid json"));
+      check(
+        "no log line ever contains the fragment of the user script embedded in the malformed raw output",
+        !allLogsSerialized.includes(USER_SCRIPT.slice(0, 20))
+      );
+      check(
+        "the provider's own safe diagnostic logging fired on both attempts, naming only the closed-vocabulary code (invalid_json_output), never the raw output",
+        warnCalls.length === 2 &&
+          JSON.stringify(warnCalls).includes("invalid_json_output") &&
+          JSON.stringify(warnCalls[1]).includes("invalid_json_output")
+      );
     }
 
     // ── Method availability ──────────────────────────────────────────────
@@ -1074,6 +1095,7 @@ async function testRoute() {
     globalThis.fetch = originalFetch;
     console.info = originalConsoleInfo;
     console.error = originalConsoleError;
+    console.warn = originalConsoleWarn;
   }
 }
 

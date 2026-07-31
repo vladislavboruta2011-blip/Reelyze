@@ -16,7 +16,7 @@ export default async function CompareScriptsPage() {
 
   return (
     <main className="min-h-screen bg-[#0A0A12] text-[#F5F5F7] antialiased">
-      <Sidebar messages={messages} />
+      <Sidebar messages={messages} activeMode="compare" />
 
       <div className="animate-page-enter lg:ml-[260px]">
         <div className="px-5 py-8 lg:px-10 lg:py-10">

@@ -918,6 +918,8 @@ const enMessages = {
         "This is coming soon — thanks for checking it out early.",
       sidebar: {
         freePlan: "Free plan",
+        analyzeLabel: "Analyze",
+        compareLabel: "Compare",
       },
       analyzeCard: {
         title: "Analyze a competitor",
@@ -1096,6 +1098,7 @@ const enMessages = {
       scriptHelper: "Paste only the words that will be spoken.",
       submitLabel: "Compare scripts",
       submittingLabel: "Comparing scripts...",
+      processingTimeNote: "This usually takes around 15–30 seconds.",
       privacyNote: {
         heading: "Before you compare",
         items: [
@@ -1130,7 +1133,7 @@ const enMessages = {
         competitorTranscriptTooLong:
           "The competitor video's transcript is too long to compare.",
         comparisonInvalidResponse:
-          "We couldn't generate a comparison right now. Please try again.",
+          "Climpy couldn't produce a trustworthy comparison this time. Your inputs are still here, so you can try again.",
         comparisonUnavailable:
           "Comparison isn't available right now. Please try again shortly.",
         networkError:
@@ -1404,6 +1407,8 @@ const enMessages = {
         heading: "Dimension by dimension",
         sectionEyebrow: "Dimension findings",
         featuredEyebrow: "Biggest difference",
+        conclusionLabel: "What this suggests",
+        observationLabel: "Observation",
         labels: {
           hook: "Hook",
           structure: "Structure",
@@ -2313,6 +2318,8 @@ const ruMessages = {
         "Этот раздел скоро появится — спасибо, что заглянули так рано.",
       sidebar: {
         freePlan: "Бесплатный план",
+        analyzeLabel: "Анализ",
+        compareLabel: "Сравнение",
       },
       analyzeCard: {
         title: "Проанализировать конкурента",
@@ -2490,6 +2497,7 @@ const ruMessages = {
       scriptHelper: "Вставляйте только те слова, которые будут произнесены.",
       submitLabel: "Сравнить сценарии",
       submittingLabel: "Сравниваем сценарии...",
+      processingTimeNote: "Обычно это занимает около 15–30 секунд.",
       privacyNote: {
         heading: "Перед сравнением",
         items: [
@@ -2523,7 +2531,7 @@ const ruMessages = {
         competitorTranscriptTooLong:
           "Транскрипт видео конкурента слишком длинный для сравнения.",
         comparisonInvalidResponse:
-          "Не удалось создать сравнение. Попробуйте снова.",
+          "На этот раз Climpy не смог подготовить сравнение, которому можно доверять. Введённые данные никуда не делись — можно попробовать ещё раз.",
         comparisonUnavailable:
           "Сравнение сейчас недоступно. Повторите попытку чуть позже.",
         networkError:
@@ -2797,6 +2805,8 @@ const ruMessages = {
         heading: "По каждому параметру",
         sectionEyebrow: "Результаты по параметрам",
         featuredEyebrow: "Самое большое отличие",
+        conclusionLabel: "Что это может означать",
+        observationLabel: "Наблюдение",
         labels: {
           hook: "Хук",
           structure: "Структура",

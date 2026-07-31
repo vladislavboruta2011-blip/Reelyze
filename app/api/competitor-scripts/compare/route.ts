@@ -127,7 +127,8 @@ const ERROR_MESSAGES: Record<CompareErrorCode, string> = {
   user_script_too_long_for_comparison: "Your script is too long to compare. Please shorten it.",
   competitor_transcript_too_long_for_comparison:
     "The competitor video's transcript is too long to compare.",
-  comparison_invalid_response: "We couldn't generate a comparison right now. Please try again.",
+  comparison_invalid_response:
+    "Climpy couldn't produce a trustworthy comparison this time. Your inputs are still here, so you can try again.",
   comparison_unavailable: "Comparison isn't available right now. Please try again shortly.",
 };
 

@@ -378,6 +378,10 @@ export function CompareInputForm({ copy }: { copy: CompareCopy }) {
           )}
         </button>
       </div>
+
+      <p className="mt-3 text-center text-[12px] leading-[1.5] text-[#6B7280] lg:text-right">
+        {copy.processingTimeNote}
+      </p>
     </form>
   );
 }
