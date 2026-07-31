@@ -1018,10 +1018,12 @@ check(
 // ── CompareInputForm: two fields, wired to the real Compare API ────────
 
 check(
-  "CompareInputForm reuses the shared isSupportedVideoUrl helper instead of redefining it",
+  "CompareInputForm validates the competitor URL with the real, server-shared normalizeYouTubeVideoUrl validator (not the looser shared isSupportedVideoUrl helper Analyze still uses) — Compare must catch a channel/playlist/embed link client-side, before any request, not just a malformed URL string",
   compareFormSource.includes(
-    'import { isSupportedVideoUrl } from "../url-validation"'
-  ) && !/function isSupportedVideoUrl/.test(compareFormSource)
+    'from "../../../lib/competitor-scripts/youtube-url"'
+  ) &&
+    /normalizeYouTubeVideoUrl\(trimmedUrl\)/.test(compareFormSource) &&
+    !compareFormSource.includes("isSupportedVideoUrl")
 );
 
 check(
@@ -1060,11 +1062,26 @@ check(
 );
 
 check(
-  "empty/malformed/unsupported competitor-URL validation exists, in that order",
-  compareFormSource.indexOf("errors.emptyUrl") <
-    compareFormSource.indexOf("isSupportedVideoUrl(trimmedUrl)") &&
-    compareFormSource.indexOf("errors.invalidUrl") <
-      compareFormSource.indexOf("isSupportedVideoUrl(trimmedUrl)")
+  "within URL validation, the empty check runs before the shared normalizeYouTubeVideoUrl validator is invoked (malformed and unsupported-link cases are now both handled inside that one shared validator call, rather than a separate client-only well-formed-URL check)",
+  (() => {
+    const start = compareFormSource.indexOf(
+      "const trimmedUrl = competitorUrl.trim();"
+    );
+    const end = compareFormSource.indexOf(
+      "const trimmedScript = script.trim();"
+    );
+    if (start === -1 || end === -1 || end <= start) return false;
+    const block = compareFormSource.slice(start, end);
+    const emptyCheckIndex = block.indexOf("copy.errors.emptyUrl");
+    const validatorCallIndex = block.indexOf(
+      "normalizeYouTubeVideoUrl(trimmedUrl)"
+    );
+    return (
+      emptyCheckIndex !== -1 &&
+      validatorCallIndex !== -1 &&
+      emptyCheckIndex < validatorCallIndex
+    );
+  })()
 );
 
 check(

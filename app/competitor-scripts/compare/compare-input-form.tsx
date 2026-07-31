@@ -4,12 +4,15 @@ import { useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Link2, Loader2, Lock } from "lucide-react";
 import type { Messages } from "../../../lib/messages";
-import { isSupportedVideoUrl } from "../url-validation";
 import {
   isValidCompareSuccessPayload,
   writeStoredCompareResult,
 } from "../../../lib/competitor-scripts/compare-result-storage";
 import type { ComparisonLocale } from "../../../lib/competitor-scripts/comparison/types";
+import {
+  normalizeYouTubeVideoUrl,
+  type YouTubeUrlErrorCode,
+} from "../../../lib/competitor-scripts/youtube-url";
 import { useLocale } from "../../locale-provider";
 
 type CompareCopy = Messages["competitorScripts"]["compare"];
@@ -51,6 +54,29 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 // the server would then have re-derived differently.
 function toCompareLocale(locale: string): ComparisonLocale {
   return locale === "ru" ? "ru" : "en";
+}
+
+// Every code normalizeYouTubeVideoUrl can return, mapped to this form's
+// existing copy — no new strings. "invalid_url" gets its own message
+// (malformed URL syntax); every other failure (wrong host, or a
+// recognized-YouTube-host link that isn't a video/Shorts link — a
+// channel, playlist, embed, or live URL) collapses into the same
+// "unsupportedUrl" copy already shown for that case today.
+function mapYouTubeUrlErrorToCopy(
+  code: YouTubeUrlErrorCode,
+  copy: CompareCopy
+): string {
+  switch (code) {
+    case "empty":
+      return copy.errors.emptyUrl;
+    case "invalid_url":
+      return copy.errors.invalidUrl;
+    case "unsupported_host":
+    case "unsupported_path":
+    case "missing_video_id":
+    case "invalid_video_id":
+      return copy.errors.unsupportedUrl;
+  }
 }
 
 // Local URL/script validation is convenience-only — it never replaces the
@@ -95,17 +121,10 @@ export function CompareInputForm({ copy }: { copy: CompareCopy }) {
     if (trimmedUrl.length === 0) {
       nextUrlError = copy.errors.emptyUrl;
     } else {
-      let isWellFormed = true;
-      try {
-        new URL(trimmedUrl);
-      } catch {
-        isWellFormed = false;
-      }
+      const urlResult = normalizeYouTubeVideoUrl(trimmedUrl);
 
-      if (!isWellFormed) {
-        nextUrlError = copy.errors.invalidUrl;
-      } else if (!isSupportedVideoUrl(trimmedUrl)) {
-        nextUrlError = copy.errors.unsupportedUrl;
+      if (!urlResult.ok) {
+        nextUrlError = mapYouTubeUrlErrorToCopy(urlResult.code, copy);
       }
     }
 

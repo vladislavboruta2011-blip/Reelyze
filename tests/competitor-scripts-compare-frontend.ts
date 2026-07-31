@@ -555,6 +555,64 @@ function testStorageRoundTrip() {
   })();
 }
 
+// ── positioning copy: Compare must never read as a contest/scoreboard ──
+// Per docs/product/compare/CONSTITUTION.md ("Not a competition or a
+// scoreboard. No scores, no rankings, no declared winner" / "There are no
+// winners"). Scoped only to the two copy subtrees that actually carry
+// Compare's pitch (the mode-selection card and the pre-submission
+// "planned stages" workflow) — not the whole messages file, since
+// unrelated Analyze retention copy legitimately uses "lose" (as in "lose
+// interest") and must not be flagged.
+function testNoCompetitiveFraming() {
+  const FORBIDDEN_EN: RegExp[] = [
+    /\bwins?\b/i,
+    /\bwinning\b/i,
+    /\bloses?\b/i,
+    /\blost\b/i,
+    /\bbeats?\b/i,
+    /stacks? up/i,
+    /better than/i,
+    /\bversus\b/i,
+    /\bwinner\b/i,
+    /\bloser\b/i,
+    /scoreboard/i,
+  ];
+  const FORBIDDEN_RU: RegExp[] = [
+    /выигрыва/i,
+    /побежда/i,
+    /проигрыва/i,
+    /обгоня/i,
+    /соперник/i,
+    /соревнова/i,
+  ];
+
+  for (const locale of LAUNCHED_LOCALES) {
+    const modeSelection = getMessages(locale).competitorScripts.modeSelection;
+    const compare = getMessages(locale).competitorScripts.compare;
+    const forbidden = locale === "ru" ? FORBIDDEN_RU : FORBIDDEN_EN;
+
+    const compareCardText = [
+      modeSelection.compareCard.accentSubtitle,
+      modeSelection.compareCard.description,
+      ...modeSelection.compareCard.benefits,
+    ].join("\n");
+
+    check(
+      `${locale}: the Compare mode-selection card never uses win/lose/scoreboard language`,
+      forbidden.every((pattern) => !pattern.test(compareCardText))
+    );
+
+    const workflowText = compare.workflow.stages
+      .map((stage) => `${stage.title} ${stage.description}`)
+      .join("\n");
+
+    check(
+      `${locale}: the Compare "planned stages" workflow copy never uses win/lose/scoreboard language`,
+      forbidden.every((pattern) => !pattern.test(workflowText))
+    );
+  }
+}
+
 // ── message coverage: compareResults namespace exists for every launched locale ─
 
 function testMessages() {
@@ -784,6 +842,47 @@ function testStructural() {
     /scriptTooLong[\s\S]{0,2000}fetch\(/.test(formCodeOnly)
   );
 
+  // ── URL validation: reuses the real, server-shared validator ───────────
+
+  check(
+    "the form validates the competitor URL with the same normalizeYouTubeVideoUrl validator the API route/server also uses, instead of a separate, looser client-only check",
+    formSource.includes(
+      'from "../../../lib/competitor-scripts/youtube-url"'
+    ) && /normalizeYouTubeVideoUrl\(trimmedUrl\)/.test(formCodeOnly)
+  );
+
+  check(
+    "the old hostname-only isSupportedVideoUrl check has been removed from the compare form",
+    !formCodeOnly.includes("isSupportedVideoUrl")
+  );
+
+  check(
+    "a YouTube host with an unsupported path (channel, playlist, embed, live, etc.) is rejected client-side, before any fetch call, not just a malformed URL string",
+    (() => {
+      const unsupportedPathIndex = formCodeOnly.indexOf("unsupported_path");
+      const fetchIndex = formCodeOnly.indexOf(
+        'fetch("/api/competitor-scripts/compare"'
+      );
+      return (
+        unsupportedPathIndex !== -1 &&
+        fetchIndex !== -1 &&
+        unsupportedPathIndex < fetchIndex
+      );
+    })()
+  );
+
+  check(
+    "every error code the shared URL validator can return is handled by name in the form's mapping (no default/catch-all branch silently swallowing a new code)",
+    [
+      "empty",
+      "invalid_url",
+      "unsupported_host",
+      "unsupported_path",
+      "missing_video_id",
+      "invalid_video_id",
+    ].every((code) => formCodeOnly.includes(`"${code}"`))
+  );
+
   check(
     "no console call anywhere in the form references the raw script or competitorUrl variables",
     !/console\.(info|error|log|warn)\([^)]*\bscript\b[^)]*\)/.test(formCodeOnly) &&
@@ -923,6 +1022,7 @@ function testStructural() {
 async function main() {
   testTransportGuard();
   await testStorageRoundTrip();
+  testNoCompetitiveFraming();
   testMessages();
   testFeaturedDimensionSelection();
   testStructural();
