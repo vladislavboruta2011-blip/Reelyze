@@ -935,13 +935,13 @@ const enMessages = {
       },
       compareCard: {
         title: "Compare with my script",
-        accentSubtitle: "See how your script stacks up",
+        accentSubtitle: "Understand how your script differs",
         description:
           "Compare a competitor's script with your own to find strengths, weaknesses, and opportunities.",
         benefits: [
           "Side-by-side script comparison",
           "Hook, progression and payoff analysis",
-          "Where you win and where they win",
+          "Where your script differs from theirs",
           "Similarity check to avoid copying",
           "Actionable tips to improve your script",
         ],
@@ -1151,7 +1151,7 @@ const enMessages = {
           },
           {
             title: "Comparing strengths and weaknesses",
-            description: "Seeing where each script wins",
+            description: "Seeing where each script differs",
           },
           {
             title: "Creating actionable improvements",
@@ -2330,13 +2330,13 @@ const ruMessages = {
       },
       compareCard: {
         title: "Сравнить со своим сценарием",
-        accentSubtitle: "Узнайте, как ваш сценарий выглядит на фоне конкурента",
+        accentSubtitle: "Поймите, чем отличается ваш сценарий",
         description:
           "Сравните сценарий конкурента со своим, чтобы найти сильные стороны, слабые места и возможности.",
         benefits: [
           "Сравнение сценариев бок о бок",
           "Анализ хука, развития и развязки",
-          "Где выигрываете вы, а где конкурент",
+          "Где ваш сценарий отличается от сценария конкурента",
           "Проверка на схожесть, чтобы избежать копирования",
           "Конкретные советы по улучшению сценария",
         ],
@@ -2544,7 +2544,7 @@ const ruMessages = {
           },
           {
             title: "Сравнение сильных и слабых сторон",
-            description: "Смотрим, где какой сценарий выигрывает",
+            description: "Смотрим, чем каждый сценарий отличается",
           },
           {
             title: "Формирование улучшений",
