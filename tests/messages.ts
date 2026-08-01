@@ -14,18 +14,18 @@ assert.deepEqual(
 );
 
 assert.equal(
-  getMessages("en").landing.nav.startFree,
-  "Start free"
+  getMessages("en").landing.nav.analyze,
+  "Analyze"
 );
 
 assert.equal(
-  getMessages("ru").landing.nav.startFree,
-  "Попробовать бесплатно"
+  getMessages("ru").landing.nav.analyze,
+  "Анализировать"
 );
 
 assert.equal(
-  getMessages("fr").landing.nav.startFree,
-  "Start free"
+  getMessages("fr").landing.nav.analyze,
+  "Analyze"
 );
 
 assert.equal(
@@ -187,12 +187,15 @@ assert.equal(
   getMessages("ru").landing.faq.questions[0].answer,
   "Да. Сейчас Climpy можно протестировать бесплатно. Регистрация не нужна — просто вставьте сценарий Shorts и получите разбор примерно за 1 минуту."
 );
+// Index 6, not 5 — the Compare launch-surface phase inserted a new
+// "What's the difference between Analyze and Compare?" question at index
+// 2, shifting every question after it by one.
 assert.equal(
-  getMessages("en").landing.faq.questions[5].answer,
+  getMessages("en").landing.faq.questions[6].answer,
   "Your script is only used to generate the analysis. Climpy does not require an account, and your script is not shown publicly."
 );
 assert.equal(
-  getMessages("ru").landing.faq.questions[5].answer,
+  getMessages("ru").landing.faq.questions[6].answer,
   "Ваш сценарий используется только для создания анализа. Climpy не требует аккаунта и не публикует ваш сценарий."
 );
 

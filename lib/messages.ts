@@ -52,7 +52,7 @@ const enMessages = {
       features: "Features",
       howItWorks: "How it works",
       analyze: "Analyze",
-      startFree: "Start free",
+      compare: "Compare",
       results: "Results",
     },
     hero: {
@@ -66,8 +66,8 @@ const enMessages = {
       mobileHeadlineHighlight: "viewers scroll.",
       mobileDescription:
         "Climpy reviews your hook, pacing, risky moments, and payoff before you upload your Short.",
-      primaryAction: "Start Analyzing",
-      secondaryAction: "See How It Works",
+      primaryAction: "Analyze your script",
+      secondaryAction: "Compare with a competitor",
       trustFindWeakLines: "Find weak lines",
       trustImprovePacing: "Improve pacing",
       trustFixBeforeUpload: "Fix before upload",
@@ -163,12 +163,46 @@ const enMessages = {
         action: "Improve Hook",
       },
     },
+    compareWorkflow: {
+      badge: "Compare",
+      headingPrefix: "See exactly how your script",
+      headingHighlight: "differs from theirs.",
+      description:
+        "Paste your own script and one real competitor Short. Climpy shows the biggest grounded difference — hook, structure, momentum, and payoff — backed by exact quotes from both, not a guess.",
+      example: {
+        eyebrow: "Biggest difference",
+        headline:
+          "Your hook opens with a question; the competitor states the outcome first.",
+        yourScriptLabel: "Your script",
+        yourScriptExcerpt: "Ever wonder why some videos just take off?",
+        competitorScriptLabel: "Competitor script",
+        competitorScriptExcerpt: "This one change doubled my watch time.",
+        timestamp: "0:00–0:02",
+        disclaimer:
+          "Illustrative example — real results depend on the two scripts you submit.",
+      },
+      provideLabel: "What you provide",
+      provideItems: [
+        "Your own script",
+        "One real competitor YouTube Short",
+      ],
+      receiveLabel: "What you get",
+      receiveItems: [
+        "The single biggest grounded difference",
+        "Hook, structure, momentum, and payoff, side by side",
+        "Exact quotes and timestamps from both scripts",
+        "Priorities to consider and cautions on what not to copy",
+      ],
+      trustNote:
+        "No performance prediction. No declared winner — every difference is grounded in an exact quote from your script and theirs, never a guess.",
+      cta: "Compare scripts",
+    },
     comparison: {
       badge: "Why Climpy",
       headingPrefix: "No prompt setup. Just a",
       headingHighlight: "Shorts script review",
       description:
-        "Climpy is built for one job: checking if your Shorts script is actually ready to publish.",
+        "Climpy replaces a blank prompt with a structured, grounded review of your Shorts script — ready before you publish.",
       withoutLabel: "Without Climpy",
       withoutHeading: "You’re guessing what to fix.",
       withoutDescription:
@@ -209,7 +243,12 @@ const enMessages = {
         {
           question: "What does Climpy actually check?",
           answer:
-            "Climpy reviews your script for hook strength, retention risk, risky parts, pacing problems, unclear payoff, and suggested fixes before publishing.",
+            "Climpy reviews your script for hook strength, retention risk, risky parts, pacing problems, unclear payoff, and suggested fixes before publishing. If you want to see how it stacks up against a real competitor, Compare shows the grounded differences side by side.",
+        },
+        {
+          question: "What's the difference between Analyze and Compare?",
+          answer:
+            "Analyze reviews your own script on its own — hook, pacing, risky moments, and payoff. Compare goes further: it reviews your script next to a real competitor Short and shows exactly where the two differ, grounded in exact quotes from both — never a performance prediction or a declared winner.",
         },
         {
           question: "Do I need to upload a video?",
@@ -385,8 +424,8 @@ const enMessages = {
         "Check your Shorts script before publishing. Spot weak hooks, retention risks, unclear payoff, and easy fixes in about 1 minute.",
       productHeading: "Product",
       analyzeScript: "Analyze script",
+      compareScripts: "Compare scripts",
       faqs: "FAQs",
-      tryClimpy: "Try Climpy",
       builtForHeading: "Built for",
       builtForItems: [
         "YouTube Shorts creators",
@@ -1488,7 +1527,7 @@ const ruMessages = {
       features: "Возможности",
       howItWorks: "Как это работает",
       analyze: "Анализировать",
-      startFree: "Попробовать бесплатно",
+      compare: "Сравнение",
       results: "Результаты",
     },
     hero: {
@@ -1502,8 +1541,8 @@ const ruMessages = {
       mobileHeadlineHighlight: "зритель не пролистнул.",
       mobileDescription:
         "Climpy проверяет хук, темп, рискованные моменты и концовку до публикации вашего Short.",
-      primaryAction: "Начать анализ",
-      secondaryAction: "Как это работает",
+      primaryAction: "Анализировать сценарий",
+      secondaryAction: "Сравнить с конкурентом",
       trustFindWeakLines: "Найти слабые строки",
       trustImprovePacing: "Улучшить темп",
       trustFixBeforeUpload: "Исправить до публикации",
@@ -1599,12 +1638,46 @@ const ruMessages = {
         action: "Улучшить хук",
       },
     },
+    compareWorkflow: {
+      badge: "Сравнение",
+      headingPrefix: "Узнайте, чем ваш сценарий",
+      headingHighlight: "отличается от их.",
+      description:
+        "Вставьте свой сценарий и один настоящий Short конкурента. Climpy покажет главное отличие — по хуку, структуре, динамике и развязке — подтверждённое точными цитатами из обоих сценариев, а не догадкой.",
+      example: {
+        eyebrow: "Самое большое отличие",
+        headline:
+          "Ваш хук начинается с вопроса, а конкурент сразу называет результат.",
+        yourScriptLabel: "Ваш сценарий",
+        yourScriptExcerpt: "Вы когда-нибудь задумывались, почему одни видео взлетают?",
+        competitorScriptLabel: "Сценарий конкурента",
+        competitorScriptExcerpt: "Это одно изменение удвоило время просмотра.",
+        timestamp: "0:00–0:02",
+        disclaimer:
+          "Иллюстративный пример — реальный результат зависит от двух сценариев, которые вы отправите.",
+      },
+      provideLabel: "Что вы предоставляете",
+      provideItems: [
+        "Свой собственный сценарий",
+        "Один настоящий Short конкурента на YouTube",
+      ],
+      receiveLabel: "Что вы получаете",
+      receiveItems: [
+        "Главное отличие, подтверждённое фактами",
+        "Хук, структуру, динамику и развязку — рядом друг с другом",
+        "Точные цитаты и таймкоды из обоих сценариев",
+        "Приоритеты для рассмотрения и предостережения о том, что не стоит копировать",
+      ],
+      trustNote:
+        "Без прогноза эффективности. Без объявленного победителя — каждое отличие подтверждено точной цитатой из вашего сценария и сценария конкурента, а не догадкой.",
+      cta: "Сравнить сценарии",
+    },
     comparison: {
       badge: "Почему Climpy",
       headingPrefix: "Без настройки промптов. Только",
       headingHighlight: "разбор сценария Shorts",
       description:
-        "Climpy создан для одной задачи: проверить, готов ли сценарий Shorts к публикации.",
+        "Climpy заменяет пустой промпт структурированным, обоснованным разбором сценария Shorts — готовым до публикации.",
       withoutLabel: "Без Climpy",
       withoutHeading: "Вы гадаете, что исправить.",
       withoutDescription:
@@ -1645,7 +1718,12 @@ const ruMessages = {
         {
           question: "Что именно проверяет Climpy?",
           answer:
-            "Climpy проверяет силу хука, риск удержания, проблемные фрагменты, темп, понятность развязки и предлагает конкретные правки до публикации.",
+            "Climpy проверяет силу хука, риск удержания, проблемные фрагменты, темп, понятность развязки и предлагает конкретные правки до публикации. А если хотите увидеть, как сценарий соотносится с реальным конкурентом — Сравнение покажет обоснованные отличия рядом друг с другом.",
+        },
+        {
+          question: "В чём разница между Анализом и Сравнением?",
+          answer:
+            "Анализ разбирает ваш собственный сценарий отдельно — хук, темп, рискованные моменты и развязку. Сравнение идёт дальше: оно сопоставляет ваш сценарий с реальным Short конкурента и показывает, в чём именно они отличаются, подтверждая каждое отличие точной цитатой из обоих сценариев — без прогноза эффективности и без объявления победителя.",
         },
         {
           question: "Нужно ли загружать видео?",
@@ -1823,8 +1901,8 @@ const ruMessages = {
         "Проверьте сценарий Shorts перед публикацией. Найдите слабые хуки, риски удержания, неясную развязку и простые исправления примерно за 1 минуту.",
       productHeading: "Продукт",
       analyzeScript: "Анализировать сценарий",
+      compareScripts: "Сравнить сценарии",
       faqs: "Частые вопросы",
-      tryClimpy: "Попробовать Climpy",
       builtForHeading: "Для кого",
       builtForItems: [
         "Авторы YouTube Shorts",
