@@ -3,6 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import { getMessages } from "../../../lib/messages";
 import { getServerLocale } from "../../../lib/server-locale";
 import { Sidebar } from "../sidebar";
+import { ModeSwitcher } from "../mode-switcher";
 import { CompareInputForm } from "./compare-input-form";
 import { CoverageSection } from "./coverage-section";
 import { ExampleComparison } from "./example-comparison";
@@ -16,7 +17,7 @@ export default async function CompareScriptsPage() {
 
   return (
     <main className="min-h-screen bg-[#0A0A12] text-[#F5F5F7] antialiased">
-      <Sidebar messages={messages} activeMode="compare" />
+      <Sidebar messages={messages} />
 
       <div className="animate-page-enter lg:ml-[260px]">
         <div className="px-5 py-8 lg:px-10 lg:py-10">
@@ -28,6 +29,8 @@ export default async function CompareScriptsPage() {
               <ArrowLeft size={15} aria-hidden="true" />
               {copy.backToSelection}
             </Link>
+
+            <ModeSwitcher messages={messages} activeMode="compare" />
 
             <div className="mt-6 grid grid-cols-1 items-start gap-8 lg:grid-cols-[1fr_290px]">
               <div className="text-left">

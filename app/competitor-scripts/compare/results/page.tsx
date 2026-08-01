@@ -3,6 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import { getMessages } from "../../../../lib/messages";
 import { getServerLocale } from "../../../../lib/server-locale";
 import { Sidebar } from "../../sidebar";
+import { ModeSwitcher } from "../../mode-switcher";
 import { CompareResultsContent } from "./compare-results-content";
 
 export default async function CompareResultsPage() {
@@ -12,7 +13,7 @@ export default async function CompareResultsPage() {
 
   return (
     <main className="min-h-screen bg-[#0A0A12] text-[#F5F5F7] antialiased">
-      <Sidebar messages={messages} activeMode="compare" />
+      <Sidebar messages={messages} />
 
       {/* Deliberately no shared page-entrance class here — this wrapper
           mounts before the real result is ready. CompareResultsContent's
@@ -30,6 +31,8 @@ export default async function CompareResultsPage() {
               <ArrowLeft size={15} aria-hidden="true" />
               {copy.backToCompare}
             </Link>
+
+            <ModeSwitcher messages={messages} activeMode="compare" />
 
             <p className="mt-5 text-[12px] font-semibold uppercase tracking-[0.18em] text-[#67E8F9]">
               {copy.heroEyebrow}
