@@ -62,26 +62,25 @@ check(
   /<Sparkles[^>]*aria-hidden="true"/.test(pageSource)
 );
 
-// ── page.tsx: the new decorative glow layer is inert/accessible ────────
+// ── page.tsx: the dark-theme decorative glow layer was removed ─────────
+// The card previously carried a purple/blue blurred glow layer tuned for
+// the old black card background. The light-theme conversion moved the
+// card to a plain white surface, and the glow was dropped entirely rather
+// than re-tinted for light — restraint over decoration, consistent with
+// the rest of this conversion.
 
 check(
-  "the new glow-background layer is aria-hidden and pointer-events-none, so it is never focusable/announced and never intercepts clicks on the cards below it",
-  /aria-hidden="true"\s*\n\s*className="pointer-events-none absolute inset-0 z-0 overflow-hidden"/.test(
-    pageSource
+  "the old dark-theme glow-background layer no longer exists on the mode-selection card",
+  !pageSource.includes(
+    'className="pointer-events-none absolute inset-0 z-0 overflow-hidden"'
   )
 );
 
 check(
-  "the glow layer introduces no new interactive element (no button/link/input inside it)",
-  (() => {
-    const start = pageSource.indexOf(
-      'className="pointer-events-none absolute inset-0 z-0 overflow-hidden"'
-    );
-    const end = pageSource.indexOf("blur-[110px]", start);
-    if (start === -1 || end === -1) return false;
-    const glowLayerSource = pageSource.slice(start, end);
-    return !/<button|<a |<input|<select|<textarea/.test(glowLayerSource);
-  })()
+  "the mode-selection card is a plain light surface (white background, neutral border), not the old dark/glow treatment",
+  pageSource.includes("border-[#E5E7EB] bg-white") &&
+    !pageSource.includes("bg-[#0A0A12]") &&
+    !pageSource.includes("border-white/[0.12]")
 );
 
 // ── structural contracts already enforced by tests/competitor-scripts.ts —

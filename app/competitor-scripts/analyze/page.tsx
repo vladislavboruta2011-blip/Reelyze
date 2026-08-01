@@ -16,7 +16,7 @@ export default async function AnalyzeCompetitorPage() {
   const copy = messages.competitorScripts.analyze;
 
   return (
-    <main className="min-h-screen bg-[#0A0A12] text-[#F5F5F7] antialiased">
+    <main className="min-h-screen bg-[#FAFAFA] text-[#111827] antialiased">
       <Sidebar messages={messages} />
 
       <div className="animate-page-enter lg:ml-[260px]">
@@ -24,7 +24,7 @@ export default async function AnalyzeCompetitorPage() {
           <div className="mx-auto w-full max-w-[1160px]">
             <Link
               href="/competitor-scripts"
-              className="inline-flex items-center gap-2 text-[13px] font-medium text-[#9CA3AF] transition hover:text-[#F5F5F7]"
+              className="inline-flex items-center gap-2 text-[13px] font-medium text-[#6B7280] transition hover:text-[#111827]"
             >
               <ArrowLeft size={15} aria-hidden="true" />
               {copy.backToSelection}
@@ -34,28 +34,24 @@ export default async function AnalyzeCompetitorPage() {
 
             <div className="mt-6 grid grid-cols-1 items-start gap-8 lg:grid-cols-[1fr_290px]">
               <div className="text-left">
-                <p className="text-[12px] font-semibold uppercase tracking-[0.18em] text-[#A78BFA]">
+                <p className="text-[12px] font-semibold uppercase tracking-[0.18em] text-[#7C3AED]">
                   {copy.heroEyebrow}
                 </p>
                 <h1 aria-label={copy.pageTitle} className="mt-4">
                   <span
                     aria-hidden="true"
-                    className="block text-[32px] font-black leading-[0.95] tracking-[-0.05em] text-white md:text-[44px] lg:text-[60px]"
+                    className="block text-[32px] font-black leading-[0.95] tracking-[-0.05em] text-[#111827] md:text-[44px] lg:text-[60px]"
                   >
                     {copy.headingPrefix}
                   </span>
                   <span
                     aria-hidden="true"
-                    className="relative mt-1 inline-block skew-x-0 bg-gradient-to-r from-[#4C1D95] via-[#7C3AED] to-[#A78BFA] bg-clip-text text-[40px] font-black leading-[0.9] tracking-[-0.06em] text-transparent [-webkit-text-stroke:0.3px_rgba(196,181,253,0.35)] [text-shadow:0_2px_8px_rgba(0,0,0,0.3),0_0_22px_rgba(124,58,237,0.18)] md:text-[56px] md:skew-x-[-3.5deg] lg:text-[76px]"
+                    className="relative mt-1 inline-block text-[40px] font-black leading-[0.9] tracking-[-0.06em] text-[#7C3AED] md:text-[56px] lg:text-[76px]"
                   >
                     {copy.headingAccent}
-                    <span
-                      aria-hidden="true"
-                      className="absolute -bottom-1 left-0 h-[5px] w-[160px] -rotate-1 rounded-full bg-gradient-to-r from-[#4C1D95] to-[#A78BFA]"
-                    />
                   </span>
                 </h1>
-                <p className="mt-7 max-w-[660px] text-[16px] font-medium leading-[1.6] text-[#C7CBD6] md:text-[18px] lg:text-[20px]">
+                <p className="mt-7 max-w-[660px] text-[16px] font-medium leading-[1.6] text-[#6B7280] md:text-[18px] lg:text-[20px]">
                   {copy.description}
                 </p>
               </div>

@@ -17,9 +17,9 @@ type TakeawayCopy = Messages["competitorScripts"]["analyzeResults"]["takeaway"];
 // module) since it's a 3-entry presentational map, consistent with how
 // score-overview.tsx also keeps its own local METRIC_ICONS.
 const VERDICT_STYLES: Record<AnalysisVerdict, string> = {
-  strong: "border-[#22C55E]/40 bg-[#22C55E]/15 text-[#4ADE80]",
-  mixed: "border-[#F59E0B]/40 bg-[#F59E0B]/15 text-[#FBBF24]",
-  weak: "border-[#F87171]/40 bg-[#F87171]/15 text-[#FCA5A5]",
+  strong: "border-[#86EFAC] bg-[#DCFCE7] text-[#15803D]",
+  mixed: "border-[#FDE68A] bg-[#FEF3C7] text-[#92400E]",
+  weak: "border-[#FECACA] bg-[#FEE2E2] text-[#B91C1C]",
 };
 
 function formatDurationMs(durationMs: number | null): string | null {
@@ -89,8 +89,8 @@ export function ResultsSummary({
   ];
 
   return (
-    <section className="rounded-[20px] border border-[#7C3AED]/20 bg-white/[0.035] p-5 lg:p-6">
-      <span className="inline-flex items-center rounded-full border border-[#7C3AED]/30 bg-[#7C3AED]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#C4B5FD]">
+    <section className="rounded-[20px] border border-[#E5E7EB] bg-white p-5 lg:p-6">
+      <span className="inline-flex items-center rounded-full border border-[#DDD6FE] bg-[#F3E8FF] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#7C3AED]">
         {summary.realDataLabel}
       </span>
 
@@ -101,7 +101,7 @@ export function ResultsSummary({
           </div>
 
           <div className="min-w-0 max-w-[300px]">
-            <h2 className="text-[17px] font-bold leading-[1.35] text-[#F5F5F7]">
+            <h2 className="text-[17px] font-bold leading-[1.35] text-[#111827]">
               {summary.neutralTitle}
             </h2>
             <a
@@ -109,7 +109,7 @@ export function ResultsSummary({
               target="_blank"
               rel="noopener noreferrer"
               aria-label={`${summary.openOnYouTube}: ${data.canonicalUrl}`}
-              className="mt-1.5 inline-flex items-center gap-1 text-[12px] font-medium text-[#A78BFA] hover:text-[#C4B5FD] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C4B5FD]"
+              className="mt-1.5 inline-flex items-center gap-1 text-[12px] font-medium text-[#7C3AED] hover:text-[#6D28D9] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C3AED]"
             >
               {summary.openOnYouTube}
               <ExternalLink size={11} aria-hidden="true" />
@@ -120,7 +120,7 @@ export function ResultsSummary({
                   <dt className="text-[10.5px] font-medium uppercase tracking-[0.06em] text-[#6B7280]">
                     {row.label}
                   </dt>
-                  <dd className="mt-0.5 truncate text-[13px] font-medium text-[#D1D5DB]">
+                  <dd className="mt-0.5 truncate text-[13px] font-medium text-[#374151]">
                     {row.value}
                   </dd>
                 </div>
@@ -130,13 +130,13 @@ export function ResultsSummary({
         </div>
 
         {analysisOverview && (
-          <div className="min-w-0 flex-1 rounded-[16px] border border-white/10 bg-white/[0.03] p-4 lg:p-5">
+          <div className="min-w-0 flex-1 rounded-[16px] border border-[#E5E7EB] bg-[#F8F8FC] p-4 lg:p-5">
             <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
               {summary.analysisOverviewHeading}
             </p>
 
             <div className="mt-2.5 flex flex-wrap items-baseline gap-2.5">
-              <span className="text-[38px] font-black leading-none text-[#F5F5F7]">
+              <span className="text-[38px] font-black leading-none text-[#111827]">
                 {analysisOverview.scores.overallScore}
               </span>
               <span className="text-[13px] font-medium text-[#6B7280]">
@@ -152,14 +152,14 @@ export function ResultsSummary({
               {scores.overall.label}
             </p>
 
-            <div className="mt-4 grid grid-cols-3 gap-3 border-t border-white/10 pt-4">
+            <div className="mt-4 grid grid-cols-3 gap-3 border-t border-[#E5E7EB] pt-4">
               {[
                 { label: scores.hook.label, value: analysisOverview.scores.hookScore },
                 { label: scores.retention.label, value: analysisOverview.scores.momentumScore },
                 { label: scores.structure.label, value: analysisOverview.scores.structureScore },
               ].map((row) => (
                 <div key={row.label}>
-                  <p className="text-[16px] font-bold leading-none text-[#F5F5F7]">
+                  <p className="text-[16px] font-bold leading-none text-[#111827]">
                     {row.value}
                     <span className="ml-0.5 text-[11px] font-medium text-[#6B7280]">
                       {scores.scoreSuffix}
@@ -172,11 +172,11 @@ export function ResultsSummary({
               ))}
             </div>
 
-            <div className="mt-4 border-t border-white/10 pt-3.5">
+            <div className="mt-4 border-t border-[#E5E7EB] pt-3.5">
               <p className="text-[10.5px] font-medium uppercase tracking-[0.06em] text-[#6B7280]">
                 {takeawayCopy.heading}
               </p>
-              <p className="mt-1.5 text-[13px] leading-[1.55] text-[#D1D5DB]">
+              <p className="mt-1.5 text-[13px] leading-[1.55] text-[#374151]">
                 {analysisOverview.mainTakeaway}
               </p>
             </div>

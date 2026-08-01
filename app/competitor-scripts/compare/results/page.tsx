@@ -12,7 +12,7 @@ export default async function CompareResultsPage() {
   const copy = messages.competitorScripts.compareResults;
 
   return (
-    <main className="min-h-screen bg-[#0A0A12] text-[#F5F5F7] antialiased">
+    <main className="min-h-screen bg-[#FAFAFA] text-[#111827] antialiased">
       <Sidebar messages={messages} />
 
       {/* Deliberately no shared page-entrance class here — this wrapper
@@ -26,7 +26,7 @@ export default async function CompareResultsPage() {
           <div className="mx-auto w-full max-w-[1220px]">
             <Link
               href="/competitor-scripts/compare"
-              className="inline-flex items-center gap-2 text-[13px] font-medium text-[#9CA3AF] transition hover:text-[#F5F5F7]"
+              className="inline-flex items-center gap-2 text-[13px] font-medium text-[#6B7280] transition hover:text-[#111827]"
             >
               <ArrowLeft size={15} aria-hidden="true" />
               {copy.backToCompare}
@@ -34,28 +34,24 @@ export default async function CompareResultsPage() {
 
             <ModeSwitcher messages={messages} activeMode="compare" />
 
-            <p className="mt-5 text-[12px] font-semibold uppercase tracking-[0.18em] text-[#67E8F9]">
+            <p className="mt-5 text-[12px] font-semibold uppercase tracking-[0.18em] text-[#2563EB]">
               {copy.heroEyebrow}
             </p>
             <h1 aria-label={copy.pageTitle} className="mt-3">
               <span
                 aria-hidden="true"
-                className="block text-[32px] font-black leading-[0.98] tracking-[-0.045em] text-white md:text-[44px] lg:text-[52px]"
+                className="block text-[32px] font-black leading-[0.98] tracking-[-0.045em] text-[#111827] md:text-[44px] lg:text-[52px]"
               >
                 {copy.headingPrefix}
               </span>
               <span
                 aria-hidden="true"
-                className="relative mt-1 inline-block overflow-visible bg-gradient-to-r from-[#1E40AF] via-[#2563EB] to-[#22D3EE] bg-clip-text pb-1 pr-3 text-[40px] font-black leading-[0.94] tracking-[-0.05em] text-transparent [text-shadow:0_0_20px_rgba(34,211,238,0.18)] md:text-[54px] lg:text-[66px]"
+                className="relative mt-1 inline-block overflow-visible pb-1 pr-3 text-[40px] font-black leading-[0.94] tracking-[-0.05em] text-[#2563EB] md:text-[54px] lg:text-[66px]"
               >
                 {copy.headingAccent}
-                <span
-                  aria-hidden="true"
-                  className="absolute -bottom-[6px] left-0 h-[5px] w-[120px] -rotate-1 rounded-full bg-gradient-to-r from-[#2563EB] to-[#22D3EE] opacity-80"
-                />
               </span>
             </h1>
-            <p className="mt-4 max-w-[680px] text-[15px] leading-[1.7] text-[#9CA3AF] lg:text-[16px]">
+            <p className="mt-4 max-w-[680px] text-[15px] leading-[1.7] text-[#6B7280] lg:text-[16px]">
               {copy.description}
             </p>
 

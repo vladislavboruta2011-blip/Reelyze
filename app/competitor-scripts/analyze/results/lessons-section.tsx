@@ -14,12 +14,12 @@ export function LessonsSection({
   items: ActionableLesson[];
 }) {
   return (
-    <section className="flex h-full flex-col rounded-[20px] border border-[#3B82F6]/25 bg-gradient-to-b from-[#3B82F6]/[0.05] to-transparent p-4 lg:p-5">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#93C5FD]">
+    <section className="flex h-full flex-col rounded-[20px] border border-[#BFDBFE] bg-[#F5F9FF] p-4 lg:p-5">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#2563EB]">
         {lessons.sectionEyebrow}
       </p>
       <div className="mt-1.5 flex items-center gap-2.5">
-        <h2 className="text-[16px] font-semibold text-[#F5F5F7]">
+        <h2 className="text-[16px] font-semibold text-[#111827]">
           {lessons.heading}
         </h2>
       </div>
@@ -30,14 +30,14 @@ export function LessonsSection({
             className="flex items-start gap-3"
           >
             <span
-              className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#3B82F6]/15 text-[#93C5FD]"
+              className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#DBEAFE] text-[#2563EB]"
               aria-hidden="true"
             >
               <Lightbulb size={16} />
             </span>
-            <div className="text-[14.5px] leading-[1.55] text-[#D1D5DB]">
-              <p className="font-semibold text-[#F5F5F7]">{item.principle}</p>
-              <p className="mt-1 text-[13.5px] text-[#D1D5DB]">
+            <div className="text-[14.5px] leading-[1.55] text-[#374151]">
+              <p className="font-semibold text-[#111827]">{item.principle}</p>
+              <p className="mt-1 text-[13.5px] text-[#374151]">
                 {item.application}
               </p>
             </div>

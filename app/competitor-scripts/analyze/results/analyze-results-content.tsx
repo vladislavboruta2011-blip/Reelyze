@@ -76,25 +76,25 @@ export function AnalyzeResultsContent({ copy }: { copy: ResultsCopy }) {
       <div
         role="status"
         aria-live="polite"
-        className="mt-5 rounded-[24px] border border-white/10 bg-white/[0.02] px-6 py-10 text-center"
+        className="mt-5 rounded-[24px] border border-[#E5E7EB] bg-white px-6 py-10 text-center"
       >
-        <p className="text-[14px] text-[#9CA3AF]">{copy.description}</p>
+        <p className="text-[14px] text-[#6B7280]">{copy.description}</p>
       </div>
     );
   }
 
   if (state.status === "missing") {
     return (
-      <div className="mt-5 rounded-[24px] border border-white/10 bg-white/[0.02] px-6 py-12 text-center">
-        <h2 className="text-[20px] font-semibold text-[#F5F5F7]">
+      <div className="mt-5 rounded-[24px] border border-[#E5E7EB] bg-white px-6 py-12 text-center">
+        <h2 className="text-[20px] font-semibold text-[#111827]">
           {copy.missingState.heading}
         </h2>
-        <p className="mx-auto mt-3 max-w-[480px] text-[14px] leading-[1.6] text-[#9CA3AF]">
+        <p className="mx-auto mt-3 max-w-[480px] text-[14px] leading-[1.6] text-[#6B7280]">
           {copy.missingState.description}
         </p>
         <Link
           href="/competitor-scripts/analyze"
-          className="mt-6 inline-flex h-[50px] items-center justify-center gap-2 rounded-[14px] bg-gradient-to-r from-[#6D28D9] to-[#7C3AED] px-6 text-[14px] font-semibold text-white transition hover:from-[#7C3AED] hover:to-[#8B5CF6] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C4B5FD]"
+          className="mt-6 inline-flex h-[50px] items-center justify-center gap-2 rounded-[14px] bg-gradient-to-r from-[#6D28D9] to-[#7C3AED] px-6 text-[14px] font-semibold text-white transition hover:from-[#7C3AED] hover:to-[#8B5CF6] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C3AED]"
         >
           {copy.missingState.action}
           <ArrowRight size={16} aria-hidden="true" />
@@ -211,17 +211,17 @@ export function AnalyzeResultsContent({ copy }: { copy: ResultsCopy }) {
 
         <TranscriptSection copy={copy.transcript} data={transcriptData} />
 
-        <div className="mt-2 flex flex-col gap-4 border-t border-white/10 pt-6 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-2 flex flex-col gap-4 border-t border-[#E5E7EB] pt-6 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-5">
             <Link
               href="/competitor-scripts/analyze"
-              className="inline-flex h-[44px] items-center justify-center px-1 text-[13px] font-medium text-[#9CA3AF] transition hover:text-[#F5F5F7] sm:h-auto sm:px-0"
+              className="inline-flex h-[44px] items-center justify-center px-1 text-[13px] font-medium text-[#6B7280] transition hover:text-[#111827] sm:h-auto sm:px-0"
             >
               {copy.actions.backToAnalyze}
             </Link>
             <Link
               href="/competitor-scripts"
-              className="inline-flex h-[44px] items-center justify-center px-1 text-[13px] font-medium text-[#9CA3AF] transition hover:text-[#F5F5F7] sm:h-auto sm:px-0"
+              className="inline-flex h-[44px] items-center justify-center px-1 text-[13px] font-medium text-[#6B7280] transition hover:text-[#111827] sm:h-auto sm:px-0"
             >
               {copy.actions.backToSelection}
             </Link>
@@ -230,14 +230,14 @@ export function AnalyzeResultsContent({ copy }: { copy: ResultsCopy }) {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <Link
               href="/competitor-scripts/compare"
-              className="inline-flex h-[48px] w-full items-center justify-center gap-2 rounded-[14px] border border-white/15 bg-white/[0.03] px-6 text-[14px] font-semibold text-[#F5F5F7] transition hover:bg-white/[0.06] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C4B5FD] sm:w-auto"
+              className="inline-flex h-[48px] w-full items-center justify-center gap-2 rounded-[14px] border border-[#E5E7EB] bg-white px-6 text-[14px] font-semibold text-[#111827] transition hover:bg-[#F3F4F6] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C3AED] sm:w-auto"
             >
               <GitCompare size={16} aria-hidden="true" />
               {copy.actions.compareWithMyScript}
             </Link>
             <Link
               href="/competitor-scripts/analyze"
-              className="inline-flex h-[48px] w-full items-center justify-center gap-2 rounded-[14px] bg-gradient-to-r from-[#6D28D9] to-[#7C3AED] px-6 text-[14px] font-semibold text-white transition hover:from-[#7C3AED] hover:to-[#8B5CF6] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C4B5FD] sm:w-auto"
+              className="inline-flex h-[48px] w-full items-center justify-center gap-2 rounded-[14px] bg-gradient-to-r from-[#6D28D9] to-[#7C3AED] px-6 text-[14px] font-semibold text-white transition hover:from-[#7C3AED] hover:to-[#8B5CF6] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C3AED] sm:w-auto"
             >
               {copy.actions.analyzeAnother}
               <ArrowRight size={16} aria-hidden="true" />

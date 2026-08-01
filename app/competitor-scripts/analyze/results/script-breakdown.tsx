@@ -49,11 +49,11 @@ export function ScriptBreakdown({
   }
 
   return (
-    <section className="rounded-[20px] border border-white/10 bg-white/[0.03] p-5 lg:p-6">
-      <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#A78BFA]">
+    <section className="rounded-[20px] border border-[#E5E7EB] bg-white p-5 lg:p-6">
+      <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#7C3AED]">
         {structureCopy.sectionEyebrow}
       </p>
-      <h2 className="mt-2 text-[17px] font-semibold text-[#F5F5F7]">
+      <h2 className="mt-2 text-[17px] font-semibold text-[#111827]">
         {structureCopy.heading}
       </h2>
 
@@ -64,7 +64,7 @@ export function ScriptBreakdown({
           return (
             <li
               key={`${beat.label}-${index}`}
-              className="flex min-w-0 flex-1 items-start gap-2.5 rounded-[12px] border border-white/10 bg-white/[0.02] px-3.5 py-3 lg:basis-[190px]"
+              className="flex min-w-0 flex-1 items-start gap-2.5 rounded-[12px] border border-[#E5E7EB] bg-[#F8F8FC] px-3.5 py-3 lg:basis-[190px]"
             >
               <span
                 className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full"
@@ -73,7 +73,7 @@ export function ScriptBreakdown({
               />
               <div className="min-w-0">
                 <div className="flex flex-wrap items-baseline gap-x-2">
-                  <p className="text-[13.5px] font-semibold text-[#F5F5F7]">
+                  <p className="text-[13.5px] font-semibold text-[#111827]">
                     {structureCopy.beatLabels[beat.label]}
                   </p>
                   {beat.evidence.startMs !== null && (
@@ -82,7 +82,7 @@ export function ScriptBreakdown({
                     </span>
                   )}
                 </div>
-                <p className="mt-1 truncate text-[12px] italic leading-[1.4] text-[#9CA3AF]">
+                <p className="mt-1 truncate text-[12px] italic leading-[1.4] text-[#6B7280]">
                   &ldquo;{beat.evidence.excerpt}&rdquo;
                 </p>
               </div>
@@ -95,7 +95,7 @@ export function ScriptBreakdown({
         type="button"
         onClick={() => setIsFullyExpanded((current) => !current)}
         aria-expanded={isFullyExpanded}
-        className="mt-4 inline-flex items-center gap-1 bg-transparent text-[12.5px] font-semibold text-[#A78BFA] transition-colors hover:text-[#C4B5FD] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C4B5FD]"
+        className="mt-4 inline-flex items-center gap-1 bg-transparent text-[12.5px] font-semibold text-[#7C3AED] transition-colors hover:text-[#6D28D9] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C3AED]"
       >
         {isFullyExpanded
           ? structureCopy.hideFullStructure
@@ -108,7 +108,7 @@ export function ScriptBreakdown({
       </button>
 
       {isFullyExpanded && (
-        <ol className="relative mt-5 flex flex-col gap-5 border-l-2 border-[#7C3AED]/30 pl-6">
+        <ol className="relative mt-5 flex flex-col gap-5 border-l-2 border-[#DDD6FE] pl-6">
           {beats.map((beat, index) => {
             const isExpanded = expandedIndexes.has(index);
             const color = BEAT_COLORS[beat.label] ?? BEAT_COLORS.other;
@@ -116,7 +116,7 @@ export function ScriptBreakdown({
             return (
               <li key={`${beat.label}-${index}`} className="relative">
                 <span
-                  className="absolute -left-[31px] top-0 flex h-5 w-5 items-center justify-center rounded-full border-2 border-[#0A0A12]"
+                  className="absolute -left-[31px] top-0 flex h-5 w-5 items-center justify-center rounded-full border-2 border-white"
                   style={{
                     backgroundColor: color,
                     boxShadow: `0 0 0 3px ${color}26`,
@@ -124,24 +124,24 @@ export function ScriptBreakdown({
                   aria-hidden="true"
                 />
                 <div className="flex flex-wrap items-baseline gap-2.5">
-                  <p className="text-[15px] font-semibold text-[#F5F5F7]">
+                  <p className="text-[15px] font-semibold text-[#111827]">
                     {structureCopy.beatLabels[beat.label]}
                   </p>
                   {beat.evidence.startMs !== null && (
-                    <span className="text-[12.5px] tabular-nums text-[#A78BFA]">
+                    <span className="text-[12.5px] tabular-nums text-[#7C3AED]">
                       {formatTimestampMs(beat.evidence.startMs)}
                     </span>
                   )}
                 </div>
-                <p className="mt-1.5 text-[13.5px] italic leading-[1.55] text-[#9CA3AF]">
+                <p className="mt-1.5 text-[13.5px] italic leading-[1.55] text-[#6B7280]">
                   &ldquo;{beat.evidence.excerpt}&rdquo;
                 </p>
-                <p className="mt-2 text-[14px] leading-[1.6] text-[#D1D5DB]">
+                <p className="mt-2 text-[14px] leading-[1.6] text-[#374151]">
                   {beat.purpose}
                 </p>
 
                 {isExpanded && (
-                  <p className="mt-2 text-[13px] leading-[1.6] text-[#9CA3AF]">
+                  <p className="mt-2 text-[13px] leading-[1.6] text-[#6B7280]">
                     {beat.analysis}
                   </p>
                 )}
@@ -150,7 +150,7 @@ export function ScriptBreakdown({
                   type="button"
                   onClick={() => toggleExpanded(index)}
                   aria-expanded={isExpanded}
-                  className="mt-2 inline-flex items-center gap-1 bg-transparent text-[12px] font-semibold text-[#A78BFA] transition-colors hover:text-[#C4B5FD] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C4B5FD]"
+                  className="mt-2 inline-flex items-center gap-1 bg-transparent text-[12px] font-semibold text-[#7C3AED] transition-colors hover:text-[#6D28D9] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C3AED]"
                 >
                   {isExpanded ? structureCopy.hideDetails : structureCopy.showDetails}
                   <ChevronDown

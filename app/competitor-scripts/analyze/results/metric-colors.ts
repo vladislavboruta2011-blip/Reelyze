@@ -15,37 +15,46 @@ export const METRIC_KEYS: readonly MetricKey[] = [
   "structure",
 ];
 
+// ringTrack is now the same neutral light-gray track every other
+// progress ring/bar in the app already uses (Hero's score rings,
+// ui-components.tsx's score bars, score-visuals.tsx's conic-gradient) —
+// a per-metric tinted track was only legible against the old dark card
+// background. icon/text now reuse the metric's own `ring` hue directly:
+// each of these accent colors already reads correctly as text/icon color
+// on a white card (the exact same values Hero's score cards and
+// DesktopScoreCard already apply as plain text color on white), so a
+// separate lighter dark-mode-only shade is no longer needed.
 export const METRIC_COLORS: Record<
   MetricKey,
   { ring: string; ringTrack: string; icon: string; iconBg: string; text: string }
 > = {
   overall: {
     ring: "#A855F7",
-    ringTrack: "rgba(168,85,247,0.15)",
-    icon: "#C084FC",
-    iconBg: "rgba(168,85,247,0.15)",
-    text: "#C4B5FD",
+    ringTrack: "#E5E7EB",
+    icon: "#A855F7",
+    iconBg: "rgba(168,85,247,0.12)",
+    text: "#A855F7",
   },
   hook: {
     ring: "#F97316",
-    ringTrack: "rgba(249,115,22,0.15)",
-    icon: "#FB923C",
-    iconBg: "rgba(249,115,22,0.15)",
-    text: "#FDBA74",
+    ringTrack: "#E5E7EB",
+    icon: "#F97316",
+    iconBg: "rgba(249,115,22,0.12)",
+    text: "#F97316",
   },
   retention: {
     ring: "#22C55E",
-    ringTrack: "rgba(34,197,94,0.15)",
-    icon: "#4ADE80",
-    iconBg: "rgba(34,197,94,0.15)",
-    text: "#86EFAC",
+    ringTrack: "#E5E7EB",
+    icon: "#22C55E",
+    iconBg: "rgba(34,197,94,0.12)",
+    text: "#22C55E",
   },
   structure: {
     ring: "#3B82F6",
-    ringTrack: "rgba(59,130,246,0.15)",
-    icon: "#60A5FA",
-    iconBg: "rgba(59,130,246,0.15)",
-    text: "#93C5FD",
+    ringTrack: "#E5E7EB",
+    icon: "#3B82F6",
+    iconBg: "rgba(59,130,246,0.12)",
+    text: "#3B82F6",
   },
 };
 

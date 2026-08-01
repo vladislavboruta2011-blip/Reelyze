@@ -20,15 +20,15 @@ export function WeaknessesSection({
   items: Weakness[];
 }) {
   return (
-    <section className="flex h-full flex-col rounded-[20px] border border-[#F59E0B]/25 bg-gradient-to-b from-[#F59E0B]/[0.05] to-transparent p-4 lg:p-5">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#FBBF24]">
+    <section className="flex h-full flex-col rounded-[20px] border border-[#FDE68A] bg-[#FFFBEB] p-4 lg:p-5">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#92400E]">
         {weaknesses.sectionEyebrow}
       </p>
-      <h2 className="mt-1.5 text-[16px] font-semibold text-[#F5F5F7]">
+      <h2 className="mt-1.5 text-[16px] font-semibold text-[#111827]">
         {weaknesses.heading}
       </h2>
       {items.length === 0 ? (
-        <p className="mt-3.5 text-[12.5px] leading-[1.5] text-[#9CA3AF]">
+        <p className="mt-3.5 text-[12.5px] leading-[1.5] text-[#6B7280]">
           {weaknesses.emptyState}
         </p>
       ) : (
@@ -36,17 +36,17 @@ export function WeaknessesSection({
           {items.map((item, index) => (
             <li key={`${item.issue}-${index}`} className="flex items-start gap-3">
               <span
-                className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#F59E0B]/15 text-[#F59E0B]"
+                className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#FEF3C7] text-[#B45309]"
                 aria-hidden="true"
               >
                 <TriangleAlert size={15} />
               </span>
               <div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-[14.5px] font-semibold text-[#F5F5F7]">
+                  <p className="text-[14.5px] font-semibold text-[#111827]">
                     {item.issue}
                   </p>
-                  <span className="rounded-full border border-[#F59E0B]/30 bg-[#F59E0B]/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-[#FBBF24]">
+                  <span className="rounded-full border border-[#FDE68A] bg-[#FEF3C7] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-[#92400E]">
                     {severity[item.severity]}
                   </span>
                   {item.evidence.startMs !== null && (
@@ -58,7 +58,7 @@ export function WeaknessesSection({
                 <p className="mt-1 text-[12.5px] italic leading-[1.55] text-[#6B7280]">
                   &ldquo;{item.evidence.excerpt}&rdquo;
                 </p>
-                <p className="mt-1.5 text-[13.5px] leading-[1.55] text-[#D1D5DB]">
+                <p className="mt-1.5 text-[13.5px] leading-[1.55] text-[#374151]">
                   {item.whyItMatters}
                 </p>
               </div>

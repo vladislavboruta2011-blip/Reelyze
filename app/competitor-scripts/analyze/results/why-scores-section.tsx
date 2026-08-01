@@ -35,8 +35,8 @@ export function WhyScoresSection({
   reasons: ScoreReason[];
 }) {
   return (
-    <section className="rounded-[20px] border border-white/10 bg-white/[0.03] p-5 lg:p-6">
-      <h2 className="text-[16px] font-semibold text-[#F5F5F7]">
+    <section className="rounded-[20px] border border-[#E5E7EB] bg-white p-5 lg:p-6">
+      <h2 className="text-[16px] font-semibold text-[#111827]">
         {whyScores.heading}
       </h2>
       <ul className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -49,7 +49,7 @@ export function WhyScoresSection({
           return (
             <li
               key={reason.score}
-              className="flex items-start gap-3 rounded-[14px] border border-white/10 bg-white/[0.02] p-4"
+              className="flex items-start gap-3 rounded-[14px] border border-[#E5E7EB] bg-[#F8F8FC] p-4"
             >
               <div
                 className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px]"
@@ -68,7 +68,7 @@ export function WhyScoresSection({
                 >
                   {label}
                 </p>
-                <p className="mt-1.5 text-[13.5px] leading-[1.6] text-[#D1D5DB]">
+                <p className="mt-1.5 text-[13.5px] leading-[1.6] text-[#374151]">
                   {reason.driver}
                 </p>
               </div>

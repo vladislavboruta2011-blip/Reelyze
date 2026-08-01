@@ -16,7 +16,7 @@ export default async function CompareScriptsPage() {
   const copy = messages.competitorScripts.compare;
 
   return (
-    <main className="min-h-screen bg-[#0A0A12] text-[#F5F5F7] antialiased">
+    <main className="min-h-screen bg-[#FAFAFA] text-[#111827] antialiased">
       <Sidebar messages={messages} />
 
       <div className="animate-page-enter lg:ml-[260px]">
@@ -24,7 +24,7 @@ export default async function CompareScriptsPage() {
           <div className="mx-auto w-full max-w-[1160px]">
             <Link
               href="/competitor-scripts"
-              className="inline-flex items-center gap-2 text-[13px] font-medium text-[#9CA3AF] transition hover:text-[#F5F5F7]"
+              className="inline-flex items-center gap-2 text-[13px] font-medium text-[#6B7280] transition hover:text-[#111827]"
             >
               <ArrowLeft size={15} aria-hidden="true" />
               {copy.backToSelection}
@@ -34,28 +34,28 @@ export default async function CompareScriptsPage() {
 
             <div className="mt-6 grid grid-cols-1 items-start gap-8 lg:grid-cols-[1fr_290px]">
               <div className="text-left">
-                <p className="text-[12px] font-semibold uppercase tracking-[0.18em] text-[#67E8F9]">
+                <p className="text-[12px] font-semibold uppercase tracking-[0.18em] text-[#2563EB]">
                   {copy.heroEyebrow}
                 </p>
                 <h1 aria-label={copy.pageTitle} className="mt-4">
                   <span
                     aria-hidden="true"
-                    className="block text-[32px] font-black leading-[0.95] tracking-[-0.05em] text-white md:text-[44px] lg:text-[60px]"
+                    className="block text-[32px] font-black leading-[0.95] tracking-[-0.05em] text-[#111827] md:text-[44px] lg:text-[60px]"
                   >
                     {copy.headingPrefix}
                   </span>
                   <span
                     aria-hidden="true"
-                    className="relative mt-1 inline-block overflow-visible bg-gradient-to-r from-[#1E40AF] via-[#2563EB] to-[#22D3EE] bg-clip-text pb-1.5 pr-3 text-[42px] font-black leading-[0.94] tracking-[-0.055em] text-transparent [text-shadow:0_2px_8px_rgba(0,0,0,0.3),0_0_22px_rgba(34,211,238,0.18)] md:text-[58px] lg:text-[80px]"
+                    className="relative mt-1 inline-block overflow-visible pb-1.5 pr-3 text-[42px] font-black leading-[0.94] tracking-[-0.055em] text-[#2563EB] md:text-[58px] lg:text-[80px]"
                   >
                     {copy.headingAccent}
                     <span
                       aria-hidden="true"
-                      className="absolute -bottom-2 left-0 h-[4px] w-[100px] -rotate-1 rounded-full bg-gradient-to-r from-[#2563EB] to-[#22D3EE]"
+                      className="absolute -bottom-2 left-0 h-[4px] w-[100px] -rotate-1 rounded-full bg-[#2563EB]"
                     />
                   </span>
                 </h1>
-                <p className="mt-7 max-w-[660px] text-[16px] font-medium leading-[1.6] text-[#C7CBD6] md:text-[18px] lg:text-[20px]">
+                <p className="mt-7 max-w-[660px] text-[16px] font-medium leading-[1.6] text-[#6B7280] md:text-[18px] lg:text-[20px]">
                   {copy.description}
                 </p>
               </div>
