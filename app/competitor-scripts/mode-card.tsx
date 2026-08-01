@@ -21,26 +21,26 @@ const ACCENT_STYLES: Record<
   }
 > = {
   purple: {
-    border: "border-[#7C3AED]/40",
-    surface: "bg-gradient-to-b from-[#7C3AED]/[0.08] to-transparent",
-    iconWrap: "border-[#7C3AED]/40 bg-[#7C3AED]/15 text-[#C4B5FD]",
-    iconGlow: "shadow-[0_0_50px_rgba(124,58,237,0.35)]",
-    subtitle: "text-[#C4B5FD]",
-    checkWrap: "bg-[#7C3AED]/15 text-[#A78BFA]",
-    check: "text-[#A78BFA]",
+    border: "border-[#DDD6FE]",
+    surface: "bg-[#FAF7FF]",
+    iconWrap: "border-[#DDD6FE] bg-[#F3E8FF] text-[#7C3AED]",
+    iconGlow: "",
+    subtitle: "text-[#7C3AED]",
+    checkWrap: "bg-[#F3E8FF] text-[#7C3AED]",
+    check: "text-[#7C3AED]",
     button:
-      "bg-gradient-to-r from-[#6D28D9] to-[#7C3AED] hover:from-[#7C3AED] hover:to-[#8B5CF6] focus-visible:outline-[#C4B5FD]",
+      "bg-gradient-to-r from-[#6D28D9] to-[#7C3AED] hover:from-[#7C3AED] hover:to-[#8B5CF6] focus-visible:outline-[#7C3AED]",
   },
   blue: {
-    border: "border-[#3B82F6]/40",
-    surface: "bg-gradient-to-b from-[#3B82F6]/[0.08] to-transparent",
-    iconWrap: "border-[#3B82F6]/40 bg-[#3B82F6]/15 text-[#93C5FD]",
-    iconGlow: "shadow-[0_0_50px_rgba(59,130,246,0.35)]",
-    subtitle: "text-[#93C5FD]",
-    checkWrap: "bg-[#3B82F6]/15 text-[#60A5FA]",
-    check: "text-[#60A5FA]",
+    border: "border-[#BFDBFE]",
+    surface: "bg-[#EFF6FF]",
+    iconWrap: "border-[#BFDBFE] bg-[#DBEAFE] text-[#2563EB]",
+    iconGlow: "",
+    subtitle: "text-[#2563EB]",
+    checkWrap: "bg-[#DBEAFE] text-[#2563EB]",
+    check: "text-[#2563EB]",
     button:
-      "bg-gradient-to-r from-[#2563EB] to-[#3B82F6] hover:from-[#3B82F6] hover:to-[#60A5FA] focus-visible:outline-[#93C5FD]",
+      "bg-gradient-to-r from-[#2563EB] to-[#3B82F6] hover:from-[#3B82F6] hover:to-[#60A5FA] focus-visible:outline-[#2563EB]",
   },
 };
 
@@ -85,13 +85,13 @@ export function ModeCard({
         >
           {icon}
         </div>
-        <h2 className="mt-4 text-[21px] font-semibold text-[#F5F5F7]">
+        <h2 className="mt-4 text-[21px] font-semibold text-[#111827]">
           {title}
         </h2>
         <p className={`mt-1 text-[13px] font-medium ${styles.subtitle}`}>
           {accentSubtitle}
         </p>
-        <p className="mt-3 max-w-[400px] text-[14px] leading-[1.6] text-[#9CA3AF]">
+        <p className="mt-3 max-w-[400px] text-[14px] leading-[1.6] text-[#6B7280]">
           {description}
         </p>
       </div>
@@ -100,7 +100,7 @@ export function ModeCard({
         {benefits.map((benefit) => (
           <li
             key={benefit}
-            className="flex items-start gap-3 text-[14px] leading-[1.5] text-[#D1D5DB]"
+            className="flex items-start gap-3 text-[14px] leading-[1.5] text-[#374151]"
           >
             <span
               className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${styles.checkWrap}`}
@@ -135,7 +135,7 @@ export function ModeCard({
           <p
             role="status"
             aria-live="polite"
-            className="text-center text-[12px] text-[#9CA3AF]"
+            className="text-center text-[12px] text-[#6B7280]"
           >
             {comingNextMessage}
           </p>

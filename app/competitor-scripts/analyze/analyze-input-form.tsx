@@ -304,18 +304,18 @@ export function AnalyzeInputForm({ copy }: { copy: AnalyzeCopy }) {
     <form
       onSubmit={handleSubmit}
       noValidate
-      className="mt-4 rounded-[28px] border border-[#7C3AED]/25 bg-gradient-to-b from-[#7C3AED]/[0.06] to-transparent p-6 lg:p-8"
+      className="mt-4 rounded-[28px] border border-[#E5E7EB] bg-white p-6 shadow-[0_18px_60px_rgba(17,24,39,0.04)] lg:p-8"
     >
       <label
         htmlFor={inputId}
-        className="text-[13px] font-semibold text-[#F5F5F7]"
+        className="text-[13px] font-semibold text-[#111827]"
       >
         {copy.urlLabel}
       </label>
 
       <div
-        className={`mt-2.5 flex h-[56px] items-center gap-3 rounded-[14px] border bg-white/[0.03] px-4 ${
-          error ? "border-[#EF4444]/60" : "border-white/10"
+        className={`mt-2.5 flex h-[56px] items-center gap-3 rounded-[14px] border bg-[#F8F8FC] px-4 ${
+          error ? "border-[#FCA5A5]" : "border-[#E5E7EB]"
         }`}
       >
         <Link2
@@ -336,7 +336,7 @@ export function AnalyzeInputForm({ copy }: { copy: AnalyzeCopy }) {
           placeholder={copy.urlPlaceholder}
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? errorId : undefined}
-          className="h-full w-full bg-transparent text-[15px] text-[#F5F5F7] outline-none placeholder:text-[#6B7280] disabled:opacity-60"
+          className="h-full w-full bg-transparent text-[15px] text-[#111827] outline-none placeholder:text-[#9CA3AF] disabled:opacity-60"
         />
       </div>
 
@@ -344,7 +344,7 @@ export function AnalyzeInputForm({ copy }: { copy: AnalyzeCopy }) {
         <p
           id={errorId}
           role="alert"
-          className="mt-2.5 text-[13px] font-medium text-[#EF4444]"
+          className="mt-2.5 text-[13px] font-medium text-[#DC2626]"
         >
           {error}
         </p>
@@ -354,18 +354,18 @@ export function AnalyzeInputForm({ copy }: { copy: AnalyzeCopy }) {
         <div className="flex items-start gap-3 lg:max-w-[420px]">
           <Lock
             size={15}
-            className="mt-0.5 shrink-0 text-[#9CA3AF]"
+            className="mt-0.5 shrink-0 text-[#6B7280]"
             aria-hidden="true"
           />
           <div>
-            <p className="text-[12.5px] font-semibold text-[#F5F5F7]">
+            <p className="text-[12.5px] font-semibold text-[#111827]">
               {copy.privacyNote.heading}
             </p>
             <ul className="mt-1 flex flex-col gap-0.5">
               {copy.privacyNote.items.map((item) => (
                 <li
                   key={item}
-                  className="text-[12px] leading-[1.55] text-[#9CA3AF]"
+                  className="text-[12px] leading-[1.55] text-[#6B7280]"
                 >
                   {item}
                 </li>
@@ -377,7 +377,7 @@ export function AnalyzeInputForm({ copy }: { copy: AnalyzeCopy }) {
         <button
           type="submit"
           disabled={isSubmitting || url.trim().length === 0}
-          className="inline-flex h-[52px] w-full shrink-0 items-center justify-center gap-2.5 rounded-[14px] bg-gradient-to-r from-[#6D28D9] to-[#7C3AED] px-7 text-[15px] font-semibold text-white transition hover:from-[#7C3AED] hover:to-[#8B5CF6] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C4B5FD] disabled:cursor-not-allowed disabled:from-[#3D2A66] disabled:to-[#3D2A66] disabled:text-[#8B7BAE] lg:w-auto"
+          className="inline-flex h-[52px] w-full shrink-0 items-center justify-center gap-2.5 rounded-[14px] bg-gradient-to-r from-[#6D28D9] to-[#7C3AED] px-7 text-[15px] font-semibold text-white transition hover:from-[#7C3AED] hover:to-[#8B5CF6] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C3AED] disabled:cursor-not-allowed disabled:from-[#EDE9FE] disabled:to-[#EDE9FE] disabled:text-[#A78BFA] lg:w-auto"
         >
           {isSubmitting ? (
             <>

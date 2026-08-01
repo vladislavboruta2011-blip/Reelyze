@@ -213,23 +213,23 @@ export function CompareInputForm({ copy }: { copy: CompareCopy }) {
     <form
       onSubmit={handleSubmit}
       noValidate
-      className="mt-4 rounded-[28px] border border-[#22D3EE]/25 bg-gradient-to-b from-[#22D3EE]/[0.06] to-transparent p-6 lg:p-8"
+      className="mt-4 rounded-[28px] border border-[#BFDBFE] bg-[#F5F9FF] p-6 lg:p-8"
     >
       <label
         htmlFor={urlInputId}
-        className="text-[13px] font-semibold text-[#F5F5F7]"
+        className="text-[13px] font-semibold text-[#111827]"
       >
         {copy.urlLabel}
       </label>
 
       <div
-        className={`mt-2.5 flex h-[56px] items-center gap-3 rounded-[14px] border bg-white/[0.03] px-4 ${
-          urlError ? "border-[#EF4444]/60" : "border-white/10"
+        className={`mt-2.5 flex h-[56px] items-center gap-3 rounded-[14px] border bg-white px-4 ${
+          urlError ? "border-[#EF4444]/60" : "border-[#E5E7EB]"
         }`}
       >
         <Link2
           size={18}
-          className="shrink-0 text-[#6B7280]"
+          className="shrink-0 text-[#9CA3AF]"
           aria-hidden="true"
         />
         <input
@@ -246,7 +246,7 @@ export function CompareInputForm({ copy }: { copy: CompareCopy }) {
           placeholder={copy.urlPlaceholder}
           aria-invalid={urlError ? true : undefined}
           aria-describedby={urlError ? urlErrorId : undefined}
-          className="h-full w-full bg-transparent text-[15px] text-[#F5F5F7] outline-none placeholder:text-[#6B7280] disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#67E8F9]"
+          className="h-full w-full bg-transparent text-[15px] text-[#111827] outline-none placeholder:text-[#9CA3AF] disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C3AED]"
         />
       </div>
 
@@ -254,7 +254,7 @@ export function CompareInputForm({ copy }: { copy: CompareCopy }) {
         <p
           id={urlErrorId}
           role="alert"
-          className="mt-2.5 text-[13px] font-medium text-[#EF4444]"
+          className="mt-2.5 text-[13px] font-medium text-[#DC2626]"
         >
           {urlError}
         </p>
@@ -263,14 +263,14 @@ export function CompareInputForm({ copy }: { copy: CompareCopy }) {
       <div className="mt-6 flex items-center justify-between gap-3">
         <label
           htmlFor={scriptInputId}
-          className="text-[13px] font-semibold text-[#F5F5F7]"
+          className="text-[13px] font-semibold text-[#111827]"
         >
           {copy.scriptLabel}
         </label>
         <span
           id={scriptCounterId}
           className={`shrink-0 text-[12px] font-medium ${
-            scriptOverLimit ? "text-[#EF4444]" : "text-[#9CA3AF]"
+            scriptOverLimit ? "text-[#DC2626]" : "text-[#9CA3AF]"
           }`}
         >
           {script.length}/{MAX_SCRIPT_CHARACTERS}
@@ -278,8 +278,8 @@ export function CompareInputForm({ copy }: { copy: CompareCopy }) {
       </div>
 
       <div
-        className={`mt-2.5 rounded-[14px] border bg-white/[0.03] ${
-          scriptError ? "border-[#EF4444]/60" : "border-white/10"
+        className={`mt-2.5 rounded-[14px] border bg-white ${
+          scriptError ? "border-[#EF4444]/60" : "border-[#E5E7EB]"
         }`}
       >
         <textarea
@@ -299,11 +299,11 @@ export function CompareInputForm({ copy }: { copy: CompareCopy }) {
               ? `${scriptCounterId} ${scriptErrorId}`
               : scriptCounterId
           }
-          className="min-h-[165px] w-full resize-y bg-transparent px-4 py-3.5 text-[14px] leading-[1.65] text-[#F5F5F7] outline-none placeholder:text-[#6B7280] disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#67E8F9] lg:min-h-[135px]"
+          className="min-h-[165px] w-full resize-y bg-transparent px-4 py-3.5 text-[14px] leading-[1.65] text-[#111827] outline-none placeholder:text-[#9CA3AF] disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C3AED] lg:min-h-[135px]"
         />
       </div>
 
-      <p className="mt-2 text-[12px] leading-[1.5] text-[#9CA3AF]">
+      <p className="mt-2 text-[12px] leading-[1.5] text-[#6B7280]">
         {copy.scriptHelper}
       </p>
 
@@ -311,7 +311,7 @@ export function CompareInputForm({ copy }: { copy: CompareCopy }) {
         <p
           id={scriptErrorId}
           role="alert"
-          className="mt-1.5 text-[13px] font-medium text-[#EF4444]"
+          className="mt-1.5 text-[13px] font-medium text-[#DC2626]"
         >
           {scriptError}
         </p>
@@ -321,7 +321,7 @@ export function CompareInputForm({ copy }: { copy: CompareCopy }) {
         <p
           id={formErrorId}
           role="alert"
-          className="mt-4 rounded-[12px] border border-[#EF4444]/30 bg-[#EF4444]/[0.06] px-4 py-3 text-[13px] font-medium text-[#FCA5A5]"
+          className="mt-4 rounded-[12px] border border-[#FECACA] bg-[#FEF2F2] px-4 py-3 text-[13px] font-medium text-[#B91C1C]"
         >
           {formError}
         </p>
@@ -335,14 +335,14 @@ export function CompareInputForm({ copy }: { copy: CompareCopy }) {
             aria-hidden="true"
           />
           <div>
-            <p className="text-[12.5px] font-semibold text-[#F5F5F7]">
+            <p className="text-[12.5px] font-semibold text-[#111827]">
               {copy.privacyNote.heading}
             </p>
             <ul className="mt-1 flex flex-col gap-0.5">
               {copy.privacyNote.items.map((item) => (
                 <li
                   key={item}
-                  className="text-[12px] leading-[1.55] text-[#9CA3AF]"
+                  className="text-[12px] leading-[1.55] text-[#6B7280]"
                 >
                   {item}
                 </li>
@@ -359,7 +359,7 @@ export function CompareInputForm({ copy }: { copy: CompareCopy }) {
             script.trim().length === 0
           }
           aria-busy={isSubmitting}
-          className="inline-flex h-[56px] w-full shrink-0 items-center justify-center gap-2.5 self-end rounded-[14px] bg-gradient-to-r from-[#1E40AF] via-[#2563EB] to-[#22D3EE] px-9 text-[15px] font-semibold text-white transition hover:from-[#2563EB] hover:via-[#3B82F6] hover:to-[#67E8F9] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#67E8F9] disabled:cursor-not-allowed disabled:from-[#1E3A5F] disabled:via-[#1E3A5F] disabled:to-[#1E3A5F] disabled:text-[#7DA3B8] lg:w-auto"
+          className="inline-flex h-[56px] w-full shrink-0 items-center justify-center gap-2.5 self-end rounded-[14px] bg-gradient-to-r from-[#1D4ED8] to-[#2563EB] px-9 text-[15px] font-semibold text-white transition hover:from-[#2563EB] hover:to-[#3B82F6] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2563EB] disabled:cursor-not-allowed disabled:from-[#BFDBFE] disabled:to-[#BFDBFE] disabled:text-[#93C5FD] lg:w-auto"
         >
           {isSubmitting ? (
             <>

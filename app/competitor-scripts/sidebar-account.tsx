@@ -33,7 +33,7 @@ export function SidebarAccount({ compact = false }: { compact?: boolean }) {
         <button
           type="button"
           onClick={() => setIsSignInModalOpen(true)}
-          className="flex h-[44px] w-full items-center justify-center rounded-[12px] border border-white/10 bg-white/[0.04] text-[13px] font-semibold text-[#F5F5F7] transition hover:border-[#7C3AED]/50 hover:bg-[#7C3AED]/10"
+          className="flex h-[44px] w-full items-center justify-center rounded-[12px] border border-[#E5E7EB] bg-white text-[13px] font-semibold text-[#111827] transition hover:border-[#DDD6FE] hover:bg-[#F3E8FF] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C3AED]"
         >
           {messages.common.signIn}
         </button>
@@ -54,7 +54,7 @@ export function SidebarAccount({ compact = false }: { compact?: boolean }) {
       className={
         compact
           ? "flex items-center gap-2.5"
-          : "flex items-center gap-3 rounded-[14px] border border-white/10 bg-white/[0.04] p-3"
+          : "flex items-center gap-3 rounded-[14px] border border-[#E5E7EB] bg-[#F8F8FC] p-3"
       }
     >
       {user.avatarUrl ? (
@@ -66,18 +66,18 @@ export function SidebarAccount({ compact = false }: { compact?: boolean }) {
         />
       ) : (
         <div
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#7C3AED]/20 text-[13px] font-semibold text-[#C4B5FD]"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#F3E8FF] text-[13px] font-semibold text-[#7C3AED]"
           aria-hidden="true"
         >
           {initial}
         </div>
       )}
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[13px] font-medium text-[#F5F5F7]">
+        <p className="truncate text-[13px] font-medium text-[#111827]">
           {displayName || messages.common.signIn}
         </p>
         {user.email && user.name && (
-          <p className="truncate text-[11px] text-[#9CA3AF]">
+          <p className="truncate text-[11px] text-[#6B7280]">
             {user.email}
           </p>
         )}
@@ -88,7 +88,7 @@ export function SidebarAccount({ compact = false }: { compact?: boolean }) {
         disabled={isSigningOut}
         aria-label={messages.common.signOut}
         title={messages.common.signOut}
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] text-[#9CA3AF] transition hover:bg-white/[0.06] hover:text-[#F5F5F7] disabled:cursor-not-allowed disabled:opacity-60"
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] text-[#6B7280] transition hover:bg-[#F3F4F6] hover:text-[#111827] disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C3AED]"
       >
         <LogOut size={15} aria-hidden="true" />
       </button>

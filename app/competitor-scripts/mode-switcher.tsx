@@ -22,7 +22,7 @@ export function ModeSwitcher({
     <div
       role="tablist"
       aria-label={copy.analyzeLabel + " / " + copy.compareLabel}
-      className="mt-6 inline-flex items-center gap-1 rounded-[14px] border border-white/10 bg-white/[0.03] p-1"
+      className="mt-6 inline-flex items-center gap-1 rounded-[14px] border border-[#E5E7EB] bg-white p-1"
     >
       <Link
         href="/competitor-scripts/analyze"
@@ -31,8 +31,8 @@ export function ModeSwitcher({
         className={[
           "inline-flex h-9 items-center gap-2 rounded-[10px] px-4 text-[13px] font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C3AED]",
           activeMode === "analyze"
-            ? "bg-[#7C3AED]/20 text-[#C4B5FD]"
-            : "text-[#9CA3AF] hover:text-[#F5F5F7]",
+            ? "bg-[#F3E8FF] text-[#7C3AED]"
+            : "text-[#6B7280] hover:text-[#111827]",
         ].join(" ")}
       >
         <PlayCircle size={15} aria-hidden="true" />
@@ -43,10 +43,10 @@ export function ModeSwitcher({
         role="tab"
         aria-selected={activeMode === "compare"}
         className={[
-          "inline-flex h-9 items-center gap-2 rounded-[10px] px-4 text-[13px] font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3B82F6]",
+          "inline-flex h-9 items-center gap-2 rounded-[10px] px-4 text-[13px] font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2563EB]",
           activeMode === "compare"
-            ? "bg-[#3B82F6]/20 text-[#93C5FD]"
-            : "text-[#9CA3AF] hover:text-[#F5F5F7]",
+            ? "bg-[#DBEAFE] text-[#2563EB]"
+            : "text-[#6B7280] hover:text-[#111827]",
         ].join(" ")}
       >
         <GitCompare size={15} aria-hidden="true" />

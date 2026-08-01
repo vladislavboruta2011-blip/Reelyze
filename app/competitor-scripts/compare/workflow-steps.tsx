@@ -22,7 +22,7 @@ export function WorkflowSteps({ workflow }: { workflow: WorkflowCopy }) {
 
       <ol className="relative mt-5 grid grid-cols-1 gap-6 lg:grid-cols-4 lg:gap-4">
         <div
-          className="pointer-events-none absolute left-[10%] right-[10%] top-7 hidden border-t border-dashed border-white/25 lg:block"
+          className="pointer-events-none absolute left-[10%] right-[10%] top-7 hidden border-t border-dashed border-[#E5E7EB] lg:block"
           aria-hidden="true"
         />
         {workflow.stages.map((stage, index) => {
@@ -35,16 +35,16 @@ export function WorkflowSteps({ workflow }: { workflow: WorkflowCopy }) {
               className="relative flex items-start gap-3 lg:flex-col lg:items-center lg:text-center"
             >
               <div
-                className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full border bg-[#0D0D18] ${
+                className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full border bg-white ${
                   isFirst
-                    ? "border-[#22D3EE]/50 text-[#67E8F9] shadow-[0_0_24px_rgba(34,211,238,0.3)]"
-                    : "border-white/15 text-[#9CA3AF]"
+                    ? "border-[#BFDBFE] text-[#2563EB] shadow-[0_0_0_4px_#DBEAFE]"
+                    : "border-[#E5E7EB] text-[#9CA3AF]"
                 }`}
               >
                 <Icon size={20} aria-hidden="true" />
               </div>
               <div>
-                <p className="text-[13px] font-semibold text-[#F5F5F7]">
+                <p className="text-[13px] font-semibold text-[#111827]">
                   {stage.title}
                 </p>
                 <p className="mt-0.5 text-[12px] leading-[1.4] text-[#9CA3AF]">

@@ -974,12 +974,22 @@ check(
 );
 
 check(
-  "the accent gradient (horizontal, bg-clip-text) is applied only to the headingAccent span, and both visual spans stay in sync with the full-sentence aria-label",
-  /aria-label=\{copy\.pageTitle\}/.test(analyzePageSource) &&
-    /bg-gradient-to-r[\s\S]{0,160}bg-clip-text[\s\S]{0,80}text-transparent[\s\S]{0,400}>\s*\{copy\.headingAccent\}/.test(
-      analyzePageSource
-    ) &&
-    !/bg-clip-text[\s\S]{0,400}\{copy\.headingPrefix\}/.test(analyzePageSource)
+  "the headingAccent span uses a distinct solid accent color from headingPrefix (light-theme conversion replaced the old gradient/bg-clip-text treatment with a plain color, per 'avoid excessive gradients'), and both visual spans stay in sync with the full-sentence aria-label",
+  (() => {
+    const h1Start = analyzePageSource.indexOf("<h1 aria-label={copy.pageTitle}");
+    const h1End = analyzePageSource.indexOf("</h1>", h1Start);
+    if (h1Start === -1 || h1End === -1) return false;
+    const h1Block = analyzePageSource.slice(h1Start, h1End);
+    return (
+      /text-\[#7C3AED\][\s\S]{0,200}>\s*\{copy\.headingAccent\}/.test(h1Block) &&
+      !/text-\[#7C3AED\][\s\S]{0,400}\{copy\.headingPrefix\}/.test(h1Block)
+    );
+  })()
+);
+
+check(
+  "the analyze hero heading no longer uses bg-clip-text/gradient text — removed as part of the light-theme conversion",
+  !analyzePageSource.includes("bg-clip-text")
 );
 
 check(
@@ -994,16 +1004,13 @@ check(
 );
 
 check(
-  "the decorative accent underline is aria-hidden and purely decorative (no visible/localized text inside it)",
-  /rounded-full bg-gradient-to-r[\s\S]{0,80}aria-hidden="true"|aria-hidden="true"[\s\S]{0,120}rounded-full bg-gradient-to-r/.test(
-    analyzePageSource
-  )
+  "the analyze hero heading has no separate decorative underline element under the accent word — removed as part of the light-theme conversion (avoid excessive floating decoration)",
+  !/rounded-full bg-gradient-to-r/.test(analyzePageSource)
 );
 
 check(
-  "the forward-slant skew is applied only to the accent line, never the first line",
-  !/headingPrefix[\s\S]{0,300}skew-x-\[/.test(analyzePageSource) &&
-    /skew-x-\[/.test(analyzePageSource)
+  "no decorative skew transform is applied anywhere in the analyze hero heading — removed as part of the light-theme conversion",
+  !/skew-x-\[/.test(analyzePageSource)
 );
 
 check(
@@ -1366,10 +1373,18 @@ check(
 );
 
 check(
-  "the results hero accent line uses a purple gradient (bg-clip-text) distinct from the plain white first line",
-  /bg-gradient-to-r[\s\S]{0,160}bg-clip-text[\s\S]{0,300}\{copy\.headingAccent\}/.test(
-    resultsPageSource
-  ) && !/bg-clip-text[\s\S]{0,300}\{copy\.headingPrefix\}/.test(resultsPageSource)
+  "the results hero accent line uses a distinct solid accent color from the first line (light-theme conversion replaced the old gradient/bg-clip-text treatment with a plain color)",
+  (() => {
+    const h1Start = resultsPageSource.indexOf("<h1 aria-label={copy.pageTitle}");
+    const h1End = resultsPageSource.indexOf("</h1>", h1Start);
+    if (h1Start === -1 || h1End === -1) return false;
+    const h1Block = resultsPageSource.slice(h1Start, h1End);
+    return (
+      /text-\[#7C3AED\][\s\S]{0,300}\{copy\.headingAccent\}/.test(h1Block) &&
+      !/text-\[#7C3AED\][\s\S]{0,300}\{copy\.headingPrefix\}/.test(h1Block) &&
+      !resultsPageSource.includes("bg-clip-text")
+    );
+  })()
 );
 
 check(

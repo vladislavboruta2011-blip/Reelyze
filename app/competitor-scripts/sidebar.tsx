@@ -30,10 +30,10 @@ function NavItem({
       href={href}
       aria-current={active ? "page" : undefined}
       className={[
-        "flex h-[46px] items-center gap-3 rounded-[12px] px-4 text-[14px] transition",
+        "flex h-[46px] items-center gap-3 rounded-[12px] px-4 text-[14px] transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C3AED]",
         active
-          ? "border border-[#7C3AED]/40 bg-gradient-to-r from-[#7C3AED]/25 to-[#7C3AED]/5 font-semibold text-white shadow-[0_0_24px_rgba(124,58,237,0.18)]"
-          : "font-medium text-[#9CA3AF] hover:bg-white/[0.04] hover:text-[#F5F5F7]",
+          ? "border border-[#DDD6FE] bg-[#F3E8FF] font-semibold text-[#7C3AED]"
+          : "font-medium text-[#6B7280] hover:bg-[#F3F4F6] hover:text-[#111827]",
       ].join(" ")}
     >
       {icon}
@@ -46,11 +46,11 @@ function NavItem({
 // there is no real usage-tracking or billing system behind this page yet.
 function PlanCard({ label }: { label: string }) {
   return (
-    <div className="flex items-center gap-3 rounded-[14px] border border-white/10 bg-white/[0.04] px-4 py-3.5">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#F59E0B]/15">
-        <Crown size={15} className="text-[#F59E0B]" aria-hidden="true" />
+    <div className="flex items-center gap-3 rounded-[14px] border border-[#E5E7EB] bg-[#F8F8FC] px-4 py-3.5">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#FEF3C7]">
+        <Crown size={15} className="text-[#B45309]" aria-hidden="true" />
       </div>
-      <span className="text-[13px] font-medium text-[#F5F5F7]">{label}</span>
+      <span className="text-[13px] font-medium text-[#111827]">{label}</span>
     </div>
   );
 }
@@ -61,7 +61,7 @@ export function Sidebar({ messages }: { messages: Messages }) {
   return (
     <>
       {/* DESKTOP */}
-      <aside className="fixed left-0 top-0 z-30 hidden h-screen w-[260px] flex-col border-r border-white/10 bg-[#0D0D18] lg:flex">
+      <aside className="fixed left-0 top-0 z-30 hidden h-screen w-[260px] flex-col border-r border-[#E5E7EB] bg-white lg:flex">
         <div className="flex items-center gap-3 px-6 py-9">
           <Image
             src="/logo.png"
@@ -71,7 +71,7 @@ export function Sidebar({ messages }: { messages: Messages }) {
             className="h-9 w-9 object-contain"
             priority
           />
-          <span className="text-[15px] font-bold tracking-[0.16em] text-[#F5F5F7]">
+          <span className="text-[15px] font-bold tracking-[0.16em] text-[#111827]">
             CLIMPY
           </span>
         </div>
@@ -99,14 +99,14 @@ export function Sidebar({ messages }: { messages: Messages }) {
       </aside>
 
       {/* MOBILE */}
-      <header className="flex flex-col border-b border-white/10 bg-[#0D0D18] lg:hidden">
+      <header className="flex flex-col border-b border-[#E5E7EB] bg-white lg:hidden">
         <div className="flex items-center justify-between px-5 pt-11 pb-4">
           <Link
             href="/"
-            className="flex h-[42px] w-[42px] items-center justify-center rounded-[12px] border border-white/10 bg-white/[0.04]"
+            className="flex h-[42px] w-[42px] items-center justify-center rounded-[12px] border border-[#E5E7EB] bg-[#F8F8FC] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C3AED]"
             aria-label={copy.backLabel}
           >
-            <ArrowLeft size={17} className="text-[#C4B5FD]" />
+            <ArrowLeft size={17} className="text-[#7C3AED]" />
           </Link>
           <div className="flex items-center gap-2.5">
             <Image
@@ -117,7 +117,7 @@ export function Sidebar({ messages }: { messages: Messages }) {
               className="h-7 w-7 object-contain"
               priority
             />
-            <span className="text-[14px] font-bold tracking-[0.16em] text-[#F5F5F7]">
+            <span className="text-[14px] font-bold tracking-[0.16em] text-[#111827]">
               CLIMPY
             </span>
           </div>

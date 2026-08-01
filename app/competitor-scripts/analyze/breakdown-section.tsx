@@ -28,8 +28,8 @@ const ITEM_ICONS = [
 // real analysis.
 export function BreakdownSection({ breakdown }: { breakdown: BreakdownCopy }) {
   return (
-    <section className="flex h-full flex-col rounded-[28px] border border-white/10 bg-white/[0.02] p-6 lg:p-8">
-      <h2 className="text-[18px] font-semibold text-[#F5F5F7]">
+    <section className="flex h-full flex-col rounded-[28px] border border-[#E5E7EB] bg-white p-6 shadow-[0_18px_60px_rgba(17,24,39,0.04)] lg:p-8">
+      <h2 className="text-[18px] font-semibold text-[#111827]">
         {breakdown.heading}
       </h2>
       <ul className="mt-5 grid flex-1 grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 lg:grid-rows-2">
@@ -38,13 +38,13 @@ export function BreakdownSection({ breakdown }: { breakdown: BreakdownCopy }) {
 
           return (
             <li key={item.title} className="flex flex-col gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-[#7C3AED]/15 text-[#A78BFA]">
+              <div className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-[#F3E8FF] text-[#7C3AED]">
                 <Icon size={16} aria-hidden="true" />
               </div>
-              <p className="text-[13.5px] font-semibold text-[#F5F5F7]">
+              <p className="text-[13.5px] font-semibold text-[#111827]">
                 {item.title}
               </p>
-              <p className="text-[12.5px] leading-[1.5] text-[#9CA3AF]">
+              <p className="text-[12.5px] leading-[1.5] text-[#6B7280]">
                 {item.description}
               </p>
             </li>

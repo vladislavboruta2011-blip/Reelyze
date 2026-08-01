@@ -9,44 +9,42 @@ import { PlayCircle, Search, Sparkles } from "lucide-react";
 export function HeroIllustration() {
   return (
     <div aria-hidden="true" className="relative h-[270px] w-[270px]">
-      <div className="absolute inset-0 rounded-[32px] bg-gradient-to-br from-[#7C3AED]/20 via-[#3B82F6]/10 to-transparent blur-2xl" />
-
-      <div className="absolute left-2 top-6 w-[225px] rounded-[22px] border border-white/10 bg-[#12121F] p-[18px] shadow-[0_20px_60px_-20px_rgba(0,0,0,0.7)]">
+      <div className="absolute left-2 top-6 w-[225px] rounded-[22px] border border-[#E5E7EB] bg-white p-[18px] shadow-[0_20px_60px_-20px_rgba(17,24,39,0.15)]">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#7C3AED]/20 text-[#C4B5FD]">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#F3E8FF] text-[#7C3AED]">
             <PlayCircle size={20} />
           </div>
           <div className="flex-1 space-y-2">
-            <div className="h-2.5 w-3/4 rounded-full bg-white/15" />
-            <div className="h-2.5 w-1/2 rounded-full bg-white/10" />
+            <div className="h-2.5 w-3/4 rounded-full bg-[#E5E7EB]" />
+            <div className="h-2.5 w-1/2 rounded-full bg-[#F3F4F6]" />
           </div>
         </div>
 
         <div className="mt-4 space-y-2">
-          <div className="h-[7px] w-full rounded-full bg-white/10" />
-          <div className="h-[7px] w-5/6 rounded-full bg-white/10" />
-          <div className="h-[7px] w-full rounded-full bg-white/10" />
-          <div className="h-[7px] w-2/3 rounded-full bg-white/10" />
+          <div className="h-[7px] w-full rounded-full bg-[#F3F4F6]" />
+          <div className="h-[7px] w-5/6 rounded-full bg-[#F3F4F6]" />
+          <div className="h-[7px] w-full rounded-full bg-[#F3F4F6]" />
+          <div className="h-[7px] w-2/3 rounded-full bg-[#F3F4F6]" />
         </div>
 
         <div className="mt-4 flex gap-2">
-          <span className="flex items-center gap-1.5 rounded-full bg-[#7C3AED]/15 px-3 py-1.5">
-            <span className="h-[7px] w-[7px] rounded-full bg-[#C4B5FD]" />
-            <span className="h-[7px] w-7 rounded-full bg-[#C4B5FD]/50" />
+          <span className="flex items-center gap-1.5 rounded-full bg-[#F3E8FF] px-3 py-1.5">
+            <span className="h-[7px] w-[7px] rounded-full bg-[#7C3AED]" />
+            <span className="h-[7px] w-7 rounded-full bg-[#7C3AED]/50" />
           </span>
-          <span className="flex items-center gap-1.5 rounded-full bg-[#3B82F6]/15 px-3 py-1.5">
-            <span className="h-[7px] w-[7px] rounded-full bg-[#93C5FD]" />
-            <span className="h-[7px] w-7 rounded-full bg-[#93C5FD]/50" />
+          <span className="flex items-center gap-1.5 rounded-full bg-[#DBEAFE] px-3 py-1.5">
+            <span className="h-[7px] w-[7px] rounded-full bg-[#2563EB]" />
+            <span className="h-[7px] w-7 rounded-full bg-[#2563EB]/50" />
           </span>
         </div>
       </div>
 
-      <div className="absolute bottom-3 right-3 flex h-[99px] w-[99px] items-center justify-center rounded-full border border-[#7C3AED]/40 bg-[#0D0D18] shadow-[0_0_60px_rgba(124,58,237,0.4)]">
-        <Search size={40} className="text-[#A78BFA]" strokeWidth={2.2} />
+      <div className="absolute bottom-3 right-3 flex h-[99px] w-[99px] items-center justify-center rounded-full border border-[#DDD6FE] bg-white shadow-[0_10px_40px_rgba(124,58,237,0.18)]">
+        <Search size={40} className="text-[#7C3AED]" strokeWidth={2.2} />
       </div>
 
-      <div className="absolute -top-1 right-11 flex h-10 w-10 items-center justify-center rounded-full border border-[#3B82F6]/40 bg-[#0D0D18]">
-        <Sparkles size={18} className="text-[#93C5FD]" />
+      <div className="absolute -top-1 right-11 flex h-10 w-10 items-center justify-center rounded-full border border-[#BFDBFE] bg-white">
+        <Sparkles size={18} className="text-[#2563EB]" />
       </div>
     </div>
   );

@@ -9,12 +9,12 @@ type ExampleCopy = Messages["competitorScripts"]["compare"]["example"];
 // visible body text, never hidden in a tooltip.
 export function ExampleComparison({ example }: { example: ExampleCopy }) {
   return (
-    <section className="flex h-full flex-col rounded-[28px] border border-[#22D3EE]/25 bg-gradient-to-b from-[#22D3EE]/[0.05] to-transparent p-6 lg:p-8">
-      <h2 className="text-[18px] font-semibold text-[#F5F5F7]">
+    <section className="flex h-full flex-col rounded-[28px] border border-[#BFDBFE] bg-[#F5F9FF] p-6 lg:p-8">
+      <h2 className="text-[18px] font-semibold text-[#111827]">
         {example.heading}
       </h2>
 
-      <p className="mt-2 rounded-[10px] border border-white/10 bg-white/[0.03] px-3 py-2 text-[12px] leading-[1.5] text-[#9CA3AF]">
+      <p className="mt-2 rounded-[10px] border border-[#E5E7EB] bg-white px-3 py-2 text-[12px] leading-[1.5] text-[#6B7280]">
         {example.disclaimer}
       </p>
 
@@ -27,7 +27,7 @@ export function ExampleComparison({ example }: { example: ExampleCopy }) {
             {example.competitorLines.map((line) => (
               <li
                 key={line}
-                className="rounded-[10px] border-l-2 border-white/20 bg-white/[0.03] px-3.5 py-2.5 text-[12.5px] leading-[1.55] text-[#D1D5DB]"
+                className="rounded-[10px] border-l-2 border-[#E5E7EB] bg-white px-3.5 py-2.5 text-[12.5px] leading-[1.55] text-[#374151]"
               >
                 {line}
               </li>
@@ -36,14 +36,14 @@ export function ExampleComparison({ example }: { example: ExampleCopy }) {
         </div>
 
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[#67E8F9]">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[#2563EB]">
             {example.yourScriptLabel}
           </p>
           <ul className="mt-3.5 flex flex-col gap-2.5">
             {example.yourScriptLines.map((line) => (
               <li
                 key={line}
-                className="rounded-[10px] border-l-2 border-[#22D3EE]/50 bg-white/[0.03] px-3.5 py-2.5 text-[12.5px] leading-[1.55] text-[#D1D5DB]"
+                className="rounded-[10px] border-l-2 border-[#93C5FD] bg-white px-3.5 py-2.5 text-[12.5px] leading-[1.55] text-[#374151]"
               >
                 {line}
               </li>
@@ -52,7 +52,7 @@ export function ExampleComparison({ example }: { example: ExampleCopy }) {
         </div>
       </div>
 
-      <div className="mt-6 flex-1 rounded-[14px] border border-white/10 bg-white/[0.03] p-5">
+      <div className="mt-6 flex-1 rounded-[14px] border border-[#E5E7EB] bg-white p-5">
         <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[#6B7280]">
           {example.summaryHeading}
         </p>
@@ -60,7 +60,7 @@ export function ExampleComparison({ example }: { example: ExampleCopy }) {
           {example.summaryItems.map((item) => (
             <span
               key={item}
-              className="rounded-full border border-[#22D3EE]/30 bg-[#22D3EE]/10 px-3.5 py-1.5 text-[12px] font-medium text-[#67E8F9]"
+              className="rounded-full border border-[#BFDBFE] bg-[#DBEAFE] px-3.5 py-1.5 text-[12px] font-medium text-[#2563EB]"
             >
               {item}
             </span>

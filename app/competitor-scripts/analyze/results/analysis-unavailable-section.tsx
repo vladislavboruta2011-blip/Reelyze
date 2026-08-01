@@ -40,17 +40,17 @@ export function AnalysisUnavailableSection({
   const message = copy[REASON_TO_COPY_KEY[reason]];
 
   return (
-    <section className="flex flex-col items-center rounded-[20px] border border-white/10 bg-white/[0.03] p-6 text-center lg:p-8">
+    <section className="flex flex-col items-center rounded-[20px] border border-[#E5E7EB] bg-white p-6 text-center lg:p-8">
       <div
-        className="flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] text-[#9CA3AF]"
+        className="flex h-12 w-12 items-center justify-center rounded-full border border-[#E5E7EB] bg-[#F8F8FC] text-[#6B7280]"
         aria-hidden="true"
       >
         <AlertCircle size={20} />
       </div>
-      <h2 className="mt-3 text-[17px] font-semibold text-[#F5F5F7]">
+      <h2 className="mt-3 text-[17px] font-semibold text-[#111827]">
         {message.heading}
       </h2>
-      <p className="mx-auto mt-2 max-w-[480px] text-[13.5px] leading-[1.6] text-[#9CA3AF]">
+      <p className="mx-auto mt-2 max-w-[480px] text-[13.5px] leading-[1.6] text-[#6B7280]">
         {message.description}
       </p>
     </section>

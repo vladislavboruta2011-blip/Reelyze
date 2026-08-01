@@ -84,16 +84,16 @@ export function TranscriptSection({
       : `${data.text.slice(0, FULL_TEXT_PREVIEW_CHAR_LIMIT).trimEnd()}…`;
 
   return (
-    <section className="rounded-[20px] border border-[#7C3AED]/15 bg-white/[0.035] p-5 lg:p-7">
+    <section className="rounded-[20px] border border-[#E5E7EB] bg-white p-5 lg:p-7">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#A78BFA]">
+        <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#7C3AED]">
           {copy.sectionEyebrow}
         </p>
-        <span className="inline-flex items-center rounded-full border border-[#7C3AED]/30 bg-[#7C3AED]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#C4B5FD]">
+        <span className="inline-flex items-center rounded-full border border-[#DDD6FE] bg-[#F3E8FF] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#7C3AED]">
           {copy.realDataLabel}
         </span>
       </div>
-      <h2 className="mt-2 text-[19px] font-semibold text-[#F5F5F7]">
+      <h2 className="mt-2 text-[19px] font-semibold text-[#111827]">
         {copy.heading}
       </h2>
 
@@ -108,7 +108,7 @@ export function TranscriptSection({
             <dt className="text-[10.5px] font-medium uppercase tracking-[0.06em] text-[#6B7280]">
               {stat.label}
             </dt>
-            <dd className="mt-0.5 truncate text-[13px] font-medium text-[#D1D5DB]">
+            <dd className="mt-0.5 truncate text-[13px] font-medium text-[#374151]">
               {stat.value}
             </dd>
           </div>
@@ -119,7 +119,7 @@ export function TranscriptSection({
         <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
           {copy.fullTextHeading}
         </p>
-        <p className="mt-3 max-w-[760px] whitespace-pre-wrap break-words text-[14px] leading-[1.7] text-[#D1D5DB]">
+        <p className="mt-3 max-w-[760px] whitespace-pre-wrap break-words text-[14px] leading-[1.7] text-[#374151]">
           {visibleText}
         </p>
 
@@ -128,7 +128,7 @@ export function TranscriptSection({
             type="button"
             onClick={() => setShowFullText((current) => !current)}
             aria-expanded={showFullText}
-            className="mt-3 inline-flex items-center gap-1 bg-transparent text-[12.5px] font-semibold text-[#A78BFA] transition-colors hover:text-[#C4B5FD] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C4B5FD]"
+            className="mt-3 inline-flex items-center gap-1 bg-transparent text-[12.5px] font-semibold text-[#7C3AED] transition-colors hover:text-[#6D28D9] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C3AED]"
           >
             {showFullText ? copy.showLessTranscript : copy.showFullTranscript}
             <ChevronDown
@@ -151,10 +151,10 @@ export function TranscriptSection({
                 key={`${segment.startMs}-${index}`}
                 className="flex items-start gap-3"
               >
-                <span className="w-[52px] shrink-0 text-[12px] font-semibold tabular-nums text-[#A78BFA]">
+                <span className="w-[52px] shrink-0 text-[12px] font-semibold tabular-nums text-[#7C3AED]">
                   {formatTimestampMs(segment.startMs)}
                 </span>
-                <p className="min-w-0 flex-1 break-words text-[13.5px] leading-[1.6] text-[#D1D5DB]">
+                <p className="min-w-0 flex-1 break-words text-[13.5px] leading-[1.6] text-[#374151]">
                   {segment.text}
                 </p>
               </li>
@@ -166,7 +166,7 @@ export function TranscriptSection({
               type="button"
               onClick={() => setShowAllSegments((current) => !current)}
               aria-expanded={showAllSegments}
-              className="mt-3 inline-flex items-center gap-1 bg-transparent text-[12.5px] font-semibold text-[#A78BFA] transition-colors hover:text-[#C4B5FD] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C4B5FD]"
+              className="mt-3 inline-flex items-center gap-1 bg-transparent text-[12.5px] font-semibold text-[#7C3AED] transition-colors hover:text-[#6D28D9] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C3AED]"
             >
               {showAllSegments ? copy.showFewerSegments : copy.showAllSegments}
               <ChevronDown

@@ -96,7 +96,7 @@ function ScoreRing({ value, color }: { value: number; color: string }) {
         cy={RING_SIZE / 2}
         r={RING_RADIUS}
         fill="none"
-        stroke="rgba(255,255,255,0.08)"
+        stroke="#E5E7EB"
         strokeWidth={RING_STROKE_WIDTH}
       />
       <circle
@@ -133,13 +133,13 @@ export function ScoreOverview({
   ];
 
   return (
-    <section className="rounded-[20px] border border-[#7C3AED]/25 bg-gradient-to-b from-[#7C3AED]/[0.06] to-transparent p-5 lg:p-6">
+    <section className="rounded-[20px] border border-[#DDD6FE] bg-[#FAF7FF] p-5 lg:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#A78BFA]">
+        <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#7C3AED]">
           {scores.sectionEyebrow}
         </p>
       </div>
-      <h2 className="mt-2 text-[17px] font-semibold text-[#F5F5F7]">
+      <h2 className="mt-2 text-[17px] font-semibold text-[#111827]">
         {scores.heading}
       </h2>
 
@@ -152,7 +152,7 @@ export function ScoreOverview({
           return (
             <div
               key={metric.label}
-              className="flex flex-col items-center rounded-[16px] border border-white/10 bg-white/[0.03] px-4 py-5 text-center"
+              className="flex flex-col items-center rounded-[16px] border border-[#E5E7EB] bg-white px-4 py-5 text-center"
             >
               <div
                 className="relative shrink-0"
@@ -169,7 +169,7 @@ export function ScoreOverview({
                     style={{ color: palette.icon }}
                     aria-hidden="true"
                   />
-                  <span className="mt-1 text-[32px] font-bold leading-none text-[#F5F5F7]">
+                  <span className="mt-1 text-[32px] font-bold leading-none text-[#111827]">
                     {metric.value}
                   </span>
                   <span className="mt-0.5 text-[11px] font-medium text-[#6B7280]">
@@ -177,10 +177,10 @@ export function ScoreOverview({
                   </span>
                 </div>
               </div>
-              <p className="mt-3.5 text-[14px] font-semibold text-[#F5F5F7]">
+              <p className="mt-3.5 text-[14px] font-semibold text-[#111827]">
                 {metric.label}
               </p>
-              <p className="mt-2 text-[12.5px] leading-[1.5] text-[#9CA3AF]">
+              <p className="mt-2 text-[12.5px] leading-[1.5] text-[#6B7280]">
                 {metric.explanation}
               </p>
             </div>
