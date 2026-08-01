@@ -724,6 +724,7 @@ const allSourceFiles = [
   "app/competitor-scripts/page.tsx",
   "app/competitor-scripts/mode-card.tsx",
   "app/competitor-scripts/sidebar.tsx",
+  "app/competitor-scripts/mode-switcher.tsx",
   "app/competitor-scripts/url-validation.ts",
   ...analyzeComponentPaths,
   ...compareComponentPaths,
@@ -780,6 +781,85 @@ check(
   "Competitor Scripts nav item is hardcoded active",
   sidebarSource.includes('label={copy.pageTitle}') &&
     /label=\{copy\.pageTitle\}\s*\n\s*active/.test(sidebarSource)
+);
+
+// ── Global sidebar collapsed to one entry, local ModeSwitcher added ────
+
+check(
+  "sidebar.tsx no longer renders separate global Analyze/Compare nav rows — only the one Competitor Scripts entry links into this route family",
+  !sidebarSource.includes('href="/competitor-scripts/analyze"') &&
+    !sidebarSource.includes('href="/competitor-scripts/compare"')
+);
+
+check(
+  "Sidebar no longer accepts an activeMode prop — the single nav row is unconditionally active",
+  !sidebarSource.includes("activeMode")
+);
+
+const modeSwitcherSource = readFileSync(
+  "app/competitor-scripts/mode-switcher.tsx",
+  "utf8"
+);
+
+check(
+  "ModeSwitcher links to both real mode routes",
+  /href="\/competitor-scripts\/analyze"/.test(modeSwitcherSource) &&
+    /href="\/competitor-scripts\/compare"/.test(modeSwitcherSource)
+);
+
+check(
+  "ModeSwitcher marks the current mode with aria-selected, driven by the activeMode prop — never a hardcoded true/false",
+  /aria-selected=\{activeMode === "analyze"\}/.test(modeSwitcherSource) &&
+    /aria-selected=\{activeMode === "compare"\}/.test(modeSwitcherSource)
+);
+
+check(
+  "ModeSwitcher introduces no client-side state — it is not a Client Component",
+  !modeSwitcherSource.includes('"use client"')
+);
+
+const analyzeInputSource = readFileSync(
+  "app/competitor-scripts/analyze/page.tsx",
+  "utf8"
+);
+const analyzeResultsSource = readFileSync(
+  "app/competitor-scripts/analyze/results/page.tsx",
+  "utf8"
+);
+const compareInputSource = readFileSync(
+  "app/competitor-scripts/compare/page.tsx",
+  "utf8"
+);
+const compareResultsSource = readFileSync(
+  "app/competitor-scripts/compare/results/page.tsx",
+  "utf8"
+);
+
+check(
+  "all 4 mode pages (Analyze input/results, Compare input/results) render ModeSwitcher with the correct activeMode",
+  /<ModeSwitcher messages=\{messages\} activeMode="analyze" \/>/.test(analyzeInputSource) &&
+    /<ModeSwitcher messages=\{messages\} activeMode="analyze" \/>/.test(analyzeResultsSource) &&
+    /<ModeSwitcher messages=\{messages\} activeMode="compare" \/>/.test(compareInputSource) &&
+    /<ModeSwitcher messages=\{messages\} activeMode="compare" \/>/.test(compareResultsSource)
+);
+
+check(
+  "switching mode from a results page targets the other mode's input page, never a results page with no data",
+  /href="\/competitor-scripts\/analyze"/.test(modeSwitcherSource) &&
+    /href="\/competitor-scripts\/compare"/.test(modeSwitcherSource) &&
+    !modeSwitcherSource.includes("/results")
+);
+
+check(
+  "none of the 4 mode pages passes activeMode to <Sidebar> anymore",
+  ![analyzeInputSource, analyzeResultsSource, compareInputSource, compareResultsSource].some(
+    (source) => /<Sidebar[^>]*activeMode/.test(source)
+  )
+);
+
+check(
+  "the hub page's <Sidebar> call is untouched (still no activeMode, never redirected)",
+  modeSelectionPageSource.includes("<Sidebar messages={messages} />")
 );
 
 // ── SidebarAccount: real session fields only ────────────────────────────

@@ -1,26 +1,19 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import {
-  ArrowLeft,
-  Crown,
-  GitCompare,
-  History,
-  Home,
-  PlayCircle,
-  Swords,
-} from "lucide-react";
+import { ArrowLeft, Crown, History, Home, Swords } from "lucide-react";
 import { LanguageSwitcher } from "../language-switcher";
 import type { Messages } from "../../lib/messages";
 import { SidebarAccount } from "./sidebar-account";
 
 // Every nav destination here is a real, existing route (/, /my-analyses,
-// /competitor-scripts, /competitor-scripts/analyze, /competitor-scripts/
-// compare) — no speculative/placeholder items, so nothing in this sidebar
-// can ever lead to a 404. This component is mounted on five routes (the
-// hub plus both modes' input and results pages), so active state is
-// driven by the explicit `activeMode` prop each page passes in — never
-// hardcoded — matching the existing NavItem `active` convention below.
+// /competitor-scripts) — no speculative/placeholder items, so nothing in
+// this sidebar can ever lead to a 404. This component is mounted on all
+// five Competitor Scripts routes (the hub plus both modes' input and
+// results pages), and the "Competitor Scripts" entry is always active on
+// every one of them — switching between Analyze and Compare happens via
+// the local ModeSwitcher on those pages instead, not via separate global
+// rows here (see mode-switcher.tsx).
 function NavItem({
   href,
   icon,
@@ -62,16 +55,7 @@ function PlanCard({ label }: { label: string }) {
   );
 }
 
-export function Sidebar({
-  messages,
-  activeMode,
-}: {
-  messages: Messages;
-  // Omitted (undefined) only on the hub page itself (/competitor-scripts),
-  // where neither mode is "active" — set explicitly to "analyze" or
-  // "compare" by every mode subpage (input and results).
-  activeMode?: "analyze" | "compare";
-}) {
+export function Sidebar({ messages }: { messages: Messages }) {
   const copy = messages.competitorScripts.modeSelection;
 
   return (
@@ -103,19 +87,7 @@ export function Sidebar({
             href="/competitor-scripts"
             icon={<Swords size={17} />}
             label={copy.pageTitle}
-            active={activeMode === undefined}
-          />
-          <NavItem
-            href="/competitor-scripts/analyze"
-            icon={<PlayCircle size={17} />}
-            label={copy.sidebar.analyzeLabel}
-            active={activeMode === "analyze"}
-          />
-          <NavItem
-            href="/competitor-scripts/compare"
-            icon={<GitCompare size={17} />}
-            label={copy.sidebar.compareLabel}
-            active={activeMode === "compare"}
+            active
           />
         </nav>
 

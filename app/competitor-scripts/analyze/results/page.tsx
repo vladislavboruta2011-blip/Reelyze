@@ -3,6 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import { getMessages } from "../../../../lib/messages";
 import { getServerLocale } from "../../../../lib/server-locale";
 import { Sidebar } from "../../sidebar";
+import { ModeSwitcher } from "../../mode-switcher";
 import { AnalyzeResultsContent } from "./analyze-results-content";
 
 export default async function AnalyzeResultsPage() {
@@ -12,7 +13,7 @@ export default async function AnalyzeResultsPage() {
 
   return (
     <main className="min-h-screen bg-[#0A0A12] text-[#F5F5F7] antialiased">
-      <Sidebar messages={messages} activeMode="analyze" />
+      <Sidebar messages={messages} />
 
       {/* Deliberately no shared page-entrance class here — this wrapper
           mounts before the real report is ready. AnalyzeResultsContent's
@@ -29,6 +30,8 @@ export default async function AnalyzeResultsPage() {
               <ArrowLeft size={15} aria-hidden="true" />
               {copy.backToAnalyze}
             </Link>
+
+            <ModeSwitcher messages={messages} activeMode="analyze" />
 
             <p className="mt-5 text-[12px] font-semibold uppercase tracking-[0.18em] text-[#A78BFA]">
               {copy.heroEyebrow}
