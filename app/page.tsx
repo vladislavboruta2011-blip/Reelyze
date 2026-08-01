@@ -75,12 +75,12 @@ function Badge({ children }: { children: React.ReactNode }) {
   );
 }
 
-// Only ever rendered on the dark Hero band (its light-page counterparts —
-// ValueSection, ComparisonSection, etc. — use Badge/HandUnderline instead),
-// so this is styled for a black background directly rather than needing a
-// variant prop. Icon is per-item (not hardcoded) so each real capability
-// gets its own distinct glyph, matching the visual mockup's icon-led trust
-// row without adopting any of that mockup's unverified claims.
+// Rendered in the Hero's trust row, now on the same light page background
+// as the rest of the landing page (the Hero band no longer has its own
+// dark background — see HeroSection). Icon is per-item (not hardcoded) so
+// each real capability gets its own distinct glyph, matching the visual
+// mockup's icon-led trust row without adopting any of that mockup's
+// unverified claims.
 function TrustItem({
   icon,
   children,
@@ -90,7 +90,7 @@ function TrustItem({
 }) {
   return (
     <div className="flex items-center gap-2">
-      <span className="text-[#A78BFA]">{icon}</span>
+      <span className="text-[#7C3AED]">{icon}</span>
       <span>{children}</span>
     </div>
   );
@@ -133,7 +133,8 @@ function BackgroundDecor() {
   );
 }
 
-// ─── Desktop landing: navbar (dark — lives only inside the black Hero band) ───
+// ─── Desktop landing: navbar (light — sits directly on the shared light
+// page background, same as the rest of the landing page) ─────────────────
 
 function Navbar() {
   const messages = useMessages();
@@ -142,65 +143,42 @@ function Navbar() {
     <header className="relative z-10 mx-auto flex h-[96px] w-full max-w-[1280px] items-center justify-between px-8">
       <Link href="/" className="flex items-center gap-3">
         <Image src="/logo.png" alt="Climpy" width={40} height={40} className="h-10 w-10 object-contain" priority />
-        <span className="text-[18px] font-bold tracking-[0.16em] text-white">CLIMPY</span>
+        <span className="text-[18px] font-bold tracking-[0.16em] text-[#111827]">CLIMPY</span>
       </Link>
 
-      <nav className="hidden items-center gap-9 text-[15px] font-medium text-white/55 md:flex">
-        <a href="#features" className="transition hover:text-white">
+      <nav className="hidden items-center gap-9 text-[15px] font-medium text-[#6B7280] md:flex">
+        <a href="#features" className="transition hover:text-[#111827]">
           {messages.landing.nav.features}
         </a>
-        <a href="#how-it-works" className="transition hover:text-white">
+        <a href="#how-it-works" className="transition hover:text-[#111827]">
           {messages.landing.nav.howItWorks}
-        </a>
-        <a
-          href="#analyzer"
-          onClick={(e) => {
-            e.preventDefault();
-            document.getElementById("analyzer")?.scrollIntoView({ behavior: "smooth" });
-          }}
-          className="transition hover:text-white"
-        >
-          {messages.landing.nav.analyze}
         </a>
       </nav>
 
+      {/* Analyze/Compare are real routes (not anchor scrolls), styled as
+          two clear, equally-weighted destinations — this replaces the old
+          single anchor-scroll "Analyze" text link + generic "Start free"
+          gradient pill with the two actual workflows a first-time visitor
+          needs to discover, per the approved launch-surface direction.
+          Neither is hidden behind a vaguer "Get started" action. */}
       <div className="hidden items-center gap-3 md:flex">
-        <LanguageSwitcher variant="dark" />
-        <AuthNav variant="dark" />
-        <a
-          href="#analyzer"
-          onClick={(e) => {
-            e.preventDefault();
-            document.getElementById("analyzer")?.scrollIntoView({ behavior: "smooth" });
-          }}
-          className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#6D28D9] to-[#7C3AED] px-5 py-2.5 text-[14px] font-semibold text-white shadow-[0_0_24px_rgba(124,58,237,0.35)] transition hover:from-[#7C3AED] hover:to-[#8B5CF6]"
+        <LanguageSwitcher />
+        <AuthNav />
+        <Link
+          href="/competitor-scripts/analyze"
+          className="inline-flex h-[42px] items-center justify-center rounded-full border border-[#E5E7EB] bg-white px-5 text-[14px] font-semibold text-[#374151] transition hover:border-[#7C3AED]/40 hover:text-[#111827] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C3AED]"
         >
-          {messages.landing.nav.startFree}
+          {messages.landing.nav.analyze}
+        </Link>
+        <Link
+          href="/competitor-scripts/compare"
+          className="inline-flex h-[42px] items-center gap-1.5 rounded-full bg-gradient-to-r from-[#6D28D9] to-[#7C3AED] px-5 text-[14px] font-semibold text-white shadow-[0_0_20px_rgba(124,58,237,0.28)] transition hover:from-[#7C3AED] hover:to-[#8B5CF6] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C3AED]"
+        >
+          {messages.landing.nav.compare}
           <ArrowRight className="h-3.5 w-3.5" />
-        </a>
+        </Link>
       </div>
     </header>
-  );
-}
-
-// ─── Desktop landing: Hero band background (black + purple/blue glows) ───────
-
-function HeroBackground() {
-  return (
-    <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
-      <div className="absolute inset-0 bg-[#07070B]" />
-      <div className="absolute left-1/2 top-[-260px] h-[620px] w-[900px] -translate-x-1/2 rounded-full bg-[#7C3AED]/25 blur-[160px]" />
-      <div className="absolute right-[-220px] top-[60px] h-[520px] w-[560px] rounded-full bg-[#3B82F6]/20 blur-[150px]" />
-      <div className="absolute left-[-240px] top-[420px] h-[480px] w-[480px] rounded-full bg-[#6D28D9]/20 blur-[150px]" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.06)_1px,transparent_1px)] [background-size:28px_28px] opacity-[0.35]" />
-      {/* Soft bottom fade back into the light page below — the rest of the
-          page (ValueSection onward) is intentionally untouched/light; this
-          gradient is only this band's own closing edge, not a restyle of
-          what comes after it. Short enough (and HeroFeatureRow's own bottom
-          padding is generous enough) that it never washes out the feature
-          row's text above it. */}
-      <div className="absolute inset-x-0 bottom-0 h-[90px] bg-gradient-to-b from-transparent to-[#FAFAFA]" />
-    </div>
   );
 }
 
@@ -239,7 +217,7 @@ function HeroScoreRing({ value, color }: { value: number; color: string }) {
         cy={HERO_RING_SIZE / 2}
         r={HERO_RING_RADIUS}
         fill="none"
-        stroke="rgba(255,255,255,0.08)"
+        stroke="#E5E7EB"
         strokeWidth={HERO_RING_STROKE}
       />
       <circle
@@ -269,7 +247,7 @@ function HeroScoreCard({
   color: string;
 }) {
   return (
-    <div className="flex flex-col items-center rounded-[16px] border border-white/10 bg-white/[0.03] px-3 py-5">
+    <div className="flex flex-col items-center rounded-[16px] border border-[#E5E7EB] bg-[#F8F8FC] px-3 py-5">
       <div className="relative" style={{ width: HERO_RING_SIZE, height: HERO_RING_SIZE }}>
         <HeroScoreRing value={value} color={color} />
         <div
@@ -278,11 +256,11 @@ function HeroScoreCard({
           className="absolute inset-0 flex flex-col items-center justify-center"
         >
           <Icon size={15} style={{ color }} aria-hidden="true" />
-          <span className="mt-1 text-[26px] font-bold leading-none text-white">{value}</span>
-          <span className="mt-0.5 text-[10px] font-medium text-white/35">/100</span>
+          <span className="mt-1 text-[26px] font-bold leading-none text-[#111827]">{value}</span>
+          <span className="mt-0.5 text-[10px] font-medium text-[#9CA3AF]">/100</span>
         </div>
       </div>
-      <p className="mt-3 text-[13px] font-semibold text-white">{label}</p>
+      <p className="mt-3 text-[13px] font-semibold text-[#111827]">{label}</p>
     </div>
   );
 }
@@ -321,10 +299,10 @@ function HeroStructureRow() {
               }}
             />
           </div>
-          <p className="mt-2.5 text-[11px] font-semibold leading-tight text-white">
+          <p className="mt-2.5 text-[11px] font-semibold leading-tight text-[#111827]">
             {labels[beat.key as keyof typeof labels]}
           </p>
-          <p className="text-[10px] tabular-nums text-white/40">{beat.time}</p>
+          <p className="text-[10px] tabular-nums text-[#9CA3AF]">{beat.time}</p>
         </div>
       ))}
     </div>
@@ -523,57 +501,56 @@ function HeroAppPreview() {
   return (
     <div className="relative hero-dashboard-3d" ref={outerRef}>
       <div ref={interactiveRef}>
-        <div className="absolute -inset-10 rounded-[40px] bg-[#7C3AED]/20 blur-[90px]" />
-        <div className="relative overflow-hidden rounded-[28px] border border-white/10 bg-[#0B0B12] p-7 shadow-[0_36px_120px_rgba(0,0,0,0.55)]">
+        <div className="relative overflow-hidden rounded-[28px] border border-[#E5E7EB] bg-white p-7 shadow-[0_36px_120px_rgba(17,24,39,0.10)]">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-start gap-3">
               <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#7C3AED] text-white">
                 <CheckCircle2 className="h-[18px] w-[18px]" aria-hidden="true" />
               </span>
               <div>
-                <h2 className="text-[20px] font-semibold tracking-[-0.02em] text-white">
+                <h2 className="text-[20px] font-semibold tracking-[-0.02em] text-[#111827]">
                   {preview.title}
                 </h2>
-                <p className="mt-1 text-[13px] text-white/45">{preview.subtitle}</p>
+                <p className="mt-1 text-[13px] text-[#6B7280]">{preview.subtitle}</p>
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2.5">
-              <button className="rounded-[10px] border border-white/10 bg-white/[0.04] px-4 py-2.5 text-[12.5px] font-semibold text-white/80">
+              <button className="rounded-[10px] border border-[#E5E7EB] bg-[#F8F8FC] px-4 py-2.5 text-[12.5px] font-semibold text-[#374151]">
                 {preview.reanalyze}
               </button>
-              <button className="inline-flex items-center gap-1 rounded-[10px] border border-white/10 bg-white/[0.04] px-4 py-2.5 text-[12.5px] font-semibold text-white/80">
+              <button className="inline-flex items-center gap-1 rounded-[10px] border border-[#E5E7EB] bg-[#F8F8FC] px-4 py-2.5 text-[12.5px] font-semibold text-[#374151]">
                 {preview.export}
                 <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
               </button>
             </div>
           </div>
-  
-          <p className="mt-7 text-[15px] font-semibold text-white">{preview.scoreOverviewLabel}</p>
+
+          <p className="mt-7 text-[15px] font-semibold text-[#111827]">{preview.scoreOverviewLabel}</p>
           <div className="mt-4 grid grid-cols-4 gap-3">
             <HeroScoreCard Icon={Gauge} value={85} label={preview.scores.overall} color={HERO_METRIC_COLORS.overall} />
             <HeroScoreCard Icon={Zap} value={93} label={preview.scores.hook} color={HERO_METRIC_COLORS.hook} />
             <HeroScoreCard Icon={Activity} value={76} label={preview.scores.retention} color={HERO_METRIC_COLORS.retention} />
             <HeroScoreCard Icon={Workflow} value={81} label={preview.scores.structure} color={HERO_METRIC_COLORS.structure} />
           </div>
-  
-          <div className="mt-5 rounded-[18px] border border-white/10 bg-white/[0.025] p-5">
-            <p className="text-[15px] font-semibold text-white">{preview.structureLabel}</p>
+
+          <div className="mt-5 rounded-[18px] border border-[#E5E7EB] bg-[#F8F8FC] p-5">
+            <p className="text-[15px] font-semibold text-[#111827]">{preview.structureLabel}</p>
             <div className="mt-5">
               <HeroStructureRow />
             </div>
           </div>
-  
+
           <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
-            <div className="rounded-[16px] border border-white/10 bg-white/[0.025] p-4">
-              <div className="flex items-center gap-1.5 text-[#C4B5FD]">
+            <div className="rounded-[16px] border border-[#E5E7EB] bg-[#F8F8FC] p-4">
+              <div className="flex items-center gap-1.5 text-[#7C3AED]">
                 <Target className="h-4 w-4" />
                 <p className="text-[12px] font-semibold">{preview.mainTakeawayLabel}</p>
               </div>
-              <p className="mt-2.5 text-[12.5px] leading-[1.55] text-white/65">{preview.mainTakeaway}</p>
+              <p className="mt-2.5 text-[12.5px] leading-[1.55] text-[#6B7280]">{preview.mainTakeaway}</p>
             </div>
-  
-            <div className="rounded-[16px] border border-white/10 bg-white/[0.025] p-4">
-              <p className="text-[12px] font-semibold text-white/70">{preview.retentionCurve}</p>
+
+            <div className="rounded-[16px] border border-[#E5E7EB] bg-[#F8F8FC] p-4">
+              <p className="text-[12px] font-semibold text-[#374151]">{preview.retentionCurve}</p>
               <div className="mt-3.5 h-[64px] w-full">
                 <svg
                   viewBox="0 0 180 60"
@@ -584,7 +561,7 @@ function HeroAppPreview() {
                   <path
                     d="M0,34 C10,14 20,10 30,22 C40,34 50,44 60,30 C70,16 80,10 90,20 C100,30 110,42 120,32 C130,22 140,12 150,18 C160,24 170,30 180,22"
                     fill="none"
-                    stroke="#A78BFA"
+                    stroke="#7C3AED"
                     strokeWidth="2.5"
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -592,13 +569,13 @@ function HeroAppPreview() {
                 </svg>
               </div>
             </div>
-  
-            <div className="rounded-[16px] border border-white/10 bg-white/[0.025] p-4">
-              <div className="flex items-center gap-1.5 text-[#FDBA74]">
+
+            <div className="rounded-[16px] border border-[#E5E7EB] bg-[#F8F8FC] p-4">
+              <div className="flex items-center gap-1.5 text-[#B45309]">
                 <Lightbulb className="h-4 w-4" />
                 <p className="text-[12px] font-semibold">{preview.suggestedFixLabel}</p>
               </div>
-              <p className="mt-2.5 text-[12.5px] leading-[1.55] text-white/65">{preview.suggestedFix}</p>
+              <p className="mt-2.5 text-[12.5px] leading-[1.55] text-[#6B7280]">{preview.suggestedFix}</p>
             </div>
           </div>
         </div>
@@ -607,8 +584,8 @@ function HeroAppPreview() {
   );
 }
 
-// ─── Desktop landing: hero section (dark — lives only inside the black Hero
-// band, wrapped together with Navbar by HeroBackground above) ────────────────
+// ─── Desktop landing: hero section (light — sits directly on the shared
+// page background, no dark band, no HeroBackground) ───────────────────────
 
 function HeroSection() {
   const messages = useMessages();
@@ -616,52 +593,48 @@ function HeroSection() {
   return (
     <section className="relative z-10 mx-auto grid w-full max-w-[1360px] grid-cols-1 items-start gap-14 px-8 pb-16 pt-10 lg:grid-cols-[1fr_640px] lg:gap-12 lg:pb-20 lg:pt-14">
       <div className="max-w-[700px] lg:pt-3">
-        <div className="inline-flex h-[43px] items-center gap-2 rounded-full border border-[#7C3AED]/30 bg-[#7C3AED]/10 px-5 text-[14px] font-medium text-[#C4B5FD]">
-          <Sparkles className="h-4 w-4 text-[#A78BFA]" />
+        <div className="inline-flex h-[43px] items-center gap-2 rounded-full border border-[#DDD6FE] bg-[#F3E8FF] px-5 text-[14px] font-medium text-[#6D28D9]">
+          <Sparkles className="h-4 w-4 text-[#7C3AED]" />
           {messages.landing.hero.desktopBadge}
         </div>
 
-        <h1 className="mt-8 max-w-[720px] text-[58px] font-extrabold leading-[0.95] tracking-[-0.06em] text-white md:text-[76px] lg:text-[84px]">
+        <h1 className="mt-8 max-w-[720px] text-[58px] font-extrabold leading-[0.95] tracking-[-0.06em] text-[#111827] md:text-[76px] lg:text-[84px]">
           {messages.landing.hero.desktopHeadlinePrefix}
           <br />
           <HandUnderline>
-            <span className="bg-gradient-to-r from-[#A78BFA] via-[#8B5CF6] to-[#3B82F6] bg-clip-text text-transparent [text-shadow:0_0_50px_rgba(124,58,237,0.25)]">
+            <span className="text-[#7C3AED]">
               {messages.landing.hero.desktopHeadlineHighlight}
             </span>
           </HandUnderline>
         </h1>
 
-        <p className="mt-9 max-w-[560px] text-[19px] leading-[1.75] text-white/55">
+        <p className="mt-9 max-w-[560px] text-[19px] leading-[1.75] text-[#6B7280]">
           {messages.landing.hero.desktopDescription}
         </p>
 
+        {/* Two distinct, equally-weighted workflow CTAs — Analyze stays the
+            lower-friction primary action, Compare is a real secondary CTA
+            to the real Compare route, never a generic "Get started" that
+            hides which workflow it leads to. */}
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
-          <a
-            href="#analyzer"
-            onClick={(e) => {
-              e.preventDefault();
-              document.getElementById("analyzer")?.scrollIntoView({ behavior: "smooth" });
-            }}
-            className="inline-flex h-[54px] items-center justify-center gap-2.5 rounded-[12px] bg-gradient-to-r from-[#6D28D9] to-[#7C3AED] px-7 text-[17px] font-semibold text-white shadow-[0_0_50px_rgba(124,58,237,0.35)] transition hover:from-[#7C3AED] hover:to-[#8B5CF6]"
+          <Link
+            href="/competitor-scripts/analyze"
+            className="inline-flex h-[54px] items-center justify-center gap-2.5 rounded-[12px] bg-gradient-to-r from-[#6D28D9] to-[#7C3AED] px-7 text-[17px] font-semibold text-white shadow-[0_0_30px_rgba(124,58,237,0.22)] transition hover:from-[#7C3AED] hover:to-[#8B5CF6] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C3AED]"
           >
             {messages.landing.hero.primaryAction}
             <ArrowRight className="h-4 w-4" />
-          </a>
+          </Link>
 
-          <a
-            href="#how-it-works"
-            onClick={(e) => {
-              e.preventDefault();
-              document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" });
-            }}
-            className="inline-flex h-[54px] items-center justify-center gap-2.5 rounded-[12px] border border-white/15 bg-white/[0.04] px-6 text-[16px] font-semibold text-white transition hover:border-white/25 hover:bg-white/[0.08]"
+          <Link
+            href="/competitor-scripts/compare"
+            className="inline-flex h-[54px] items-center justify-center gap-2.5 rounded-[12px] border border-[#E5E7EB] bg-white px-6 text-[16px] font-semibold text-[#111827] transition hover:border-[#7C3AED]/40 hover:bg-[#FAF7FF] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C3AED]"
           >
-            <Play className="h-4 w-4" />
+            <Play className="h-4 w-4 text-[#7C3AED]" />
             {messages.landing.hero.secondaryAction}
-          </a>
+          </Link>
         </div>
 
-        <div className="mt-10 flex flex-wrap gap-5 text-[14px] text-white/50">
+        <div className="mt-10 flex flex-wrap gap-5 text-[14px] text-[#6B7280]">
           <TrustItem icon={<Target className="h-4 w-4" />}>
             {messages.landing.hero.trustFindWeakLines}
           </TrustItem>
@@ -693,11 +666,11 @@ function HeroFeatureTile({
 }) {
   return (
     <div className="flex flex-col items-center text-center">
-      <div className="flex h-14 w-14 items-center justify-center rounded-[16px] border border-[#7C3AED]/25 bg-[#7C3AED]/10 text-[#A78BFA]">
+      <div className="flex h-14 w-14 items-center justify-center rounded-[16px] border border-[#DDD6FE] bg-[#F3E8FF] text-[#7C3AED]">
         <Icon className="h-6 w-6" aria-hidden="true" />
       </div>
-      <p className="mt-4 text-[15px] font-semibold text-white">{title}</p>
-      <p className="mt-1.5 max-w-[190px] text-[13px] leading-[1.5] text-white/45">
+      <p className="mt-4 text-[15px] font-semibold text-[#111827]">{title}</p>
+      <p className="mt-1.5 max-w-[190px] text-[13px] leading-[1.5] text-[#6B7280]">
         {description}
       </p>
     </div>
@@ -1091,6 +1064,116 @@ function AnalyzerSection({
   );
 }
 
+// ─── Desktop landing: dedicated Compare workflow section ──────────────────
+// Named distinctly from the existing ComparisonSection below (which is a
+// "without Climpy / with Climpy" value-prop card about the single-script
+// Analyze workflow, not the real Compare-with-a-competitor feature) so the
+// two are never confused in this file. One real visual example (grounded
+// quote evidence, matching the actual Compare product's own evidence
+// cards) plus concise supporting copy — deliberately not a dense feature
+// grid, per the approved launch-surface direction.
+function CompareWorkflowSection() {
+  const messages = useMessages();
+  const copy = messages.landing.compareWorkflow;
+
+  return (
+    <section className="relative z-10 mx-auto w-full max-w-[1280px] px-8 pb-28">
+      <div className="mx-auto max-w-[760px] text-center">
+        <Badge>
+          <ArrowRight className="h-4 w-4 rotate-90 text-[#7C3AED] sm:rotate-0" />
+          {copy.badge}
+        </Badge>
+        <h2 className="mx-auto mt-8 max-w-[720px] text-[44px] font-extrabold leading-[1.05] tracking-[-0.055em] text-[#111827] lg:text-[52px]">
+          {copy.headingPrefix} <span className="text-[#7C3AED]">{copy.headingHighlight}</span>
+        </h2>
+        <p className="mx-auto mt-5 max-w-[600px] text-[18px] leading-[1.75] text-[#6B7280]">
+          {copy.description}
+        </p>
+      </div>
+
+      <div className="mt-14 grid grid-cols-1 items-start gap-8 lg:grid-cols-[1.05fr_0.95fr]">
+        {/* One real visual example — grounded evidence, not a generic mockup */}
+        <div className="rounded-[28px] border border-[#DDD6FE] bg-white p-7 shadow-[0_28px_90px_rgba(124,58,237,0.12)]">
+          <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[#7C3AED]">
+            {copy.example.eyebrow}
+          </p>
+          <p className="mt-3 text-[19px] font-semibold leading-[1.4] text-[#111827]">
+            {copy.example.headline}
+          </p>
+
+          <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="rounded-[16px] border border-[#E5E7EB] bg-[#F8F8FC] px-4 py-3.5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
+                {copy.example.yourScriptLabel}
+              </p>
+              <p className="mt-1.5 text-[13.5px] italic leading-[1.55] text-[#374151]">
+                &ldquo;{copy.example.yourScriptExcerpt}&rdquo;
+              </p>
+            </div>
+            <div className="rounded-[16px] border-l-2 border-[#DDD6FE] bg-[#FAF7FF] px-4 py-3.5">
+              <div className="flex items-baseline justify-between gap-2">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#7C3AED]">
+                  {copy.example.competitorScriptLabel}
+                </p>
+                <span className="text-[11px] tabular-nums text-[#9CA3AF]">{copy.example.timestamp}</span>
+              </div>
+              <p className="mt-1.5 text-[13.5px] italic leading-[1.55] text-[#374151]">
+                &ldquo;{copy.example.competitorScriptExcerpt}&rdquo;
+              </p>
+            </div>
+          </div>
+
+          <p className="mt-5 rounded-[14px] border border-[#E5E7EB] bg-[#F8F8FC] px-4 py-3 text-[13px] leading-[1.6] text-[#6B7280]">
+            {copy.example.disclaimer}
+          </p>
+        </div>
+
+        {/* Provide / receive, trust boundary, and the one CTA */}
+        <div className="flex flex-col gap-6">
+          <div>
+            <p className="text-[12px] font-semibold uppercase tracking-[0.1em] text-[#9CA3AF]">
+              {copy.provideLabel}
+            </p>
+            <ul className="mt-2.5 flex flex-col gap-1.5">
+              {copy.provideItems.map((item) => (
+                <li key={item} className="flex items-start gap-2 text-[15px] leading-[1.55] text-[#374151]">
+                  <CheckCircle2 className="mt-1 h-4 w-4 shrink-0 text-[#7C3AED]" aria-hidden="true" />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div>
+            <p className="text-[12px] font-semibold uppercase tracking-[0.1em] text-[#9CA3AF]">
+              {copy.receiveLabel}
+            </p>
+            <ul className="mt-2.5 flex flex-col gap-1.5">
+              {copy.receiveItems.map((item) => (
+                <li key={item} className="flex items-start gap-2 text-[15px] leading-[1.55] text-[#374151]">
+                  <CheckCircle2 className="mt-1 h-4 w-4 shrink-0 text-[#7C3AED]" aria-hidden="true" />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <p className="text-[13.5px] leading-[1.65] text-[#9CA3AF]">
+            {copy.trustNote}
+          </p>
+
+          <Link
+            href="/competitor-scripts/compare"
+            className="inline-flex h-[52px] w-fit items-center justify-center gap-2.5 rounded-[12px] bg-gradient-to-r from-[#6D28D9] to-[#7C3AED] px-7 text-[16px] font-semibold text-white shadow-[0_0_24px_rgba(124,58,237,0.24)] transition hover:from-[#7C3AED] hover:to-[#8B5CF6] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C3AED]"
+          >
+            {copy.cta}
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
+}
 
 function ComparisonSection() {
   const messages = useMessages();
@@ -1311,14 +1394,14 @@ function FooterSection() {
               {footer.productHeading}
             </p>
             <div className="mt-5 grid gap-3 text-[15px] font-medium text-[#374151]">
-              <a href="#analyzer" className="transition hover:text-[#7C3AED]">
+              <Link href="/competitor-scripts/analyze" className="transition hover:text-[#7C3AED]">
                 {footer.analyzeScript}
-              </a>
+              </Link>
+              <Link href="/competitor-scripts/compare" className="transition hover:text-[#7C3AED]">
+                {footer.compareScripts}
+              </Link>
               <a href="#faqs" className="transition hover:text-[#7C3AED]">
                 {footer.faqs}
-              </a>
-              <a href="#analyzer" className="transition hover:text-[#7C3AED]">
-                {footer.tryClimpy}
               </a>
             </div>
           </div>
@@ -1432,6 +1515,16 @@ export default function HomePage() {
   }
 
   const mobileMenuItems: OverflowMenuItem[] = [
+    {
+      key: "analyze",
+      label: messages.landing.nav.analyze,
+      onSelect: () => router.push("/competitor-scripts/analyze"),
+    },
+    {
+      key: "compare",
+      label: messages.landing.nav.compare,
+      onSelect: () => router.push("/competitor-scripts/compare"),
+    },
     {
       key: "results",
       label: messages.landing.nav.results,
@@ -1813,14 +1906,11 @@ export default function HomePage() {
       <div className="hidden min-[900px]:block">
         <div className="relative overflow-hidden">
           <BackgroundDecor />
-          {/* Dark Hero band (black + purple/blue glows) — self-contained and
-              opaque, explicitly stacked (z-10, matching how Navbar/
-              HeroSection's own root elements already use z-10) above
-              BackgroundDecor's light-page wash so it never bleeds through.
-              Everything from ValueSection down stays on the existing light
-              page background, untouched. */}
-          <div className="relative isolate z-10 overflow-hidden bg-[#07070B]">
-            <HeroBackground />
+          {/* Hero band now sits directly on the shared light page background
+              — no dark wrapper, no HeroBackground (removed). Navbar/
+              HeroSection/HeroFeatureRow stay z-10 above BackgroundDecor's
+              light-page wash, same stacking as before. */}
+          <div className="relative isolate z-10">
             <Navbar />
             <HeroSection />
             <HeroFeatureRow />
@@ -1837,6 +1927,7 @@ export default function HomePage() {
             analyzeError={analyzeError}
             onTryExample={handleTryExample}
           />
+          <CompareWorkflowSection />
           <ComparisonSection />
           <CommonQuestionsSection />
           <FooterSection />
@@ -1919,17 +2010,23 @@ export default function HomePage() {
               {messages.landing.hero.mobileDescription}
             </p>
 
-            <a
-              href="#analyzer-mobile"
-              onClick={(e) => {
-                e.preventDefault();
-                document.getElementById("analyzer-mobile")?.scrollIntoView({ behavior: "smooth" });
-              }}
+            {/* Same two real-route CTAs as desktop (§ HeroSection) — mobile
+                gets both workflows too, not just the primary one. */}
+            <Link
+              href="/competitor-scripts/analyze"
               className="mt-6 inline-flex h-[54px] w-full items-center justify-center gap-2 rounded-[15px] bg-[#6D28D9] text-[15px] font-bold text-white shadow-[0_0_40px_rgba(109,40,217,0.28)] transition hover:bg-[#7C3AED] active:scale-[0.99]"
             >
               {messages.landing.hero.primaryAction}
               <ArrowRight className="h-4 w-4" />
-            </a>
+            </Link>
+
+            <Link
+              href="/competitor-scripts/compare"
+              className="mt-3 inline-flex h-[50px] w-full items-center justify-center gap-2 rounded-[15px] border border-[#E5E7EB] bg-white text-[14.5px] font-semibold text-[#111827] transition active:scale-[0.99]"
+            >
+              <Play className="h-4 w-4 text-[#7C3AED]" />
+              {messages.landing.hero.secondaryAction}
+            </Link>
 
             <div className="mt-4 flex items-center gap-3 text-[11px] font-medium text-[#6B7280]">
               <span>{messages.landing.hero.shortsFirst}</span>
@@ -2190,6 +2287,43 @@ export default function HomePage() {
             </div>
           </section>
 
+          {/* Compact mobile Compare section — same input/output/no-claims
+              content as the desktop CompareWorkflowSection, stacked instead
+              of the two-column desktop layout. */}
+          <section className="mt-8 rounded-[24px] border border-[#DDD6FE] bg-white p-5">
+            <p className="text-[12px] font-semibold uppercase tracking-[0.1em] text-[#7C3AED]">
+              {messages.landing.compareWorkflow.badge}
+            </p>
+            <h2 className="mt-2 text-[22px] font-bold leading-[28px] tracking-[-0.05em] text-[#111827]">
+              {messages.landing.compareWorkflow.headingPrefix}{" "}
+              <span className="text-[#7C3AED]">{messages.landing.compareWorkflow.headingHighlight}</span>
+            </h2>
+            <p className="mt-2.5 text-[13.5px] leading-[21px] text-[#6B7280]">
+              {messages.landing.compareWorkflow.description}
+            </p>
+
+            <div className="mt-4 rounded-[16px] border border-[#E5E7EB] bg-[#F8F8FC] px-4 py-3.5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
+                {messages.landing.compareWorkflow.example.competitorScriptLabel}
+              </p>
+              <p className="mt-1 text-[12.5px] italic leading-[1.5] text-[#374151]">
+                &ldquo;{messages.landing.compareWorkflow.example.competitorScriptExcerpt}&rdquo;
+              </p>
+            </div>
+
+            <p className="mt-4 text-[12px] leading-[1.6] text-[#9CA3AF]">
+              {messages.landing.compareWorkflow.trustNote}
+            </p>
+
+            <Link
+              href="/competitor-scripts/compare"
+              className="mt-4 inline-flex h-[48px] w-full items-center justify-center gap-2 rounded-[14px] bg-gradient-to-r from-[#6D28D9] to-[#7C3AED] text-[14px] font-semibold text-white transition hover:from-[#7C3AED] hover:to-[#8B5CF6]"
+            >
+              {messages.landing.compareWorkflow.cta}
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </section>
+
           {/* Bottom CTA */}
           <section className="mt-8 rounded-[24px] border border-[#DDD6FE] bg-[#F3E8FF] p-5">
             <h2 className="text-[23px] font-bold leading-[29px] tracking-[-0.055em] text-[#111827]">
@@ -2200,17 +2334,13 @@ export default function HomePage() {
               {messages.landing.mobile.nextIdea}
             </p>
 
-            <a
-              href="#analyzer-mobile"
-              onClick={(e) => {
-                e.preventDefault();
-                document.getElementById("analyzer-mobile")?.scrollIntoView({ behavior: "smooth" });
-              }}
+            <Link
+              href="/competitor-scripts/analyze"
               className="mt-5 inline-flex h-[48px] w-full items-center justify-center gap-2 rounded-[14px] bg-[#6D28D9] text-[14px] font-semibold text-white transition hover:bg-[#7C3AED]"
             >
               {messages.landing.mobile.tryClimpy}
               <ArrowRight className="h-4 w-4" />
-            </a>
+            </Link>
           </section>
         </div>
 

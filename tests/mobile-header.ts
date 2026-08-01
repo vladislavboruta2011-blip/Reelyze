@@ -110,9 +110,14 @@ function checkLogoVisible(): void {
 // --- All navigation actions remain reachable (via the menu) -------------
 
 function checkAllActionsReachableViaMenu(): void {
+  // Analyze/Compare were added ahead of Results as of the Compare
+  // launch-surface phase — a first-time visitor needs both real workflow
+  // destinations reachable from the mobile menu, not just account-scoped
+  // actions. The array now starts with these two, then Results, unchanged
+  // from there.
   check(
-    "mobileMenuItems always includes Results",
-    /const mobileMenuItems: OverflowMenuItem\[\] = \[\s*\{\s*key: "results",/.test(
+    "mobileMenuItems starts with Analyze, then Compare, then Results",
+    /const mobileMenuItems: OverflowMenuItem\[\] = \[\s*\{\s*key: "analyze",[\s\S]{0,150}\{\s*key: "compare",[\s\S]{0,150}\{\s*key: "results",/.test(
       pageSource
     )
   );
@@ -130,7 +135,7 @@ function checkAllActionsReachableViaMenu(): void {
   );
 
   check(
-    "No new destination was invented — every menu item routes to an existing route (/results, /my-analyses) or an existing auth action (sign in modal, sign out)",
+    "Every menu item routes to an existing route (/competitor-scripts/analyze, /competitor-scripts/compare, /results, /my-analyses) or an existing auth action (sign in modal, sign out) — Analyze/Compare are the only new destinations, both real and already shipped",
     (() => {
       const itemsStart = pageSource.indexOf(
         "const mobileMenuItems: OverflowMenuItem[] = ["
@@ -138,6 +143,8 @@ function checkAllActionsReachableViaMenu(): void {
       const itemsEnd = pageSource.indexOf("];", itemsStart);
       const itemsBlock = pageSource.slice(itemsStart, itemsEnd);
       return (
+        itemsBlock.includes('router.push("/competitor-scripts/analyze")') &&
+        itemsBlock.includes('router.push("/competitor-scripts/compare")') &&
         itemsBlock.includes('router.push("/results")') &&
         itemsBlock.includes('router.push("/my-analyses")') &&
         itemsBlock.includes("handleMobileSignOut") &&
@@ -165,8 +172,14 @@ function checkAllActionsReachableViaMenu(): void {
 // --- Desktop navigation unchanged ---------------------------------------
 
 function checkDesktopNavUnchanged(): void {
+  // As of the Compare launch-surface phase, the desktop Navbar moved from
+  // the black Hero band's own "dark" variant styling to the shared light
+  // page background (no more dark Hero at all — see HeroSection), and the
+  // old single anchor-scroll "Analyze" link + generic "Start free" pill
+  // were replaced with two real-route destinations, Analyze and Compare,
+  // so neither workflow is hidden behind a vague CTA.
   check(
-    "The desktop Navbar still renders exactly one LanguageSwitcher + one AuthNav + the Start Free CTA (now styled via each component's own 'dark' variant for the black Hero band — an additive, backward-compatible prop, not a structural change)",
+    "The desktop Navbar renders exactly one LanguageSwitcher + one AuthNav, both on their default (light) variant now that there is no dark Hero band to style for",
     (() => {
       const navbarStart = pageSource.indexOf("function Navbar() {");
       const navbarEnd = pageSource.indexOf(
@@ -174,9 +187,27 @@ function checkDesktopNavUnchanged(): void {
       );
       const navbar = pageSource.slice(navbarStart, navbarEnd);
       return (
-        navbar.includes("<LanguageSwitcher variant=\"dark\" />") &&
-        navbar.includes("<AuthNav variant=\"dark\" />") &&
-        navbar.includes("{messages.landing.nav.startFree}")
+        navbar.includes("<LanguageSwitcher />") &&
+        navbar.includes("<AuthNav />") &&
+        !navbar.includes('variant="dark"')
+      );
+    })()
+  );
+
+  check(
+    "The desktop Navbar exposes real Analyze and Compare route links (not anchor scrolls, not a generic Start-free CTA)",
+    (() => {
+      const navbarStart = pageSource.indexOf("function Navbar() {");
+      const navbarEnd = pageSource.indexOf(
+        "// ─── Desktop landing: hero app-preview card"
+      );
+      const navbar = pageSource.slice(navbarStart, navbarEnd);
+      return (
+        /href="\/competitor-scripts\/analyze"/.test(navbar) &&
+        navbar.includes("{messages.landing.nav.analyze}") &&
+        /href="\/competitor-scripts\/compare"/.test(navbar) &&
+        navbar.includes("{messages.landing.nav.compare}") &&
+        !navbar.includes("startFree")
       );
     })()
   );
@@ -342,12 +373,12 @@ function checkMenuAccessibility(): void {
 
 function checkNoDuplicateControlsAtSameBreakpoint(): void {
   check(
-    "AuthNav is rendered exactly once in app/page.tsx (the desktop Navbar) — never duplicated for mobile now that the mobile header uses the shared menu instead (an optional variant=\"dark\" prop on that one instance is fine — still one render site)",
+    "AuthNav is rendered exactly once in app/page.tsx (the desktop Navbar) — never duplicated for mobile now that the mobile header uses the shared menu instead",
     (pageSource.match(/<AuthNav(\s+variant="[^"]*")?\s*\/>/g) ?? []).length === 1
   );
 
   check(
-    "LanguageSwitcher is rendered exactly twice — once for desktop (inside the hidden min-[900px]:block wrapper, using its own variant=\"dark\" prop for the black Hero band) and once for mobile (inside the min-[900px]:hidden wrapper) — never both visible at the same breakpoint",
+    "LanguageSwitcher is rendered exactly twice — once for desktop (inside the hidden min-[900px]:block wrapper) and once for mobile (inside the min-[900px]:hidden wrapper) — never both visible at the same breakpoint",
     (pageSource.match(/<LanguageSwitcher(\s+variant="[^"]*")?\s*\/>/g) ?? []).length === 2
   );
 }
