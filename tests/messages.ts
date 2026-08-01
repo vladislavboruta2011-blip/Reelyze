@@ -241,4 +241,44 @@ assert.equal(
   "Не удалось выполнить анализ. Попробуйте ещё раз."
 );
 
+// Improve Hook "rewrite" state copy (hookModal.whyItIsBetter /
+// usePromptDescription) — neutralized to remove superiority ("better than
+// the original") and directive ("use this version") framing, matching the
+// non-superiority stance the rest of the product already takes. Content is
+// asserted directly (not just presence) so the neutral wording can't
+// silently regress back to superiority/directive language.
+assert.equal(
+  getMessages("en").results.hookModal.whyItIsBetter,
+  "What changed:"
+);
+assert.equal(
+  getMessages("ru").results.hookModal.whyItIsBetter,
+  "Что изменилось:"
+);
+assert.equal(
+  getMessages("en").results.hookModal.usePromptDescription,
+  "Review this version and decide whether its direction fits your script."
+);
+assert.equal(
+  getMessages("ru").results.hookModal.usePromptDescription,
+  "Посмотрите этот вариант и решите, подходит ли его направление вашему сценарию."
+);
+
+for (const locale of ["en", "ru"] as const) {
+  const whyItIsBetter = getMessages(locale).results.hookModal.whyItIsBetter;
+  const usePromptDescription =
+    getMessages(locale).results.hookModal.usePromptDescription;
+
+  assert.doesNotMatch(
+    whyItIsBetter,
+    /better|лучше/i,
+    `${locale} hookModal.whyItIsBetter must not claim the generated hook is superior to the original`
+  );
+  assert.doesNotMatch(
+    usePromptDescription,
+    /use this version|используйте эту версию/i,
+    `${locale} hookModal.usePromptDescription must not instruct the creator to use the generated hook`
+  );
+}
+
 console.log("localized message tests: all passed");

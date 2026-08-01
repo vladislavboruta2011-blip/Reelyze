@@ -706,14 +706,14 @@ const enMessages = {
       refineSameDescription:
         "This version keeps the same promise while making the opening sharper and clearer.",
       usePromptDescription:
-        "Use this version to make the opening clearer, stronger, and more curiosity-driven.",
+        "Review this version and decide whether its direction fits your script.",
       alreadyWorksDescription:
         "This opening already creates a clear reason to keep watching.",
       workingRefineDescription:
         "The hook is working. This refinement focuses on making the opening or payoff land stronger.",
       whyNoHookGenerated: "Why no hook was generated:",
       whatThisVersionImproves: "What this version improves:",
-      whyItIsBetter: "Why it is better:",
+      whyItIsBetter: "What changed:",
       whyThisHookWorks: "Why this hook works:",
       improving: "Improving hook...",
       rewritingDescription:
@@ -2173,14 +2173,14 @@ const ruMessages = {
       refineSameDescription:
         "Эта версия сохраняет то же обещание, делая начало более чётким и острым.",
       usePromptDescription:
-        "Используйте эту версию, чтобы сделать начало более чётким, сильным и интригующим.",
+        "Посмотрите этот вариант и решите, подходит ли его направление вашему сценарию.",
       alreadyWorksDescription:
         "Это начало уже создаёт понятную причину смотреть дальше.",
       workingRefineDescription:
         "Хук уже работает. Эта доработка помогает усилить начало или развязку.",
       whyNoHookGenerated: "Почему хук не был создан:",
       whatThisVersionImproves: "Что улучшает эта версия:",
-      whyItIsBetter: "Почему это лучше:",
+      whyItIsBetter: "Что изменилось:",
       whyThisHookWorks: "Почему этот хук работает:",
       improving: "Улучшаем хук...",
       rewritingDescription:
