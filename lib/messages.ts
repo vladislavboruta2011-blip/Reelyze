@@ -172,12 +172,18 @@ const enMessages = {
       example: {
         eyebrow: "Biggest difference",
         headline:
-          "Your hook opens with a question; the competitor states the outcome first.",
+          "Your opening introduces the story generically, while the competitor leads with the specific outcome and ends on the most compelling detail.",
         yourScriptLabel: "Your script",
-        yourScriptExcerpt: "Ever wonder why some videos just take off?",
+        yourScriptExcerpt:
+          "This is the story of a man who survived 438 days in the Pacific Ocean.",
+        competitorShortLabel: "Competitor's Short",
         competitorScriptLabel: "Competitor script",
-        competitorScriptExcerpt: "This one change doubled my watch time.",
+        competitorScriptExcerpt:
+          "This man survived 438 days lost in the Pacific Ocean... completely alone.",
         timestamp: "0:00–0:02",
+        reviewLabel: "What to review",
+        reviewNote:
+          "Notice that one opening asks a question, while the other states the outcome immediately.",
         disclaimer:
           "Illustrative example — real results depend on the two scripts you submit.",
       },
@@ -195,7 +201,7 @@ const enMessages = {
       ],
       trustNote:
         "No performance prediction. No declared winner — every difference is grounded in an exact quote from your script and theirs, never a guess.",
-      cta: "Compare scripts",
+      cta: "Explore competitor scripts",
     },
     comparison: {
       badge: "Why Climpy",
@@ -1647,12 +1653,18 @@ const ruMessages = {
       example: {
         eyebrow: "Самое большое отличие",
         headline:
-          "Ваш хук начинается с вопроса, а конкурент сразу называет результат.",
+          "Ваше вступление представляет историю в общих словах, а конкурент сразу называет конкретный исход и завершает самой цепляющей деталью.",
         yourScriptLabel: "Ваш сценарий",
-        yourScriptExcerpt: "Вы когда-нибудь задумывались, почему одни видео взлетают?",
+        yourScriptExcerpt:
+          "Это история о человеке, который выжил после 438 дней в Тихом океане.",
+        competitorShortLabel: "Short конкурента",
         competitorScriptLabel: "Сценарий конкурента",
-        competitorScriptExcerpt: "Это одно изменение удвоило время просмотра.",
+        competitorScriptExcerpt:
+          "Этот мужчина выжил, потерявшись в Тихом океане на 438 дней... совершенно один.",
         timestamp: "0:00–0:02",
+        reviewLabel: "На что обратить внимание",
+        reviewNote:
+          "Обратите внимание: один сценарий начинается с вопроса, а другой сразу называет результат.",
         disclaimer:
           "Иллюстративный пример — реальный результат зависит от двух сценариев, которые вы отправите.",
       },
@@ -1670,7 +1682,7 @@ const ruMessages = {
       ],
       trustNote:
         "Без прогноза эффективности. Без объявленного победителя — каждое отличие подтверждено точной цитатой из вашего сценария и сценария конкурента, а не догадкой.",
-      cta: "Сравнить сценарии",
+      cta: "Открыть сценарии конкурентов",
     },
     comparison: {
       badge: "Почему Climpy",

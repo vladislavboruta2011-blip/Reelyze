@@ -281,4 +281,110 @@ for (const locale of ["en", "ru"] as const) {
   );
 }
 
+// Landing Compare preview — "What to review" line. Added alongside the
+// existing example.* keys (eyebrow/headline/excerpts/timestamp/disclaimer,
+// all unchanged) to describe the one visible difference between the two
+// excerpts without ranking either side: no curiosity/strength/performance
+// comparison, no correctness claim, no instruction to copy the competitor.
+assert.equal(
+  getMessages("en").landing.compareWorkflow.example.reviewLabel,
+  "What to review"
+);
+assert.equal(
+  getMessages("en").landing.compareWorkflow.example.reviewNote,
+  "Notice that one opening asks a question, while the other states the outcome immediately."
+);
+assert.equal(
+  getMessages("ru").landing.compareWorkflow.example.reviewLabel,
+  "На что обратить внимание"
+);
+assert.equal(
+  getMessages("ru").landing.compareWorkflow.example.reviewNote,
+  "Обратите внимание: один сценарий начинается с вопроса, а другой сразу называет результат."
+);
+
+for (const locale of ["en", "ru"] as const) {
+  const reviewNote =
+    getMessages(locale).landing.compareWorkflow.example.reviewNote;
+
+  assert.doesNotMatch(
+    reviewNote,
+    /stronger|weaker|better|worse|perform|guarantee|correct|copy|curiosity|should|will get/i,
+    `${locale} compareWorkflow.example.reviewNote must describe only the visible difference, never rank, predict, or instruct`
+  );
+  assert.doesNotMatch(
+    reviewNote,
+    /сильнее|слабее|лучше|хуже|выступит|гарант|правильн|копир|любопытств|должен|стоит/i,
+    `${locale} compareWorkflow.example.reviewNote must describe only the visible difference, never rank, predict, or instruct`
+  );
+}
+
+// Landing Compare preview — final approved example copy (Your Script,
+// Competitor Script, Biggest Difference) and the "Competitor's Short"
+// thumbnail label. Content asserted exactly so the illustrative example
+// can't silently drift, and the competitor excerpt's ellipsis is checked
+// explicitly since it creates the intended pause in the displayed example.
+assert.equal(
+  getMessages("en").landing.compareWorkflow.example.competitorShortLabel,
+  "Competitor's Short"
+);
+assert.equal(
+  getMessages("ru").landing.compareWorkflow.example.competitorShortLabel,
+  "Short конкурента"
+);
+
+assert.equal(
+  getMessages("en").landing.compareWorkflow.example.yourScriptExcerpt,
+  "This is the story of a man who survived 438 days in the Pacific Ocean."
+);
+assert.equal(
+  getMessages("ru").landing.compareWorkflow.example.yourScriptExcerpt,
+  "Это история о человеке, который выжил после 438 дней в Тихом океане."
+);
+
+assert.equal(
+  getMessages("en").landing.compareWorkflow.example.competitorScriptExcerpt,
+  "This man survived 438 days lost in the Pacific Ocean... completely alone."
+);
+assert.equal(
+  getMessages("ru").landing.compareWorkflow.example.competitorScriptExcerpt,
+  "Этот мужчина выжил, потерявшись в Тихом океане на 438 дней... совершенно один."
+);
+assert.ok(
+  getMessages("en").landing.compareWorkflow.example.competitorScriptExcerpt.includes(
+    "..."
+  ),
+  "EN competitorScriptExcerpt must preserve the ellipsis before \"completely alone\" — it creates the intended pause"
+);
+assert.ok(
+  getMessages("ru").landing.compareWorkflow.example.competitorScriptExcerpt.includes(
+    "..."
+  ),
+  "RU competitorScriptExcerpt must preserve the ellipsis before \"совершенно один\" — it creates the intended pause"
+);
+
+assert.equal(
+  getMessages("en").landing.compareWorkflow.example.headline,
+  "Your opening introduces the story generically, while the competitor leads with the specific outcome and ends on the most compelling detail."
+);
+assert.equal(
+  getMessages("ru").landing.compareWorkflow.example.headline,
+  "Ваше вступление представляет историю в общих словах, а конкурент сразу называет конкретный исход и завершает самой цепляющей деталью."
+);
+
+for (const locale of ["en", "ru"] as const) {
+  const headline = getMessages(locale).landing.compareWorkflow.example.headline;
+
+  assert.doesNotMatch(
+    headline,
+    /guarantee[ds]?|will perform|performs? better|outperform|winner|\bwins\b|beats|causes?\b|leads? to|results? in/i,
+    `${locale} compareWorkflow.example.headline must not claim guaranteed performance, a causal outcome, or a declared winner`
+  );
+  assert.doesNotMatch(
+    headline,
+    /гарант|победител|побеждает|выступит лучше|сработает лучше|приводит к|из-за этого/i,
+    `${locale} compareWorkflow.example.headline must not claim guaranteed performance, a causal outcome, or a declared winner`
+  );
+}
+
 console.log("localized message tests: all passed");

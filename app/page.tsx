@@ -1092,38 +1092,82 @@ function CompareWorkflowSection() {
       </div>
 
       <div className="mt-14 grid grid-cols-1 items-start gap-8 lg:grid-cols-[1.05fr_0.95fr]">
-        {/* One real visual example — grounded evidence, not a generic mockup */}
-        <div className="rounded-[28px] border border-[#DDD6FE] bg-white p-7 shadow-[0_28px_90px_rgba(124,58,237,0.12)]">
-          <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[#7C3AED]">
-            {copy.example.eyebrow}
-          </p>
-          <p className="mt-3 text-[19px] font-semibold leading-[1.4] text-[#111827]">
-            {copy.example.headline}
-          </p>
-
-          <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="rounded-[16px] border border-[#E5E7EB] bg-[#F8F8FC] px-4 py-3.5">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
-                {copy.example.yourScriptLabel}
+        {/* A real 9:16 frame as a quiet authenticity cue (labeled
+            "Competitor's Short" so it's understandable even if it's the
+            first thing someone notices) beside the actual comparison
+            content — Your Script, Competitor Script, Biggest Difference.
+            The image is shown at full brightness/saturation (no global
+            filter wash) — only the play icon and duration badge get
+            localized dark backgrounds for legibility — so it reads as
+            an authentic frame, not a stylized mockup. Kept deliberately
+            minimal otherwise: no dimension tags, no per-quote
+            observations, no highlighted phrases, no "what to review"
+            line, no second caption layer over an image that already has
+            real burned-in text. */}
+        <div className="rounded-[24px] border border-[#BFDBFE] bg-[#F5F9FF] p-6 shadow-[0_20px_60px_rgba(37,99,235,0.08)] lg:p-7">
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-stretch">
+            <div className="flex shrink-0 flex-col sm:w-[168px]">
+              <p className="mb-2 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
+                {copy.example.competitorShortLabel}
               </p>
-              <p className="mt-1.5 text-[13.5px] italic leading-[1.55] text-[#374151]">
-                &ldquo;{copy.example.yourScriptExcerpt}&rdquo;
-              </p>
-            </div>
-            <div className="rounded-[16px] border-l-2 border-[#DDD6FE] bg-[#FAF7FF] px-4 py-3.5">
-              <div className="flex items-baseline justify-between gap-2">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#7C3AED]">
-                  {copy.example.competitorScriptLabel}
-                </p>
-                <span className="text-[11px] tabular-nums text-[#9CA3AF]">{copy.example.timestamp}</span>
+              <div className="relative aspect-[9/16] w-full overflow-hidden rounded-[14px] border border-[#E5E7EB]">
+                <Image
+                  src="/compare-preview-short.jpg"
+                  alt=""
+                  fill
+                  sizes="168px"
+                  className="object-cover"
+                />
+                <div className="absolute inset-0 flex items-center justify-center" aria-hidden="true">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-black/40">
+                    <Play className="h-3.5 w-3.5 fill-white/90 text-white/90" />
+                  </div>
+                </div>
+                <span
+                  aria-hidden="true"
+                  className="absolute bottom-1.5 right-1.5 rounded-[4px] bg-black/55 px-1.5 py-0.5 text-[9px] font-semibold tabular-nums text-white"
+                >
+                  0:23
+                </span>
               </div>
-              <p className="mt-1.5 text-[13.5px] italic leading-[1.55] text-[#374151]">
-                &ldquo;{copy.example.competitorScriptExcerpt}&rdquo;
-              </p>
+            </div>
+
+            <div className="flex flex-1 flex-col justify-between gap-3">
+              <div className="rounded-[12px] border-l-2 border-[#E5E7EB] bg-white px-3.5 py-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
+                  {copy.example.yourScriptLabel}
+                </p>
+                <p className="mt-1.5 text-[13.5px] italic leading-[1.55] text-[#111827]">
+                  &ldquo;{copy.example.yourScriptExcerpt}&rdquo;
+                </p>
+              </div>
+
+              <div className="rounded-[12px] border-l-2 border-[#93C5FD] bg-white px-3.5 py-3">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#2563EB]">
+                    {copy.example.competitorScriptLabel}
+                  </p>
+                  <span className="text-[11px] tabular-nums text-[#9CA3AF]">
+                    {copy.example.timestamp}
+                  </span>
+                </div>
+                <p className="mt-1.5 text-[13.5px] italic leading-[1.55] text-[#111827]">
+                  &ldquo;{copy.example.competitorScriptExcerpt}&rdquo;
+                </p>
+              </div>
+
+              <div className="rounded-[14px] border border-[#BFDBFE] bg-[#EFF6FF] px-4 py-3.5">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#2563EB]">
+                  {copy.example.eyebrow}
+                </p>
+                <p className="mt-1.5 text-[15px] font-semibold leading-[1.5] text-[#111827] lg:text-[16px]">
+                  {copy.example.headline}
+                </p>
+              </div>
             </div>
           </div>
 
-          <p className="mt-5 rounded-[14px] border border-[#E5E7EB] bg-[#F8F8FC] px-4 py-3 text-[13px] leading-[1.6] text-[#6B7280]">
+          <p className="mt-4 text-[12px] leading-[1.6] text-[#9CA3AF]">
             {copy.example.disclaimer}
           </p>
         </div>
@@ -1163,7 +1207,7 @@ function CompareWorkflowSection() {
           </p>
 
           <Link
-            href="/competitor-scripts/compare"
+            href="/competitor-scripts"
             className="inline-flex h-[52px] w-fit items-center justify-center gap-2.5 rounded-[12px] bg-gradient-to-r from-[#6D28D9] to-[#7C3AED] px-7 text-[16px] font-semibold text-white shadow-[0_0_24px_rgba(124,58,237,0.24)] transition hover:from-[#7C3AED] hover:to-[#8B5CF6] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7C3AED]"
           >
             {copy.cta}
@@ -2287,9 +2331,14 @@ export default function HomePage() {
             </div>
           </section>
 
-          {/* Compact mobile Compare section — same input/output/no-claims
-              content as the desktop CompareWorkflowSection, stacked instead
-              of the two-column desktop layout. */}
+          {/* Compact mobile Compare section — same section-level heading,
+              description, trust note, and CTA as desktop. The preview
+              shows the real 9:16 frame first (small, quietly labeled,
+              full brightness/saturation same as desktop), then the
+              actual comparison content (Your script, Competitor script,
+              Biggest Difference), then the disclaimer — fully stacked.
+              Deliberately minimal — no "what to review" line, no
+              per-quote observations, no dimension tags. */}
           <section className="mt-8 rounded-[24px] border border-[#DDD6FE] bg-white p-5">
             <p className="text-[12px] font-semibold uppercase tracking-[0.1em] text-[#7C3AED]">
               {messages.landing.compareWorkflow.badge}
@@ -2302,12 +2351,69 @@ export default function HomePage() {
               {messages.landing.compareWorkflow.description}
             </p>
 
-            <div className="mt-4 rounded-[16px] border border-[#E5E7EB] bg-[#F8F8FC] px-4 py-3.5">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
-                {messages.landing.compareWorkflow.example.competitorScriptLabel}
-              </p>
-              <p className="mt-1 text-[12.5px] italic leading-[1.5] text-[#374151]">
-                &ldquo;{messages.landing.compareWorkflow.example.competitorScriptExcerpt}&rdquo;
+            <div className="mt-4 rounded-[20px] border border-[#BFDBFE] bg-[#F5F9FF] p-4">
+              <div className="flex flex-col items-center">
+                <p className="mb-2 self-start text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
+                  {messages.landing.compareWorkflow.example.competitorShortLabel}
+                </p>
+                <div className="relative aspect-[9/16] w-[150px] overflow-hidden rounded-[12px] border border-[#E5E7EB]">
+                  <Image
+                    src="/compare-preview-short.jpg"
+                    alt=""
+                    fill
+                    sizes="150px"
+                    className="object-cover"
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center" aria-hidden="true">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-black/40">
+                      <Play className="h-3.5 w-3.5 fill-white/90 text-white/90" />
+                    </div>
+                  </div>
+                  <span
+                    aria-hidden="true"
+                    className="absolute bottom-1.5 right-1.5 rounded-[4px] bg-black/55 px-1.5 py-0.5 text-[9px] font-semibold tabular-nums text-white"
+                  >
+                    0:23
+                  </span>
+                </div>
+              </div>
+
+              <div className="mt-3 flex flex-col gap-2.5">
+                <div className="rounded-[12px] border-l-[3px] border-[#E5E7EB] bg-white px-3.5 py-3">
+                  <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
+                    {messages.landing.compareWorkflow.example.yourScriptLabel}
+                  </p>
+                  <p className="mt-1 text-[12.5px] italic leading-[1.5] text-[#111827]">
+                    &ldquo;{messages.landing.compareWorkflow.example.yourScriptExcerpt}&rdquo;
+                  </p>
+                </div>
+
+                <div className="rounded-[12px] border-l-[3px] border-[#93C5FD] bg-white px-3.5 py-3">
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[#2563EB]">
+                      {messages.landing.compareWorkflow.example.competitorScriptLabel}
+                    </p>
+                    <span className="text-[10.5px] tabular-nums text-[#9CA3AF]">
+                      {messages.landing.compareWorkflow.example.timestamp}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-[12.5px] italic leading-[1.5] text-[#111827]">
+                    &ldquo;{messages.landing.compareWorkflow.example.competitorScriptExcerpt}&rdquo;
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-3 rounded-[12px] border border-[#BFDBFE] bg-[#EFF6FF] px-3.5 py-3">
+                <p className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-[#2563EB]">
+                  {messages.landing.compareWorkflow.example.eyebrow}
+                </p>
+                <p className="mt-1 text-[13px] font-semibold leading-[1.5] text-[#111827]">
+                  {messages.landing.compareWorkflow.example.headline}
+                </p>
+              </div>
+
+              <p className="mt-3 text-[11.5px] leading-[1.55] text-[#9CA3AF]">
+                {messages.landing.compareWorkflow.example.disclaimer}
               </p>
             </div>
 
@@ -2316,7 +2422,7 @@ export default function HomePage() {
             </p>
 
             <Link
-              href="/competitor-scripts/compare"
+              href="/competitor-scripts"
               className="mt-4 inline-flex h-[48px] w-full items-center justify-center gap-2 rounded-[14px] bg-gradient-to-r from-[#6D28D9] to-[#7C3AED] text-[14px] font-semibold text-white transition hover:from-[#7C3AED] hover:to-[#8B5CF6]"
             >
               {messages.landing.compareWorkflow.cta}
@@ -2335,7 +2441,7 @@ export default function HomePage() {
             </p>
 
             <Link
-              href="/competitor-scripts/analyze"
+              href="/competitor-scripts"
               className="mt-5 inline-flex h-[48px] w-full items-center justify-center gap-2 rounded-[14px] bg-[#6D28D9] text-[14px] font-semibold text-white transition hover:bg-[#7C3AED]"
             >
               {messages.landing.mobile.tryClimpy}
